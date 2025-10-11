@@ -25,28 +25,37 @@ const WareHouse = () => {
   const companyId = GetCompanyId();
   const [showUOMModal, setShowUOMModal] = useState(false);
 
-  // ✅ Fetch Warehouses from API
   useEffect(() => {
     const fetchWarehouses = async () => {
       try {
         setLoading(true);
-        const response = await axiosInstance.get("/warehouses");
-
-        if (response.data.status && Array.isArray(response.data.data)) {
-          const filteredAndMapped = response.data.data
-            .filter((w) => w.company_id == companyId)
-            .map((w) => ({
-              _id: w.id.toString(),
-              name: w.warehouse_name,
-              location: w.location,
-              totalStocks: 0,
-            }));
-
-          setWarehouses(filteredAndMapped);
+        const response = await axiosInstance.get("warehouses");
+  
+        // Handle different response formats
+        let warehouseData = [];
+  
+        if (Array.isArray(response.data)) {
+          // Assume it's a direct array of warehouse objects
+          warehouseData = response.data;
+        } else if (response.data && Array.isArray(response.data.data)) {
+          // Handle the original expected format
+          warehouseData = response.data.data;
         } else {
-          setError("Unexpected response format");
-          setWarehouses([]);
+          throw new Error("Response is neither an array nor an object with 'data' array");
         }
+  
+        // Filter and map as before
+        const filteredAndMapped = warehouseData
+          .filter((w) => w.company_id == companyId)
+          .map((w) => ({
+            _id: w.id?.toString() || w._id?.toString(), // Fallback if 'id' is missing
+            name: w.warehouse_name || w.name,
+            location: w.location,
+            totalStocks: 0,
+          }));
+  
+        setWarehouses(filteredAndMapped);
+  
       } catch (err) {
         console.error("Error fetching warehouses:", err);
         setError("Failed to load warehouses. Please try again.");
@@ -55,7 +64,7 @@ const WareHouse = () => {
         setLoading(false);
       }
     };
-
+  
     if (companyId) {
       fetchWarehouses();
     } else {
@@ -63,7 +72,6 @@ const WareHouse = () => {
       setError("Company ID not found.");
     }
   }, [companyId]);
-
   const handleModalClose = () => {
     setShowModal(false);
     setWarehouseName("");

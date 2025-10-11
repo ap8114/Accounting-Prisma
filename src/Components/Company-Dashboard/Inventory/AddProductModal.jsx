@@ -140,7 +140,7 @@ const AddProductModal = ({
     const fetchCategories = async () => {
       setIsLoadingCategories(true);
       try {
-        const response = await axios.get(`${BaseUrl}itemcategory`);
+        const response = await axios.get(`${BaseUrl}item-categories`);
         if (response.data?.status && Array.isArray(response.data.data)) {
           const categoryNames = response.data.data.map(cat => cat.item_category_name);
           setFetchedCategories(categoryNames);
@@ -204,7 +204,7 @@ const AddProductModal = ({
         item_category_name: newCategory.trim(),
       });
 
-      const res = await axios.get(`${BaseUrl}itemcategory`);
+      const res = await axios.get(`${BaseUrl}item-categories`);
       if (res.data?.status && Array.isArray(res.data.data)) {
         const names = res.data.data.map(c => c.item_category_name);
         setFetchedCategories(names);
@@ -228,7 +228,7 @@ const AddProductModal = ({
       // Get category ID
       let categoryId = 1;
       try {
-        const res = await axios.get(`${BaseUrl}itemcategory`);
+        const res = await axios.get(`${BaseUrl}item-categories`);
         if (res.data?.status && Array.isArray(res.data.data)) {
           const cat = res.data.data.find(c => c.item_category_name === localNewItem.itemCategory);
           if (cat) categoryId = cat.id;
@@ -299,7 +299,7 @@ const AddProductModal = ({
     try {
       let categoryId = 1;
       try {
-        const res = await axios.get(`${BaseUrl}itemcategory`);
+        const res = await axios.get(`${BaseUrl}item-categories`);
         if (res.data?.status && Array.isArray(res.data.data)) {
           const cat = res.data.data.find(c => c.item_category_name === localNewItem.itemCategory);
           if (cat) categoryId = cat.id;

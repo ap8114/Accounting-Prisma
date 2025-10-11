@@ -26,7 +26,7 @@ const RequestPlan = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const response = await axios.get(`${BaseUrl}requestplan`);
+        const response = await axios.get(`${BaseUrl}requestforplan`);
         if (response.data && Array.isArray(response.data.data)) {
           const formattedPlans = response.data.data.map(item => ({
             id: item.id,
