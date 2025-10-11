@@ -155,7 +155,6 @@ const Login = () => {
           password,
         }
       );
-
      
       const { token, user } = response.data;
 
@@ -272,4 +271,3 @@ const Login = () => {
 };
 
 export default Login;
-
