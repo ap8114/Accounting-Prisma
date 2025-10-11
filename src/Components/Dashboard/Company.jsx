@@ -56,18 +56,17 @@ const Company = () => {
     plan: "",
     startDate: "",
     endDate: "",
-    search: "", // NEW: Added search field to filter state
+    search: "",
   });
   const [newCompany, setNewCompany] = useState({
     name: "",
     email: "",
-    date: "",
-    expired: "",
-    plan: "",
-    planType: "",
-    avatar: null,
-    avatarPreview: "",
-    phoneNumber: "",
+    start_date: "",
+    expire_date: "",
+    plan_id: "",
+    plan_type: "",
+    logo: null,
+    logoPreview: "",
     password: "",
     confirmPassword: "",
   });
@@ -188,8 +187,8 @@ const Company = () => {
       email: company.email,
       plan_id: company.plan_id,
       plan_type: company.plan_type,
-      start_date: company.start_date,
-      expire_date: company.expire_date,
+      start_date: company.start_date.split("T")[0], // Format date for input
+      expire_date: company.expire_date.split("T")[0], // Format date for input
       logo: null,
       logoPreview: company.logo_url || "",
     });
@@ -307,10 +306,10 @@ const Company = () => {
     if (
       !newCompany.name ||
       !newCompany.email ||
-      !newCompany.date ||
-      !newCompany.expired ||
-      !newCompany.plan ||
-      !newCompany.planType ||
+      !newCompany.start_date ||
+      !newCompany.expire_date ||
+      !newCompany.plan_id ||
+      !newCompany.plan_type ||
       !newCompany.password
     ) {
       alert("Please fill all required fields.");
@@ -328,14 +327,14 @@ const Company = () => {
       formData.append("name", newCompany.name);
       formData.append("email", newCompany.email);
       formData.append("password", newCompany.password);
-      formData.append("start_date", newCompany.date);
-      formData.append("expire_date", newCompany.expired);
-      formData.append("plan_id", parseInt(newCompany.plan));
-      formData.append("plan_type", newCompany.planType.toLowerCase());
+      formData.append("start_date", newCompany.start_date);
+      formData.append("expire_date", newCompany.expire_date);
+      formData.append("plan_id", parseInt(newCompany.plan_id));
+      formData.append("plan_type", newCompany.plan_type.toLowerCase());
 
       // Append image if exists
-      if (newCompany.avatar) {
-        formData.append("logo", newCompany.avatar);
+      if (newCompany.logo) {
+        formData.append("logo", newCompany.logo);
       }
 
       // Make API call
@@ -373,20 +372,19 @@ const Company = () => {
   // Function to reset form and clean up resources
   const resetForm = () => {
     // Revoke object URL to avoid memory leaks
-    if (newCompany.avatarPreview) {
-      URL.revokeObjectURL(newCompany.avatarPreview);
+    if (newCompany.logoPreview) {
+      URL.revokeObjectURL(newCompany.logoPreview);
     }        
 
     setNewCompany({
       name: "",
       email: "",
-      date: "",
-      expired: "",
-      plan: "",
-      planType: "",
-      avatar: null,
-      avatarPreview: "",
-      phoneNumber: "",
+      start_date: "",
+      expire_date: "",
+      plan_id: "",
+      plan_type: "",
+      logo: null,
+      logoPreview: "",
       password: "",
       confirmPassword: "",
     });
@@ -956,9 +954,9 @@ const Company = () => {
                       overflow: "hidden",
                     }}
                   >
-                    {newCompany.avatarPreview ? (
+                    {newCompany.logoPreview ? (
                       <img
-                        src={newCompany.avatarPreview}
+                        src={newCompany.logoPreview}
                         alt="Logo"
                         style={{
                           width: "100%",
@@ -998,16 +996,16 @@ const Company = () => {
                           }
 
                           // Revoke previous preview URL if exists
-                          if (newCompany.avatarPreview) {
-                            URL.revokeObjectURL(newCompany.avatarPreview);
+                          if (newCompany.logoPreview) {
+                            URL.revokeObjectURL(newCompany.logoPreview);
                           }
 
                           // Create preview URL
                           const previewUrl = URL.createObjectURL(file);
                           setNewCompany({
                             ...newCompany,
-                            avatar: file,
-                            avatarPreview: previewUrl,
+                            logo: file,
+                            logoPreview: previewUrl,
                           });
                         }
                       }}
@@ -1021,18 +1019,18 @@ const Company = () => {
                     >
                       Choose Logo
                     </label>
-                    {newCompany.avatarPreview && (
+                    {newCompany.logoPreview && (
                       <button
                         type="button"
                         className="btn btn-sm btn-outline-danger"
                         onClick={() => {
-                          if (newCompany.avatarPreview) {
-                            URL.revokeObjectURL(newCompany.avatarPreview);
+                          if (newCompany.logoPreview) {
+                            URL.revokeObjectURL(newCompany.logoPreview);
                           }
                           setNewCompany({
                             ...newCompany,
-                            avatar: null,
-                            avatarPreview: "",
+                            logo: null,
+                            logoPreview: "",
                           });
                         }}
                         style={{ padding: "6px 12px", fontSize: "0.85rem" }}
@@ -1082,9 +1080,9 @@ const Company = () => {
                     <input
                       type="date"
                       className="form-control"
-                      value={newCompany.date}
+                      value={newCompany.start_date}
                       onChange={(e) =>
-                        setNewCompany({ ...newCompany, date: e.target.value })
+                        setNewCompany({ ...newCompany, start_date: e.target.value })
                       }
                     />
                   </div>
@@ -1096,11 +1094,11 @@ const Company = () => {
                     <input
                       type="date"
                       className="form-control"
-                      value={newCompany.expired}
+                      value={newCompany.expire_date}
                       onChange={(e) =>
                         setNewCompany({
                           ...newCompany,
-                          expired: e.target.value,
+                          expire_date: e.target.value,
                         })
                       }
                     />
@@ -1112,9 +1110,9 @@ const Company = () => {
                     </label>
                     <select
                       className="form-select"
-                      value={newCompany.plan}
+                      value={newCompany.plan_id}
                       onChange={(e) =>
-                        setNewCompany({ ...newCompany, plan: e.target.value })
+                        setNewCompany({ ...newCompany, plan_id: e.target.value })
                       }
                     >
                       <option value="">Select Plan</option>
@@ -1132,10 +1130,10 @@ const Company = () => {
                     </label>
                     <select
                       className="form-select"
-                      value={newCompany.planType}
+                      value={newCompany.plan_type}
                       onChange={(e) => {
                         const type = e.target.value;
-                        setNewCompany({ ...newCompany, planType: type });
+                        setNewCompany({ ...newCompany, plan_type: type });
                         // Auto-calculate dates
                         if (type) {
                           const startDate = new Date();
@@ -1150,8 +1148,8 @@ const Company = () => {
                             date.toISOString().split("T")[0];
                           setNewCompany((prev) => ({
                             ...prev,
-                            date: formatDate(startDate),
-                            expired: formatDate(endDate),
+                            start_date: formatDate(startDate),
+                            expire_date: formatDate(endDate),
                           }));
                         }
                       }}
