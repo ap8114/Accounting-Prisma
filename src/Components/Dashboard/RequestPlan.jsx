@@ -5,7 +5,6 @@ import "./RequestPlan.css";
 import axios from "axios";
 import BaseUrl from "../../Api/BaseUrl";
 
-// Initial empty state
 const initialPlans = [];
 
 const planMapping = {
@@ -20,16 +19,30 @@ const RequestPlan = () => {
   const [plans, setPlans] = useState(initialPlans);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [actionLoading, setActionLoading] = useState({}); // Track loading per row
+  const [actionLoading, setActionLoading] = useState({});
 
-  // Fetch data on mount
+  // ✅ Fetch Plans
   useEffect(() => {
     const fetchPlans = async () => {
       try {
         const response = await axios.get(`${BaseUrl}requestforplan`);
+<<<<<<< HEAD
         if (response.data && Array.isArray(response.data.data)) {
           const formattedPlans = response.data.data.map(item => ({
             id: item.id,
+=======
+
+        let fetchedData = response.data?.data || response.data;
+
+        // ✅ Agar single object aaya hai to array me convert karo
+        if (fetchedData && !Array.isArray(fetchedData)) {
+          fetchedData = [fetchedData];
+        }
+
+        if (Array.isArray(fetchedData)) {
+          const formattedPlans = fetchedData.map(item => ({
+            id: item.id || item.company, // fallback agar id na ho
+>>>>>>> f779c21385a5f7b36b851d156a244cfcf44964f7
             company: item.company,
             email: item.email,
             plan: item.plan,
@@ -41,6 +54,7 @@ const RequestPlan = () => {
         } else {
           throw new Error("Invalid data structure from API");
         }
+
       } catch (err) {
         console.error("Axios fetch error:", err);
         setError("Failed to load requested plans. Please try again later.");
@@ -52,38 +66,28 @@ const RequestPlan = () => {
     fetchPlans();
   }, []);
 
-  // ✅ PUT API for updating plan status
+  // ✅ Update Plan Status (PUT)
   const handleAction = async (index, newStatus) => {
     const planToUpdate = plans[index];
     const planId = planToUpdate.id;
 
-    // Optimistic UI update
     const updatedPlans = [...plans];
     updatedPlans[index].status = newStatus;
     setPlans(updatedPlans);
 
-    // Set loading for this row
     setActionLoading(prev => ({ ...prev, [planId]: true }));
 
     try {
-      // ✅ PUT request to update status
-      await axios.put(`${BaseUrl}requestplan/${planId}`, {
+      await axios.put(`${BaseUrl}requestforplan/${planId}`, {
         status: newStatus
       });
-
-      // Success: status updated on backend
-      console.log(`Plan ID ${planId} status updated to ${newStatus}`);
-
+      console.log(`Plan ID ${planId} updated to ${newStatus}`);
     } catch (err) {
       console.error("Failed to update plan status:", err);
-
-      // Revert optimistic update on error
       updatedPlans[index].status = planToUpdate.status;
       setPlans(updatedPlans);
-
       alert("Failed to update status. Please try again.");
     } finally {
-      // Stop loading for this row
       setActionLoading(prev => ({ ...prev, [planId]: false }));
     }
   };
@@ -183,16 +187,8 @@ const RequestPlan = () => {
                 {plans.length > 0 ? (
                   plans.map((user, idx) => (
                     <tr key={idx}>
-                      <td className="px-2 px-sm-3 py-3 d-none d-sm-table-cell">
-                        <span className="text-truncate d-inline-block" style={{ maxWidth: '150px' }}>
-                          {user.company}
-                        </span>
-                      </td>
-                      <td className="d-none d-md-table-cell">
-                        <span className="text-truncate d-inline-block" style={{ maxWidth: '150px' }}>
-                          {user.email}
-                        </span>
-                      </td>
+                      <td className="px-2 px-sm-3 py-3 d-none d-sm-table-cell">{user.company}</td>
+                      <td className="d-none d-md-table-cell">{user.email}</td>
                       <td>
                         <span
                           className="px-2 px-sm-3 py-1 rounded-pill d-inline-block text-dark fw-semibold"
@@ -208,7 +204,7 @@ const RequestPlan = () => {
                       <td className="d-none d-lg-table-cell">{user.billing}</td>
                       <td className="d-none d-md-table-cell">{user.date}</td>
                       <td>{getStatusBadge(user.status)}</td>
-                      <td>{renderActionButtons(user.status, idx, user.id)}</td> {/* ✅ Pass id for loading state */}
+                      <td>{renderActionButtons(user.status, idx, user.id)}</td>
                     </tr>
                   ))
                 ) : (
@@ -221,31 +217,6 @@ const RequestPlan = () => {
               </tbody>
             </table>
           </div>
-
-          {plans.length > 0 && (
-            <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center px-3 py-2 border-top">
-             
-              <nav>
-                <ul className="pagination pagination-sm mb-0">
-                  <li className="page-item disabled">
-                    <button className="page-link">«</button>
-                  </li>
-                  <li className="page-item active">
-                    <button className="page-link">1</button>
-                  </li>
-                  <li className="page-item">
-                    <button className="page-link">2</button>
-                  </li>
-                  <li className="page-item">
-                    <button className="page-link">3</button>
-                  </li>
-                  <li className="page-item">
-                    <button className="page-link">»</button>
-                  </li>
-                </ul>
-              </nav>
-            </div>
-          )}
         </div>
       </div>
     </div>
