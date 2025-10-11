@@ -4,6 +4,7 @@ import { Modal, Form, Button } from "react-bootstrap";
 import Swal from "sweetalert2";
 import axios from "axios";
 import BaseUrl from "../../../Api/BaseUrl";
+import axiosInstance from "../../../Api/axiosInstance";
 
 const AddModuleModal = ({ show, handleClose, onModuleAdded }) => {
   const [moduleData, setModuleData] = useState({
@@ -32,11 +33,7 @@ const AddModuleModal = ({ show, handleClose, onModuleAdded }) => {
     try {
       setIsSubmitting(true);
       
-      const response = await axios.post(
-        `${BaseUrl}modules`, 
-        moduleData
-      );
-      
+      const response = await axiosInstance.post("modules", moduleData);
       Swal.fire({
         icon: "success",
         title: "Success",
