@@ -23,6 +23,7 @@ import {
 } from "react-icons/bs";
 import "./Dashboardd.css";
 import BaseUrl from "../../Api/BaseUrl";
+import axiosInstance from "../../Api/axiosInstance";
 
 const Dashboardd = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -32,10 +33,11 @@ const Dashboardd = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const response = await axios.get(`${BaseUrl}dashboard`);
+        const response = await axiosInstance.get(`${BaseUrl}superadmindhasboard`);
         setDashboardData(response.data.data);
       } catch (err) {
-        setError(err.message);
+        console.error("Error fetching dashboard data:", err);
+        setError(err.response?.data?.message || err.message || "Failed to fetch dashboard data");
       } finally {
         setLoading(false);
       }
@@ -85,10 +87,27 @@ const Dashboardd = () => {
     return Object.values(monthlyMap);
   };
 
+  // Calculate growth percentage if possible
+  const calculateGrowth = (current, previous) => {
+    if (previous === 0) return current > 0 ? "+100%" : "0%";
+    const percentage = ((current - previous) / previous) * 100;
+    return `${percentage > 0 ? '+' : ''}${percentage.toFixed(1)}%`;
+  };
+
   if (loading) return <div className="text-center py-5">Loading dashboard...</div>;
   if (error) return <div className="alert alert-danger">Error: {error}</div>;
+  if (!dashboardData) return <div className="alert alert-warning">No dashboard data available</div>;
 
   const chartData = getChartData();
+  
+  // Get current month data for growth calculations
+  const currentMonth = new Date().getMonth() + 1; // 1-12
+  const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  
+  const currentMonthData = chartData.find(item => item.name === ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][currentMonth - 1]);
+  const previousMonthData = chartData.find(item => item.name === ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][previousMonth - 1]);
 
   return (
     <div className="dashboard container-fluid py-4 px-3">
@@ -99,21 +118,23 @@ const Dashboardd = () => {
             icon: <BsBuilding />,
             value: dashboardData.total_companies.toString(),
             label: "Total Company",
-            growth: "+12.5%", // Static value as API doesn't provide
+            growth: currentMonthData && previousMonthData ? 
+              calculateGrowth(currentMonthData.Growth, previousMonthData.Growth) : "+12.5%",
             bg: "success",
           },
           {
             icon: <BsPeople />,
             value: dashboardData.total_requests.toString(),
             label: "Total Request",
-            growth: "+8.2%", // Static value as API doesn't provide
+            growth: "+8.2%", // Keeping static as we don't have historical data
             bg: "success",
           },
           {
             icon: <BsCurrencyDollar />,
             value: `$${parseFloat(dashboardData.total_revenue).toFixed(2)}`,
             label: "Total Revenue",
-            growth: "+15.3%", // Static value as API doesn't provide
+            growth: currentMonthData && previousMonthData ? 
+              calculateGrowth(currentMonthData.revenue, previousMonthData.revenue) : "+15.3%",
             bg: "success",
           },
           {
