@@ -26,6 +26,11 @@ const RequestPlan = () => {
     const fetchPlans = async () => {
       try {
         const response = await axios.get(`${BaseUrl}requestforplan`);
+<<<<<<< HEAD
+        if (response.data && Array.isArray(response.data.data)) {
+          const formattedPlans = response.data.data.map(item => ({
+            id: item.id,
+=======
 
         let fetchedData = response.data?.data || response.data;
 
@@ -37,6 +42,7 @@ const RequestPlan = () => {
         if (Array.isArray(fetchedData)) {
           const formattedPlans = fetchedData.map(item => ({
             id: item.id || item.company, // fallback agar id na ho
+>>>>>>> f779c21385a5f7b36b851d156a244cfcf44964f7
             company: item.company,
             email: item.email,
             plan: item.plan,
