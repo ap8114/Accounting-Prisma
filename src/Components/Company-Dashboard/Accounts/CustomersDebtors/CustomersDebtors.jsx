@@ -188,7 +188,7 @@ const CustomersDebtors = () => {
       setError(null);
 
       const response = await axiosInstance.get(
-        `${BaseUrl}customers/getCustomersByCompany/${companyId}`
+        `customers/company/${companyId}`
       );
 
       if (response.data.status) {

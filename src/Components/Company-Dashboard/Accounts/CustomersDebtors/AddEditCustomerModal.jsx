@@ -56,7 +56,7 @@ const AddEditCustomerModal = ({
         setError(null);
         try {
           const response = await axiosInstance.get(
-            `${BaseUrl}customers/${customerId}`
+            `customers/${customerId}`
           );
           if (response.data.status && response.data.data) {
             const customer = response.data.data;
@@ -184,14 +184,14 @@ const AddEditCustomerModal = ({
       let response;
       if (editMode && customerId) {
         response = await axiosInstance.patch(
-          `${BaseUrl}customers/${customerId}`,
+          `customers/${customerId}`,
           formData,
           {
             headers: { "Content-Type": "multipart/form-data" },
           }
         );
       } else {
-        response = await axiosInstance.post(`${BaseUrl}customers`, formData, {
+        response = await axiosInstance.post("customers", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
       }
