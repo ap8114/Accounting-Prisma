@@ -10,6 +10,10 @@ import Swal from "sweetalert2";
 import axios from "axios";
 import BaseUrl from "../../../Api/BaseUrl";
 
+const axiosInstance = axios.create({
+  baseURL: BaseUrl,
+});
+
 const currencies = [
   { code: "USD", symbol: "$", name: "US Dollar" },
   { code: "EUR", symbol: "€", name: "Euro" },
@@ -42,9 +46,7 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
     status: "Active",
     subscribers: "0",
     descriptions: [""],
-    selectedModules: [
-      { id: 1, name: "Account", price: 0 }
-    ],
+    selectedModules: [],
     invoiceLimit: 10,
     additionalInvoicePrice: 2.00,
     userLimit: 1,
@@ -59,44 +61,46 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
   const [showAddModuleModal, setShowAddModuleModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingModules, setIsLoadingModules] = useState(true);
-  
-  // Fetch modules from API
-  useEffect(() => {
-    const fetchModules = async () => {
-      try {
-        const response = await axios.get(`${BaseUrl}modules`);
-        setAvailableModules(response.data.data);
-        
-        // Set default selected module if none are selected
-        if (formData.selectedModules.length === 0 && response.data.data.length > 0) {
-          setFormData(prev => ({
-            ...prev,
-            selectedModules: [
-              { 
-                id: response.data.data[0].id, 
-                name: response.data.data[0].label, 
-                price: 0 
-              }
-            ]
-          }));
-        }
-      } catch (error) {
-        console.error("Error fetching modules:", error);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Failed to load modules. Please try again.",
-        });
-      } finally {
-        setIsLoadingModules(false);
-      }
-    };
 
+  // ✅ Reusable fetch function
+  const fetchModules = async () => {
+    if (!show) return;
+    
+    setIsLoadingModules(true);
+    try {
+      const response = await axiosInstance.get("modules");
+      const modules = response.data.data || [];
+      setAvailableModules(modules);
+
+      // Auto-select first module if none selected
+      if (modules.length > 0 && formData.selectedModules.length === 0) {
+        const firstModule = modules[0];
+        setFormData(prev => ({
+          ...prev,
+          selectedModules: [{ id: firstModule.id, name: firstModule.label, price: 0 }]
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching modules:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load modules. Please try again.",
+      });
+      setAvailableModules([]);
+    } finally {
+      setIsLoadingModules(false);
+    }
+  };
+
+  // Fetch on modal open
+  useEffect(() => {
     if (show) {
       fetchModules();
     }
   }, [show]);
-  
+
+  // Rest of handlers...
   const handleDescriptionChange = (index, value) => {
     const updated = [...formData.descriptions];
     updated[index] = value;
@@ -154,7 +158,6 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
   const handleModuleToggle = (module) => {
     setFormData(prev => {
       const isSelected = prev.selectedModules.some(m => m.id === module.id);
-      
       if (isSelected) {
         return {
           ...prev,
@@ -165,11 +168,7 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
           ...prev,
           selectedModules: [
             ...prev.selectedModules,
-            { 
-              id: module.id, 
-              name: module.label, 
-              price: 0
-            }
+            { id: module.id, name: module.label, price: 0 }
           ]
         };
       }
@@ -185,53 +184,41 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
     }));
   };
   
-  const handleModuleAdded = (newModule) => {
-    // Add the new module to the available modules list
-    setAvailableModules(prev => [...prev, newModule]);
+  // ✅ After adding module: refetch from API
+  const handleModuleAdded = () => {
+    setShowAddModuleModal(false);
+    fetchModules(); // Re-fetch to get accurate data from backend
   };
   
+  // ✅ After deleting module: refetch from API
   const handleDeleteModule = async (moduleId, moduleName) => {
-    try {
-      // Show confirmation dialog
-      const result = await Swal.fire({
-        title: "Are you sure?",
-        text: `You are about to delete the "${moduleName}" module. This action cannot be undone.`,
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#d33",
-        cancelButtonColor: "#aaa",
-        confirmButtonText: "Yes, delete it!",
-      });
-      
-      if (result.isConfirmed) {
-        // Make API call to delete the module
-        await axios.delete(`${BaseUrl}modules/${moduleId}`);
-        
-        // Remove the module from available modules list
-        setAvailableModules(prev => prev.filter(module => module.id !== moduleId));
-        
-        // If the module was selected, remove it from selected modules as well
-        setFormData(prev => ({
-          ...prev,
-          selectedModules: prev.selectedModules.filter(module => module.id !== moduleId)
-        }));
-        
-        // Show success message
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: `You are about to delete the "${moduleName}" module. This action cannot be undone.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#aaa",
+      confirmButtonText: "Yes, delete it!",
+    });
+    
+    if (result.isConfirmed) {
+      try {
+        await axiosInstance.delete(`modules/${moduleId}`);
         Swal.fire({
           icon: "success",
           title: "Deleted!",
           text: `The "${moduleName}" module has been deleted.`,
         });
+        fetchModules(); // ✅ Refetch after delete
+      } catch (error) {
+        console.error("Error deleting module:", error);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: error.response?.data?.message || "Failed to delete module. Please try again.",
+        });
       }
-    } catch (error) {
-      console.error("Error deleting module:", error);
-      
-      // Show error message
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to delete module. Please try again.",
-      });
     }
   };
   
@@ -239,7 +226,6 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
     try {
       setIsSubmitting(true);
       
-      // Prepare the payload for the API
       const payload = {
         name: formData.name,
         base_price: parseFloat(formData.basePrice) || 0,
@@ -257,17 +243,14 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
         }))
       };
       
-      // Make the API call
-      const response = await axios.post(`${BaseUrl}plans`, payload);
-      
-      // Show success message
+      const response = await axiosInstance.post("plans", payload);
+
       Swal.fire({
         icon: "success",
         title: "Success",
         text: "Plan added successfully!",
       });
       
-      // Call the parent's handleAdd function if needed
       handleAdd(response.data);
       
       // Reset form
@@ -278,9 +261,7 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
         status: "Active", 
         subscribers: "0",
         descriptions: [""],
-        selectedModules: availableModules.length > 0 
-          ? [{ id: availableModules[0].id, name: availableModules[0].label, price: 0 }] 
-          : [],
+        selectedModules: [],
         invoiceLimit: 10,
         additionalInvoicePrice: 2.00,
         userLimit: 1,
@@ -288,12 +269,9 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
         currency: "USD"
       });
       
-      // Close the modal
       handleClose();
     } catch (error) {
       console.error("Error adding plan:", error);
-      
-      // Show error message
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -499,10 +477,12 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
                         <span className="visually-hidden">Loading...</span>
                       </div>
                     </div>
+                  ) : availableModules.length === 0 ? (
+                    <p className="text-muted text-center">No modules available.</p>
                   ) : (
                     availableModules.map(module => {
-                      const isSelected = formData.selectedModules?.some(m => m.id === module.id);
-                      const selectedModule = formData.selectedModules?.find(m => m.id === module.id);
+                      const isSelected = formData.selectedModules.some(m => m.id === module.id);
+                      const selectedModule = formData.selectedModules.find(m => m.id === module.id);
                       
                       return (
                         <Row key={module.id} className="mb-3 align-items-center">
@@ -511,7 +491,7 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
                               type="checkbox"
                               id={`module-${module.id}`}
                               label={module.label}
-                              checked={isSelected || false}
+                              checked={isSelected}
                               onChange={() => handleModuleToggle(module)}
                             />
                           </Col>
@@ -524,7 +504,7 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
                                   min="0"
                                   step="0.01"
                                   placeholder="Enter price"
-                                  value={selectedModule.price || ""}
+                                  value={selectedModule?.price ?? ""}
                                   onChange={(e) => handleModulePriceChange(module.id, e.target.value)}
                                 />
                               </InputGroup>

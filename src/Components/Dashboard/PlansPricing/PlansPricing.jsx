@@ -10,6 +10,7 @@ import EditPlanModal from "./EditPlanModal";
 import ViewPlanModal from "./ViewPlanModal";
 import AddPlanModal from "./AddPlanModal";
 import BaseUrl from "../../../Api/BaseUrl";
+import axiosInstance from "../../../Api/axiosInstance";
 
 // Available currencies
 const currencies = [
@@ -462,7 +463,7 @@ const PlanPricing = () => {
           throw new Error("Base URL is not configured");
         }
         
-        const response = await axios.get(`${BaseUrl}plans`);
+        const response = await axiosInstance.get(`${BaseUrl}plans`);
         
         if (response.data && Array.isArray(response.data.data)) {
           setPlans(response.data.data);

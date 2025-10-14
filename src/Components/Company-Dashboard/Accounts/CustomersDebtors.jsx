@@ -113,7 +113,7 @@ const CustomersDebtors = () => {
         zip: "452001",
       },
     },
-  
+
     // New Customer 1
     {
       id: "cust-002",
@@ -146,7 +146,7 @@ const CustomersDebtors = () => {
         zip: "400001",
       },
     },
-  
+
     // New Customer 2
     {
       id: "cust-003",
@@ -179,7 +179,7 @@ const CustomersDebtors = () => {
         zip: "160001",
       },
     },
-  
+
     // New Customer 3
     {
       id: "cust-004",
@@ -212,7 +212,7 @@ const CustomersDebtors = () => {
         zip: "560001",
       },
     },
-  
+
     // New Customer 4
     {
       id: "cust-005",
@@ -245,7 +245,7 @@ const CustomersDebtors = () => {
         zip: "201307",
       },
     },
-  
+
     // New Customer 5
     {
       id: "cust-006",
@@ -332,13 +332,13 @@ const CustomersDebtors = () => {
       ...customerFormData,
       id: editMode ? selectedCustomer.id : `cust-${Date.now()}`,
     };
-  
+
     if (editMode) {
       setCustomers(customers.map(c => c.id === selectedCustomer.id ? updatedCustomer : c));
     } else {
       setCustomers([...customers, updatedCustomer]);
     }
-  
+
     setShowAddEditModal(false);
   };
   const [customerFormData, setCustomerFormData] = useState({
@@ -601,7 +601,7 @@ const CustomersDebtors = () => {
   };
 
 
-  
+
   // Helper function for Google Maps link
   function getGoogleMapsLink(companyName) {
     return companyName ? `https://maps.google.com/?q=${encodeURIComponent(companyName)}` : "";
@@ -710,27 +710,27 @@ const CustomersDebtors = () => {
               filteredCustomers.map((cust, idx) => (
                 <tr key={cust.id || idx}>
                   <td>{idx + 1}</td>
-{/* Name (English) */}
-<td>{cust.name}</td>
+                  {/* Name (English) */}
+                  <td>{cust.name}</td>
 
-{/* Name (Arabic) */}
-<td>
-  <span
-    style={{
-      direction: 'rtl',
-      fontFamily: 'Arial, sans-serif',
-      display: 'block',
-      textAlign: 'right',
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      minWidth: '100px',
-      maxWidth: '200px',
-    }}
-  >
-    {cust.nameArabic || "-"}
-  </span>
-</td>
+                  {/* Name (Arabic) */}
+                  <td>
+                    <span
+                      style={{
+                        direction: 'rtl',
+                        fontFamily: 'Arial, sans-serif',
+                        display: 'block',
+                        textAlign: 'right',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        minWidth: '100px',
+                        maxWidth: '200px',
+                      }}
+                    >
+                      {cust.nameArabic || "-"}
+                    </span>
+                  </td>
                   <td>{cust.contact}</td>
                   <td>{cust.email}</td>
 
@@ -773,59 +773,59 @@ const CustomersDebtors = () => {
                         <FaTrash />
                       </Button>
                       <Button
-  variant="none"
-  className="p-0 text-primary text-decoration-none"
-  onClick={() => {
-    navigate(`/company/Ledgercustomer`, {
-      state: {
-        customer: {
-          // Basic Info
-          name: cust.name,
-          nameArabic: cust.nameArabic || "",
-          companyName: cust.companyName || "N/A",
-          email: cust.email,
-          phone: cust.contact,
-          altPhone: cust.altPhone || "",
-          address: `${cust.billing.address}, ${cust.billing.city}, ${cust.billing.state}`,
-          shippingAddress: cust.shippingAddress || "Same as above",
-          country: cust.billing.country || "India",
-          state: cust.billing.state || "N/A",
-          pincode: cust.billing.pincode || "N/A",
+                        variant="none"
+                        className="p-0 text-primary text-decoration-none"
+                        onClick={() => {
+                          navigate(`/company/Ledgercustomer`, {
+                            state: {
+                              customer: {
+                                // Basic Info
+                                name: cust.name,
+                                nameArabic: cust.nameArabic || "",
+                                companyName: cust.companyName || "N/A",
+                                email: cust.email,
+                                phone: cust.contact,
+                                altPhone: cust.altPhone || "",
+                                address: `${cust.billing.address}, ${cust.billing.city}, ${cust.billing.state}`,
+                                shippingAddress: cust.shippingAddress || "Same as above",
+                                country: cust.billing.country || "India",
+                                state: cust.billing.state || "N/A",
+                                pincode: cust.billing.pincode || "N/A",
 
-          // Tax & IDs
-          gst: cust.taxNumber,
-          gstEnabled: !!cust.taxNumber,
-          pan: cust.pan || "",
-          stateCode: cust.stateCode || "",
+                                // Tax & IDs
+                                gst: cust.taxNumber,
+                                gstEnabled: !!cust.taxNumber,
+                                pan: cust.pan || "",
+                                stateCode: cust.stateCode || "",
 
-          // Financial Info
-          openingBalance: parseFloat(cust.balance || 0),
-          accountName: cust.accountName || "Sundry Debtors",
-          accountBalance: cust.accountBalance || "0.00",
-          creditPeriod: cust.creditPeriod || "30",
+                                // Financial Info
+                                openingBalance: parseFloat(cust.balance || 0),
+                                accountName: cust.accountName || "Sundry Debtors",
+                                accountBalance: cust.accountBalance || "0.00",
+                                creditPeriod: cust.creditPeriod || "30",
 
-          // Bank Info
-          bankAccountNumber: cust.bankAccountNumber || "",
-          bankIFSC: cust.bankIFSC || "",
-          bankName: cust.bankName || "",
+                                // Bank Info
+                                bankAccountNumber: cust.bankAccountNumber || "",
+                                bankIFSC: cust.bankIFSC || "",
+                                bankName: cust.bankName || "",
 
-          // Meta Info
-          creationDate: cust.creationDate || new Date().toISOString().split("T")[0],
-          companyLocation: cust.companyLocation || "",
-        },
-      },
-    });
-  }}
-  title="View Ledger"
-  style={{
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    padding: "4px 8px",
-    borderRadius: "4px",
-  }}
->
-  View Ledger
-</Button>
+                                // Meta Info
+                                creationDate: cust.creationDate || new Date().toISOString().split("T")[0],
+                                companyLocation: cust.companyLocation || "",
+                              },
+                            },
+                          });
+                        }}
+                        title="View Ledger"
+                        style={{
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        View Ledger
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -884,20 +884,20 @@ const CustomersDebtors = () => {
                 <Form.Group>
                   <Form.Label>Name (English)</Form.Label>
                   <Form.Control
-  type="text"
-  value={customerFormData.name}
-  onChange={(e) => {
-    const value = e.target.value;
-    setCustomerFormData({
-      ...customerFormData,
-      name: value,
-    
-      accountName: customerFormData.name === customerFormData.accountName 
-                    ? value 
-                    : customerFormData.accountName,
-    });
-  }}
-/>
+                    type="text"
+                    value={customerFormData.name}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setCustomerFormData({
+                        ...customerFormData,
+                        name: value,
+
+                        accountName: customerFormData.name === customerFormData.accountName
+                          ? value
+                          : customerFormData.accountName,
+                      });
+                    }}
+                  />
                 </Form.Group>
               </Col>
               <Col md={4}>
@@ -1013,7 +1013,7 @@ const CustomersDebtors = () => {
                   />
 
 
-           </Form.Group>
+                </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group>
@@ -1284,7 +1284,7 @@ const CustomersDebtors = () => {
               <Row>
                 <Col md={6}>
                   <p><strong>Name:</strong> {currentCustomer.name}</p>
-                  
+
                   <p><strong>Contact:</strong> {currentCustomer.contact}</p>
                   <p><strong>Name (Arabic):</strong> {currentCustomer?.nameArabic || "N/A"}</p>
                   <p><strong>Email:</strong> {currentCustomer.email}</p>

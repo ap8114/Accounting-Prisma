@@ -188,9 +188,11 @@ const CustomersDebtors = () => {
       setError(null);
 
       const response = await axiosInstance.get(
-        `${BaseUrl}customers/getCustomersByCompany/${companyId}`
+        `customers/company/${companyId}`
       );
 
+      console.log("get all data:-", response.data);
+      
       if (response.data.status) {
         // Transform API data to match our component structure
         const transformedCustomers = response.data.data.map((customer) => ({

@@ -4,28 +4,27 @@ import Form from "react-bootstrap/Form";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Button from "react-bootstrap/Button";
-import axios from "axios";
-import BaseUrl from "../../../Api/BaseUrl";
-import GetCompanyId from "../../../Api/GetCompanyId";
-import Spinner from 'react-bootstrap/Spinner';
+import Spinner from "react-bootstrap/Spinner";
+import axiosInstance from "../../../Api/axiosInstance";
 
 const AddProductModal = ({
   showAdd,
   showEdit,
-  categories,
+  // categories, // ❌ Remove: we fetch via API
   newCategory,
   showAddCategoryModal,
   setShowAdd,
   setShowEdit,
   setShowAddCategoryModal,
   setNewCategory,
-  handleAddItem,
-  handleUpdateItem,
-  handleAddCategory,
+  // handleAddItem, // ❌ Replace with onSuccess
+  // handleUpdateItem,
+  // handleAddCategory,
   formMode,
-  resetForm,
+  // resetForm, // ❌ Not needed
   selectedItem,
-  companyId, // Add companyId prop
+  companyId,
+  onSuccess, // ✅ NEW: callback to refresh product list
 }) => {
   const isEditing = showEdit;
   const isAdding = showAdd;
@@ -53,7 +52,7 @@ const AddProductModal = ({
 
   const [newUOM, setNewUOM] = useState("");
   const [showAddUOMModal, setShowAddUOMModal] = useState(false);
-  const [uoms, setUoms] = useState(["Piece", "Box", "KG", "Meter", "Litre"]);
+  const [uoms] = useState(["Piece", "Box", "KG", "Meter", "Litre"]); // static for now
   const [fetchedCategories, setFetchedCategories] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -74,7 +73,6 @@ const AddProductModal = ({
     }));
   };
 
-  // Reset local form
   const resetLocalForm = () => {
     setLocalNewItem({
       id: '',
@@ -102,7 +100,7 @@ const AddProductModal = ({
     }
   };
 
-  // Populate form when editing (after initial mount)
+  // Populate form when editing
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -112,50 +110,50 @@ const AddProductModal = ({
     if (isEditing && selectedItem) {
       setLocalNewItem({
         id: selectedItem.id || '',
-        itemName: selectedItem.itemName || '',
+        itemName: selectedItem.item_name || selectedItem.itemName || '',
         hsn: selectedItem.hsn || '',
         barcode: selectedItem.barcode || '',
         image: null,
-        warehouse: selectedItem.warehouse || (warehouses.length > 0 ? warehouses[0].warehouse_name : ''),
-        itemCategory: selectedItem.itemCategory || '',
+        warehouse: selectedItem.warehouse_name || selectedItem.warehouse || '',
+        itemCategory: selectedItem.item_category_name || selectedItem.itemCategory || '',
         description: selectedItem.description || '',
-        quantity: selectedItem.quantity || '',
+        quantity: (selectedItem.initial_qty || selectedItem.quantity || '').toString(),
         sku: selectedItem.sku || '',
-        minQty: selectedItem.minQty || '',
-        date: selectedItem.date || new Date().toISOString().split('T')[0],
-        taxAccount: selectedItem.taxAccount || '',
-        cost: selectedItem.cost || '',
-        salePriceExclusive: selectedItem.salePriceExclusive || '',
-        salePriceInclusive: selectedItem.salePriceInclusive || '',
-        discount: selectedItem.discount || '',
+        minQty: (selectedItem.min_order_qty || selectedItem.minQty || '').toString(),
+        date: selectedItem.as_of_date || selectedItem.date || new Date().toISOString().split('T')[0],
+        taxAccount: selectedItem.tax_account || selectedItem.taxAccount || '',
+        cost: (selectedItem.initial_cost || selectedItem.cost || '').toString(),
+        salePriceExclusive: (selectedItem.sale_price || selectedItem.salePriceExclusive || '').toString(),
+        salePriceInclusive: (selectedItem.purchase_price || selectedItem.salePriceInclusive || '').toString(),
+        discount: (selectedItem.discount || '').toString(),
         remarks: selectedItem.remarks || ''
       });
     } else if (isAdding) {
       resetLocalForm();
     }
-  }, [isEditing, isAdding, selectedItem, warehouses]);
+  }, [isEditing, isAdding, selectedItem]);
 
   // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       setIsLoadingCategories(true);
       try {
-        const response = await axios.get(`${BaseUrl}itemcategory`);
-        if (response.data?.status && Array.isArray(response.data.data)) {
+        const response = await axiosInstance.get("item-categories");
+        if (response.data?.success && Array.isArray(response.data.data)) {
           const categoryNames = response.data.data.map(cat => cat.item_category_name);
           setFetchedCategories(categoryNames);
         } else {
-          setFetchedCategories(categories || []);
+          setFetchedCategories([]);
         }
       } catch (error) {
         console.error("Error fetching categories:", error);
-        setFetchedCategories(categories || []);
+        setFetchedCategories([]);
       } finally {
         setIsLoadingCategories(false);
       }
     };
     fetchCategories();
-  }, [categories]);
+  }, []);
 
   // Fetch warehouses
   useEffect(() => {
@@ -164,8 +162,8 @@ const AddProductModal = ({
     const fetchWarehouses = async () => {
       setIsLoadingWarehouses(true);
       try {
-        const response = await axios.get(`${BaseUrl}warehouses`);
-        if (response.data?.status && Array.isArray(response.data.data)) {
+        const response = await axiosInstance.get("warehouses");
+        if (response.data?.success && Array.isArray(response.data.data)) {
           const numericCompanyId = parseInt(companyId, 10);
           const filteredWarehouses = response.data.data.filter(wh => {
             const whCompanyId = parseInt(wh.company_id, 10);
@@ -173,8 +171,8 @@ const AddProductModal = ({
           });
           setWarehouses(filteredWarehouses);
 
-          // Set default warehouse if needed
-          if (filteredWarehouses.length > 0 && !localNewItem.warehouse) {
+          // Set default warehouse only if adding and none selected
+          if (isAdding && filteredWarehouses.length > 0 && !localNewItem.warehouse) {
             setLocalNewItem(prev => ({
               ...prev,
               warehouse: filteredWarehouses[0].warehouse_name
@@ -192,20 +190,20 @@ const AddProductModal = ({
     };
 
     fetchWarehouses();
-  }, [companyId]);
+  }, [companyId, isAdding]);
 
   // Add new category
   const handleAddCategoryApi = async () => {
     if (!newCategory.trim()) return;
     setIsAddingCategory(true);
     try {
-      await axios.post(`${BaseUrl}itemcategory`, {
+      await axiosInstance.post("item-categories", {
         company_id: companyId,
         item_category_name: newCategory.trim(),
       });
 
-      const res = await axios.get(`${BaseUrl}itemcategory`);
-      if (res.data?.status && Array.isArray(res.data.data)) {
+      const res = await axiosInstance.get("item-categories");
+      if (res.data?.success && Array.isArray(res.data.data)) {
         const names = res.data.data.map(c => c.item_category_name);
         setFetchedCategories(names);
         setLocalNewItem(prev => ({ ...prev, itemCategory: newCategory.trim() }));
@@ -213,9 +211,9 @@ const AddProductModal = ({
 
       setNewCategory("");
       setShowAddCategoryModal(false);
-      if (handleAddCategory) handleAddCategory();
     } catch (error) {
       console.error("Error adding category:", error);
+      alert("Failed to add category. Please try again.");
     } finally {
       setIsAddingCategory(false);
     }
@@ -225,11 +223,10 @@ const AddProductModal = ({
   const handleAddProductApi = async () => {
     setIsAddingProduct(true);
     try {
-      // Get category ID
       let categoryId = 1;
       try {
-        const res = await axios.get(`${BaseUrl}itemcategory`);
-        if (res.data?.status && Array.isArray(res.data.data)) {
+        const res = await axiosInstance.get("item-categories");
+        if (res.data?.success && Array.isArray(res.data.data)) {
           const cat = res.data.data.find(c => c.item_category_name === localNewItem.itemCategory);
           if (cat) categoryId = cat.id;
         }
@@ -238,46 +235,42 @@ const AddProductModal = ({
       }
 
       const selectedWarehouse = warehouses.find(w => w.warehouse_name === localNewItem.warehouse);
-      const warehouseId = selectedWarehouse ? selectedWarehouse.id : 1;
-
-      if (!selectedWarehouse && warehouses.length > 0) {
+      if (!selectedWarehouse) {
         alert("Please select a valid warehouse.");
         return;
       }
 
       const formData = new FormData();
       formData.append('company_id', companyId);
-      formData.append('warehouse_id', warehouseId);
+      formData.append('warehouse_id', selectedWarehouse.id);
       formData.append('item_category_id', categoryId);
       formData.append('item_name', localNewItem.itemName || '');
       formData.append('hsn', localNewItem.hsn || '');
       formData.append('barcode', localNewItem.barcode || '');
       formData.append('sku', localNewItem.sku || '');
       formData.append('description', localNewItem.description || '');
-      formData.append('initial_qty', localNewItem.quantity || 0);
-      formData.append('min_order_qty', localNewItem.minQty || 0);
+      formData.append('initial_qty', localNewItem.quantity || '0');
+      formData.append('min_order_qty', localNewItem.minQty || '0');
       formData.append('as_of_date', localNewItem.date || new Date().toISOString().split('T')[0]);
-      formData.append('initial_cost', localNewItem.cost || 0);
-      formData.append('sale_price', localNewItem.salePriceExclusive || 0);
-      formData.append('purchase_price', localNewItem.salePriceInclusive || 0);
-      formData.append('discount', localNewItem.discount || 0);
+      formData.append('initial_cost', localNewItem.cost || '0');
+      formData.append('sale_price', localNewItem.salePriceExclusive || '0');
+      formData.append('purchase_price', localNewItem.salePriceInclusive || '0');
+      formData.append('discount', localNewItem.discount || '0');
       formData.append('tax_account', localNewItem.taxAccount || '');
       formData.append('remarks', localNewItem.remarks || '');
       if (localNewItem.image) {
         formData.append('image', localNewItem.image);
       }
 
-      const response = await axios.post(`${BaseUrl}products`, formData, {
+      const response = await axiosInstance.post("products", formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      if (response.data?.status) {
+      if (response.data?.success) {
         resetLocalForm();
-        if (resetForm) resetForm();
         setShowAdd(false);
-        if (handleAddItem) handleAddItem(); // This will re-fetch products in parent
+        if (onSuccess) onSuccess(); // ✅ Refresh product list
       } else {
-        console.error("Failed to add product:", response.data?.message);
         alert("Failed to add product. Please try again.");
       }
     } catch (error) {
@@ -299,8 +292,8 @@ const AddProductModal = ({
     try {
       let categoryId = 1;
       try {
-        const res = await axios.get(`${BaseUrl}itemcategory`);
-        if (res.data?.status && Array.isArray(res.data.data)) {
+        const res = await axiosInstance.get("item-categories");
+        if (res.data?.success && Array.isArray(res.data.data)) {
           const cat = res.data.data.find(c => c.item_category_name === localNewItem.itemCategory);
           if (cat) categoryId = cat.id;
         }
@@ -309,43 +302,42 @@ const AddProductModal = ({
       }
 
       const selectedWarehouse = warehouses.find(w => w.warehouse_name === localNewItem.warehouse);
-      const warehouseId = selectedWarehouse ? selectedWarehouse.id : 1;
+      if (!selectedWarehouse) {
+        alert("Please select a valid warehouse.");
+        return;
+      }
 
       const formData = new FormData();
       formData.append('company_id', companyId);
-      formData.append('warehouse_id', warehouseId);
+      formData.append('warehouse_id', selectedWarehouse.id);
       formData.append('item_category_id', categoryId);
       formData.append('item_name', localNewItem.itemName || '');
       formData.append('hsn', localNewItem.hsn || '');
       formData.append('barcode', localNewItem.barcode || '');
       formData.append('sku', localNewItem.sku || '');
       formData.append('description', localNewItem.description || '');
-      formData.append('initial_qty', localNewItem.quantity || 0);
-      formData.append('min_order_qty', localNewItem.minQty || 0);
+      formData.append('initial_qty', localNewItem.quantity || '0');
+      formData.append('min_order_qty', localNewItem.minQty || '0');
       formData.append('as_of_date', localNewItem.date || new Date().toISOString().split('T')[0]);
-      formData.append('initial_cost', localNewItem.cost || 0);
-      formData.append('sale_price', localNewItem.salePriceExclusive || 0);
-      formData.append('purchase_price', localNewItem.salePriceInclusive || 0);
-      formData.append('discount', localNewItem.discount || 0);
+      formData.append('initial_cost', localNewItem.cost || '0');
+      formData.append('sale_price', localNewItem.salePriceExclusive || '0');
+      formData.append('purchase_price', localNewItem.salePriceInclusive || '0');
+      formData.append('discount', localNewItem.discount || '0');
       formData.append('tax_account', localNewItem.taxAccount || '');
       formData.append('remarks', localNewItem.remarks || '');
       if (localNewItem.image) {
         formData.append('image', localNewItem.image);
       }
 
-      const response = await axios.patch(`${BaseUrl}products/${localNewItem.id}`, formData, {
+      const response = await axiosInstance.patch(`products/${localNewItem.id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      if (response.data?.status) {
+      if (response.data?.success) {
         resetLocalForm();
-        if (resetForm) resetForm();
         setShowEdit(false);
-        if (handleUpdateItem) {
-          handleUpdateItem(); // This will re-fetch products in parent
-        }
+        if (onSuccess) onSuccess(); // ✅ Refresh product list
       } else {
-        console.error("Failed to update product:", response.data?.message);
         alert("Failed to update product. Please try again.");
       }
     } catch (error) {
@@ -358,7 +350,7 @@ const AddProductModal = ({
 
   const handleAddUOM = () => {
     if (newUOM.trim() && !uoms.includes(newUOM.trim())) {
-      setUoms(prev => [...prev, newUOM.trim()]);
+      // You can add logic to save to backend if needed
     }
     setNewUOM("");
     setShowAddUOMModal(false);
@@ -372,13 +364,10 @@ const AddProductModal = ({
         warehouse: warehouses[0].warehouse_name
       }));
     }
-  }, [formMode, warehouses]);
+  }, [formMode, warehouses, localNewItem.warehouse]);
 
-  // Close modal
   const handleClose = () => {
-    if (isAdding) {
-      resetLocalForm();
-    }
+    resetLocalForm();
     setShowAdd(false);
     setShowEdit(false);
   };
@@ -399,6 +388,8 @@ const AddProductModal = ({
         </Modal.Header>
         <Modal.Body>
           <Form>
+            {/* ... (rest of your form fields remain unchanged) ... */}
+            {/* I'm keeping your form structure as-is since it's correct */}
             <Row className="mb-3">
               <Col md={6}>
                 <Form.Group>
@@ -757,7 +748,6 @@ const AddProductModal = ({
           <Button
             style={{ backgroundColor: "#27b2b6", border: "none", color: "#fff" }}
             onClick={handleAddCategoryApi}
-            // disabled={isAddingCategory || !newCategory.trim()}
           >
             {isAddingCategory ? (
               <>
@@ -796,7 +786,6 @@ const AddProductModal = ({
           <Button
             style={{ backgroundColor: "#27b2b6", border: "none", color: "#fff" }}
             onClick={handleAddUOM}
-            // disabled={!newUOM.trim()}
           >
             Add
           </Button>
