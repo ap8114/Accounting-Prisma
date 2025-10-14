@@ -6,13 +6,12 @@ import { saveAs } from "file-saver";
 import AddProductModal from "./AddProductModal";
 import { BiTransfer } from "react-icons/bi";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import BaseUrl from "../../../Api/BaseUrl";
+import axiosInstance from "../../../Api/axiosInstance";
 import GetCompanyId from "../../../Api/GetCompanyId";
 
 const InventoryItems = () => {
   const navigate = useNavigate();
-  const [quantityRange, setQuantityRange] = useState("All");  
+  const [quantityRange, setQuantityRange] = useState("All");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,84 +25,55 @@ const InventoryItems = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedWarehouse, setSelectedWarehouse] = useState("All");
-  const [categories, setCategories] = useState(["default"]);
   const [showDelete, setShowDelete] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const fileInputRef = React.useRef(null);
-  
-  // FIXED: Use GetCompanyId hook instead of hardcoded value
+
   const companyId = GetCompanyId();
 
-  // Helper function to safely trim strings or return empty string
   const safeTrim = (value) => {
     return value && typeof value === "string" ? value.trim() : "";
   };
 
-  // Fetch products by company ID
   const fetchProductsByCompanyId = async (companyId) => {
     try {
       setLoading(true);
-      const response = await axios.get(
-        `${BaseUrl}products/getProductsByCompanyId/${companyId}`
+      const response = await axiosInstance.get(
+        `products/getProductsByCompanyId/${companyId}`
       );
 
-      if (response.data && response.data.status && response.data.data) {
-        // Transform API data to match your component structure
+      if (response.data?.success && Array.isArray(response.data.data)) {
         const transformedItems = response.data.data.map((product) => ({
           id: product.id || 0,
           itemName: safeTrim(product.item_name) || "Unnamed Product",
           hsn: safeTrim(product.hsn) || "N/A",
           barcode: product.barcode || "",
-          unit: "Numbers", // Default value as not provided in API
-          description:
-            safeTrim(product.description) || "No description available",
+          unit: "Numbers",
+          description: safeTrim(product.description) || "No description available",
           quantity: product.initial_qty || 0,
           date: product.as_of_date || "2020-01-01",
           cost: parseFloat(product.initial_cost) || 0,
-          value:
-            (parseFloat(product.initial_cost) || 0) *
-            (product.initial_qty || 0), // Calculate value
+          value: (parseFloat(product.initial_cost) || 0) * (product.initial_qty || 0),
           minQty: product.min_order_qty || 0,
           taxAccount: safeTrim(product.tax_account) || "N/A",
-          cess: 0, // Not provided in API
+          cess: 0,
           purchasePriceExclusive: parseFloat(product.purchase_price) || 0,
-          purchasePriceInclusive: parseFloat(product.purchase_price) || 0, // Assuming inclusive
+          purchasePriceInclusive: parseFloat(product.purchase_price) || 0,
           salePriceExclusive: parseFloat(product.sale_price) || 0,
-          salePriceInclusive: parseFloat(product.sale_price) || 0, // Assuming inclusive
+          salePriceInclusive: parseFloat(product.sale_price) || 0,
           discount: parseFloat(product.discount) || 0,
-          category: "default", // Not provided in API
-          itemCategory: `Category ${product.item_category_id || "Unknown"}`, // Using ID as category name
-          itemType: "Good", // Default value
-          subcategory: "default", // Default value
+          category: "default",
+          itemCategory: product.item_category_name || "Unknown",
+          itemType: "Good",
+          subcategory: "default",
           remarks: safeTrim(product.remarks) || "",
-          image:
-            product.image && product.image.length > 0 ? product.image[0] : null,
+          image: product.image && product.image.length > 0 ? product.image[0] : null,
           status: (product.initial_qty || 0) > 0 ? "In Stock" : "Out of Stock",
-          warehouse: `Warehouse ${product.warehouse_id || "Unknown"}`, // Using ID as warehouse name
+          warehouse: product.warehouse_name || "Unknown",
         }));
 
         setItems(transformedItems);
-
-        // Extract unique categories and warehouses from the data
-        const uniqueCategories = [
-          "All",
-          ...new Set(transformedItems.map((item) => item.itemCategory)),
-        ];
-        const uniqueWarehouses = [
-          "All",
-          ...new Set(transformedItems.map((item) => item.warehouse)),
-        ];
-
-        // Update categories state if needed
-        if (uniqueCategories.length > categories.length) {
-          setCategories((prev) => [
-            ...new Set([
-              ...prev,
-              ...uniqueCategories.filter((cat) => cat !== "All"),
-            ]),
-          ]);
-        }
       } else {
         setError(response.data?.message || "Failed to fetch products");
       }
@@ -115,32 +85,27 @@ const InventoryItems = () => {
     }
   };
 
-  // Fetch products on component mount or when companyId changes
+  // ✅ Unified refresh function
+  const refreshProducts = () => {
+    if (companyId) {
+      fetchProductsByCompanyId(companyId);
+    }
+  };
+
   useEffect(() => {
-    if (companyId) { // Only fetch if companyId is available
+    if (companyId) {
       fetchProductsByCompanyId(companyId);
     }
   }, [companyId]);
 
-  const uniqueCategories = [
-    "All",
-    ...new Set(items.map((item) => item.itemCategory)),
-  ];
-  const uniqueWarehouses = [
-    "All",
-    ...new Set(items.map((item) => item.warehouse)),
-  ];
+  const uniqueCategories = ["All", ...new Set(items.map((item) => item.itemCategory))];
+  const uniqueWarehouses = ["All", ...new Set(items.map((item) => item.warehouse))];
 
   const filteredItems = items.filter((item) => {
-    const matchesSearch = item.itemName
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "All" || item.itemCategory === selectedCategory;
-    const matchesWarehouse =
-      selectedWarehouse === "All" || item.warehouse === selectedWarehouse;
+    const matchesSearch = item.itemName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "All" || item.itemCategory === selectedCategory;
+    const matchesWarehouse = selectedWarehouse === "All" || item.warehouse === selectedWarehouse;
 
-    // Quantity Range Filter Logic
     let matchesQuantity = true;
     const qty = item.quantity;
     switch (quantityRange) {
@@ -160,18 +125,15 @@ const InventoryItems = () => {
         matchesQuantity = qty > 100;
         break;
       case "Low Quantity":
-        matchesQuantity = qty <= item.minQty; // Key logic: quantity at or below minQty
+        matchesQuantity = qty <= item.minQty;
         break;
       default:
         matchesQuantity = true;
     }
 
-    return (
-      matchesSearch && matchesCategory && matchesWarehouse && matchesQuantity
-    );
+    return matchesSearch && matchesCategory && matchesWarehouse && matchesQuantity;
   });
 
-  // Select All Handler
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       const allIds = filteredItems.map((item) => item.id);
@@ -181,72 +143,10 @@ const InventoryItems = () => {
     }
   };
 
-  // Individual Select Handler
   const handleSelectItem = (id) => {
     setSelectedItems((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
-  };
-
-  const handleAddCategory = () => {
-    const trimmed = newCategory.trim();
-    if (trimmed && !categories.includes(trimmed)) {
-      setCategories((prev) => [...prev, trimmed]);
-    }
-    setNewCategory("");
-    setShowAddCategoryModal(false);
-  };
-
-  const [newItem, setNewItem] = useState({
-    itemName: "",
-    hsn: "",
-    barcode: "",
-    unit: "Numbers",
-    description: "",
-    quantity: -3,
-    date: "2020-04-01",
-    cost: 0,
-    value: 0,
-    minQty: 50,
-    taxAccount: "",
-    cess: 0,
-    purchasePriceExclusive: 0,
-    purchasePriceInclusive: 0,
-    salePriceExclusive: 0,
-    salePriceInclusive: 0,
-    discount: 0,
-    category: "default",
-    subcategory: "default",
-    remarks: "",
-    image: null,
-    status: "In Stock",
-    itemType: "Good", // New field for item type
-    itemCategory: "", // New field for item category
-    unit: "",
-    weightPerUnit: "",
-  });
-
-  const handleChange = (e) => {
-    const { name, value, type, files } = e.target;
-    if (type === "file") {
-      setNewItem({ ...newItem, image: files[0] });
-    } else {
-      setSelectedItems([]);
-    }
-  };
-
-  // UPDATED: Handle add item - re-fetch products after successful addition
-  const handleAddItem = () => {
-    // Re-fetch products to get the updated list
-    fetchProductsByCompanyId(companyId);
-    setShowAdd(false);
-  };
-
-  // UPDATED: Handle update item - re-fetch products after successful update
-  const handleUpdateItem = () => {
-    // Re-fetch products to get the updated list
-    fetchProductsByCompanyId(companyId);
-    setShowEdit(false);
   };
 
   const handleStatusChange = (index, value) => {
@@ -255,30 +155,27 @@ const InventoryItems = () => {
     setItems(updatedItems);
   };
 
-  // UPDATED: Handle delete item with API call
+  // ✅ Updated delete with axiosInstance and refresh
   const handleDeleteItem = async () => {
-    if (!selectedItem || !selectedItem.id) {
+    if (!selectedItem?.id) {
       alert("No item selected for deletion");
       return;
     }
 
     setIsDeleting(true);
     try {
-      // Call API to delete the product
-      const response = await axios.delete(`${BaseUrl}products/${selectedItem.id}`);
+      const response = await axiosInstance.delete(`products/${selectedItem.id}`);
       
-      if (response.data && response.data.status) {
-        // Re-fetch products to get the updated list
-        await fetchProductsByCompanyId(companyId);
+      if (response.data?.success) {
+        refreshProducts();
         setShowDelete(false);
         alert("Product deleted successfully!");
       } else {
-        console.error("Failed to delete product:", response.data?.message);
-        alert("Failed to delete product. Please try again.");
+        alert("Failed to delete product. " + (response.data?.message || ""));
       }
     } catch (error) {
-      console.error("Error deleting product:", error);
-      alert("An error occurred while deleting the product. Please try again.");
+      console.error("Delete error:", error);
+      alert("Error deleting product. Please try again.");
     } finally {
       setIsDeleting(false);
     }
@@ -357,9 +254,7 @@ const InventoryItems = () => {
       const workbook = XLSX.read(bstr, { type: "binary" });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(firstSheet);
-      // Add IDs to imported items
-      const newId =
-        items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
+      const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
       const itemsWithIds = data.map((item, index) => ({
         ...item,
         id: newId + index,
@@ -370,7 +265,6 @@ const InventoryItems = () => {
   };
 
   const handleProductClick = (item, e) => {
-    // Prevent event bubbling if it's a button click
     if (e && (e.target.closest("button") || e.target.closest(".btn"))) {
       return;
     }
@@ -385,13 +279,9 @@ const InventoryItems = () => {
     alert(`Item "${item.itemName}" sent successfully!`);
   };
 
-  // Show loading state while fetching data
   if (loading) {
     return (
-      <div
-        className="d-flex justify-content-center align-items-center"
-        style={{ height: "100vh" }}
-      >
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -399,7 +289,6 @@ const InventoryItems = () => {
     );
   }
 
-  // Show error message if API call failed
   if (error) {
     return (
       <div className="alert alert-danger" role="alert">
@@ -408,7 +297,6 @@ const InventoryItems = () => {
     );
   }
 
-  // Show message if companyId is not available
   if (!companyId) {
     return (
       <div className="alert alert-warning" role="alert">
@@ -426,17 +314,9 @@ const InventoryItems = () => {
             <span>Inventory Product</span>
           </h4>
         </Col>
-        <Col
-          md={8}
-          className="text-md-end d-flex flex-wrap gap-2 justify-content-md-end"
-        >
+        <Col md={8} className="text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
           <Button
-            style={{
-              backgroundColor: "#00c78c",
-              border: "none",
-              color: "#fff",
-              padding: "6px 16px",
-            }}
+            style={{ backgroundColor: "#00c78c", border: "none", color: "#fff", padding: "6px 16px" }}
             onClick={handleImportClick}
           >
             Import
@@ -449,108 +329,63 @@ const InventoryItems = () => {
             style={{ display: "none" }}
           />
           <Button
-            style={{
-              backgroundColor: "#ff7e00",
-              border: "none",
-              color: "#fff",
-              padding: "6px 16px",
-            }}
+            style={{ backgroundColor: "#ff7e00", border: "none", color: "#fff", padding: "6px 16px" }}
             onClick={handleExport}
           >
             Export
           </Button>
           <Button
-            style={{
-              backgroundColor: "#f6c100",
-              border: "none",
-              color: "#000",
-              padding: "6px 16px",
-            }}
+            style={{ backgroundColor: "#f6c100", border: "none", color: "#000", padding: "6px 16px" }}
             onClick={handleDownloadTemplate}
           >
             Download Template
           </Button>
-
           <Button
             onClick={() => setShowAdd(true)}
-            style={{
-              backgroundColor: "#27b2b6",
-              border: "none",
-              color: "#fff",
-              padding: "6px 16px",
-            }}
+            style={{ backgroundColor: "#27b2b6", border: "none", color: "#fff", padding: "6px 16px" }}
           >
             Add Product
           </Button>
           <Button
-            style={{
-              backgroundColor: "#17a2b8",
-              border: "none",
-              color: "#fff",
-              padding: "6px 16px",
-              marginLeft: "8px",
-            }}
+            style={{ backgroundColor: "#17a2b8", border: "none", color: "#fff", padding: "6px 16px", marginLeft: "8px" }}
             onClick={handleSendAll}
-          >
-            Send
-          </Button>
-
-          {/* Send All */}
-          <Button
-            onClick={handleSendAll}
-            style={{
-              backgroundColor: "#17a2b8",
-              border: "none",
-              color: "#fff",
-            }}
           >
             Send All
           </Button>
-
-          {/* Send Selected (Conditional) */}
           {selectedItems.length > 0 && (
             <Button
-              style={{
-                backgroundColor: "#28a745",
-                border: "none",
-                color: "#fff",
-              }}
+              style={{ backgroundColor: "#28a745", border: "none", color: "#fff" }}
               onClick={() => {
-                const selectedData = items.filter((item) =>
-                  selectedItems.includes(item.id)
-                );
+                const selectedData = items.filter((item) => selectedItems.includes(item.id));
                 alert(`${selectedData.length} item(s) sent successfully!`);
               }}
             >
               Send Selected ({selectedItems.length})
             </Button>
           )}
-
-          {/* Clear Selection Button */}
           {selectedItems.length > 0 && (
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={() => setSelectedItems([])}
-              className="ms-2"
-            >
+            <Button variant="outline-secondary" size="sm" onClick={() => setSelectedItems([])} className="ms-2">
               Clear
             </Button>
           )}
 
+          {/* ✅ Updated Modal with onSuccess */}
           <AddProductModal
             showAdd={showAdd}
             showEdit={showEdit}
             setShowAdd={setShowAdd}
             setShowEdit={setShowEdit}
-            handleAddItem={handleAddItem}
-            handleUpdateItem={handleUpdateItem}
-            handleAddCategory={handleAddCategory}
             selectedItem={selectedItem}
-            companyId={companyId} // Pass companyId to modal
+            companyId={companyId}
+            showAddCategoryModal={showAddCategoryModal}
+            setShowAddCategoryModal={setShowAddCategoryModal}
+            newCategory={newCategory}
+            setNewCategory={setNewCategory}
+            onSuccess={refreshProducts} // ✅ Key: triggers refresh after add/edit
           />
         </Col>
       </Row>
+
       <Row className="mb-3 px-3 py-2 align-items-center g-2">
         <Col xs={12} sm={3}>
           <Form.Control
@@ -563,7 +398,6 @@ const InventoryItems = () => {
         </Col>
       </Row>
 
-      {/* Filters */}
       <Row className="mb-3 px-3 py-2 align-items-center g-2">
         <Col xs={12} sm={3}>
           <Form.Select
@@ -592,7 +426,11 @@ const InventoryItems = () => {
           </Form.Select>
         </Col>
         <Col xs={12} sm={3}>
-          <Form.Select className="rounded-pill" value={quantityRange} onChange={(e) => setQuantityRange(e.target.value)}>
+          <Form.Select
+            className="rounded-pill"
+            value={quantityRange}
+            onChange={(e) => setQuantityRange(e.target.value)}
+          >
             <option value="All">All Quantities</option>
             <option value="Negative">Negative Quantity</option>
             <option value="Low Quantity">Low Quantity</option>
@@ -604,7 +442,6 @@ const InventoryItems = () => {
         </Col>
       </Row>
 
-      {/* Table */}
       <div className="card bg-white rounded-3 p-4">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
@@ -613,10 +450,7 @@ const InventoryItems = () => {
                 <th>
                   <Form.Check
                     type="checkbox"
-                    checked={
-                      selectedItems.length === filteredItems.length &&
-                      filteredItems.length > 0
-                    }
+                    checked={selectedItems.length === filteredItems.length && filteredItems.length > 0}
                     onChange={handleSelectAll}
                     disabled={filteredItems.length === 0}
                   />
@@ -636,7 +470,6 @@ const InventoryItems = () => {
               {filteredItems.length > 0 ? (
                 filteredItems.map((item) => (
                   <tr key={item.id}>
-                    {/* Checkbox Column */}
                     <td>
                       <Form.Check
                         type="checkbox"
@@ -644,21 +477,13 @@ const InventoryItems = () => {
                         onChange={() => handleSelectItem(item.id)}
                       />
                     </td>
-
-                    {/* Product Name (Clickable) */}
                     <td
-                      style={{
-                        color: "#007bff",
-                        fontWeight: "bold",
-                        cursor: "pointer",
-                      }}
+                      style={{ color: "#007bff", fontWeight: "bold", cursor: "pointer" }}
                       className="product-cell"
                       onClick={(e) => handleProductClick(item, e)}
                     >
                       <span className="product-name">{item.itemName}</span>
                     </td>
-
-                    {/* Other Columns */}
                     <td>{item.itemCategory}</td>
                     <td>{item.hsn}</td>
                     <td>{item.quantity}</td>
@@ -668,19 +493,14 @@ const InventoryItems = () => {
                     <td>
                       <span
                         className={`badge px-3 py-1 rounded-pill fw-semibold ${
-                          item.status === "In Stock"
-                            ? "bg-success text-white"
-                            : "bg-danger text-white"
+                          item.status === "In Stock" ? "bg-success text-white" : "bg-danger text-white"
                         }`}
                       >
                         {item.status}
                       </span>
                     </td>
-
-                    {/* Actions Column */}
                     <td>
                       <div className="d-flex gap-2">
-                        {/* Quick View */}
                         <Button
                           variant="link"
                           className="text-info p-0"
@@ -693,8 +513,6 @@ const InventoryItems = () => {
                         >
                           <FaEye />
                         </Button>
-
-                        {/* Edit */}
                         <Button
                           variant="link"
                           className="text-warning p-0"
@@ -707,8 +525,6 @@ const InventoryItems = () => {
                         >
                           <FaEdit />
                         </Button>
-
-                        {/* Delete */}
                         <Button
                           variant="link"
                           className="text-danger p-0"
@@ -721,23 +537,17 @@ const InventoryItems = () => {
                         >
                           <FaTrash />
                         </Button>
-
-                        {/* View Details (Navigate to Details Page) */}
                         <Button
                           variant="link"
                           className="text-primary p-0"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/company/inventorydetails/${item.id}`, {
-                              state: { item },
-                            });
+                            navigate(`/company/inventorydetails/${item.id}`, { state: { item } });
                           }}
                           title="View Details"
                         >
                           view details
                         </Button>
-
-                        {/* Send Individual Item */}
                         <Button
                           variant="link"
                           className="text-success p-0"
@@ -765,8 +575,7 @@ const InventoryItems = () => {
         </div>
         <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap">
           <small className="text-muted ms-2">
-            Showing 1 to {filteredItems.length} of {filteredItems.length}{" "}
-            results
+            Showing 1 to {filteredItems.length} of {filteredItems.length} results
           </small>
           <nav>
             <ul className="pagination mb-0">
@@ -788,12 +597,7 @@ const InventoryItems = () => {
       </div>
 
       {/* View Modal */}
-      <Modal
-        show={showView}
-        onHide={() => setShowView(false)}
-        centered
-        size="lg"
-      >
+      <Modal show={showView} onHide={() => setShowView(false)} centered size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Item Details</Modal.Title>
         </Modal.Header>
@@ -842,12 +646,10 @@ const InventoryItems = () => {
                   <strong>Cess:</strong> {selectedItem.cess}
                 </Col>
                 <Col md={6}>
-                  <strong>Purchase Price (Incl):</strong>{" "}
-                  {selectedItem.purchasePriceInclusive}
+                  <strong>Purchase Price (Incl):</strong> {selectedItem.purchasePriceInclusive}
                 </Col>
                 <Col md={6}>
-                  <strong>Sale Price (Incl):</strong>{" "}
-                  {selectedItem.salePriceInclusive}
+                  <strong>Sale Price (Incl):</strong> {selectedItem.salePriceInclusive}
                 </Col>
                 <Col md={6}>
                   <strong>Discount %:</strong> {selectedItem.discount}
@@ -898,21 +700,13 @@ const InventoryItems = () => {
         </Modal.Header>
         <Modal.Body>
           Are you sure you want to delete this item?
-          {selectedItem && (
-            <div className="mt-2">
-              <strong>{selectedItem.itemName}</strong>
-            </div>
-          )}
+          {selectedItem && <div className="mt-2"><strong>{selectedItem.itemName}</strong></div>}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDelete(false)}>
             Cancel
           </Button>
-          <Button 
-            variant="danger" 
-            onClick={handleDeleteItem}
-            disabled={isDeleting}
-          >
+          <Button variant="danger" onClick={handleDeleteItem} disabled={isDeleting}>
             {isDeleting ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -922,22 +716,13 @@ const InventoryItems = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
       {/* Page Description */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
-          {/* Heading */}
-          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
-            Page Info
-          </h5>
-          {/* Bullet Points */}
-          <ul
-            className="text-muted fs-6 mb-0"
-            style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
-          >
-            <li>
-              An Inventory Product Management Interface displaying product
-              details, status, and actions.
-            </li>
+          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
+          <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
+            <li>An Inventory Product Management Interface displaying product details, status, and actions.</li>
             <li>Options to import/export data.</li>
             <li>Ability to manage and maintain records.</li>
           </ul>

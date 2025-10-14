@@ -67,7 +67,7 @@ const VendorsCreditors = () => {
     try {
       setLoading(true);
       console.log(`Fetching vendors for Company ID: ${CompanyId}`);
-      const response = await axiosInstance.get(`/vendors/getVendorsByCompany/${CompanyId}`);
+      const response = await axiosInstance.get(`/vendors/Company/${CompanyId}`);
       if (response.data.status && Array.isArray(response.data.data)) {
         const mappedVendors = response.data.data.map(vendor => ({
           id: vendor.id,
