@@ -41,95 +41,118 @@ function InventoryAdjustment() {
 
   const itemDropdownRef = useRef(null);
 
-  // 🔥 FETCH ITEMS
+  // 🔥 Refs to always have latest items & warehouses
+  const allItemsRef = useRef(allItems);
+  const allWarehousesRef = useRef(allWarehouses);
+
   useEffect(() => {
-    const fetchItems = async () => {
-      if (!companyId) return;
-      try {
-        const response = await axiosInstance.get(`/products/getProductsByCompanyId/${companyId}`);
-        if (response.data.status && Array.isArray(response.data.data)) {
-          const mapped = response.data.data.map(item => ({
-            id: item.id,
-            name: (item.item_name?.trim() || 'Unnamed Item'),
-            unit: 'Piece',
-          }));
-          setAllItems(mapped);
-          setFilteredItems(mapped);
-        }
-      } catch (error) {
-        console.error('Error fetching items:', error);
-        setAllItems([]);
-        setFilteredItems([]);
+    allItemsRef.current = allItems;
+  }, [allItems]);
+
+  useEffect(() => {
+    allWarehousesRef.current = allWarehouses;
+  }, [allWarehouses]);
+
+  // 🔥 FETCH ITEMS
+  const fetchItems = async () => {
+    if (!companyId) return;
+    try {
+      const response = await axiosInstance.get(`products/getProductsByCompanyId/${companyId}`);
+      if (Array.isArray(response.data.data)) {
+        const mapped = response.data.data.map(item => ({
+          id: item.id,
+          name: (item.item_name?.trim() || 'Unnamed Item'),
+          unit: 'Piece',
+        }));
+        setAllItems(mapped);
+        setFilteredItems(mapped);
       }
-    };
-    fetchItems();
-  }, [companyId]);
+    } catch (error) {
+      console.error('Error fetching items:', error);
+      setAllItems([]);
+      setFilteredItems([]);
+    }
+  };
 
   // 🔥 FETCH WAREHOUSES
-  useEffect(() => {
-    const fetchWarehouses = async () => {
-      if (!companyId) return;
-      try {
-        const response = await axiosInstance.get('/warehouses');
-        if (response.data.status && Array.isArray(response.data.data)) {
-          const filtered = response.data.data.filter(wh => wh.company_id == companyId);
-          setAllWarehouses(filtered);
-        }
-      } catch (error) {
-        console.error('Error fetching warehouses:', error);
-        setAllWarehouses([]);
+  const fetchWarehouses = async () => {
+    if (!companyId) return;
+    try {
+      const response = await axiosInstance.get('warehouses');
+      if (response.data.success && Array.isArray(response.data.data)) {
+        const filtered = response.data.data.filter(wh => wh.company_id == companyId);
+        setAllWarehouses(filtered);
       }
-    };
-    fetchWarehouses();
-  }, [companyId]);
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+      setAllWarehouses([]);
+    }
+  };
 
-  // 🔥 FETCH ADJUSTMENTS
-  useEffect(() => {
-    const fetchAdjustments = async () => {
-      if (!companyId) return;
-      try {
-        const response = await axiosInstance.get(`/inventoryadjustment/company/${companyId}`);
-        if (response.data.status && Array.isArray(response.data.data)) {
-          const mapped = response.data.data.map(adj => {
-            let typeLabel = 'Adjust Value';
-            if (adj.adjustment_type === 'add') typeLabel = 'Add Stock';
-            else if (adj.adjustment_type === 'remove') typeLabel = 'Remove Stock';
+  // 🔥 FETCH ADJUSTMENTS — using refs to avoid stale closure
+  const fetchAdjustments = async () => {
+    if (!companyId) return;
+    try {
+      const response = await axiosInstance.get(`inventoryadjustment/company/${companyId}`);
+      if (response.data.success && Array.isArray(response.data.data)) {
+        const mapped = response.data.data.map(adj => {
+          let typeLabel = 'Adjust Value';
+          if (adj.adjustment_type === 'add') typeLabel = 'Add Stock';
+          else if (adj.adjustment_type === 'remove') typeLabel = 'Remove Stock';
 
-            const mappedItems = (adj.items || []).map((item, idx) => ({
-              id: idx + 1,
-              item: item.product_id,
-              itemName: (item.item_name?.trim() || 'Unknown Item'),
-              warehouse: item.warehouse_id,
-              warehouseName: (item.warehouse_name?.trim() || 'Unknown Warehouse'),
-              quantity: String(item.quantity || 0),
-              rate: String(item.rate || 0),
-              unit: 'Piece',
-              amount: parseFloat(item.amount) || 0,
-              narration: item.narration || ''
-            }));
+          const mappedItems = (adj.adjustment_items || []).map((item, idx) => {
+            // ✅ Use .current to get latest
+            const foundItem = allItemsRef.current.find(i => i.id === item.product_id);
+            const foundWh = allWarehousesRef.current.find(w => w.id === item.warehouse_id);
 
             return {
-              id: adj.id,
-              voucherNo: adj.voucher_no,
-              manualVoucherNo: adj.manual_voucher_no || '',
-              voucherDate: new Date(adj.adjustment_date).toISOString().split('T')[0],
-              adjustmentType: typeLabel,
-              items: mappedItems,
-              narration: adj.notes || '',
-              totalAmount: parseFloat(adj.total_value) || 0,
+              id: idx + 1,
+              item: item.product_id,
+              itemName: foundItem?.name || 'Unknown Item',
+              warehouse: item.warehouse_id,
+              warehouseName: foundWh?.warehouse_name?.trim() || 'Unknown Warehouse',
+              quantity: String(item.quantity || 0),
+              rate: String(item.rate || 0),
+              unit: foundItem?.unit || 'Piece',
+              amount: parseFloat(item.quantity * item.rate) || 0,
+              narration: item.narration || ''
             };
           });
 
-          setAdjustments(mapped);
-        }
-      } catch (error) {
-        console.error('Error fetching adjustments:', error);
-        setAdjustments([]);
-      }
-    };
+          return {
+            id: adj.id,
+            voucherNo: adj.voucher_no,
+            manualVoucherNo: adj.manual_voucher_no || '',
+            voucherDate: new Date(adj.adjustment_date).toISOString().split('T')[0],
+            adjustmentType: typeLabel,
+            items: mappedItems,
+            narration: adj.notes || '',
+            totalAmount: mappedItems.reduce((sum, i) => sum + i.amount, 0),
+          };
+        });
 
-    fetchAdjustments();
+        setAdjustments(mapped);
+      }
+    } catch (error) {
+      console.error('Error fetching adjustments:', error);
+      setAdjustments([]);
+    }
+  };
+
+  // Initial data load
+  useEffect(() => {
+    if (companyId) {
+      fetchItems();
+      fetchWarehouses();
+    }
   }, [companyId]);
+
+  // Re-fetch adjustments when items/warehouses change (but use refs inside)
+  useEffect(() => {
+    if (companyId && allItems.length > 0 && allWarehouses.length > 0) {
+      fetchAdjustments();
+    }
+  }, [companyId, allItems, allWarehouses]);
 
   // Auto-generate voucher
   useEffect(() => {
@@ -140,38 +163,15 @@ function InventoryAdjustment() {
       setVoucherNo(`${prefix}-${date}-${randomNum}`);
       setVoucherDate(new Date().toISOString().slice(0, 10));
     } else if (showModal && editingAdjustment) {
-      // When editing, ensure items have itemName and warehouseName
-      const enrichedItems = editingAdjustment.items.map(item => {
-        // Safety: if itemName missing, try to get from allItems
-        let itemName = item.itemName;
-        let warehouseName = item.warehouseName;
-
-        if (!itemName || itemName === 'Unknown Item') {
-          const foundItem = allItems.find(i => i.id === item.item);
-          itemName = foundItem?.name || 'Unknown Item';
-        }
-
-        if (!warehouseName || warehouseName === 'Unknown Warehouse') {
-          const foundWh = allWarehouses.find(w => w.id === item.warehouse);
-          warehouseName = foundWh?.warehouse_name || 'Unknown Warehouse';
-        }
-
-        return {
-          ...item,
-          itemName,
-          warehouseName
-        };
-      });
-
       setAdjustmentType(editingAdjustment.adjustmentType);
-      setRows(enrichedItems);
+      setRows(editingAdjustment.items);
       setNarration(editingAdjustment.narration || '');
       setTotalAmount(editingAdjustment.totalAmount);
       setVoucherDate(editingAdjustment.voucherDate);
       setVoucherNo(editingAdjustment.voucherNo);
       setManualVoucherNo(editingAdjustment.manualVoucherNo || '');
     }
-  }, [showModal, editingAdjustment, allItems, allWarehouses]);
+  }, [showModal, editingAdjustment]);
 
   // Filter items
   useEffect(() => {
@@ -223,8 +223,8 @@ function InventoryAdjustment() {
       if (!match) return false;
     }
     if (filters.autoVoucherNo && !adjustment.voucherNo.toLowerCase().includes(filters.autoVoucherNo.toLowerCase())) return false;
-    if (filters.manualVoucherNo && adjustment.manualVoucherNo && 
-        !adjustment.manualVoucherNo.toLowerCase().includes(filters.manualVoucherNo.toLowerCase())) return false;
+    if (filters.manualVoucherNo && adjustment.manualVoucherNo &&
+      !adjustment.manualVoucherNo.toLowerCase().includes(filters.manualVoucherNo.toLowerCase())) return false;
 
     return true;
   });
@@ -243,7 +243,7 @@ function InventoryAdjustment() {
       warehouse: '',
       warehouseName: '',
       quantity: '0',
-      rate: '',
+      rate: '0',
       unit: item.unit,
       amount: 0,
       narration: ''
@@ -277,7 +277,7 @@ function InventoryAdjustment() {
     setRows(rows.filter(row => row.id !== id));
   };
 
-  // 🔥 SUBMIT
+  // 🔥 SUBMIT - FIXED VERSION
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!companyId || !voucherNo) return;
@@ -286,18 +286,29 @@ function InventoryAdjustment() {
 
     const apiAdjustmentType = adjustmentType === 'Add Stock' ? 'add'
       : adjustmentType === 'Remove Stock' ? 'remove'
-      : 'adjust';
+        : 'adjust';
 
-    const itemsPayload = rows.map(row => ({
-      product_id: row.item,
-      warehouse_id: parseInt(row.warehouse) || null,
-      quantity: parseFloat(row.quantity) || 0,
-      rate: parseFloat(row.rate) || 0,
-      narration: row.narration || ''
-    })).filter(item => item.product_id && item.warehouse_id);
+    // FIXED: Properly format items payload with correct data types
+    const itemsPayload = rows.map(row => {
+      // Convert to numbers for quantity and rate
+      const quantity = parseFloat(row.quantity);
+      const rate = parseFloat(row.rate);
+      
+      return {
+        product_id: row.item,
+        warehouse_id: parseInt(row.warehouse) || null,
+        quantity: isNaN(quantity) ? 0 : quantity,
+        rate: isNaN(rate) ? 0 : rate,
+        narration: row.narration || ''
+      };
+    }).filter(item => 
+      item.product_id && 
+      item.warehouse_id && 
+      (item.quantity > 0 || item.rate > 0) // Only include valid items
+    );
 
     if (itemsPayload.length === 0) {
-      alert('Please add at least one item with valid warehouse.');
+      alert('Please add at least one item with valid warehouse, quantity, and rate.');
       setIsSubmitting(false);
       return;
     }
@@ -309,58 +320,27 @@ function InventoryAdjustment() {
       adjustment_type: apiAdjustmentType,
       adjustment_date: voucherDate,
       notes: narration || null,
-      items: itemsPayload
+      adjustment_items: itemsPayload
     };
 
     try {
       if (editingAdjustment) {
-        await axiosInstance.patch(`/inventoryadjustment/${editingAdjustment.id}`, payload);
+        await axiosInstance.put(`/inventoryadjustment/${editingAdjustment.id}`, payload);
       } else {
         await axiosInstance.post('/inventoryadjustment', payload);
       }
 
-      // Re-fetch
-      const response = await axiosInstance.get(`/inventoryadjustment/company/${companyId}`);
-      if (response.data.status && Array.isArray(response.data.data)) {
-        const mapped = response.data.data.map(adj => {
-          let typeLabel = 'Adjust Value';
-          if (adj.adjustment_type === 'add') typeLabel = 'Add Stock';
-          else if (adj.adjustment_type === 'remove') typeLabel = 'Remove Stock';
-
-          const mappedItems = (adj.items || []).map((item, idx) => ({
-            id: idx + 1,
-            item: item.product_id,
-            itemName: (item.item_name?.trim() || 'Unknown Item'),
-            warehouse: item.warehouse_id,
-            warehouseName: (item.warehouse_name?.trim() || 'Unknown Warehouse'),
-            quantity: String(item.quantity || 0),
-            rate: String(item.rate || 0),
-            unit: 'Piece',
-            amount: parseFloat(item.amount) || 0,
-            narration: item.narration || ''
-          }));
-
-          return {
-            id: adj.id,
-            voucherNo: adj.voucher_no,
-            manualVoucherNo: adj.manual_voucher_no || '',
-            voucherDate: new Date(adj.adjustment_date).toISOString().split('T')[0],
-            adjustmentType: typeLabel,
-            items: mappedItems,
-            narration: adj.notes || '',
-            totalAmount: parseFloat(adj.total_value) || 0,
-          };
-        });
-
-        setAdjustments(mapped);
-      }
+      // ✅ Re-fetch all data using centralized functions
+      await fetchItems();
+      await fetchWarehouses();
+      // Adjustments will auto re-fetch via useEffect when items/warehouses update
 
       setShowModal(false);
       setEditingAdjustment(null);
       resetForm();
     } catch (error) {
       console.error('Error saving adjustment:', error);
-      alert('Failed to save inventory adjustment.');
+      alert('Failed to save inventory adjustment. Please check your data and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -500,7 +480,7 @@ function InventoryAdjustment() {
                   {filteredAdjustments.map(adjustment => {
                     const warehouseText = [...new Set(adjustment.items.map(i => i.warehouseName))].join(", ") || "Not specified";
                     return (
-                      <tr key={adjustment.id}> {/* ✅ Key fixed */}
+                      <tr key={adjustment.id}>
                         <td>{adjustment.voucherNo}</td>
                         <td>{adjustment.manualVoucherNo || '-'}</td>
                         <td>{adjustment.voucherDate}</td>
@@ -583,7 +563,7 @@ function InventoryAdjustment() {
                         <ul className="dropdown-menu show w-100" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                           {filteredItems.length > 0 ? (
                             filteredItems.map(item => (
-                              <li key={item.id}> {/* ✅ Key fixed */}
+                              <li key={item.id}>
                                 <button className="dropdown-item" type="button" onClick={() => handleItemSelect(item)}>
                                   {item.name} ({item.unit})
                                 </button>
@@ -613,24 +593,42 @@ function InventoryAdjustment() {
                       </thead>
                       <tbody>
                         {rows.map(row => (
-                          <tr key={row.id}> {/* ✅ Key fixed */}
+                          <tr key={row.id}>
                             <td><input type="text" className="form-control" value={row.itemName} readOnly /></td>
                             <td>
                               <select className="form-select" value={row.warehouse} onChange={(e) => handleFieldChange(row.id, 'warehouse', e.target.value)}>
                                 <option value="">Select Warehouse</option>
                                 {allWarehouses.map(wh => (
-                                  <option key={wh.id} value={wh.id}>{wh.warehouse_name} ({wh.location})</option> 
+                                  <option key={wh.id} value={wh.id}>{wh.warehouse_name} ({wh.location})</option>
                                 ))}
                               </select>
                             </td>
-                            <td><input type="number" className="form-control" value={row.quantity} onChange={(e) => handleFieldChange(row.id, 'quantity', e.target.value)} min="0" /></td>
-                            <td><input type="number" className="form-control" value={row.rate} onChange={(e) => handleFieldChange(row.id, 'rate', e.target.value)} min="0" step="0.01" /></td>
+                            <td>
+                              <input 
+                                type="number" 
+                                className="form-control" 
+                                value={row.quantity} 
+                                onChange={(e) => handleFieldChange(row.id, 'quantity', e.target.value)} 
+                                min="0" 
+                                step="any"
+                              />
+                            </td>
+                            <td>
+                              <input 
+                                type="number" 
+                                className="form-control" 
+                                value={row.rate} 
+                                onChange={(e) => handleFieldChange(row.id, 'rate', e.target.value)} 
+                                min="0" 
+                                step="0.01"
+                              />
+                            </td>
                             <td><input type="text" className="form-control" value={row.amount.toFixed(2)} readOnly /></td>
                             <td className="text-center">
                               <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleRemoveRow(row.id)} title="Remove Item">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
-                                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                                  <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                                  <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1z" />
                                 </svg>
                               </button>
                             </td>
@@ -711,7 +709,7 @@ function InventoryAdjustment() {
                     </thead>
                     <tbody>
                       {viewAdjustment.items.map(item => (
-                        <tr key={item.id}> {/* ✅ Key fixed */}
+                        <tr key={item.id}>
                           <td><div>{item.itemName}</div><small className="text-muted">({item.unit})</small></td>
                           <td>{item.warehouseName || '-'}</td>
                           <td>{item.quantity || '-'}</td>

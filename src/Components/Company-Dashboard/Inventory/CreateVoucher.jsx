@@ -288,13 +288,13 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     if (!companyId) return;
     try {
       setLoadingVendors(true);
-      const vendorRes = await axiosInstance.get(`/Vendor/getVendorsByCompany/${companyId}`);
+      const vendorRes = await axiosInstance.get(`/vendors/Company/${companyId}`);
       setVendors(vendorRes.data.data || []);
       setLoadingCustomers(true);
-      const customerRes = await axiosInstance.get(`/customers/getCustomersByCompany/${companyId}`);
+      const customerRes = await axiosInstance.get(`/customers/Company/${companyId}`);
       setCustomers(customerRes.data.data || []);
       setLoadingAccounts(true);
-      const accountRes = await axiosInstance.get(`/account/getAccountByCompany/${companyId}`);
+      const accountRes = await axiosInstance.get(`/account/Company/${companyId}`);
       setAccounts(accountRes.data.data || []);
     } catch (err) {
       console.error("Error fetching dropdowns:", err);
@@ -1233,7 +1233,7 @@ const CreateVoucher = () => {
     }
     try {
       setLoading(true);
-      const response = await axiosInstance.get(`/voucher/getVouchersByCompanyId/${companyId}`);
+      const response = await axiosInstance.get(`/voucher/Company/${companyId}`);
       if (response.data.success) {
         const mapped = response.data.data.map(mapApiVoucherToLocal);
         setVouchers(mapped);
@@ -1250,7 +1250,7 @@ const CreateVoucher = () => {
   };
 
   useEffect(() => {
-    fetchVouchers();
+    fetchVouchers(); 
   }, [companyId]);
 
   const handleSaveVoucher = async (voucher, vendors, customers, accounts) => {
