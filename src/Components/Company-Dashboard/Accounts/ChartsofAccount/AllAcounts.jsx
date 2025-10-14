@@ -9,54 +9,21 @@ import {
   Form,
 } from "react-bootstrap";
 import { FaUserPlus, FaUserFriends } from "react-icons/fa";
-import { FaEye, FaEdit, FaTrash, FaFileInvoice } from "react-icons/fa";
+import { FaEye, FaEdit, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import Select from "react-select";
 import AddCustomerModal from "./AddCustomerModal";
 import AddVendorModal from "./AddVendorModal";
 import AddNewAccountModal from "./AddNewAccountModal";
 import AccountActionModal from "./AccountActionModal";  
-
-import axios from "axios";
 import BaseUrl from "../../../../Api/BaseUrl";
 import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
 
 const companyId = GetCompanyId();
 
-// Mock API object for demonstration
-const api = {
-  get: async (url) => {
-    if (url === "/accounts/parents") {
-      return Promise.resolve({
-        data: [
-          { _id: "1", name: "Assets" },
-          { _id: "2", name: "Liabilities" },
-          { _id: "3", name: "Equity" },
-          { _id: "4", name: "Income" },
-          { _id: "5", name: "Expenses" },
-        ],
-      });
-    }
-    return Promise.resolve({ data: [] });
-  },
-  post: async (url, data) => {
-    console.log("Mock API POST to", url, "with data:", data);
-    return Promise.resolve({ data: { _id: Date.now().toString(), ...data } });
-  },
-};
-
 const AllAccounts = () => {
   // Get unique account types from accountData
   const navigate = useNavigate();
-  
-  // Define parent-to-children mapping based on your images
-  const [parentToChildren, setParentToChildren] = useState({
-    "Assets": ["Cash-in-hand", "Bank A/Cs", "Sundry Debtors", "Current Assets", "Fixed Assets", "Investments", "Bank OD A/C", "Deposits (Assets)"],
-    "Liabilities": ["Sundry Creditors", "Current Liabilities", "Loans (Liability)", "Loans & Advances", "Provisions"],
-    "Income": ["Purchases A/C", "Purchases Return", "Sales A/C", "Sales Return", "Misc. Income"],
-    "Expenses": ["Capital A/C", "Direct Expenses", "Indirect Expenses", "Misc. Expenses"]
-  });
   
   // State declarations
   const [showVendorModal, setShowVendorModal] = useState(false);
@@ -64,15 +31,13 @@ const AllAccounts = () => {
   const [showNewAccountModal, setShowNewAccountModal] = useState(false);
   const [showAddParentModal, setShowAddParentModal] = useState(false);
   const [selectedMainCategory, setSelectedMainCategory] = useState("");
-  const [accountType, setAccountType] = useState("Sundry Creditors");
-  const [isTaxEnabled, setIsTaxEnabled] = useState(true);
-  const [taxNumber, setTaxNumber] = useState("TAX123456");
   const [showBankDetails, setShowBankDetails] = useState(true);
-  const [parentAccounts, setParentAccounts] = useState([]);
-  const [loadingParentAccounts, setLoadingParentAccounts] = useState(false);
-  const [accountData, setAccountData] = useState([]); // Changed from const to let
+  const [accountData, setAccountData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshData, setRefreshData] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const options = accountData.flatMap((group) =>
     group.rows.map((row) => ({ value: row.name, label: row.name }))
@@ -160,21 +125,23 @@ const AllAccounts = () => {
     isDefault: false,
   });
 
-
-  
-
   // Fetch account data from API
   useEffect(() => {
     const fetchAccountData = async () => {
       setLoading(true);
       try {
-        const response = await axiosInstance.get(`${BaseUrl}account/getAccountByCompany/${companyId}`);
-        if (response.data.status) {
+        const response = await axiosInstance.get(`${BaseUrl}account/company/${companyId}`);
+        console.log("API Response:", response.data);
+        
+        // Check if response has the expected structure
+        if (response.data && response.data.success) {
           // Transform API data to match the component's expected format
           const transformedData = transformAccountData(response.data.data);
           setAccountData(transformedData);
         } else {
-          setError(response.data.message || "Failed to fetch accounts");
+          // Handle different response structure
+          const transformedData = transformAccountData(response.data);
+          setAccountData(transformedData);
         }
       } catch (err) {
         console.error("Error fetching account data:", err);
@@ -185,15 +152,22 @@ const AllAccounts = () => {
     };
 
     fetchAccountData();
-  }, []);
+  }, [refreshData]);
 
   // Transform API data to match component's expected format
   const transformAccountData = (apiData) => {
-    // Group accounts by subgroup_name
+    // Check if apiData is an array
+    if (!Array.isArray(apiData)) {
+      console.error("API data is not an array:", apiData);
+      return [];
+    }
+    
+    // Group accounts by subgroup name
     const groupedData = {};
     
     apiData.forEach(account => {
-      const subgroupName = account.subgroup_name || "Uncategorized";
+      // Use subgroup name from the nested object if available
+      const subgroupName = account.subgroups?.name || "Uncategorized";
       
       if (!groupedData[subgroupName]) {
         groupedData[subgroupName] = {
@@ -202,38 +176,29 @@ const AllAccounts = () => {
         };
       }
       
+      // Convert has_bank_details to a readable format
+      let hasBankDetails = "No";
+      if (account.has_bank_details === "1" || account.has_bank_details === "yes" || account.has_bank_details === "Yes") {
+        hasBankDetails = "Yes";
+      }
+      
       groupedData[subgroupName].rows.push({
         name: account.account_name,
         bal: "0.00", // API doesn't provide balance, setting default
         id: account.id,
-        has_bank_details: account.has_bank_details,
+        has_bank_details: hasBankDetails,
         account_number: account.account_number,
         ifsc_code: account.ifsc_code,
         bank_name_branch: account.bank_name_branch,
         subgroup_id: account.subgroup_id,
-        company_id: account.company_id
+        company_id: account.company_id,
+        subgroup_name: subgroupName
       });
     });
     
     // Convert to array
     return Object.values(groupedData);
   };
-
-  useEffect(() => {
-    const fetchParentAccounts = async () => {
-      setLoadingParentAccounts(true);
-      try {
-        const response = await api.get("/accounts/parents");
-        setParentAccounts(response.data);
-      } catch (error) {
-        console.error("Failed to fetch parent accounts:", error);
-      } finally {
-        setLoadingParentAccounts(false);
-      }
-    };
-
-    fetchParentAccounts();
-  }, []);
 
   // Handlers
   const handleSaveVendor = () => {
@@ -248,16 +213,19 @@ const AllAccounts = () => {
 
   const handleSaveNewAccount = async () => {
     try {
-      await api.post("/accounts", {
-        parentType: newAccountData.parentType,
-        name: newAccountData.name,
-        phone: newAccountData.phone,
-        email: newAccountData.email,
-        bankAccountNumber: newAccountData.bankAccountNumber,
-        bankIFSC: newAccountData.bankIFSC,
-        bankNameBranch: newAccountData.bankNameBranch,
+      const response = await axiosInstance.post(`${BaseUrl}account`, {
+        subgroup_id: newAccountData.subgroup_id,
+        company_id: companyId,
+        account_name: newAccountData.name,
+        has_bank_details: showBankDetails ? 1 : 0,
+        account_number: newAccountData.bankAccountNumber || "",
+        ifsc_code: newAccountData.bankIFSC || "",
+        bank_name_branch: newAccountData.bankNameBranch || "",
       });
+      
+      console.log("Account created:", response.data);
       setShowNewAccountModal(false);
+      setRefreshData(!refreshData);
     } catch (error) {
       console.error("Failed to save new account:", error);
     }
@@ -268,21 +236,6 @@ const AllAccounts = () => {
       alert("Please select a main category");
       return;
     }
-  
-    // Add a default subgroup under main category (e.g., same name)
-    setParentToChildren((prev) => {
-      const updated = { ...prev };
-      if (!updated[selectedMainCategory]) {
-        updated[selectedMainCategory] = [selectedMainCategory]; // Use main category name as subgroup
-      }
-      return updated;
-    });
-  
-    // Optionally set the parent in new account form
-    setNewAccountData((prev) => ({
-      ...prev,
-      parentType: selectedMainCategory,
-    }));
   
     // Reset and close
     setSelectedMainCategory("");
@@ -295,20 +248,35 @@ const AllAccounts = () => {
   };
   
   const handleEditAccount = (type, name) => {
-    // Find the actual row to get the balance
+    // Find the actual row to get the ID and other details
     const accountGroup = accountData.find((acc) => acc.type === type);
     const row = accountGroup?.rows.find((r) => r.name === name);
 
     setSelectedAccount({
       type,
       name,
+      id: row ? row.id : null,
       balance: row ? parseFloat(row.bal) : 0,
+      has_bank_details: row ? row.has_bank_details : "No",
+      account_number: row ? row.account_number : "",
+      ifsc_code: row ? row.ifsc_code : "",
+      bank_name_branch: row ? row.bank_name_branch : "",
+      subgroup_id: row ? row.subgroup_id : "",
+      company_id: row ? row.company_id : "",
     });
     setActionModal({ show: true, mode: 'edit' });
   };
   
   const handleDeleteAccount = (type, name) => {
-    setSelectedAccount({ type, name });
+    // Find the actual row to get the ID
+    const accountGroup = accountData.find((acc) => acc.type === type);
+    const row = accountGroup?.rows.find((r) => r.name === name);
+
+    setSelectedAccount({
+      type,
+      name,
+      id: row ? row.id : null,
+    });
     setActionModal({ show: true, mode: 'delete' });
   };
   
@@ -318,37 +286,125 @@ const AllAccounts = () => {
     });
   };
 
-  const handleSaveEditedAccount = (updatedAccount) => {
-    // Update the actual accountData (mock update)
-    const updatedAccountData = accountData.map((group) => {
-      if (group.type === updatedAccount.type) {
-        return {
-          ...group,
-          rows: group.rows.map((row) => {
-            if (row.name === selectedAccount.name) {
-              return {
-                ...row,
-                name: updatedAccount.name,
-                bal: updatedAccount.balance.toFixed(2),
-              };
-            }
-            return row;
-          }),
-        };
-      }
-      return group;
-    });
-
-    // In a real app, you would update state or make an API call
-    console.log("Account updated:", updatedAccount);
-    console.log("Updated account data:", updatedAccountData);
+  const handleSaveEditedAccount = async (updatedAccount) => {
+    if (isEditing) return; // Prevent multiple submissions
     
-    setActionModal({ show: false, mode: null });
+    try {
+      setIsEditing(true);
+      
+      if (!selectedAccount || !selectedAccount.id) {
+        console.error("No account selected for editing");
+        return;
+      }
+
+      // Prepare payload for update
+      const payload = {
+        account_name: updatedAccount.name,
+        has_bank_details: updatedAccount.has_bank_details === "Yes" ? "1" : "0",
+      };
+
+      // Add bank details if enabled
+      if (updatedAccount.has_bank_details === "Yes") {
+        payload.account_number = updatedAccount.account_number || "";
+        payload.ifsc_code = updatedAccount.ifsc_code || "";
+        payload.bank_name_branch = updatedAccount.bank_name_branch || "";
+      }
+
+      console.log("Edit payload:", payload);
+      
+      // Make API call to update account
+      const response = await axiosInstance.put(`${BaseUrl}account/${selectedAccount.id}`, payload);
+      
+      console.log("Account updated:", response.data);
+      
+      // Update the account in the state immediately
+      const updatedAccountData = accountData.map(group => {
+        if (group.type === selectedAccount.type) {
+          return {
+            ...group,
+            rows: group.rows.map(row => {
+              if (row.id === selectedAccount.id) {
+                return {
+                  ...row,
+                  name: updatedAccount.name,
+                  has_bank_details: updatedAccount.has_bank_details,
+                  account_number: updatedAccount.account_number || "",
+                  ifsc_code: updatedAccount.ifsc_code || "",
+                  bank_name_branch: updatedAccount.bank_name_branch || ""
+                };
+              }
+              return row;
+            })
+          };
+        }
+        return group;
+      });
+      
+      setAccountData(updatedAccountData);
+      
+      // Close modal
+      setActionModal({ show: false, mode: null });
+      
+      // Then refresh data from server to ensure consistency
+      setTimeout(() => {
+        setRefreshData(!refreshData);
+      }, 500);
+    } catch (error) {
+      console.error("Failed to update account:", error);
+      if (error.response) {
+        console.error("Error response:", error.response.data);
+      }
+    } finally {
+      setIsEditing(false);
+    }
   };
 
-  const handleDeleteConfirmed = () => {
-    console.log("Account deleted:", selectedAccount);
-    setActionModal({ show: false, mode: null });
+  const handleDeleteConfirmed = async () => {
+    if (isDeleting) return; // Prevent multiple submissions
+    
+    try {
+      setIsDeleting(true);
+      
+      if (!selectedAccount || !selectedAccount.id) {
+        console.error("No account selected for deletion");
+        return;
+      }
+
+      console.log("Deleting account with ID:", selectedAccount.id);
+      
+      // Make API call to delete account
+      const response = await axiosInstance.delete(`${BaseUrl}account/${selectedAccount.id}`);
+      
+      console.log("Account deleted:", response.data);
+      
+      // Remove the deleted account from the state immediately
+      const updatedAccountData = accountData.map(group => {
+        if (group.type === selectedAccount.type) {
+          return {
+            ...group,
+            rows: group.rows.filter(row => row.id !== selectedAccount.id)
+          };
+        }
+        return group;
+      }).filter(group => group.rows.length > 0);
+      
+      setAccountData(updatedAccountData);
+      
+      // Close modal
+      setActionModal({ show: false, mode: null });
+      
+      // Then refresh data from server to ensure consistency
+      setTimeout(() => {
+        setRefreshData(!refreshData);
+      }, 500);
+    } catch (error) {
+      console.error("Failed to delete account:", error);
+      if (error.response) {
+        console.error("Error response:", error.response.data);
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Filter account data based on filterName
@@ -526,6 +582,7 @@ const AllAccounts = () => {
                                   onClick={() =>
                                     handleEditAccount(accountGroup.type, row.name)
                                   }
+                                  disabled={isEditing}
                                 >
                                   <FaEdit />
                                 </Button>
@@ -536,6 +593,7 @@ const AllAccounts = () => {
                                   onClick={() =>
                                     handleDeleteAccount(accountGroup.type, row.name)
                                   }
+                                  disabled={isDeleting}
                                 >
                                   <FaTrash />
                                 </Button>
@@ -611,7 +669,6 @@ const AllAccounts = () => {
         setShowAddParentModal={setShowAddParentModal}
         selectedMainCategory={selectedMainCategory}
         setSelectedMainCategory={setSelectedMainCategory}
-        parentToChildren={parentToChildren}
         accountData={accountData}
         handleAddNewParent={handleAddNewParent}
       />
@@ -626,6 +683,8 @@ const AllAccounts = () => {
         onSave={handleSaveEditedAccount}
         onDelete={handleDeleteConfirmed}
         accountTypes={accountTypes}
+        isEditing={isEditing}
+        isDeleting={isDeleting}
       />
 
       {/* Page Description */}

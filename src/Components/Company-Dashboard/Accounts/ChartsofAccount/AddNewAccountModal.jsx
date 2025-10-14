@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Form, Button, Row, Col, Alert } from "react-bootstrap";
-import axios from "axios";
+import { Modal, Form, Button, Row, Col, Alert, Dropdown } from "react-bootstrap";
 import BaseUrl from "../../../../Api/BaseUrl";
 import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
@@ -33,29 +32,167 @@ const AddNewAccountModal = ({
   const [subgroups, setSubgroups] = useState([]);
   const [loadingSubgroups, setLoadingSubgroups] = useState(true);
   
+  // New state for categories
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  
+  // New state for Add Sub of Subgroup modal
+  const [showAddSubOfSubgroupModal, setShowAddSubOfSubgroupModal] = useState(false);
+  const [subOfSubgroupForm, setSubOfSubgroupForm] = useState({
+    name: '',
+    subgroup_id: ''
+  });
+  const [isSubOfSubgroupSubmitting, setIsSubOfSubgroupSubmitting] = useState(false);
+  const [subOfSubgroupError, setSubOfSubgroupError] = useState('');
+  
+  // New state for accounts (sub of subgroups)
+  const [accounts, setAccounts] = useState([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  
   // Error states
   const [accountError, setAccountError] = useState('');
   const [parentError, setParentError] = useState('');
 
-  // Fetch subgroups when component mounts
+  // Fetch categories when component mounts
   useEffect(() => {
-    fetchSubgroups();
+    fetchCategories();
+    fetchAllSubgroups(); // Fetch all subgroups initially
   }, []);
 
-  // Function to fetch subgroups
-  const fetchSubgroups = async () => {
+  // Fetch subgroups when selected category changes
+  useEffect(() => {
+    if (selectedMainCategory) {
+      fetchSubgroupsByCategory(selectedMainCategory);
+    } else {
+      fetchAllSubgroups();
+    }
+  }, [selectedMainCategory]);
+
+  // Fetch accounts when subgroup changes
+  useEffect(() => {
+    if (newAccountData.subgroup) {
+      const selectedSubgroup = subgroups.find(sub => sub.name === newAccountData.subgroup);
+      if (selectedSubgroup) {
+        fetchAccountsBySubgroup(selectedSubgroup.id);
+      }
+    } else {
+      setAccounts([]);
+    }
+  }, [newAccountData.subgroup, subgroups]);
+
+  // Function to fetch categories
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      setParentError('');
+      const response = await axiosInstance.get(`${BaseUrl}categories`);
+      console.log("categories", response.data.data);
+      setCategories(response.data.data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setParentError('Failed to load categories. Please try again.');
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Function to fetch all subgroups
+  const fetchAllSubgroups = async () => {
     try {
       setLoadingSubgroups(true);
       setAccountError('');
-      const response = await axiosInstance.get(`${BaseUrl}subgroup`);
-      if (response.data.status) {
+      const response = await axiosInstance.get(`${BaseUrl}subgroups`);
+      console.log("All subgroups response:", response.data);
+      // Updated to handle the actual response structure
+      if (response.data.success) {
         setSubgroups(response.data.data);
+      } else {
+        setSubgroups([]);
       }
     } catch (error) {
-      console.error('Error fetching subgroups:', error);
+      console.error('Error fetching all subgroups:', error);
       setAccountError('Failed to load subgroups. Please try again.');
     } finally {
       setLoadingSubgroups(false);
+    }
+  };
+
+  // Function to fetch subgroups by category
+  const fetchSubgroupsByCategory = async (categoryId) => {
+    try {
+      setLoadingSubgroups(true);
+      setAccountError('');
+      const response = await axiosInstance.get(`${BaseUrl}subgroups/category/${categoryId}`);
+      // Updated to handle the actual response structure
+      if (response.data.success) {
+        setSubgroups(response.data.data);
+      } else {
+        setSubgroups([]);
+      }
+    } catch (error) {
+      console.error('Error fetching subgroups by category:', error);
+      setAccountError('Failed to load subgroups. Please try again.');
+    } finally {
+      setLoadingSubgroups(false);
+    }
+  };
+
+  // Function to fetch accounts by subgroup
+  const fetchAccountsBySubgroup = async (subgroupId) => {
+    try {
+      setLoadingAccounts(true);
+      setAccountError('');
+      const response = await axiosInstance.get(`${BaseUrl}account/subgroup/${subgroupId}?company_id=${companyId}`);
+      console.log("Accounts by subgroup response:", response.data);
+      // Updated to handle the actual response structure
+      if (response.data.success) {
+        setAccounts(response.data.data);
+      } else {
+        setAccounts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching accounts by subgroup:', error);
+      setAccountError('Failed to load accounts. Please try again.');
+    } finally {
+      setLoadingAccounts(false);
+    }
+  };
+
+  // Function to delete a subgroup
+  const handleDeleteSubgroup = async (subgroupId) => {
+    try {
+      setAccountError('');
+      const response = await axiosInstance.delete(`${BaseUrl}subgroups/${subgroupId}`);
+      
+      if (response.data.success) {
+        // Refresh subgroups list
+        if (selectedMainCategory) {
+          await fetchSubgroupsByCategory(selectedMainCategory);
+        } else {
+          await fetchAllSubgroups();
+        }
+        
+        // Reset form if the deleted subgroup was selected
+        if (newAccountData.subgroup) {
+          const selectedSubgroup = subgroups.find(sub => sub.name === newAccountData.subgroup);
+          if (selectedSubgroup && selectedSubgroup.id === subgroupId) {
+            setNewAccountData({
+              ...newAccountData,
+              subgroup: "",
+              name: "",
+            });
+          }
+        }
+      } else {
+        setAccountError('Failed to delete subgroup. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error deleting subgroup:', error);
+      if (error.response?.data?.message) {
+        setAccountError(error.response.data.message);
+      } else {
+        setAccountError('Failed to delete subgroup. Please try again.');
+      }
     }
   };
 
@@ -66,12 +203,13 @@ const AddNewAccountModal = ({
     try {
       // Prepare payload
       const payload = {
-        category_id: getCategoryID(parentAccountForm.mainCategory),
+        company_id: companyId,
+        category_id: parentAccountForm.mainCategory, // Now using the ID directly
         name: parentAccountForm.subgroupName
       };
 
-      // Make API call
-      const response = await axiosInstance.post(`${BaseUrl}subgroup`, payload);
+      // Make API call - Updated to use /api/subgroups endpoint
+      const response = await axiosInstance.post(`${BaseUrl}subgroups`, payload);
 
       // Call handleAddNewParent callback with response data
       handleAddNewParent(response.data);
@@ -83,7 +221,11 @@ const AddNewAccountModal = ({
       });
       
       // Refresh subgroups list
-      await fetchSubgroups();
+      if (selectedMainCategory) {
+        await fetchSubgroupsByCategory(selectedMainCategory);
+      } else {
+        await fetchAllSubgroups();
+      }
       
       // Close modal
       setShowAddParentModal(false);
@@ -113,7 +255,7 @@ const AddNewAccountModal = ({
         subgroup_id: selectedSubgroup ? selectedSubgroup.id : '',
         company_id: companyId,
         account_name: newAccountData.name,
-        has_bank_details: showBankDetails ? 1 : 0,
+        has_bank_details: showBankDetails ? "yes" : "no",
       };
 
       // Add bank details if enabled
@@ -130,7 +272,7 @@ const AddNewAccountModal = ({
         payload.email = newAccountData.email || '';
       }
 
-      // Make API call
+      // Make API call - Updated to use /account endpoint
       const response = await axiosInstance.post(`${BaseUrl}account`, payload);
 
       // Call onSave callback with response data
@@ -151,28 +293,80 @@ const AddNewAccountModal = ({
     }
   };
 
-  // Helper function to get category ID from category name
-  const getCategoryID = (categoryName) => {
-    const categoryMap = {
-      'assets': 1,
-      'liabilities': 2,
-      'income': 3,
-      'expenses': 4,
-      'equity': 5
-    };
-    return categoryMap[categoryName] || 1;
+  // Handle saving the new sub of subgroup
+  const handleSaveSubOfSubgroup = async () => {
+    setIsSubOfSubgroupSubmitting(true);
+    setSubOfSubgroupError('');
+    try {
+      // Find the selected subgroup ID
+      const selectedSubgroup = subgroups.find(sub => sub.name === newAccountData.subgroup);
+      
+      if (!selectedSubgroup) {
+        setSubOfSubgroupError('Please select a subgroup first');
+        return;
+      }
+      
+      // Prepare payload with the required structure
+      const payload = {
+        company_id: companyId,
+        subgroup_id: selectedSubgroup.id,
+        account_name: subOfSubgroupForm.name,
+        has_bank_details: 0 // Default to 0 for sub of subgroups
+      };
+
+      // Make API call
+      const response = await axiosInstance.post(`${BaseUrl}account`, payload);
+
+      // Reset form after successful submission
+      setSubOfSubgroupForm({
+        name: '',
+        subgroup_id: ''
+      });
+      
+      // Close modal
+      setShowAddSubOfSubgroupModal(false);
+      
+      // Update the account data with the new sub of subgroup
+      if (response.data) {
+        setNewAccountData({
+          ...newAccountData,
+          name: response.data.account_name || subOfSubgroupForm.name
+        });
+        
+        // Refresh accounts list
+        fetchAccountsBySubgroup(selectedSubgroup.id);
+      }
+      
+    } catch (error) {
+      console.error('Error saving sub of subgroup:', error);
+      if (error.response?.data?.message) {
+        setSubOfSubgroupError(error.response.data.message);
+      } else {
+        setSubOfSubgroupError('Failed to add sub of subgroup. Please try again.');
+      }
+    } finally {
+      setIsSubOfSubgroupSubmitting(false);
+    }
+  };
+
+  // Handle input changes for the sub of subgroup form
+  const handleSubOfSubgroupInputChange = (e) => {
+    const { name, value } = e.target;
+    setSubOfSubgroupForm({
+      ...subOfSubgroupForm,
+      [name]: value
+    });
   };
 
   // Helper function to get category name from ID
   const getCategoryName = (categoryId) => {
-    const categoryMap = {
-      1: 'Assets',
-      2: 'Liabilities',
-      3: 'Income',
-      4: 'Expenses',
-      5: 'Equity'
-    };
-    return categoryMap[categoryId] || 'Unknown';
+    const category = categories.find(cat => cat.id === categoryId);
+    return category ? category.name : 'Unknown';
+  };
+
+  // Helper function to get category name from subgroup object
+  const getCategoryNameFromSubgroup = (subgroup) => {
+    return subgroup.category ? subgroup.category.name : 'Unknown';
   };
 
   // Handle input changes for the parent account form
@@ -181,6 +375,15 @@ const AddNewAccountModal = ({
     setParentAccountForm({
       ...parentAccountForm,
       [name]: value
+    });
+  };
+
+  // Handle subgroup selection
+  const handleSubgroupSelect = (subgroupName) => {
+    setNewAccountData({
+      ...newAccountData,
+      subgroup: subgroupName,
+      name: "",
     });
   };
 
@@ -217,6 +420,7 @@ const AddNewAccountModal = ({
                     onClick={() => {
                       setShowAddParentModal(true);
                       setParentError('');
+                      fetchCategories(); // Refresh categories when opening the modal
                     }}
                     style={{
                       backgroundColor: "#53b2a5",
@@ -227,32 +431,71 @@ const AddNewAccountModal = ({
                     + Add Parent
                   </Button>
                 </div>
-                <Form.Select
-                  value={newAccountData.subgroup}
-                  onChange={(e) => {
-                    const subgroup = e.target.value;
-                    setNewAccountData({
-                      ...newAccountData,
-                      subgroup,
-                      name: "",
-                    });
-                  }}
-                >
-                  <option value="">-- Select Subgroup --</option>
-                  {loadingSubgroups ? (
-                    <option disabled>Loading subgroups...</option>
-                  ) : (
-                    subgroups.map((subgroup) => (
-                      <option key={subgroup.id} value={subgroup.name}>
-                        {subgroup.name} ({getCategoryName(subgroup.category_id)})
-                      </option>
-                    ))
-                  )}
-                </Form.Select>
+                <Dropdown>
+                  <Dropdown.Toggle 
+                    variant="light" 
+                    className="w-100 text-start"
+                    id="subgroup-dropdown"
+                  >
+                    {newAccountData.subgroup || "-- Select Subgroup --"}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu className="w-100">
+                    {loadingSubgroups ? (
+                      <Dropdown.Item disabled>Loading subgroups...</Dropdown.Item>
+                    ) : (
+                      subgroups.map((subgroup) => (
+                        <Dropdown.Item 
+                          key={subgroup.id}
+                          className="d-flex justify-content-between align-items-center"
+                          onClick={() => handleSubgroupSelect(subgroup.name)}
+                        >
+                          <span>
+                            {subgroup.name} ({getCategoryNameFromSubgroup(subgroup)})
+                          </span>
+                          <Button 
+                            variant="danger" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteSubgroup(subgroup.id);
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </Dropdown.Item>
+                      ))
+                    )}
+                  </Dropdown.Menu>
+                </Dropdown>
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Sub of Subgroup (Account Name)</Form.Label>
+                <div className="d-flex align-items-center justify-content-between mb-1">
+                  <Form.Label>Sub of Subgroup (Account Name)</Form.Label>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (!newAccountData.subgroup) {
+                        setAccountError('Please select a subgroup first');
+                        return;
+                      }
+                      setShowAddSubOfSubgroupModal(true);
+                      setSubOfSubgroupError('');
+                      setSubOfSubgroupForm({
+                        name: '',
+                        subgroup_id: ''
+                      });
+                    }}
+                    style={{
+                      backgroundColor: "#53b2a5",
+                      border: "none",
+                      padding: "8px 16px",
+                    }}
+                    disabled={!newAccountData.subgroup}
+                  >
+                    + Add Sub of Subgroup
+                  </Button>
+                </div>
                 <Form.Select
                   value={newAccountData.name}
                   onChange={(e) =>
@@ -264,10 +507,12 @@ const AddNewAccountModal = ({
                   required
                 >
                   <option value="">-- Select Account Name --</option>
-                  {accountData.flatMap((group) =>
-                    group.rows.map((row) => (
-                      <option key={row.name} value={row.name}>
-                        {row.name}
+                  {loadingAccounts ? (
+                    <option disabled>Loading accounts...</option>
+                  ) : (
+                    accounts.map((account) => (
+                      <option key={account.id} value={account.account_name}>
+                        {account.account_name}
                       </option>
                     ))
                   )}
@@ -412,11 +657,15 @@ const AddNewAccountModal = ({
                     onChange={handleParentAccountInputChange}
                   >
                     <option value="">Select Main Type</option>
-                    <option value="assets">Assets</option>
-                    <option value="liabilities">Liabilities</option>
-                    <option value="income">Income</option>
-                    <option value="expenses">Expenses</option>
-                    <option value="equity">Equity</option>
+                    {loadingCategories ? (
+                      <option disabled>Loading categories...</option>
+                    ) : (
+                      categories?.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))
+                    )}
                   </Form.Control>
                 </Form.Group>
               </Col>
@@ -454,6 +703,75 @@ const AddNewAccountModal = ({
             disabled={isSubmitting || !parentAccountForm.mainCategory || !parentAccountForm.subgroupName}
           >
             {isSubmitting ? 'Adding...' : 'Add Subgroup'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Add Sub of Subgroup Modal */}
+      <Modal
+        show={showAddSubOfSubgroupModal}
+        onHide={() => {
+          setShowAddSubOfSubgroupModal(false);
+          setSubOfSubgroupError('');
+        }}
+        centered
+        backdrop="static"
+      >
+        <Modal.Header closeButton className="bg-light">
+          <Modal.Title>Add Sub of Subgroup</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {subOfSubgroupError && (
+            <Alert variant="danger" onClose={() => setSubOfSubgroupError('')} dismissible>
+              {subOfSubgroupError}
+            </Alert>
+          )}
+          <Form>
+            <Row className="mb-3">
+              <Col md={12}>
+                <Form.Group>
+                  <Form.Label>Account Name</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="name"
+                    value={subOfSubgroupForm.name}
+                    onChange={handleSubOfSubgroupInputChange}
+                    placeholder="Enter account name"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+            <Row className="mb-3">
+              <Col md={12}>
+                <Form.Group>
+                  <Form.Label>Subgroup</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={newAccountData.subgroup}
+                    disabled
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={() => {
+              setShowAddSubOfSubgroupModal(false);
+              setSubOfSubgroupError('');
+            }}
+            disabled={isSubOfSubgroupSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            style={{ backgroundColor: "#53b2a5", border: "none" }}
+            onClick={handleSaveSubOfSubgroup}
+            disabled={isSubOfSubgroupSubmitting || !subOfSubgroupForm.name}
+          >
+            {isSubOfSubgroupSubmitting ? 'Adding...' : 'Add Account'}
           </Button>
         </Modal.Footer>
       </Modal>
