@@ -24,6 +24,8 @@ const WareHouse = () => {
   const itemsPerPage = 5;
   const companyId = GetCompanyId();
   const [showUOMModal, setShowUOMModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState(null);
 
   // --- Reusable fetch function ---
   const fetchWarehouses = async () => {
@@ -70,11 +72,17 @@ const WareHouse = () => {
     fetchWarehouses();
   }, [companyId]);
 
-  const handleModalClose = () => {
-    setShowModal(false);
+  // Helper function to reset form and close modal
+  const resetFormAndCloseModal = () => {
     setWarehouseName("");
     setLocation("");
     setEditId(null);
+    setShowModal(false);
+    setModalError(null);
+  };
+
+  const handleModalClose = () => {
+    resetFormAndCloseModal();
   };
 
   const handleModalShow = (data = null) => {
@@ -90,31 +98,50 @@ const WareHouse = () => {
     setShowModal(true);
   };
 
+  // Updated handleFormSubmit with proper API integration
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-
-    const payload = {
-      warehouse_name: warehouseName,
-      location: location,
-      company_id: companyId,
-    };
+    setSaving(true);
+    setModalError(null);
 
     try {
+      const payload = {
+        company_id: companyId,
+        warehouse_name: warehouseName,
+        location: location,
+      };
+
+      console.log("Submitting payload:", payload);
+
+      let response;
       if (editId) {
-        await axiosInstance.patch(`/warehouses/${editId}`, {
-          warehouse_name: warehouseName,
-          location: location,
-        });
+        // Update existing warehouse
+        response = await axiosInstance.patch(`/warehouses/${editId}`, payload);
       } else {
-        await axiosInstance.post("/warehouses", payload);
+        // Create new warehouse
+        response = await axiosInstance.post("/warehouses", payload);
       }
 
-      // ✅ Re-fetch after success
-      await fetchWarehouses();
-      handleModalClose();
+      console.log("API Response:", response.data);
+
+      // Check if response is successful
+      if (response.data) {
+        // Refresh the warehouse list
+        await fetchWarehouses();
+        
+        // Reset form and close modal
+        resetFormAndCloseModal();
+      } else {
+        throw new Error(response.data?.message || "Failed to save warehouse");
+      }
     } catch (err) {
       console.error("API Error:", err);
-      setError(editId ? "Failed to update warehouse." : "Failed to create warehouse.");
+      const errorMessage = err.response?.data?.message || 
+                          err.message || 
+                          (editId ? "Failed to update warehouse." : "Failed to create warehouse.");
+      setModalError(errorMessage);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -124,7 +151,7 @@ const WareHouse = () => {
 
     try {
       await axiosInstance.delete(`/warehouses/${id}`);
-      // ✅ Re-fetch after delete
+      // Re-fetch after delete
       await fetchWarehouses();
     } catch (err) {
       console.error("Delete Error:", err);
@@ -173,7 +200,7 @@ const WareHouse = () => {
   const handleDownloadTemplate = () => {
     const template = [{ "Warehouse Name": "", Location: "" }];
     const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
+    const wb = XLSX.utils.book_new(); 
     XLSX.utils.book_append_sheet(wb, ws, "Template");
     XLSX.writeFile(wb, "warehouse-template.xlsx");
   };
@@ -515,11 +542,16 @@ const WareHouse = () => {
       </div>
 
       {/* Add/Edit Warehouse Modal */}
-      <Modal show={showModal} onHide={handleModalClose} size="md">
+      <Modal show={showModal} onHide={resetFormAndCloseModal} size="md">
         <Modal.Header closeButton>
           <Modal.Title>{editId ? "Edit Warehouse" : "Create Warehouse"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          {modalError && (
+            <Alert variant="danger" onClose={() => setModalError(null)} dismissible>
+              {modalError}
+            </Alert>
+          )}
           <Form onSubmit={handleFormSubmit}>
             <Form.Group className="mb-3">
               <Form.Label>Warehouse Name</Form.Label>
@@ -542,16 +574,25 @@ const WareHouse = () => {
               />
             </Form.Group>
             <div className="d-flex justify-content-end">
-              <Button variant="secondary" onClick={handleModalClose}>
+              <Button variant="secondary" onClick={resetFormAndCloseModal}>
                 Close
               </Button>
               <Button
                 type="submit"
                 className="ms-2"
                 style={{ backgroundColor: "#3daaaa", borderColor: "#3daaaa" }}
-                disabled={loading}
+                disabled={saving}
               >
-                {editId ? "Update" : "Create"}
+                {saving ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    {editId ? "Updating..." : "Creating..."}
+                  </>
+                ) : editId ? (
+                  "Update"
+                ) : (
+                  "Create"
+                )}
               </Button>
             </div>
           </Form>
