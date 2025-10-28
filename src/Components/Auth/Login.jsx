@@ -32,12 +32,12 @@ const Login = () => {
       const { user, token } = data;
 
       if (token && user && user.id) {
-        // ✅ Save in localStorage (same as before)
+        // Save auth data
         localStorage.setItem("authToken", token);
-        localStorage.setItem("CompanyId", user.id);
+        localStorage.setItem("CompanyId", user.id.toString()); // Ensure it's a string
         localStorage.setItem("role", user.role);
 
-        toast.success(message || "Login Successfully!");
+        toast.success(message || "Login successful!");
 
         // ✅ Fixed role comparison to match uppercase API response
         if (user.role === "SUPERADMIN") {
@@ -51,7 +51,9 @@ const Login = () => {
     } catch (error) {
       console.error("Login Error:", error);
       toast.error(
-        error.response?.data?.message || "Something went wrong. Please try again."
+        error.response?.data?.message ||
+          error.message ||
+          "Something went wrong. Please try again."
       );
     } finally {
       setLoading(false);
@@ -84,7 +86,7 @@ const Login = () => {
                 <input
                   type="email"
                   placeholder="Your Email"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -92,7 +94,7 @@ const Login = () => {
                 <input
                   type="password"
                   placeholder="Your Password"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -120,10 +122,10 @@ const Login = () => {
                 <button
                   onClick={handleLogin}
                   disabled={loading}
-                  className="w-full text-white py-3 rounded-lg flex items-center justify-center text-base"
+                  className="w-full text-white py-3 rounded-lg flex items-center justify-center text-base font-medium"
                   style={{ backgroundColor: "#023047" }}
                 >
-                  <span>{loading ? "Logging in..." : "Log in"}</span>
+                  {loading ? "Logging in..." : "Log in"}
                   <i className="fas fa-arrow-right ml-2"></i>
                 </button>
               </div>
@@ -131,7 +133,7 @@ const Login = () => {
           </div>
 
           {/* Right Panel - Illustration */}
-          <div className="hidden md:flex md:w-1/2 p-6 md:p-10 relative items-center justify-center">
+          <div className="hidden md:flex md:w-1/2 p-6 md:p-10 relative items-center justify-center bg-gray-50">
             <img
               src={right}
               alt="Digital Connection"
