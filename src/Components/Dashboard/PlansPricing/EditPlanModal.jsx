@@ -6,6 +6,7 @@ import CustomStorageCapacityModal from "./CustomStorageCapacityModal";
 import CustomInvoiceLimitModal from "./CustomInvoiceLimitModal";
 import axios from "axios";
 import BaseUrl from "../../../Api/BaseUrl";
+import { toast } from "react-toastify"; // ✅ Import toast
 
 const currencies = [
   { code: "USD", symbol: "$", name: "US Dollar" },
@@ -31,7 +32,7 @@ const calculateTotalPrice = (basePrice, selectedModules, currencyCode) => {
   return `${symbol}${total.toFixed(2)}`;
 };
 
-// ✅ Static Modules (as per your image)
+// ✅ Static Modules (with consistent id and label)
 const staticModules = [
   { id: 1, label: "Account" },
   { id: 2, label: "Inventory" },
@@ -42,11 +43,16 @@ const staticModules = [
   { id: 7, label: "User Management" }
 ];
 
+// Helper: Get static module by name
+const getStaticModuleByName = (name) => {
+  return staticModules.find(mod => mod.label === name);
+};
+
 const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
   const [formData, setFormData] = useState({ 
     ...plan, 
-    descriptions: plan?.descriptions || [""],
-    selectedModules: plan?.selectedModules || [],
+    descriptions: plan?.descriptions?.length ? plan.descriptions : [""],
+    selectedModules: [],
     invoiceLimit: plan?.invoiceLimit || 10,
     additionalInvoicePrice: plan?.additionalInvoicePrice || 2.00,
     userLimit: plan?.userLimit || 1,
@@ -62,10 +68,19 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
   // Initialize form when plan changes
   useEffect(() => {
     if (plan) {
+      const mappedModules = (plan.selectedModules || []).map(mod => {
+        const staticMod = getStaticModuleByName(mod.name || mod.module_name);
+        return {
+          id: staticMod?.id || null,
+          name: mod.name || mod.module_name,
+          price: parseFloat(mod.price || mod.module_price) || 0
+        };
+      }).filter(mod => mod.id !== null);
+
       setFormData({ 
         ...plan, 
-        descriptions: plan.descriptions || [""],
-        selectedModules: plan.selectedModules || [],
+        descriptions: plan.descriptions?.length ? plan.descriptions : [""],
+        selectedModules: mappedModules,
         invoiceLimit: plan.invoiceLimit || 10,
         additionalInvoicePrice: plan.additionalInvoicePrice || 2.00,
         userLimit: plan.userLimit || 1,
@@ -75,8 +90,6 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
     }
   }, [plan]);
 
-  // ✅ No API call for modules — using static list
-  
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -155,11 +168,11 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
     }));
   };
   
+  // ✅ Updated onSave with toast and auto-close
   const onSave = async () => {
     try {
       setIsSubmitting(true);
       
-      // Prepare payload for API
       const payload = {
         name: formData.name,
         base_price: parseFloat(formData.basePrice) || 0,
@@ -171,23 +184,29 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
         billing_cycle: formData.billing,
         status: formData.status,
         description: formData.descriptions.filter(desc => desc.trim() !== "").join("\n"),
-        // ✅ Send module names (not IDs) — assuming backend expects name like in AddPlan
-        modules: formData.selectedModules.map(module => ({
-          module_name: module.name, // 👈 Use name instead of id
+        plan_modules: formData.selectedModules.map(module => ({
+          module_name: module.name,
           module_price: parseFloat(module.price) || 0
         }))
       };
       
-      // Make API call
       const response = await axios.put(
         `${BaseUrl}plans/${formData.id}`, 
         payload
       );
       
-      handleSave(response.data);
+      // ✅ Show success toast
+      toast.success("Plan updated successfully!");
+      
+      // ✅ Close modal immediately
+      handleClose();
+      
+      // Optional: notify parent of update
+      if (handleSave) handleSave(response.data);
+      
     } catch (error) {
       console.error("Error updating plan:", error);
-      alert(error.response?.data?.message || "Failed to update plan. Please try again.");
+      toast.error(error.response?.data?.message || "Failed to update plan. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -441,7 +460,9 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="dark" onClick={handleClose}>Close</Button>
+          <Button variant="dark" onClick={handleClose} disabled={isSubmitting}>
+            Close
+          </Button>
           <Button 
             style={{ backgroundColor: "#53b2a5", borderColor: "#53b2a5" }} 
             onClick={onSave}
