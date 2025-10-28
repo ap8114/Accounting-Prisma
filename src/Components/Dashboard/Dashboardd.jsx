@@ -28,16 +28,27 @@ import axiosInstance from "../../Api/axiosInstance";
 const Dashboardd = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [apiError, setApiError] = useState(false); // Changed from error to apiError
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const response = await axiosInstance.get(`${BaseUrl}superadmindhasboard`);
         setDashboardData(response.data.data);
+        setApiError(false);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
-        setError(err.response?.data?.message || err.message || "Failed to fetch dashboard data");
+        setApiError(true);
+        // Create empty dashboard data structure when API fails
+        setDashboardData({
+          total_companies: 0,
+          total_requests: 0,
+          total_revenue: 0,
+          new_signups: 0,
+          growth: [],
+          signupCompanies: [],
+          revenueTrends: []
+        });
       } finally {
         setLoading(false);
       }
@@ -48,8 +59,7 @@ const Dashboardd = () => {
 
   // Process chart data from API response
   const getChartData = () => {
-    if (!dashboardData) return [];
-    
+    // Create default data structure with zeros
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
@@ -64,24 +74,27 @@ const Dashboardd = () => {
       };
     }
     
-    // Update with actual data from API
-    dashboardData.growth.forEach(item => {
-      if (monthlyMap[item.month]) {
-        monthlyMap[item.month].Growth = item.count;
-      }
-    });
-    
-    dashboardData.signupCompanies.forEach(item => {
-      if (monthlyMap[item.month]) {
-        monthlyMap[item.month].users = item.count;
-      }
-    });
-    
-    dashboardData.revenueTrends.forEach(item => {
-      if (monthlyMap[item.month]) {
-        monthlyMap[item.month].revenue = parseFloat(item.revenue) || 0;
-      }
-    });
+    // Only update with actual data if dashboardData exists and API didn't fail
+    if (dashboardData && !apiError) {
+      // Update with actual data from API
+      dashboardData.growth?.forEach(item => {
+        if (monthlyMap[item.month]) {
+          monthlyMap[item.month].Growth = item.count;
+        }
+      });
+      
+      dashboardData.signupCompanies?.forEach(item => {
+        if (monthlyMap[item.month]) {
+          monthlyMap[item.month].users = item.count;
+        }
+      });
+      
+      dashboardData.revenueTrends?.forEach(item => {
+        if (monthlyMap[item.month]) {
+          monthlyMap[item.month].revenue = parseFloat(item.revenue) || 0;
+        }
+      });
+    }
     
     // Convert map to array and sort by month
     return Object.values(monthlyMap);
@@ -95,9 +108,8 @@ const Dashboardd = () => {
   };
 
   if (loading) return <div className="text-center py-5">Loading dashboard...</div>;
-  if (error) return <div className="alert alert-danger">Error: {error}</div>;
-  if (!dashboardData) return <div className="alert alert-warning">No dashboard data available</div>;
-
+  
+  // We removed the error check here to always show the UI
   const chartData = getChartData();
   
   // Get current month data for growth calculations
@@ -111,35 +123,43 @@ const Dashboardd = () => {
 
   return (
     <div className="dashboard container-fluid py-4 px-3">
+      {/* Show a subtle error notification if API failed, but still show the dashboard */}
+      {apiError && (
+        <div className="alert alert-warning alert-dismissible fade show" role="alert">
+          Unable to fetch latest data. Showing cached or default values.
+          <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      )}
+      
       {/* Cards Section */}
       <div className="row g-4 mb-4">
         {[
           {
             icon: <BsBuilding />,
-            value: dashboardData.total_companies.toString(),
+            value: (dashboardData?.total_companies || 0).toString(),
             label: "Total Company",
             growth: currentMonthData && previousMonthData ? 
-              calculateGrowth(currentMonthData.Growth, previousMonthData.Growth) : "+12.5%",
+              calculateGrowth(currentMonthData.Growth, previousMonthData.Growth) : "+0%",
             bg: "success",
           },
           {
             icon: <BsPeople />,
-            value: dashboardData.total_requests.toString(),
+            value: (dashboardData?.total_requests || 0).toString(),
             label: "Total Request",
-            growth: "+8.2%", // Keeping static as we don't have historical data
+            growth: "+0%", // Default when API fails
             bg: "success",
           },
           {
             icon: <BsCurrencyDollar />,
-            value: `$${parseFloat(dashboardData.total_revenue).toFixed(2)}`,
+            value: `$${parseFloat(dashboardData?.total_revenue || 0).toFixed(2)}`,
             label: "Total Revenue",
             growth: currentMonthData && previousMonthData ? 
-              calculateGrowth(currentMonthData.revenue, previousMonthData.revenue) : "+15.3%",
+              calculateGrowth(currentMonthData.revenue, previousMonthData.revenue) : "+0%",
             bg: "success",
           },
           {
             icon: <BsPersonPlus />,
-            value: dashboardData.new_signups.toString(),
+            value: (dashboardData?.new_signups || 0).toString(),
             label: "New Signups Company",
             growth: "Today",
             bg: "primary text-white",

@@ -18,7 +18,7 @@ const planMapping = {
 const RequestPlan = () => {
   const [plans, setPlans] = useState(initialPlans);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [apiError, setApiError] = useState(false);
   const [actionLoading, setActionLoading] = useState({});
 
   // ✅ Fetch Plans
@@ -45,13 +45,15 @@ const RequestPlan = () => {
             status: item.status
           }));
           setPlans(formattedPlans);
+          setApiError(false);
         } else {
           throw new Error("Invalid data structure from API");
         }
 
       } catch (err) {
         console.error("Axios fetch error:", err);
-        setError("Failed to load requested plans. Please try again later.");
+        setApiError(true);
+        // Don't set error message, just set the error flag
       } finally {
         setLoading(false);
       }
@@ -80,7 +82,7 @@ const RequestPlan = () => {
       console.error("Failed to update plan status:", err);
       updatedPlans[index].status = planToUpdate.status;
       setPlans(updatedPlans);
-      alert("Failed to update status. Please try again.");
+      // Don't show alert for API errors, just log to console
     } finally {
       setActionLoading(prev => ({ ...prev, [planId]: false }));
     }
@@ -143,16 +145,6 @@ const RequestPlan = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="container-fluid p-3 p-md-4 bg-light">
-        <div className="alert alert-danger" role="alert">
-          {error}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="container-fluid p-3 p-md-4 bg-light">
       <div className="mb-4">
@@ -162,6 +154,22 @@ const RequestPlan = () => {
             Requested Plans
           </h3>
         </div>
+
+        {/* Show a subtle notification if API failed, but still show the dashboard */}
+        {apiError && (
+          <div
+            className="alert alert-warning alert-dismissible fade show mb-4"
+            role="alert"
+          >
+            Unable to fetch requested plans. Showing cached data if available.
+            <button
+              type="button"
+              className="btn-close"
+              data-bs-dismiss="alert"
+              aria-label="Close"
+            ></button>
+          </div>
+        )}
 
         <div className="card shadow-lg border-0 rounded-4 overflow-hidden">
           <div className="table-responsive">
@@ -204,7 +212,10 @@ const RequestPlan = () => {
                 ) : (
                   <tr>
                     <td colSpan="7" className="text-center py-4 text-muted">
-                      No requested plans found.
+                      {apiError 
+                        ? "No requested plans available. Please check back later." 
+                        : "No requested plans found."
+                      }
                     </td>
                   </tr>
                 )}

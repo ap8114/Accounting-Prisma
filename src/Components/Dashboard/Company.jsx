@@ -22,14 +22,16 @@ import {
 import "./Company.css";
 import { useNavigate } from "react-router-dom";
 import BaseUrl from "../../Api/BaseUrl";
+import GetCompanyId from "../../Api/GetCompanyId";
 
 const Company = () => {
+  const companyId = GetCompanyId();
   const [showModal, setShowModal] = useState(false);
   const [companies, setCompanies] = useState([]);
-  const [plans, setPlans] = useState([]);
+  const [plans, setPlans] = useState([]); // Initialize as empty array
   const [loading, setLoading] = useState(true);
   const [refetching, setRefetching] = useState(false);
-  const [error, setError] = useState(null);
+  const [apiError, setApiError] = useState(false);
   const [activeMenuIndex, setActiveMenuIndex] = useState(null);
   const [editIndex, setEditIndex] = useState(null);
   const [editCompany, setEditCompany] = useState({
@@ -79,10 +81,14 @@ const Company = () => {
   // Fetch companies data
   const fetchCompanies = async () => {
     try {
-      const response = await axios.get(`${BaseUrl}companies`);
-      setCompanies(response.data.data);
+      const response = await axios.get(`${BaseUrl}auth/Company`);
+      setCompanies(response.data.data || []); // Ensure it's always an array
+      setApiError(false);
     } catch (err) {
-      setError(err.message || "Failed to fetch companies");
+      console.error("Error fetching companies:", err);
+      setApiError(true);
+      // Set empty companies array when API fails
+      setCompanies([]);
     } finally {
       setLoading(false);
     }
@@ -96,14 +102,18 @@ const Company = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const response = await axios.get(`${BaseUrl}plans`);
-        setPlans(response.data.data);
+        const response = await axios.get(`${BaseUrl}plans/${companyId}`);
+        // Ensure we always set an array, even if the response format is different
+        const plansData = response.data.data ? [response.data.data] : [];
+        setPlans(Array.isArray(plansData) ? plansData : []);
       } catch (err) {
-        setError(err.message || "Failed to fetch plans");
+        console.error("Error fetching plans:", err);
+        // Set empty plans array when API fails
+        setPlans([]);
       }
     };
     fetchPlans();
-  }, []);
+  }, [companyId]); // Add companyId as dependency
 
   // Fetch company users when viewUserIndex changes
   useEffect(() => {
@@ -126,7 +136,7 @@ const Company = () => {
         if (err.response && err.response.status === 404) {
           setCompanyUsers([]);
         } else {
-          setUsersError(err.message || "Failed to fetch company users");
+          console.error("Error fetching company users:", err);
           setCompanyUsers([]);
         }
       } finally {
@@ -148,7 +158,7 @@ const Company = () => {
     }
     console.log(
       "Password reset for:",
-      companies[resetIndex].name,
+      companies[resetIndex]?.name || "Company",
       "=>",
       newPassword
     );
@@ -163,13 +173,14 @@ const Company = () => {
       company.name.toLowerCase().includes(filter.search.toLowerCase()) ||
       company.email.toLowerCase().includes(filter.search.toLowerCase());
 
-    const matchPlan = filter.plan === "" || company.plan_name === filter.plan;
+    const matchPlan = filter.plan === "" || 
+      (company.user_plans && company.user_plans[0]?.plan?.id === parseInt(filter.plan));
     const matchStart =
       filter.startDate === "" ||
-      new Date(company.start_date) >= new Date(filter.startDate);
+      new Date(company.startDate) >= new Date(filter.startDate);
     const matchEnd =
       filter.endDate === "" ||
-      new Date(company.expire_date) <= new Date(filter.endDate);
+      new Date(company.expireDate) <= new Date(filter.endDate);
     return matchSearch && matchPlan && matchStart && matchEnd;
   });
 
@@ -185,12 +196,12 @@ const Company = () => {
       id: company.id,
       name: company.name,
       email: company.email,
-      plan_id: company.plan_id,
-      plan_type: company.plan_type,
-      start_date: company.start_date.split("T")[0], // Format date for input
-      expire_date: company.expire_date.split("T")[0], // Format date for input
+      plan_id: company.user_plans?.[0]?.plan?.id || "",
+      plan_type: company.user_plans?.[0]?.planType || "",
+      start_date: company.startDate?.split("T")[0] || "",
+      expire_date: company.expireDate?.split("T")[0] || "",
       logo: null,
-      logoPreview: company.logo_url || "",
+      logoPreview: company.profile || "",
     });
     setEditIndex(index);
     setActiveMenuIndex(null);
@@ -209,7 +220,7 @@ const Company = () => {
 
     try {
       // Make API call to delete the company
-      await axios.delete(`${BaseUrl}companies/${companyToDelete.id}`);
+      await axios.delete(`${BaseUrl}auth/Company/${companyToDelete.id}`);
 
       // Remove the company from state
       const updatedCompanies = [...companies];
@@ -263,7 +274,7 @@ const Company = () => {
       }
 
       // Make API call
-      await axios.put(`${BaseUrl}companies/${editCompany.id}/plan`, formData, {
+      await axios.put(`${BaseUrl}auth/Company/${editCompany.id}`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -275,11 +286,14 @@ const Company = () => {
         ...updatedCompanies[editIndex],
         name: editCompany.name,
         email: editCompany.email,
-        plan_id: editCompany.plan_id,
-        plan_type: editCompany.plan_type,
-        start_date: editCompany.start_date,
-        expire_date: editCompany.expire_date,
-        logo_url: editCompany.logoPreview,
+        user_plans: [{
+          ...updatedCompanies[editIndex].user_plans[0],
+          plan_id: parseInt(editCompany.plan_id),
+          planType: editCompany.plan_type
+        }],
+        startDate: editCompany.start_date,
+        expireDate: editCompany.expire_date,
+        profile: editCompany.logoPreview,
       };
       setCompanies(updatedCompanies);
 
@@ -327,21 +341,21 @@ const Company = () => {
       formData.append("name", newCompany.name);
       formData.append("email", newCompany.email);
       formData.append("password", newCompany.password);
-      formData.append("start_date", newCompany.start_date);
-      formData.append("expire_date", newCompany.expire_date);
+      formData.append("startDate", newCompany.start_date);
+      formData.append("expireDate", newCompany.expire_date);
       formData.append("plan_id", parseInt(newCompany.plan_id));
-      formData.append("plan_type", newCompany.plan_type.toLowerCase());
+      formData.append("planType", newCompany.plan_type);
 
       // Append image if exists
       if (newCompany.logo) {
-        formData.append("logo", newCompany.logo);
+        formData.append("profile", newCompany.logo);
       }
 
       // Make API call
-      const response = await axios.post(`${BaseUrl}companies`, formData, {
+      const response = await axios.post(`${BaseUrl}auth/Company`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
-        },  
+        },
       });
 
       // Reset form
@@ -357,7 +371,7 @@ const Company = () => {
       setRefetching(true);
       await fetchCompanies();
       setRefetching(false);
-    } catch (error) { 
+    } catch (error) {
       console.error("Error creating company:", error);
       alert(
         `Failed to create company: ${
@@ -374,7 +388,7 @@ const Company = () => {
     // Revoke object URL to avoid memory leaks
     if (newCompany.logoPreview) {
       URL.revokeObjectURL(newCompany.logoPreview);
-    }        
+    }
 
     setNewCompany({
       name: "",
@@ -417,6 +431,7 @@ const Company = () => {
 
   // Format date for display
   const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
     const options = { year: "numeric", month: "short", day: "numeric" };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
@@ -434,14 +449,6 @@ const Company = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="alert alert-danger m-4" role="alert">
-        Error: {error}
-      </div>
-    );
-  }
-
   return (
     <div
       className="container-fluid py-4 px-4 mt-4 mt-md-0"
@@ -450,6 +457,22 @@ const Company = () => {
         minHeight: "100vh",
       }}
     >
+      {/* Show a subtle error notification if API failed, but still show the dashboard */}
+      {apiError && (
+        <div
+          className="alert alert-warning alert-dismissible fade show mb-4"
+          role="alert"
+        >
+          Unable to fetch company data. Please try again later.
+          <button
+            type="button"
+            className="btn-close"
+            data-bs-dismiss="alert"
+            aria-label="Close"
+          ></button>
+        </div>
+      )}
+
       {/* Container with vertical spacing */}
       <div className="mb-4">
         {/* Heading + Add Company Button Row */}
@@ -615,11 +638,12 @@ const Company = () => {
               onChange={(e) => setFilter({ ...filter, plan: e.target.value })}
             >
               <option value="">All Plans</option>
-              {plans.map((plan) => (
-                <option key={plan.id} value={plan.name}>
-                  {plan.name}
-                </option>
-              ))}
+              {Array.isArray(plans) &&
+                plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.plan_name} - {plan.base_price} {plan.currency}
+                  </option>
+                ))}
             </select>
           </div>
         </div>
@@ -628,174 +652,196 @@ const Company = () => {
       {/* Conditional View Rendering */}
       {viewMode === "card" ? (
         <div className="row g-4">
-          {filteredCompanies.map((company, index) => (
-            <div className="col-lg-3 col-md-6" key={company.id}>
-              <div
-                className="card shadow-sm rounded-4 p-3 border-0 card-hover position-relative"
-                style={{ minHeight: "260px" }}
-              >
-                {/* Header: Badge + Menu */}
-                <div className="d-flex justify-content-between align-items-start mb-3">
-                  <span
-                    className="badge px-3 py-2 rounded-pill fw-semibold"
-                    style={badgeStyles[company.plan_name] || badgeStyles.Bronze}
-                  >
-                    {company.plan_name}
-                  </span>
-                  <div className="dropdown-icon position-relative">
-                    <BsThreeDotsVertical
-                      className="text-muted"
-                      style={{ cursor: "pointer" }}
-                      onClick={() => toggleMenu(index)}
+          {filteredCompanies.length > 0 ? (
+            filteredCompanies.map((company, index) => (
+              <div className="col-lg-3 col-md-6" key={company.id}>
+                <div
+                  className="card shadow-sm rounded-4 p-3 border-0 card-hover position-relative"
+                  style={{ minHeight: "260px" }}
+                >
+                  {/* Header: Badge + Menu */}
+                  <div className="d-flex justify-content-between align-items-start mb-3">
+                    <span
+                      className="badge px-3 py-2 rounded-pill fw-semibold"
+                      style={
+                        badgeStyles[company.user_plans?.[0]?.plan?.plan_name] || badgeStyles.Bronze
+                      }
+                    >
+                      {company.user_plans?.[0]?.plan?.plan_name || "N/A"}
+                    </span>
+                    <div className="dropdown-icon position-relative">
+                      <BsThreeDotsVertical
+                        className="text-muted"
+                        style={{ cursor: "pointer" }}
+                        onClick={() => toggleMenu(index)}
+                      />
+                      {activeMenuIndex === index && (
+                        <div
+                          className="custom-dropdown shadow rounded-3 p-2"
+                          style={{ minWidth: "180px" }}
+                        >
+                          {/* Edit */}
+                          <div
+                            className="dropdown-item d-flex align-items-center text-warning fw-semibold mb-2"
+                            onClick={() => handleEdit(index)}
+                            style={{
+                              cursor: "pointer",
+                              backgroundColor: "#fff",
+                              borderRadius: "6px",
+                              padding: "8px 10px",
+                            }}
+                          >
+                            <BsPencilSquare className="me-2" />
+                            Edit
+                          </div>
+                          {/* Reset Password */}
+                          <div
+                            className="dropdown-item d-flex align-items-center text-primary fw-semibold mb-2"
+                            onClick={() => setResetIndex(index)}
+                            style={{
+                              cursor: "pointer",
+                              backgroundColor: "#fff",
+                              borderRadius: "6px",
+                              padding: "8px 10px",
+                              color: "#007bff",
+                            }}
+                          >
+                            <BsGear className="me-2" />
+                            Reset Password
+                          </div>
+                          {/* Login as Company */}
+                          <div
+                            className="dropdown-item d-flex align-items-center fw-semibold text-success mb-2"
+                            onClick={() => navigate("/")}
+                            style={{
+                              cursor: "pointer",
+                              backgroundColor: "#fff",
+                              borderRadius: "6px",
+                              padding: "8px 10px",
+                              color: "#338871",
+                            }}
+                          >
+                            <BsShieldLock className="me-2" />
+                            Login as Company
+                          </div>
+                          {/* Delete */}
+                          <div
+                            className="dropdown-item d-flex text-secondary align-items-center fw-semibold"
+                            style={{
+                              cursor: "pointer",
+                              backgroundColor: "#fff",
+                              borderRadius: "6px",
+                              padding: "8px 10px",
+                            }}
+                          >
+                            <BsSlashCircle className="me-2" />
+                            Login Disable
+                          </div>
+                          <div
+                            className="dropdown-item d-flex align-items-center text-danger fw-semibold"
+                            onClick={() => handleDelete(index)}
+                            style={{
+                              cursor: "pointer",
+                              backgroundColor: "#fff",
+                              borderRadius: "6px",
+                              padding: "8px 10px",
+                            }}
+                          >
+                            <BsTrash className="me-2" />
+                            Delete
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Avatar & Info */}
+                  <div className="d-flex align-items-center gap-3 mb-2">
+                    <img
+                      src={
+                        company.profile ||
+                        "https://i.ibb.co/Pzr45DCB/image5.jpg"
+                      }
+                      alt={company.name}
+                      className="rounded-circle"
+                      width="45"
+                      height="45"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "https://i.ibb.co/Pzr45DCB/image5.jpg";
+                      }}
                     />
-                    {activeMenuIndex === index && (
-                      <div
-                        className="custom-dropdown shadow rounded-3 p-2"
-                        style={{ minWidth: "180px" }}
-                      >
-                        {/* Edit */}
-                        <div
-                          className="dropdown-item d-flex align-items-center text-warning fw-semibold mb-2"
-                          onClick={() => handleEdit(index)}
-                          style={{
-                            cursor: "pointer",
-                            backgroundColor: "#fff",
-                            borderRadius: "6px",
-                            padding: "8px 10px",
-                          }}
-                        >
-                          <BsPencilSquare className="me-2" />
-                          Edit
-                        </div>
-                        {/* Reset Password */}
-                        <div
-                          className="dropdown-item d-flex align-items-center text-primary fw-semibold mb-2"
-                          onClick={() => setResetIndex(index)}
-                          style={{
-                            cursor: "pointer",
-                            backgroundColor: "#fff",
-                            borderRadius: "6px",
-                            padding: "8px 10px",
-                            color: "#007bff",
-                          }}
-                        >
-                          <BsGear className="me-2" />
-                          Reset Password
-                        </div>
-                        {/* Login as Company */}
-                        <div
-                          className="dropdown-item d-flex align-items-center fw-semibold text-success mb-2"
-                          onClick={() => navigate("/")}
-                          style={{
-                            cursor: "pointer",
-                            backgroundColor: "#fff",
-                            borderRadius: "6px",
-                            padding: "8px 10px",
-                            color: "#338871",
-                          }}
-                        >
-                          <BsShieldLock className="me-2" />
-                          Login as Company
-                        </div>
-                        {/* Delete */}
-                        <div
-                          className="dropdown-item d-flex text-secondary align-items-center fw-semibold"
-                          style={{
-                            cursor: "pointer",
-                            backgroundColor: "#fff",
-                            borderRadius: "6px",
-                            padding: "8px 10px",
-                          }}
-                        >
-                          <BsSlashCircle className="me-2" />
-                          Login Disable
-                        </div>
-                        <div
-                          className="dropdown-item d-flex align-items-center text-danger fw-semibold"
-                          onClick={() => handleDelete(index)}
-                          style={{
-                            cursor: "pointer",
-                            backgroundColor: "#fff",
-                            borderRadius: "6px",
-                            padding: "8px 10px",
-                          }}
-                        >
-                          <BsTrash className="me-2" />
-                          Delete
-                        </div>
-                      </div>
-                    )}
+                    <div>
+                      <h6 className="mb-0 fw-semibold">{company.name}</h6>
+                      <small className="text-muted">{company.email}</small>
+                    </div>
                   </div>
-                </div>
-                {/* Avatar & Info */}
-                <div className="d-flex align-items-center gap-3 mb-2">
-                  <img
-                    src={
-                      company.logo_url || "https://i.ibb.co/Pzr45DCB/image5.jpg"
-                    }
-                    alt={company.name}
-                    className="rounded-circle"
-                    width="45"
-                    height="45"
-                  />
-                  <div>
-                    <h6 className="mb-0 fw-semibold">{company.name}</h6>
-                    <small className="text-muted">{company.email}</small>
+                  {/* Start & Expiry Dates */}
+                  <div className="text-muted small mb-2 mt-3 px-1">
+                    <div className="d-flex align-items-center mt-1 mb-1">
+                      <BsCalendarWeek className="me-3 text-info" />
+                      <strong className="me-1">Type:</strong>{" "}
+                      {company.user_plans?.[0]?.planType
+                        ? company.user_plans[0].planType.charAt(0).toUpperCase() +
+                          company.user_plans[0].planType.slice(1)
+                        : "N/A"}
+                    </div>
+                    <div className="mb-1 d-flex align-items-center">
+                      <BsCalendarEvent className="me-3 text-primary" />
+                      <strong className="me-1">Start:</strong>{" "}
+                      {formatDate(company.startDate)}
+                    </div>
+                    <div className="d-flex align-items-center">
+                      <BsCalendarEvent className="me-3 text-danger" />
+                      <strong className="me-1">End:</strong>{" "}
+                      {formatDate(company.expireDate)}
+                    </div>
                   </div>
-                </div>
-                {/* Start & Expiry Dates */}
-                <div className="text-muted small mb-2 mt-3 px-1">
-                  <div className="d-flex align-items-center mt-1 mb-1">
-                    <BsCalendarWeek className="me-3 text-info" />
-                    <strong className="me-1">Type:</strong>{" "}
-                    {company.plan_type
-                      ? company.plan_type.charAt(0).toUpperCase() +
-                        company.plan_type.slice(1)
-                      : "N/A"}
+                  {/* Centered Small Buttons */}
+                  <div className="d-flex justify-content-center gap-2 mt-2">
+                    <button
+                      className="btn btn-sm py-1 px-2 text-white"
+                      style={{
+                        backgroundColor: "#53b2a5",
+                        borderColor: "#53b2a5",
+                        fontSize: "0.75rem",
+                      }}
+                      onClick={() => navigate("/superadmin/planpricing")}
+                    >
+                      Upgrade
+                    </button>
+                    <button
+                      className="btn btn-outline-secondary btn-sm py-1 px-2 text-black"
+                      style={{ fontSize: "0.75rem" }}
+                      onClick={() => setViewUserIndex(index)}
+                    >
+                      <BsPeopleFill className="me-1" />
+                      Users
+                    </button>
+                    <button
+                      className="btn btn-outline-secondary btn-sm py-1 px-2 text-black"
+                      style={{ fontSize: "0.75rem" }}
+                    >
+                      <BsCloud className="me-1" />
+                      Storage
+                    </button>
                   </div>
-                  <div className="mb-1 d-flex align-items-center">
-                    <BsCalendarEvent className="me-3 text-primary" />
-                    <strong className="me-1">Start:</strong>{" "}
-                    {formatDate(company.start_date)}
-                  </div>
-                  <div className="d-flex align-items-center">
-                    <BsCalendarEvent className="me-3 text-danger" />
-                    <strong className="me-1">End:</strong>{" "}
-                    {formatDate(company.expire_date)}
-                  </div>
-                </div>
-                {/* Centered Small Buttons */}
-                <div className="d-flex justify-content-center gap-2 mt-2">
-                  <button
-                    className="btn btn-sm py-1 px-2 text-white"
-                    style={{
-                      backgroundColor: "#53b2a5",
-                      borderColor: "#53b2a5",
-                      fontSize: "0.75rem",
-                    }}
-                    onClick={() => navigate("/superadmin/planpricing")}
-                  >
-                    Upgrade
-                  </button>
-                  <button
-                    className="btn btn-outline-secondary btn-sm py-1 px-2 text-black"
-                    style={{ fontSize: "0.75rem" }}
-                    onClick={() => setViewUserIndex(index)}
-                  >
-                    <BsPeopleFill className="me-1" />
-                    Users
-                  </button>
-                  <button
-                    className="btn btn-outline-secondary btn-sm py-1 px-2 text-black"
-                    style={{ fontSize: "0.75rem" }}
-                  >
-                    <BsCloud className="me-1" />
-                    Storage
-                  </button>
                 </div>
               </div>
+            ))
+          ) : (
+            <div className="col-12 text-center py-5">
+              <BsBuildings
+                className="text-muted mb-3"
+                style={{ fontSize: "3rem" }}
+              />
+              <h5 className="text-muted">No companies found</h5>
+              <p className="text-muted">
+                {apiError
+                  ? "Unable to fetch company data. Please try again later."
+                  : "Add a new company to get started."}
+              </p>
             </div>
-          ))}
+          )}
         </div>
       ) : (
         <div className="card mt-4 shadow-sm rounded-4">
@@ -820,80 +866,101 @@ const Company = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCompanies.map((company, index) => (
-                    <tr key={company.id}>
-                      <td>{index + 1}</td>
-                      <td>
-                        <img
-                          src={
-                            company.logo_url ||
-                            "https://i.ibb.co/Pzr45DCB/image5.jpg"
-                          }
-                          alt={company.name}
-                          className="rounded-circle"
-                          width="40"
-                          height="40"
+                  {filteredCompanies.length > 0 ? (
+                    filteredCompanies.map((company, index) => (
+                      <tr key={company.id}>
+                        <td>{index + 1}</td>
+                        <td>
+                          <img
+                            src={
+                              company.profile ||
+                              "https://i.ibb.co/Pzr45DCB/image5.jpg"
+                            }
+                            alt={company.name}
+                            className="rounded-circle"
+                            width="40"
+                            height="40"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = "https://i.ibb.co/Pzr45DCB/image5.jpg";
+                            }}
+                          />
+                        </td>
+                        <td>{company.name}</td>
+                        <td>{company.email}</td>
+                        <td>
+                          <span
+                            className="badge px-3 py-2 rounded-pill fw-semibold"
+                            style={
+                              badgeStyles[company.user_plans?.[0]?.plan?.plan_name] || badgeStyles.Bronze
+                            }
+                          >
+                            {company.user_plans?.[0]?.plan?.plan_name || "N/A"}
+                          </span>
+                        </td>
+                        <td>{formatDate(company.startDate)}</td>
+                        <td>{formatDate(company.expireDate)}</td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              company.user_plans?.[0]?.status === "Active"
+                                ? "bg-success"
+                                : "bg-danger"
+                            }`}
+                          >
+                            {company.user_plans?.[0]?.status || "N/A"}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="d-flex gap-2">
+                            <button
+                              className="btn btn-sm btn-warning"
+                              onClick={() => handleEdit(index)}
+                              title="Edit Company"
+                            >
+                              <BsPencilSquare />
+                            </button>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleDelete(index)}
+                              title="Delete Company"
+                            >
+                              <BsTrash />
+                            </button>
+                            <button
+                              className="btn btn-sm btn-success"
+                              onClick={() => navigate("/")}
+                              title="Login as Company"
+                            >
+                              <BsShieldLock />
+                            </button>
+                            <button
+                              className="btn btn-sm btn-info text-black"
+                              onClick={() => setViewUserIndex(index)}
+                              title="View Users"
+                            >
+                              <BsEye />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="9" className="text-center py-4">
+                        <BsBuildings
+                          className="text-muted mb-3"
+                          style={{ fontSize: "2rem" }}
                         />
-                      </td>
-                      <td>{company.name}</td>
-                      <td>{company.email}</td>
-                      <td>
-                        <span
-                          className="badge px-3 py-2 rounded-pill fw-semibold"
-                          style={
-                            badgeStyles[company.plan_name] || badgeStyles.Bronze
-                          }
-                        >
-                          {company.plan_name}
-                        </span>
-                      </td>
-                      <td>{formatDate(company.start_date)}</td>
-                      <td>{formatDate(company.expire_date)}</td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            company.status === "Active"
-                              ? "bg-success"
-                              : "bg-danger"
-                          }`}
-                        >
-                          {company.status}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="d-flex gap-2">
-                          <button
-                            className="btn btn-sm btn-warning"
-                            onClick={() => handleEdit(index)}
-                            title="Edit Company"
-                          >
-                            <BsPencilSquare />
-                          </button>
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() => handleDelete(index)}
-                            title="Delete Company"
-                          >
-                            <BsTrash />
-                          </button>
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => navigate("/")}
-                            title="Login as Company"
-                          >
-                            <BsShieldLock />
-                          </button>
-                          <button
-                            className="btn btn-sm btn-info text-black"
-                            onClick={() => setViewUserIndex(index)}
-                            title="View Users"
-                          >
-                            <BsEye />
-                          </button>
-                        </div>
+                        <h5 className="text-muted">No companies found</h5>
+                        <p className="text-muted">
+                          {apiError
+                            ? "Unable to fetch company data. Please try again later."
+                            : "Add a new company to get started."}
+                        </p>  
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1082,7 +1149,10 @@ const Company = () => {
                       className="form-control"
                       value={newCompany.start_date}
                       onChange={(e) =>
-                        setNewCompany({ ...newCompany, start_date: e.target.value })
+                        setNewCompany({
+                          ...newCompany,
+                          start_date: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -1112,15 +1182,19 @@ const Company = () => {
                       className="form-select"
                       value={newCompany.plan_id}
                       onChange={(e) =>
-                        setNewCompany({ ...newCompany, plan_id: e.target.value })
+                        setNewCompany({
+                          ...newCompany,
+                          plan_id: e.target.value,
+                        })
                       }
                     >
                       <option value="">Select Plan</option>
-                      {plans.map((plan) => (
-                        <option key={plan.id} value={plan.id}>
-                          {plan.name}
-                        </option>
-                      ))}
+                      {Array.isArray(plans) &&
+                        plans.map((plan) => (
+                          <option key={plan.id} value={plan.id}>
+                            {plan.plan_name}
+                          </option>
+                        ))}
                     </select>
                   </div>
                   {/* Plan Type Dropdown */}
@@ -1451,11 +1525,12 @@ const Company = () => {
                       }
                     >
                       <option value="">Select Plan</option>
-                      {plans.map((plan) => (
-                        <option key={plan.id} value={plan.id}>
-                          {plan.name}
-                        </option>
-                      ))}
+                      {Array.isArray(plans) &&
+                        plans.map((plan) => (
+                          <option key={plan.id} value={plan.id}>
+                            {plan.plan_name}
+                          </option>
+                        ))}
                     </select>
                   </div>
                   {/* Plan Type Dropdown */}
@@ -1602,7 +1677,7 @@ const Company = () => {
               <div className="modal-body pt-0">
                 <p className="mb-3">
                   Reset password for{" "}
-                  <strong>{companies[resetIndex].name}</strong>
+                  <strong>{companies[resetIndex]?.name || "Company"}</strong>
                 </p>
                 <div className="mb-3">
                   <label className="form-label">New Password*</label>
