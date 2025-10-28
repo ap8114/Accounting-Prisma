@@ -7,7 +7,8 @@ import {
   Col,
   Table,
   Card,
-  Alert
+  Alert,
+  Spinner
 } from 'react-bootstrap';
 import {
   FaPlus, FaEdit, FaTrash, FaEye, FaFileImport, FaFileExport, FaDownload, FaBook
@@ -26,7 +27,6 @@ const Transaction = () => {
   const navigate = useNavigate();
   const CompanyId = GetCompanyId();
 
-  // ✅ Debug: Log CompanyId
   console.log("Current Company ID (from GetCompanyId):", CompanyId);
 
   const [loading, setLoading] = useState(true);
@@ -39,7 +39,55 @@ const Transaction = () => {
 
   const [transactions, setTransactions] = useState([]);
 
-  // ✅ Reusable function to fetch transactions — WITH CLIENT-SIDE FILTERING
+  // ✅ State for real customer & vendor data
+  const [customers, setCustomers] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [customerError, setCustomerError] = useState(null);
+
+  // ✅ Fetch customers & vendors from API
+  // ✅ REPLACE your current `fetchCustomersAndVendors` with this:
+
+  const fetchCustomersAndVendors = async () => {
+    if (!CompanyId) {
+      setCustomerError('Company ID not found.');
+      setLoadingCustomers(false);
+      return;
+    }
+
+    try {
+      setLoadingCustomers(true);
+
+      // ✅ Fetch customers
+      const customerResponse = await axiosInstance.get(`/vendorCustomer/company/${CompanyId}?type=customer`);
+      // ✅ Fetch vendors — with CORRECT spelling: "vendor", NOT "vender"
+      const vendorResponse = await axiosInstance.get(`/vendorCustomer/company/${CompanyId}?type=vender`);
+
+      console.log("Customers API Response:", customerResponse.data);
+      console.log("Vendors API Response:", vendorResponse.data);
+
+      const custs = customerResponse.data.success && Array.isArray(customerResponse.data.data)
+        ? customerResponse.data.data
+        : [];
+
+      const vends = vendorResponse.data.success && Array.isArray(vendorResponse.data.data)
+        ? vendorResponse.data.data
+        : [];
+
+      setCustomers(custs);
+      setVendors(vends);
+      setCustomerError(null);
+    } catch (err) {
+      console.error('Customer/Vendor Fetch Error:', err);
+      setCustomerError(err.response?.data?.message || 'Failed to load customer/vendor data');
+      setCustomers([]);
+      setVendors([]);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
+
+  // ✅ Fetch transactions
   const refetchTransactions = async () => {
     if (!CompanyId) {
       setError('Company ID not found. Please login again.');
@@ -49,41 +97,46 @@ const Transaction = () => {
 
     try {
       setLoading(true);
-      console.log("Fetching transactions for Company"); // ✅ Debug
+      const response = await axiosInstance.get(`/transactions/company/${CompanyId}`);
 
-      const response = await axiosInstance.get(`/transaction`, {
-        params: {
-          company_id: CompanyId
-        }
-      });
+      if (response.data.success) {
+        let rawData = response.data.data;
+        let dataArray = Array.isArray(rawData) ? rawData : (rawData ? [rawData] : []);
 
-      console.log("API Response:", response.data); // ✅ Debug
-
-      if (response.data.status && Array.isArray(response.data.data)) {
-        // ✅ CLIENT-SIDE FILTER: Ensure only current company's data is shown
-        const serverFilteredData = response.data.data.filter(txn =>
+        const serverFilteredData = dataArray.filter(txn =>
           String(txn.company_id) === String(CompanyId)
         );
 
-        const mappedTransactions = serverFilteredData.map(txn => ({
-          transactionId: txn.transaction_id,
-          date: txn.date,
-          balanceType: txn.balance_type,
-          voucherType: txn.voucher_type,
-          amount: parseFloat(txn.amount),
-          fromTo: txn.from_type === 'Customer' ? txn.from_customer_name : txn.from_vendor_name,
-          accountType: txn.account_type || '',
-          voucherNo: txn.voucher_no,
-          note: txn.note,
-          id: txn.id, // ✅ IMPORTANT: This is used for PUT/DELETE
-          fromType: txn.from_type,
-          fromId: txn.from_id,
-          companyId: txn.company_id
-        }));
+        const mappedTransactions = serverFilteredData.map(txn => {
+          let fromToName = '';
+          if (txn.from_entity && txn.from_entity.name_english) {
+            fromToName = txn.from_entity.name_english;
+          } else {
+            fromToName = txn.from_type === 'Customer'
+              ? `Customer ID: ${txn.from_id || 'N/A'}`
+              : `Vendor ID: ${txn.from_id || 'N/A'}`;
+          }
+
+          return {
+            transactionId: txn.transaction_id,
+            date: txn.date,
+            balanceType: txn.balance_type,
+            voucherType: txn.voucher_type,
+            amount: txn.amount ? parseFloat(txn.amount) : 0,
+            fromTo: fromToName,
+            accountType: txn.account_type || '',
+            voucherNo: txn.voucher_no,
+            note: txn.note,
+            id: txn.id,
+            fromType: txn.from_type,
+            fromId: txn.from_id,
+            companyId: txn.company_id,
+            fromEntity: txn.from_entity
+          };
+        });
 
         setTransactions(mappedTransactions);
         setError(null);
-        console.log(`Loaded ${mappedTransactions.length} transactions for Company ID: ${CompanyId}`); // ✅ Debug
       } else {
         throw new Error(response.data.message || 'Failed to load transactions');
       }
@@ -96,9 +149,11 @@ const Transaction = () => {
     }
   };
 
-  // Initial fetch
   useEffect(() => {
-    refetchTransactions();
+    if (CompanyId) {
+      refetchTransactions();
+      fetchCustomersAndVendors();
+    }
   }, [CompanyId]);
 
   const accountTypes = [
@@ -157,19 +212,8 @@ const Transaction = () => {
   const [modalError, setModalError] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const customerList = [
-    { id: 1, name: 'Customer A' },
-    { id: 2, name: 'Customer B' },
-    { id: 3, name: 'Customer C' }
-  ];
-
-  const vendorList = [
-    { id: 4, name: 'Vendor X' },
-    { id: 5, name: 'Vendor Y' },
-    { id: 6, name: 'Vendor Z' }
-  ];
-
-  const [fromToType, setFromToType] = useState('Customer');
+  // ✅ Use lowercase consistently
+  const [fromToType, setFromToType] = useState('customer');
 
   const customBtn = {
     backgroundColor: '#27b2b6',
@@ -180,6 +224,165 @@ const Transaction = () => {
   };
 
   const fileInputRef = React.useRef();
+
+  // ✅ Helper to display name
+  const getDisplayName = (item) => {
+    return item.name_english || item.company_name || `ID: ${item.id}`;
+  };
+
+  // ... (handleImport, handleExport, handleDownloadBlank remain unchanged)
+
+  const handleSave = async () => {
+    setSaving(true);
+    setModalError(null);
+
+    try {
+      const selectedList = fromToType === 'customer' ? customers : vendors;
+      const selectedItem = selectedList.find(item => item.name_english === form.fromTo);
+
+      if (!selectedItem) {
+        throw new Error(`Please select a valid ${fromToType === 'customer' ? 'Customer' : 'Vendor'}`);
+      }
+
+      const payload = {
+        date: form.date,
+        company_id: CompanyId,
+        balance_type: form.balanceType,
+        voucher_type: form.voucherType,
+        voucher_no: form.voucherNo,
+        amount: parseFloat(form.amount),
+        from_type: fromToType === 'customer' ? 'Customer' : 'Vendor', // API expects capitalized
+        from_id: selectedItem.id,
+        account_type: form.accountType,
+        note: form.note
+      };
+
+      const response = await axiosInstance.post('/transactions', payload);
+
+      if (response.data.success) {
+        await refetchTransactions();
+        toast.success("Transaction saved successfully!");
+        setShowModal(false);
+        setForm({ ...emptyForm });
+        setFromToType('customer');
+      } else {
+        throw new Error(response.data.message || 'Failed to save transaction');
+      }
+    } catch (err) {
+      console.error('Save Error:', err);
+      setModalError(err.response?.data?.message || err.message || 'Failed to save transaction. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = (idx) => {
+    const txn = transactions[idx];
+    setSelectedTransaction(idx);
+    setForm({
+      transactionId: txn.transactionId,
+      date: txn.date,
+      balanceType: txn.balanceType,
+      voucherType: txn.voucherType,
+      amount: txn.amount.toString(),
+      fromTo: txn.fromTo,
+      accountType: txn.accountType,
+      voucherNo: txn.voucherNo,
+      note: txn.note
+    });
+
+    // Map 'Customer' → 'customer', 'Vendor' → 'vendor'
+    const typeLower = txn.fromType?.toLowerCase() === 'vendor' ? 'vendor' : 'customer';
+    setFromToType(typeLower);
+    setShowModal(true);
+  };
+
+  const handleUpdate = async () => {
+    setSaving(true);
+    setModalError(null);
+
+    try {
+      const selectedList = fromToType === 'customer' ? customers : vendors;
+      const selectedItem = selectedList.find(item => item.name_english === form.fromTo);
+
+      if (!selectedItem) {
+        throw new Error(`Please select a valid ${fromToType === 'customer' ? 'Customer' : 'Vendor'}`);
+      }
+
+      const txnId = transactions[selectedTransaction]?.id;
+      if (!txnId) throw new Error('Transaction ID not found');
+
+      const payload = {
+        date: form.date,
+        company_id: CompanyId,
+        balance_type: form.balanceType,
+        voucher_type: form.voucherType,
+        voucher_no: form.voucherNo,
+        amount: parseFloat(form.amount),
+        from_type: fromToType === 'customer' ? 'Customer' : 'Vendor',
+        from_id: selectedItem.id,
+        account_type: form.accountType,
+        note: form.note
+      };
+
+      const response = await axiosInstance.put(`/transactions/${txnId}`, payload);
+
+      if (response.data.success) {
+        toast.success("Transaction updated successfully!");
+        await refetchTransactions();
+        setShowModal(false);
+        setForm({ ...emptyForm });
+        setFromToType('customer');
+        setSelectedTransaction(null);
+      } else {
+        throw new Error(response.data.message || 'Failed to update transaction');
+      }
+    } catch (err) {
+      console.error('Update Error:', err);
+      setModalError(err.response?.data?.message || err.message || 'Failed to update transaction. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleView = (idx) => {
+    setSelectedTransaction(idx);
+    setShowViewModal(true);
+  };
+
+  const handleDelete = async (idx) => {
+    const txnId = transactions[idx]?.id;
+    if (!txnId) {
+      toast.error("Transaction ID not found.");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
+
+    try {
+      const response = await axiosInstance.delete(`/transactions/${txnId}`);
+      if (response.data.success) {
+        toast.success("Transaction deleted successfully!");
+        await refetchTransactions();
+      } else {
+        throw new Error(response.data.message || 'Failed to delete transaction');
+      }
+    } catch (err) {
+      console.error('Delete Error:', err);
+      toast.error(err.response?.data?.message || 'Failed to delete transaction. Please try again.');
+    }
+  };
+
+  const filteredTransactions = transactions.filter((txn) =>
+    (filterVoucherType === '' || txn.voucherType === filterVoucherType) &&
+    (filterVoucherNo === '' || txn.voucherNo.toLowerCase().includes(filterVoucherNo.toLowerCase())) &&
+    (filterDate === '' || txn.date === filterDate) &&
+    (filterFromTo === '' || txn.fromTo.toLowerCase().includes(filterFromTo.toLowerCase()))
+  );
+
+  // ======================
+  // Remaining UI Code (Unchanged except minor fixes)
+  // ======================
 
   const handleImport = (e) => {
     const file = e.target.files[0];
@@ -201,7 +404,6 @@ const Transaction = () => {
         voucherNo: row["Voucher No"] || "",
         note: row["Note"] || ""
       }));
-      // ✅ Filter imported data by CompanyId if needed (optional)
       setTransactions((prev) => [...prev, ...imported]);
     };
     reader.readAsBinaryString(file);
@@ -215,7 +417,7 @@ const Transaction = () => {
         (filterDate === '' || txn.date === filterDate) &&
         (filterFromTo === '' || txn.fromTo.toLowerCase().includes(filterFromTo.toLowerCase()))
       )
-      .map((txn, idx) => ({
+      .map((txn) => ({
         Date: txn.date,
         "Balance Type": txn.balanceType,
         "Voucher Type": txn.voucherType,
@@ -231,15 +433,18 @@ const Transaction = () => {
     XLSX.writeFile(wb, "transactions.xlsx");
   };
 
-  // ✅ Use Landscape mode for more width
   const handleDownloadBlank = () => {
-    const doc = new jsPDF('l', 'mm', 'a4'); // 'l' = landscape
+    const dataToExport = transactions
+      .filter((txn) =>
+        (filterVoucherType === '' || txn.voucherType === filterVoucherType) &&
+        (filterVoucherNo === '' || txn.voucherNo.toLowerCase().includes(filterVoucherNo.toLowerCase())) &&
+        (filterDate === '' || txn.date === filterDate) &&
+        (filterFromTo === '' || txn.fromTo.toLowerCase().includes(filterFromTo.toLowerCase()))
+      );
 
-    // Add title
+    const doc = new jsPDF('l', 'mm', 'a4');
     doc.setFontSize(18);
     doc.text("Transaction Report", 14, 15);
-
-    // Add generated date (optional)
     const today = new Date().toLocaleString();
     doc.setFontSize(10);
     doc.setTextColor(100);
@@ -257,7 +462,7 @@ const Transaction = () => {
       "Note"
     ];
 
-    const rows = filteredTransactions.map(txn => [
+    const rows = dataToExport.map(txn => [
       txn.date || "-",
       txn.transactionId || "-",
       txn.balanceType || "-",
@@ -279,25 +484,21 @@ const Transaction = () => {
         body: rows,
         startY: 30,
         theme: 'grid',
-        margin: { top: 30, left: 10, right: 10 }, // ✅ Give breathing room
+        margin: { top: 30, left: 10, right: 10 },
         headStyles: {
-          fillColor: [39, 178, 182], // #27b2b6
+          fillColor: [39, 178, 182],
           textColor: 255,
           fontSize: 10,
           fontStyle: 'bold',
           halign: 'center'
         },
         styles: {
-          fontSize: 9,           // ✅ Slightly smaller font
+          fontSize: 9,
           cellPadding: 3,
           halign: 'left',
           valign: 'middle'
         },
-        columnStyles: {
-          // ✅ Let autotable auto-adjust width — NO fixed widths
-        },
         didDrawPage: (data) => {
-          // Add page number at bottom
           doc.setFontSize(9);
           doc.setTextColor(100);
           doc.text(
@@ -308,180 +509,8 @@ const Transaction = () => {
         }
       });
     }
-
-    // Save the PDF
     doc.save("transactions_report.pdf");
   };
-
-  // ✅ Updated: Now refreshes data from API after POST
-  const handleSave = async () => {
-    setSaving(true);
-    setModalError(null);
-
-    try {
-      const selectedList = fromToType === 'Customer' ? customerList : vendorList;
-      const selectedItem = selectedList.find(item => item.name === form.fromTo);
-
-      if (!selectedItem) {
-        throw new Error(`Please select a valid ${fromToType}`);
-      }
-
-      // ✅ Ensure company_id is included and correct
-      const payload = {
-        date: form.date,
-        company_id: CompanyId,
-        balance_type: form.balanceType,
-        voucher_type: form.voucherType,
-        voucher_no: form.voucherNo,
-        amount: parseFloat(form.amount),
-        from_type: fromToType,
-        from_id: selectedItem.id,
-        account_type: form.accountType,
-        note: form.note
-      };
-
-      console.log("POST Payload:", payload); // ✅ Debug
-
-      const response = await axiosInstance.post('/transaction', payload);
-
-      if (response.data.status) {
-        console.log("POST Success:", response.data); // ✅ Debug
-
-        // ✅ REFRESH FROM API — Ensures data is filtered by CompanyId
-        await refetchTransactions();
-
-        toast.success("Transaction saved successfully!");
-
-        setShowModal(false);
-        setForm({ ...emptyForm });
-        setFromToType('Customer');
-      } else {
-        throw new Error(response.data.message || 'Failed to save transaction');
-      }
-    } catch (err) {
-      console.error('Save Error:', err);
-      setModalError(err.response?.data?.message || err.message || 'Failed to save transaction. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ✅ EDIT HANDLER — Uses PUT /transaction/${id}
-  const handleEdit = (idx) => {
-    const txn = transactions[idx];
-    setSelectedTransaction(idx);
-    setForm({
-      transactionId: txn.transactionId,
-      date: txn.date,
-      balanceType: txn.balanceType,
-      voucherType: txn.voucherType,
-      amount: txn.amount.toString(),
-      fromTo: txn.fromTo,
-      accountType: txn.accountType,
-      voucherNo: txn.voucherNo,
-      note: txn.note
-    });
-    setFromToType(txn.fromType || 'Customer');
-    setShowModal(true);
-  };
-
-  // ✅ PUT REQUEST — Updates transaction
-  const handleUpdate = async () => {
-    setSaving(true);
-    setModalError(null);
-
-    try {
-      const selectedList = fromToType === 'Customer' ? customerList : vendorList;
-      const selectedItem = selectedList.find(item => item.name === form.fromTo);
-
-      if (!selectedItem) {
-        throw new Error(`Please select a valid ${fromToType}`);
-      }
-
-      const txnId = transactions[selectedTransaction]?.id;
-      if (!txnId) {
-        throw new Error('Transaction ID not found');
-      }
-
-      const payload = {
-        date: form.date,
-        company_id: CompanyId,
-        balance_type: form.balanceType,
-        voucher_type: form.voucherType,
-        voucher_no: form.voucherNo,
-        amount: parseFloat(form.amount),
-        from_type: fromToType,
-        from_id: selectedItem.id,
-        account_type: form.accountType,
-        note: form.note
-      };
-
-      console.log(`PUT /transaction/${txnId} Payload:`, payload);
-
-      const response = await axiosInstance.patch(`/transaction/${txnId}`, payload);
-
-      if (response.data.status) {
-        console.log("PUT Success:", response.data);
-
-       
-
-        toast.success("Transaction updated successfully!");
- // ✅ REFRESH DATA
-        await refetchTransactions();
-        setShowModal(false);
-        setForm({ ...emptyForm });
-        setFromToType('Customer');
-        setSelectedTransaction(null);
-      } else {
-        throw new Error(response.data.message || 'Failed to update transaction');
-      }
-    } catch (err) {
-      console.error('Update Error:', err);
-      setModalError(err.response?.data?.message || err.message || 'Failed to update transaction. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleView = (idx) => {
-    setSelectedTransaction(idx);
-    setShowViewModal(true);
-  };
-
-  // ✅ DELETE HANDLER — Uses DELETE /transaction/${id}
-  const handleDelete = async (idx) => {
-    const txnId = transactions[idx]?.id;
-
-    if (!txnId) {
-      toast.error("Transaction ID not found.");
-      return;
-    }
-
-    if (!window.confirm("Are you sure you want to delete this transaction?")) {
-      return;
-    }
-
-    try {
-      const response = await axiosInstance.delete(`/transaction/${txnId}`);
-
-      if (response.data.status) {
-        toast.success("Transaction deleted successfully!");
-        await refetchTransactions(); // ✅ Refresh list
-      } else {
-        throw new Error(response.data.message || 'Failed to delete transaction');
-      }
-    } catch (err) {
-      console.error('Delete Error:', err);
-      toast.error(err.response?.data?.message || 'Failed to delete transaction. Please try again.');
-    }
-  };
-
-  const filteredTransactions = transactions.filter((txn) =>
-    (filterVoucherType === '' || txn.voucherType === filterVoucherType) &&
-    (filterVoucherNo === '' || txn.voucherNo.toLowerCase().includes(filterVoucherNo.toLowerCase())) &&
-    (filterDate === '' || txn.date === filterDate) &&
-    (filterFromTo === '' || txn.fromTo.toLowerCase().includes(filterFromTo.toLowerCase()))
-  );
 
   return (
     <div className="p-3">
@@ -489,65 +518,28 @@ const Transaction = () => {
 
       <Row className="mb-3 align-items-center">
         <Col xs={12} md="auto">
-          <h4>Transactions</h4> {/* ✅ Show current Company ID */}
+          <h4>Transactions</h4>
         </Col>
         <Col xs={12} md="auto" className="ms-auto">
-          <div
-            className="d-flex flex-wrap justify-content-end align-items-center gap-2"
-            style={{ minWidth: "150px" }}
-          >
-            <Button
-              variant="success"
-              size="sm"
-              className="d-flex align-items-center gap-1 flex-shrink-0"
-              onClick={() => fileInputRef.current.click()}
-              title="Import Excel"
-            >
+          <div className="d-flex flex-wrap justify-content-end align-items-center gap-2" style={{ minWidth: "150px" }}>
+            <Button variant="success" size="sm" className="d-flex align-items-center gap-1" onClick={() => fileInputRef.current.click()} title="Import Excel">
               <FaFileImport /> Import
             </Button>
-
-            <Button
-              variant="primary"
-              size="sm"
-              className="d-flex align-items-center gap-1 flex-shrink-0"
-              onClick={handleExport}
-              title="Export Excel"
-            >
+            <Button variant="primary" size="sm" className="d-flex align-items-center gap-1" onClick={handleExport} title="Export Excel">
               <FaFileExport /> Export
             </Button>
-
-            <Button
-              variant="warning"
-              size="sm"
-              className="d-flex align-items-center gap-1 flex-shrink-0"
-              onClick={handleDownloadBlank}
-              title="Download PDF Report"
-            >
+            <Button variant="warning" size="sm" className="d-flex align-items-center gap-1" onClick={handleDownloadBlank} title="Download PDF Report">
               <FaDownload /> Download PDF
             </Button>
-
-            <Button
-              size="sm"
-              style={customBtn}
-              className="flex-shrink-0"
-              onClick={() => {
-                setSelectedTransaction(null);
-                setForm({ ...emptyForm });
-                setFromToType("Customer");
-                setShowModal(true);
-              }}
-            >
+            <Button size="sm" style={customBtn} onClick={() => {
+              setSelectedTransaction(null);
+              setForm({ ...emptyForm });
+              setFromToType("customer");
+              setShowModal(true);
+            }}>
               Add Transaction
             </Button>
-
-            <Button
-              variant="info"
-              size="sm"
-              style={customBtn}
-              className="flex-shrink-0"
-              onClick={() => navigate("/company/ledger")}
-              title="Go to Ledger"
-            >
+            <Button variant="info" size="sm" style={customBtn} onClick={() => navigate("/company/ledger")} title="Go to Ledger">
               Go to Ledger
             </Button>
           </div>
@@ -558,10 +550,7 @@ const Transaction = () => {
         <Col md={3}>
           <Form.Group>
             <Form.Label>Filter by Voucher Type</Form.Label>
-            <Form.Select
-              value={filterVoucherType}
-              onChange={(e) => setFilterVoucherType(e.target.value)}
-            >
+            <Form.Select value={filterVoucherType} onChange={(e) => setFilterVoucherType(e.target.value)}>
               <option value="">All</option>
               {voucherTypes.map((type, i) => (
                 <option key={i} value={type}>{type}</option>
@@ -605,18 +594,12 @@ const Transaction = () => {
 
       {loading && (
         <div className="text-center my-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-2">Loading transactions for Company</p>
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-2">Loading transactions...</p>
         </div>
       )}
 
-      {error && (
-        <div className="alert alert-danger text-center" role="alert">
-          {error}
-        </div>
-      )}
+      {error && <Alert variant="danger" className="text-center">{error}</Alert>}
 
       {!loading && !error && (
         <Table bordered hover responsive>
@@ -637,7 +620,7 @@ const Transaction = () => {
           <tbody>
             {filteredTransactions.length > 0 ? (
               filteredTransactions.map((txn, idx) => (
-                <tr key={idx}>
+                <tr key={txn.id || idx}>
                   <td>{txn.date}</td>
                   <td>{txn.transactionId}</td>
                   <td>{txn.balanceType}</td>
@@ -649,22 +632,15 @@ const Transaction = () => {
                   <td>{txn.note}</td>
                   <td>
                     <div className="d-flex gap-2">
-                      <baseutton className="text-primary me-3" onClick={() => handleView(idx)}>
-                        <FaEye />
-                      </baseutton>
-                      <button className="text-success" onClick={() => handleEdit(idx)}>
-                        <FaEdit />
-                      </button>
-                      <button onClick={() => handleDelete(idx)} className="text-danger">
-                        <FaTrash />
-                      </button>
+                      <button className="btn btn-link text-primary p-0" onClick={() => handleView(idx)}><FaEye /></button>
+                      <button className="btn btn-link text-success p-0" onClick={() => handleEdit(idx)}><FaEdit /></button>
+                      <button className="btn btn-link text-danger p-0" onClick={() => handleDelete(idx)}><FaTrash /></button>
                     </div>
                   </td>
-
                 </tr>
               ))
             ) : (
-              <tr><td colSpan="11" className="text-center">No transactions found for Company</td></tr>
+              <tr><td colSpan="10" className="text-center">No transactions found.</td></tr>
             )}
           </tbody>
         </Table>
@@ -676,77 +652,40 @@ const Transaction = () => {
           <Modal.Title>{selectedTransaction !== null ? 'Edit' : 'Add'} Transaction</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {modalError && (
-            <Alert variant="danger" onClose={() => setModalError(null)} dismissible>
-              {modalError}
-            </Alert>
-          )}
+          {modalError && <Alert variant="danger" onClose={() => setModalError(null)} dismissible>{modalError}</Alert>}
+          {loadingCustomers && <div className="text-center mb-3"><Spinner animation="border" size="sm" /> Loading data...</div>}
+          {customerError && <Alert variant="warning" onClose={() => setCustomerError(null)} dismissible>{customerError}</Alert>}
+
           <Form>
             <Form.Group className="mb-2">
               <Form.Label>Date</Form.Label>
-              <Form.Control
-                type="date"
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                required
-              />
+              <Form.Control type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
             </Form.Group>
             <Form.Group className="mb-2">
               <Form.Label>Transaction ID</Form.Label>
-              <Form.Control
-                type="text"
-                value={form.transactionId || 'Auto-generated after save'}
-                readOnly
-              />
-              <Form.Text className="text-muted">
-                {selectedTransaction !== null
-                  ? 'Existing Transaction ID'
-                  : 'Will be generated after saving'}
-              </Form.Text>
+              <Form.Control type="text" value={form.transactionId || 'Auto-generated'} readOnly />
             </Form.Group>
             <Form.Group className="mb-2">
               <Form.Label>Balance Type</Form.Label>
-              <Form.Select
-                value={form.balanceType}
-                onChange={(e) => setForm({ ...form, balanceType: e.target.value })}
-                required
-              >
+              <Form.Select value={form.balanceType} onChange={(e) => setForm({ ...form, balanceType: e.target.value })} required>
                 <option value="Receive">Receive</option>
                 <option value="Make Payment">Make Payment</option>
               </Form.Select>
             </Form.Group>
             <Form.Group className="mb-2">
               <Form.Label>Voucher Type</Form.Label>
-              <Form.Select
-                value={form.voucherType}
-                onChange={(e) => setForm({ ...form, voucherType: e.target.value })}
-                required
-              >
+              <Form.Select value={form.voucherType} onChange={(e) => setForm({ ...form, voucherType: e.target.value })} required>
                 <option value="">Select Voucher Type</option>
-                {voucherTypes.map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
+                {voucherTypes.map(type => <option key={type} value={type}>{type}</option>)}
               </Form.Select>
             </Form.Group>
             <Form.Group className="mb-2">
               <Form.Label>Voucher No</Form.Label>
-              <Form.Control
-                type="text"
-                value={form.voucherNo}
-                onChange={(e) => setForm({ ...form, voucherNo: e.target.value })}
-                required
-              />
+              <Form.Control type="text" value={form.voucherNo} onChange={(e) => setForm({ ...form, voucherNo: e.target.value })} required />
             </Form.Group>
             <Form.Group className="mb-2">
               <Form.Label>Amount</Form.Label>
-              <Form.Control
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                required
-              />
+              <Form.Control type="number" step="0.01" min="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
             </Form.Group>
             <Form.Group className="mb-2">
               <Form.Label>From / To</Form.Label>
@@ -759,57 +698,46 @@ const Transaction = () => {
                       setForm({ ...form, fromTo: '' });
                     }}
                   >
-                    <option value="Customer">Customer</option>
-                    <option value="Vendor">Vendor</option>
+                    <option value="customer">Customer</option>
+                    <option value="vendor">Vendor</option> {/* ✅ Correct spelling */}
                   </Form.Select>
                 </Col>
                 <Col>
-                  <Form.Select
-                    value={form.fromTo}
-                    onChange={(e) => setForm({ ...form, fromTo: e.target.value })}
-                    required
-                  >
-                    <option value="">Select {fromToType}</option>
-                    {(fromToType === 'Customer' ? customerList : vendorList).map((item) => (
-                      <option key={item.id} value={item.name}>{item.name}</option>
-                    ))}
-                  </Form.Select>
+                  {loadingCustomers ? (
+                    <Form.Control as="select" disabled><option>Loading...</option></Form.Control>
+                  ) : (
+                    <Form.Select
+                      value={form.fromTo}
+                      onChange={(e) => setForm({ ...form, fromTo: e.target.value })}
+                      required
+                    >
+                      <option value="">Select {fromToType === 'customer' ? 'Customer' : 'Vendor'}</option>
+                      {(fromToType === 'customer' ? customers : vendors).map(item => (
+                        <option key={item.id} value={item.name_english}>
+                          {getDisplayName(item)}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  )}
                 </Col>
               </Row>
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Account Type</Form.Label>
-              <Form.Select
-                value={form.accountType}
-                onChange={(e) => setForm({ ...form, accountType: e.target.value })}
-                required
-              >
+              <Form.Select value={form.accountType} onChange={(e) => setForm({ ...form, accountType: e.target.value })} required>
                 <option value="">Select Account Type</option>
-                {accountTypes.map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
+                {accountTypes.map(type => <option key={type} value={type}>{type}</option>)}
               </Form.Select>
             </Form.Group>
             <Form.Group className="mb-2">
               <Form.Label>Note</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={form.note}
-                onChange={(e) => setForm({ ...form, note: e.target.value })}
-              />
+              <Form.Control as="textarea" rows={3} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button
-            style={customBtn}
-            onClick={selectedTransaction !== null ? handleUpdate : handleSave}
-            disabled={saving}
-          >
+          <Button variant="secondary" onClick={() => setShowModal(false)} disabled={saving}>Cancel</Button>
+          <Button style={customBtn} onClick={selectedTransaction !== null ? handleUpdate : handleSave} disabled={saving || loadingCustomers}>
             {saving ? 'Saving...' : selectedTransaction !== null ? 'Update' : 'Save'}
           </Button>
         </Modal.Footer>
