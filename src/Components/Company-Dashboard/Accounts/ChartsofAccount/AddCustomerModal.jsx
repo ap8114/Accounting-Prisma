@@ -7,19 +7,20 @@ import GetCompanyId from "../../../../Api/GetCompanyId";
 
 const AddCustomerModal = ({ show, onHide, onSave, customerFormData, setCustomerFormData }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-const companyId = GetCompanyId();
+  const companyId = GetCompanyId();
+
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
       // Create FormData object to handle file uploads
       const formData = new FormData();
       
-      // Add all form fields to FormData
-      formData.append('company_id', companyId); // Adding company_id as shown in the image
+      // Add all form fields to FormData with updated field names
+      formData.append('company_id', companyId);
       formData.append('name_english', customerFormData.name || '');
       formData.append('name_arabic', customerFormData.nameArabic || '');
       formData.append('company_name', customerFormData.companyName || '');
-      formData.append('company_location', customerFormData.companyLocation || '');
+      formData.append('google_location', customerFormData.companyLocation || ''); // Changed field name
       formData.append('account_type', 'Sundry Debtors');
       formData.append('balance_type', 'Debit');
       formData.append('account_name', customerFormData.accountName || '');
@@ -27,7 +28,7 @@ const companyId = GetCompanyId();
       formData.append('creation_date', customerFormData.creationDate || '');
       formData.append('bank_account_number', customerFormData.bankAccountNumber || '');
       formData.append('bank_ifsc', customerFormData.bankIFSC || '');
-      formData.append('bank_name', customerFormData.bankName || '');
+      formData.append('bank_name_branch', customerFormData.bankName || ''); // Changed field name
       formData.append('country', customerFormData.country || '');
       formData.append('state', customerFormData.state || '');
       formData.append('pincode', customerFormData.pincode || '');
@@ -36,12 +37,10 @@ const companyId = GetCompanyId();
       formData.append('shipping_address', customerFormData.shippingAddress || '');
       formData.append('phone', customerFormData.phone || '');
       formData.append('email', customerFormData.email || '');
-      formData.append('credit_period', customerFormData.creditPeriod || '');
-      
-      // Add GSTIN if enabled
-      if (customerFormData.gstEnabled) {
-        formData.append('gstin', customerFormData.gstin || '');
-      }
+      formData.append('credit_period_days', customerFormData.creditPeriod || ''); // Changed field name
+      formData.append('enable_gst', customerFormData.gstEnabled); // Changed field name
+      formData.append('gstIn', customerFormData.gstin || ''); // Changed field name
+      formData.append('type', 'customer'); // Added default type
       
       // Add files if they exist
       if (customerFormData.idCardImage) {
@@ -49,11 +48,11 @@ const companyId = GetCompanyId();
       }
       
       if (customerFormData.extraFile) {
-        formData.append('extra_file', customerFormData.extraFile);
+        formData.append('any_file', customerFormData.extraFile); // Changed field name
       }
 
       // Make API call
-      const response = await axiosInstance.post(`${BaseUrl}customers`, formData, {
+      const response = await axiosInstance.post(`${BaseUrl}vendorCustomer`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

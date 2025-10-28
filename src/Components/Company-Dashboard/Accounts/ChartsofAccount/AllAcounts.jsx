@@ -166,8 +166,8 @@ const AllAccounts = () => {
     const groupedData = {};
     
     apiData.forEach(account => {
-      // Use subgroup name from the nested object if available
-      const subgroupName = account.subgroups?.name || "Uncategorized";
+      // Use subgroup name from the parent_account object if available
+      const subgroupName = account.parent_account?.subgroup_name || "Uncategorized";
       
       if (!groupedData[subgroupName]) {
         groupedData[subgroupName] = {
@@ -178,12 +178,12 @@ const AllAccounts = () => {
       
       // Convert has_bank_details to a readable format
       let hasBankDetails = "No";
-      if (account.has_bank_details === "1" || account.has_bank_details === "yes" || account.has_bank_details === "Yes") {
+      if (account.account_number && account.ifsc_code) {
         hasBankDetails = "Yes";
       }
       
       groupedData[subgroupName].rows.push({
-        name: account.account_name,
+        name: account.account_name || `Account ${account.id}`,
         bal: "0.00", // API doesn't provide balance, setting default
         id: account.id,
         has_bank_details: hasBankDetails,
@@ -192,7 +192,10 @@ const AllAccounts = () => {
         bank_name_branch: account.bank_name_branch,
         subgroup_id: account.subgroup_id,
         company_id: account.company_id,
-        subgroup_name: subgroupName
+        subgroup_name: subgroupName,
+        sub_of_subgroup_id: account.sub_of_subgroup_id,
+        parent_account: account.parent_account,
+        sub_of_subgroup: account.sub_of_subgroup
       });
     });
     
@@ -267,17 +270,36 @@ const AllAccounts = () => {
     setActionModal({ show: true, mode: 'edit' });
   };
   
-  const handleDeleteAccount = (type, name) => {
-    // Find the actual row to get the ID
-    const accountGroup = accountData.find((acc) => acc.type === type);
-    const row = accountGroup?.rows.find((r) => r.name === name);
+  const handleDeleteAccount = async (type, name) => {
+    try {
+      setIsDeleting(true);
+      // Find the actual row to get the ID
+      const accountGroup = accountData.find((acc) => acc.type === type);
+      const row = accountGroup?.rows.find((r) => r.name === name);
 
-    setSelectedAccount({
-      type,
-      name,
-      id: row ? row.id : null,
-    });
-    setActionModal({ show: true, mode: 'delete' });
+      if (!row || !row.id) {
+        throw new Error("Account not found");
+      }
+
+      // Show confirmation dialog
+      if (window.confirm(`Are you sure you want to delete the account "${name}"?`)) {
+        // Make API call to delete the account
+        await axiosInstance.delete(`${BaseUrl}account/${row.id}`);
+        
+        // Refresh the page after successful deletion
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Failed to delete account:", error);
+      if (error.response) {
+        console.error("Error response:", error.response.data);
+        alert(error.response.data.message || "Failed to delete account. Please try again.");
+      } else {
+        alert("Failed to delete account. Please try again.");
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
   
   const handleViewLedger = (type, name) => {
@@ -411,10 +433,10 @@ const AllAccounts = () => {
   const [filterName, setFilterName] = useState("");
   const filteredAccountData = accountData.filter((accountGroup) => {
     const typeMatches = accountGroup.type
-      .toLowerCase()
-      .includes(filterName.toLowerCase());
+      ?.toLowerCase()
+      ?.includes(filterName.toLowerCase()) || false;
     const nameMatches = accountGroup.rows.some((row) =>
-      row.name.trim().toLowerCase().includes(filterName.toLowerCase())
+      row.name?.trim()?.toLowerCase()?.includes(filterName.toLowerCase()) || false
     );
     return typeMatches || nameMatches;
   });
@@ -422,7 +444,7 @@ const AllAccounts = () => {
   // Add this function to calculate total balance for each account type
   const calculateTotalBalance = (accountGroup) => {
     return accountGroup.rows
-      .filter((row) => row.name.trim() !== "")
+      .filter((row) => row.name && row.name.trim() !== "")
       .reduce((total, row) => {
         const bal = parseFloat(row.bal) || 0;
         return total + bal;
@@ -555,11 +577,15 @@ const AllAccounts = () => {
                       </tr>
                       {/* Account Rows */}
                       {accountGroup.rows
-                        .filter((row) => row.name.trim() !== "")
+                        .filter((row) => row.name && row.name.trim() !== "")
                         .map((row, index) => (
                           <tr key={`${accountGroup.type}-${index}`}>
                             <td className="text-start">{accountGroup.type}</td>
-                            <td className="text-start">{row.name}</td>
+                            <td className="text-start">
+                              {row.sub_of_subgroup ? 
+                                `${row.sub_of_subgroup.name}` : 
+                                row.name || ''}
+                            </td>
                             <td>{parseFloat(row.bal).toFixed(2)}</td>
                             <td></td>
                             {/* Actions Column */}
