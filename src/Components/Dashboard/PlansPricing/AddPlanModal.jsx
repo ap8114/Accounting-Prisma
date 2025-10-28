@@ -5,7 +5,6 @@ import { BsTrash } from "react-icons/bs";
 import CustomUserLimitModal from "./CustomUserLimitModal";
 import CustomStorageCapacityModal from "./CustomStorageCapacityModal";
 import CustomInvoiceLimitModal from "./CustomInvoiceLimitModal";
-import AddModuleModal from "./AddModuleModal";
 import Swal from "sweetalert2";
 import axios from "axios";
 import BaseUrl from "../../../Api/BaseUrl";
@@ -38,7 +37,20 @@ const calculateTotalPrice = (basePrice, selectedModules, currencyCode) => {
   return `${symbol}${total.toFixed(2)}`;
 };
 
+// Convert GB to bytes (1 GB = 1024^3 bytes)
+const gbToBytes = (gb) => gb * 1024 * 1024 * 1024;
+
 const AddPlanModal = ({ show, handleClose, handleAdd }) => {
+  const staticModules = [
+    { id: 1, label: "Account" },
+    { id: 2, label: "Inventory" },
+    { id: 3, label: "POS" },
+    { id: 4, label: "Sales" },
+    { id: 5, label: "Purchase" },
+    { id: 6, label: "GST Report" },
+    { id: 7, label: "User Management" }
+  ];
+
   const [formData, setFormData] = useState({
     name: "",
     basePrice: "",
@@ -50,57 +62,27 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
     invoiceLimit: 10,
     additionalInvoicePrice: 2.00,
     userLimit: 1,
-    storageCapacity: 5,
+    storageCapacity: 5, // in GB
     currency: "USD"
   });
   
-  const [availableModules, setAvailableModules] = useState([]);
+  const [availableModules] = useState(staticModules);
   const [showCustomUserLimitModal, setShowCustomUserLimitModal] = useState(false);
   const [showCustomStorageCapacityModal, setShowCustomStorageCapacityModal] = useState(false);
   const [showCustomInvoiceLimitModal, setShowCustomInvoiceLimitModal] = useState(false);
-  const [showAddModuleModal, setShowAddModuleModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingModules, setIsLoadingModules] = useState(true);
 
-  // ✅ Reusable fetch function
-  const fetchModules = async () => {
-    if (!show) return;
-    
-    setIsLoadingModules(true);
-    try {
-      const response = await axiosInstance.get("modules");
-      const modules = response.data.data || [];
-      setAvailableModules(modules);
-
-      // Auto-select first module if none selected
-      if (modules.length > 0 && formData.selectedModules.length === 0) {
-        const firstModule = modules[0];
-        setFormData(prev => ({
-          ...prev,
-          selectedModules: [{ id: firstModule.id, name: firstModule.label, price: 0 }]
-        }));
-      }
-    } catch (error) {
-      console.error("Error fetching modules:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to load modules. Please try again.",
-      });
-      setAvailableModules([]);
-    } finally {
-      setIsLoadingModules(false);
-    }
-  };
-
-  // Fetch on modal open
+  // Optional: Pre-select first module on open (if needed)
   useEffect(() => {
-    if (show) {
-      fetchModules();
+    if (show && formData.selectedModules.length === 0) {
+      const firstModule = staticModules[0];
+      setFormData(prev => ({
+        ...prev,
+        selectedModules: [{ id: firstModule.id, name: firstModule.label, price: 0 }]
+      }));
     }
   }, [show]);
 
-  // Rest of handlers...
   const handleDescriptionChange = (index, value) => {
     const updated = [...formData.descriptions];
     updated[index] = value;
@@ -184,61 +166,25 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
     }));
   };
   
-  // ✅ After adding module: refetch from API
-  const handleModuleAdded = () => {
-    setShowAddModuleModal(false);
-    fetchModules(); // Re-fetch to get accurate data from backend
-  };
-  
-  // ✅ After deleting module: refetch from API
-  const handleDeleteModule = async (moduleId, moduleName) => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: `You are about to delete the "${moduleName}" module. This action cannot be undone.`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#aaa",
-      confirmButtonText: "Yes, delete it!",
-    });
-    
-    if (result.isConfirmed) {
-      try {
-        await axiosInstance.delete(`modules/${moduleId}`);
-        Swal.fire({
-          icon: "success",
-          title: "Deleted!",
-          text: `The "${moduleName}" module has been deleted.`,
-        });
-        fetchModules(); // ✅ Refetch after delete
-      } catch (error) {
-        console.error("Error deleting module:", error);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: error.response?.data?.message || "Failed to delete module. Please try again.",
-        });
-      }
-    }
-  };
-  
   const onAdd = async () => {
     try {
       setIsSubmitting(true);
       
       const payload = {
-        name: formData.name,
+        plan_name: formData.name.trim(),
         base_price: parseFloat(formData.basePrice) || 0,
         currency: formData.currency,
         invoice_limit: formData.invoiceLimit === "unlimited" ? -1 : parseInt(formData.invoiceLimit),
         additional_invoice_price: formData.invoiceLimit === "unlimited" ? 0 : parseFloat(formData.additionalInvoicePrice) || 0,
         user_limit: formData.userLimit === "unlimited" ? -1 : parseInt(formData.userLimit),
-        storage_capacity_gb: formData.storageCapacity === "unlimited" ? -1 : parseInt(formData.storageCapacity),
+        storage_capacity: formData.storageCapacity === "unlimited" 
+          ? -1 
+          : gbToBytes(parseInt(formData.storageCapacity)),
         billing_cycle: formData.billing,
         status: formData.status,
         description: formData.descriptions.filter(desc => desc.trim() !== "").join("\n"),
-        modules: formData.selectedModules.map(module => ({
-          module_id: module.id,
+        plan_modules: formData.selectedModules.map(module => ({
+          module_name: module.name,
           module_price: parseFloat(module.price) || 0
         }))
       };
@@ -313,6 +259,7 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
                     name="basePrice" 
                     value={formData.basePrice} 
                     onChange={handleChange} 
+                    step="0.01"
                   />
                 </Form.Group>
               </Col>
@@ -454,76 +401,60 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
               <Form.Label>Status</Form.Label>
               <Form.Select name="status" value={formData.status} onChange={handleChange}>
                 <option value="Active">Active</option>
-                <option value="Deprecated">InActive</option>
+                <option value="Inactive">InActive</option>
               </Form.Select>
             </Form.Group>
             
             <Form.Group className="mb-3">
               <div className="d-flex justify-content-between align-items-center mb-2">
                 <Form.Label className="mb-0">Modules</Form.Label>
+                {/* Disabled Add Module button */}
                 <Button 
                   variant="outline-primary" 
                   size="sm" 
-                  onClick={() => setShowAddModuleModal(true)}
+                  disabled
                 >
                   Add New Module
                 </Button>
               </div>
               <Card className="mb-3">
                 <Card.Body>
-                  {isLoadingModules ? (
-                    <div className="text-center py-3">
-                      <div className="spinner-border text-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
-                    </div>
-                  ) : availableModules.length === 0 ? (
-                    <p className="text-muted text-center">No modules available.</p>
-                  ) : (
-                    availableModules.map(module => {
-                      const isSelected = formData.selectedModules.some(m => m.id === module.id);
-                      const selectedModule = formData.selectedModules.find(m => m.id === module.id);
-                      
-                      return (
-                        <Row key={module.id} className="mb-3 align-items-center">
-                          <Col md={5}>
-                            <Form.Check 
-                              type="checkbox"
-                              id={`module-${module.id}`}
-                              label={module.label}
-                              checked={isSelected}
-                              onChange={() => handleModuleToggle(module)}
-                            />
-                          </Col>
-                          <Col md={5}>
-                            {isSelected && (
-                              <InputGroup>
-                                <InputGroup.Text>{currencySymbol}</InputGroup.Text>
-                                <Form.Control
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  placeholder="Enter price"
-                                  value={selectedModule?.price ?? ""}
-                                  onChange={(e) => handleModulePriceChange(module.id, e.target.value)}
-                                />
-                              </InputGroup>
-                            )}
-                          </Col>
-                          <Col md={2} className="text-end">
-                            <Button 
-                              variant="outline-danger" 
-                              size="sm" 
-                              onClick={() => handleDeleteModule(module.id, module.label)}
-                              title="Delete Module"
-                            >
-                              <BsTrash />
-                            </Button>
-                          </Col>
-                        </Row>
-                      );
-                    })
-                  )}
+                  {availableModules.map(module => {
+                    const isSelected = formData.selectedModules.some(m => m.id === module.id);
+                    const selectedModule = formData.selectedModules.find(m => m.id === module.id);
+                    
+                    return (
+                      <Row key={module.id} className="mb-3 align-items-center">
+                        <Col md={5}>
+                          <Form.Check 
+                            type="checkbox"
+                            id={`module-${module.id}`}
+                            label={module.label}
+                            checked={isSelected}
+                            onChange={() => handleModuleToggle(module)}
+                          />
+                        </Col>
+                        <Col md={5}>
+                          {isSelected && (
+                            <InputGroup>
+                              <InputGroup.Text>{currencySymbol}</InputGroup.Text>
+                              <Form.Control
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Enter price"
+                                value={selectedModule?.price ?? ""}
+                                onChange={(e) => handleModulePriceChange(module.id, e.target.value)}
+                              />
+                            </InputGroup>
+                          )}
+                        </Col>
+                        <Col md={2} className="text-end">
+                          {/* Delete button removed */}
+                        </Col>
+                      </Row>
+                    );
+                  })}
                 </Card.Body>
               </Card>
               <div className="alert alert-info">
@@ -581,12 +512,6 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
         handleClose={() => setShowCustomInvoiceLimitModal(false)}
         handleSave={handleCustomInvoiceLimitSave}
         currentInvoiceLimit={formData.invoiceLimit}
-      />
-      
-      <AddModuleModal 
-        show={showAddModuleModal}
-        handleClose={() => setShowAddModuleModal(false)}
-        onModuleAdded={handleModuleAdded}
       />
     </>
   );

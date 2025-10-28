@@ -27,7 +27,7 @@ const Login = () => {
         password,
       });
 
-      // ✅ Correctly destructure the actual API response
+      // ✅ Fixed response destructuring to match actual API response
       const { message, data } = response.data;
       const { user, token } = data;
 
@@ -39,10 +39,8 @@ const Login = () => {
 
         toast.success(message || "Login successful!");
 
-        // Normalize role for safe comparison
-        const normalizedRole = user.role?.toLowerCase();
-
-        if (normalizedRole === "superadmin") {
+        // ✅ Fixed role comparison to match uppercase API response
+        if (user.role === "SUPERADMIN") {
           navigate("/dashboard");
         } else {
           navigate("/company/dashboard");

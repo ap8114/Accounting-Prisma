@@ -117,7 +117,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
 
   const getMenuItems = () => {
     const menuItems = {
-      superadmin: [
+      SUPERADMIN: [
         renderFlatSection("Admin Dashboard", [
           {
             to: "/dashboard",
@@ -149,10 +149,10 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
             icon: "fas fa-key",
             label: "Manage Passwords",
           },
-        ]),
+        ]), 
       ],
 
-      company: [
+      COMPANY: [
         renderFlatSection("Admin Dashboard", [
           {
             to: "/company/dashboard",

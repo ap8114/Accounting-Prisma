@@ -31,6 +31,17 @@ const calculateTotalPrice = (basePrice, selectedModules, currencyCode) => {
   return `${symbol}${total.toFixed(2)}`;
 };
 
+// ✅ Static Modules (as per your image)
+const staticModules = [
+  { id: 1, label: "Account" },
+  { id: 2, label: "Inventory" },
+  { id: 3, label: "POS" },
+  { id: 4, label: "Sales" },
+  { id: 5, label: "Purchase" },
+  { id: 6, label: "GST Report" },
+  { id: 7, label: "User Management" }
+];
+
 const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
   const [formData, setFormData] = useState({ 
     ...plan, 
@@ -46,9 +57,9 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
   const [showCustomUserLimitModal, setShowCustomUserLimitModal] = useState(false);
   const [showCustomStorageCapacityModal, setShowCustomStorageCapacityModal] = useState(false);
   const [showCustomInvoiceLimitModal, setShowCustomInvoiceLimitModal] = useState(false);
-  const [availableModules, setAvailableModules] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Initialize form when plan changes
   useEffect(() => {
     if (plan) {
       setFormData({ 
@@ -63,22 +74,8 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
       });
     }
   }, [plan]);
-  
-  // Fetch modules from API
-  useEffect(() => {
-    const fetchModules = async () => {
-      try {
-        const response = await axios.get(`${BaseUrl}modules`);
-        setAvailableModules(response.data.data);
-      } catch (error) {
-        console.error("Error fetching modules:", error);
-      }
-    };
 
-    if (show) {
-      fetchModules();
-    }
-  }, [show]);
+  // ✅ No API call for modules — using static list
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -174,8 +171,9 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
         billing_cycle: formData.billing,
         status: formData.status,
         description: formData.descriptions.filter(desc => desc.trim() !== "").join("\n"),
+        // ✅ Send module names (not IDs) — assuming backend expects name like in AddPlan
         modules: formData.selectedModules.map(module => ({
-          module_id: module.id,
+          module_name: module.name, // 👈 Use name instead of id
           module_price: parseFloat(module.price) || 0
         }))
       };
@@ -186,7 +184,6 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
         payload
       );
       
-      // Call parent's handleSave with the updated plan
       handleSave(response.data);
     } catch (error) {
       console.error("Error updating plan:", error);
@@ -384,7 +381,7 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
               <Form.Label>Modules</Form.Label>
               <Card className="mb-3">
                 <Card.Body>
-                  {availableModules.map(module => {
+                  {staticModules.map(module => {
                     const isSelected = formData.selectedModules?.some(m => m.id === module.id);
                     const selectedModule = formData.selectedModules?.find(m => m.id === module.id);
                     
@@ -408,7 +405,7 @@ const EditPlanModal = ({ show, handleClose, plan, handleSave }) => {
                                 min="0"
                                 step="0.01"
                                 placeholder="Enter price"
-                                value={selectedModule.price || ""}
+                                value={selectedModule?.price ?? ""}
                                 onChange={(e) => handleModulePriceChange(module.id, e.target.value)}
                               />
                             </InputGroup>
