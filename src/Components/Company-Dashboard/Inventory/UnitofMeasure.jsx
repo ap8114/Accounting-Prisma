@@ -39,12 +39,12 @@ const UnitOfMeasure = () => {
   const [uomLoading, setUomLoading] = useState(false); // Separate loading for UOM dropdown
   const [unitsLoading, setUnitsLoading] = useState(false); // Loading for units table
 
-  // Fetch UOMs from API
+  // Fetch UOMs from API - NEW ENDPOINT: /api/uoms
   const fetchUOMs = async () => {
     setUomLoading(true);
     try {
-      const response = await axiosInstance.get(`${BaseUrl}uom`);
-      if (response.data.status) {
+      const response = await axiosInstance.get(`${BaseUrl}uoms`);
+      if (response.data.success) { // ✅ Changed from 'status' to 'success'
         // Extract unique unit names from the response data
         const uniqueUoms = [...new Set(response.data.data.map(item => item.unit_name))];
         setUoms(uniqueUoms);
@@ -63,11 +63,18 @@ const UnitOfMeasure = () => {
   const fetchUnits = async () => {
     setUnitsLoading(true);
     try {
-      const response = await axiosInstance.get(`${BaseUrl}unitdetail/getUnitDetailsByCompanyId/${companyId}`);
+      // ✅ NEW ENDPOINT: /api/unit-details
+      // Backend should filter by company_id internally or via query param
+      const response = await axiosInstance.get(`${BaseUrl}unit-details`, {
+        params: { company_id: companyId } // ✅ Add company_id as query param
+      });
+      
       console.log("API Response:", response.data); // Debug log
       
-      if (response.data.status) {
-        setUnits(response.data.data);
+      if (response.data.success) { // ✅ Changed from 'status' to 'success'
+        // Filter units by company_id on frontend as fallback
+        const filteredUnits = response.data.data.filter(unit => unit.company_id === companyId);
+        setUnits(filteredUnits);
       } else {
         setError("Failed to fetch units");
       }
@@ -108,10 +115,10 @@ const UnitOfMeasure = () => {
     
     try {
       // Find the UOM ID from the selected unit name
-      const uomResponse = await axiosInstance.get(`${BaseUrl}uom`);
+      const uomResponse = await axiosInstance.get(`${BaseUrl}uoms`);
       let uomId = null;
       
-      if (uomResponse.data.status) {
+      if (uomResponse.data.success) { // ✅ Changed from 'status' to 'success'
         const selectedUomData = uomResponse.data.data.find(item => item.unit_name === unitName);
         if (selectedUomData) {
           uomId = selectedUomData.id;
@@ -126,15 +133,15 @@ const UnitOfMeasure = () => {
 
       if (editId) {
         // Update existing unit
-        const response = await axiosInstance.patch(`${BaseUrl}unitdetail/${editId}`, unitData);
-        if (response.data.status) {
+        const response = await axiosInstance.patch(`${BaseUrl}unit-details/${editId}`, unitData);
+        if (response.data.success) { // ✅ Changed from 'status' to 'success'
           setUnits(units.map(u => u.id === editId ? { ...u, ...unitData, unit_name: unitName } : u));
           alert("Unit updated successfully!");
         }
       } else {
         // Create new unit
-        const response = await axiosInstance.post(`${BaseUrl}unitdetail`, unitData);
-        if (response.data.status) {
+        const response = await axiosInstance.post(`${BaseUrl}unit-details`, unitData);
+        if (response.data.success) { // ✅ Changed from 'status' to 'success'
           setUnits([...units, { ...response.data.data, unit_name: unitName }]);
           alert("Unit created successfully!");
         }
@@ -162,10 +169,10 @@ const UnitOfMeasure = () => {
     setLoading(true);
     
     try {
-      const response = await axiosInstance.delete(`${BaseUrl}unitdetail/${deleteId}`, {
+      const response = await axiosInstance.delete(`${BaseUrl}unit-details/${deleteId}`, {
         data: { company_id: companyId }
       });
-      if (response.data.status) {
+      if (response.data.success) { // ✅ Changed from 'status' to 'success'
         setUnits(units.filter(u => u.id !== deleteId));
         alert("Unit deleted successfully.");
         fetchUnits(); // Refresh data
@@ -203,10 +210,10 @@ const UnitOfMeasure = () => {
         setLoading(true);
         const promises = data.map(async (item) => {
           // Find UOM ID for the unit name
-          const uomResponse = await axiosInstance.get(`${BaseUrl}uom`);
+          const uomResponse = await axiosInstance.get(`${BaseUrl}uoms`);
           let uomId = null;
           
-          if (uomResponse.data.status) {
+          if (uomResponse.data.success) { // ✅ Changed from 'status' to 'success'
             const selectedUomData = uomResponse.data.data.find(u => u.unit_name === item["Unit Name"]);
             if (selectedUomData) {
               uomId = selectedUomData.id;
@@ -218,7 +225,7 @@ const UnitOfMeasure = () => {
             uom_id: uomId,
             weight_per_unit: item["Weight per Unit"] || "",
           };
-          return axiosInstance.post(`${BaseUrl}unitdetail`, newUnit);
+          return axiosInstance.post(`${BaseUrl}unit-details`, newUnit);
         });
         
         await Promise.all(promises);
@@ -264,7 +271,7 @@ const UnitOfMeasure = () => {
     setCurrentPage(pageNumber);
   };
 
-  // ✅ POST: Add New UOM via API
+  // ✅ POST: Add New UOM via API - NEW ENDPOINT: /api/uoms
   const handleAddUOM = async () => {
     const uomName = newUOM.trim();
 
@@ -282,7 +289,7 @@ const UnitOfMeasure = () => {
     setError("");
 
     try {
-      const response = await axiosInstance.post(`${BaseUrl}uom`, {
+      const response = await axiosInstance.post(`${BaseUrl}uoms`, {
         company_id: companyId,
         unit_name: uomName,
       });
@@ -307,7 +314,7 @@ const UnitOfMeasure = () => {
     }
   };
 
-  // ✅ POST: Submit Unit Details
+  // ✅ POST: Submit Unit Details - NEW ENDPOINT: /api/unit-details
   const handleSubmitUnitDetails = async () => {
     if (!selectedUnit || !weightPerUnit) {
       alert("Please fill all fields");
@@ -319,8 +326,8 @@ const UnitOfMeasure = () => {
 
     try {
       // Find the UOM ID from the selected unit name
-      const uomResponse = await axiosInstance.get(`${BaseUrl}uom`);
-      if (uomResponse.data.status) {
+      const uomResponse = await axiosInstance.get(`${BaseUrl}uoms`);
+      if (uomResponse.data.success) { // ✅ Changed from 'status' to 'success'
         const selectedUomData = uomResponse.data.data.find(item => item.unit_name === selectedUnit);
         
         if (!selectedUomData) {
@@ -328,7 +335,7 @@ const UnitOfMeasure = () => {
           return;
         }
 
-        const response = await axiosInstance.post(`${BaseUrl}unitdetail`, {
+        const response = await axiosInstance.post(`${BaseUrl}unit-details`, {
           company_id: companyId,
           uom_id: selectedUomData.id,
           weight_per_unit: weightPerUnit
