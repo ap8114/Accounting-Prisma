@@ -2,20 +2,16 @@ import React, { useState, useEffect } from "react";
 import { Table, Button, Modal, Form } from "react-bootstrap";
 import { FaEye, FaEdit, FaTrash } from "react-icons/fa";
 import GetCompanyId from "../../../../Api/GetCompanyId";
-import axios from "axios"; // Import axios
-import BaseUrl from "../../../../Api/BaseUrl";
 import axiosInstance from "../../../../Api/axiosInstance";
+import BaseUrl from "../../../../Api/BaseUrl";
 
 const companyId = GetCompanyId();
 
-// Initial services state (empty, will be populated from API)
 const initialServices = [];
-// Initial unit options state (empty, will be populated from API)
 const initialUnitOptions = [];
 
 function Service() {
   const [services, setServices] = useState(initialServices);
-  // Add state for dynamic unit options
   const [unitOptions, setUnitOptions] = useState(initialUnitOptions); 
   
   const [show, setShow] = useState(false);
@@ -24,7 +20,7 @@ function Service() {
     name: "", 
     sku: "", 
     serviceDescription: "", 
-    unit: "piece", // Default value, will be overridden by API
+    unit: "piece",
     price: "", 
     tax: "", 
     remarks: "", 
@@ -37,71 +33,64 @@ function Service() {
   const [deleteId, setDeleteId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch services AND unit options when component mounts
   useEffect(() => {
     fetchServices();
-    fetchUnitOptions(); // <-- Add this call
+    fetchUnitOptions();
   }, []);
 
-  // Function to fetch services from API using axios
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(`${BaseUrl}services/getServicesByCompanyId/${companyId}`);
+      const response = await axiosInstance.get(`${BaseUrl}services`, {
+        params: { company_id: companyId }
+      });
       
-      if (response.data.status && response.data.data) {
+      if (response.data.success && response.data.data) {
         const transformedServices = response.data.data.map(service => ({
           id: service.id,
           name: service.service_name,
           sku: service.sku,
           serviceDescription: service.description,
-          unit: service.uom,
+          unit: service.uom, // This is a string like "piece", "kg"
           price: service.price,
           tax: service.tax_percent,
           remarks: service.remarks,
           isInvoiceable: service.allow_in_invoice === "1"
         }));
         setServices(transformedServices);
+      } else {
+        setServices([]);
       }
     } catch (error) {
-      console.error("Error fetching services:", error.response ? error.response.data : error.message);
+      console.error("Error fetching services:", error.response?.data || error.message);
       alert("Failed to fetch services. Please try again.");
+      setServices([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // NEW: Function to fetch unit options from API
   const fetchUnitOptions = async () => {
     try {
       const response = await axiosInstance.get(`${BaseUrl}uom`);
-      
-      if (response.data.status && response.data.data) {
-        // Extract only the unit_name from the response data
+      if (response.data.success && response.data.data) {
         const unitNames = response.data.data.map(uom => uom.unit_name);
         setUnitOptions(unitNames);
-        
-        // Set a default unit for the form if it's not already set
-        if (unitNames.length > 0 && !form.unit) {
-           setForm(prevForm => ({ ...prevForm, unit: unitNames[0] }));
-        }
       }
     } catch (error) {
-      console.error("Error fetching unit options:", error.response ? error.response.data : error.message);
-      // Fallback to hardcoded options if API fails
+      console.error("Error fetching unit options:", error.response?.data || error.message);
       setUnitOptions(["piece", "kg", "meter", "liter", "box", "day", "yard", "sq.ft", "cubic meter", "Project"]);
     }
   };
 
   const handleShow = () => {
-    // Set the first fetched unit as the default when adding a new service
     const defaultUnit = unitOptions.length > 0 ? unitOptions[0] : "piece";
     setForm({ 
       id: null, 
       name: "", 
       sku: "", 
       serviceDescription: "", 
-      unit: defaultUnit, // Use the dynamic default
+      unit: defaultUnit,
       price: "", 
       tax: "", 
       remarks: "", 
@@ -117,11 +106,10 @@ function Service() {
 
   const handleInput = (e) => {
     const { name, value, type, checked } = e.target;
-    if (type === 'checkbox') {
-      setForm({ ...form, [name]: checked });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
+    setForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
 
   const handleSave = async () => {
@@ -129,38 +117,51 @@ function Service() {
     
     try {
       setLoading(true);
-      
       const payload = {
         company_id: companyId,
         service_name: form.name,
         sku: form.sku,
         description: form.serviceDescription,
-        uom: form.unit,
+        uom: form.unit, // Send string
         price: parseFloat(form.price) || 0,
         tax_percent: parseFloat(form.tax) || 0,
         allow_in_invoice: form.isInvoiceable ? 1 : 0,
         remarks: form.remarks
       };
 
-      if (editMode) {
-        await axiosInstance.patch(`${BaseUrl}services/${form.id}`, payload);
-        await fetchServices();
-        handleClose();
+      if (editMode && form.id) {
+        await axiosInstance.put(`${BaseUrl}services/${form.id}`, payload);
       } else {
         await axiosInstance.post(`${BaseUrl}services`, payload);
-        await fetchServices();
-        handleClose();
       }
+
+      await fetchServices();
+      handleClose();
     } catch (error) {
-      console.error("Error saving service:", error.response ? error.response.data : error.message);
+      console.error("Error saving service:", error.response?.data || error.message);
       alert(`Failed to ${editMode ? 'update' : 'add'} service. Please try again.`);
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ FIXED: Edit handler — ensure unit is in unitOptions
   const handleEdit = (service) => {
-    setForm(service);
+    // Ensure the unit from service exists in unitOptions (case-insensitive fallback)
+    let unitToUse = service.unit;
+    const normalizedUnit = service.unit?.toLowerCase();
+    const foundUnit = unitOptions.find(u => u.toLowerCase() === normalizedUnit);
+    
+    if (foundUnit) {
+      unitToUse = foundUnit; // Use exact case from unitOptions
+    } else if (unitOptions.length > 0) {
+      unitToUse = unitOptions[0]; // Fallback
+    }
+
+    setForm({
+      ...service,
+      unit: unitToUse
+    });
     setEditMode(true);
     setShow(true);
   };
@@ -177,7 +178,7 @@ function Service() {
       await fetchServices();
       setShowDeleteConfirm(false);
     } catch (error) {
-      console.error("Error deleting service:", error.response ? error.response.data : error.message);
+      console.error("Error deleting service:", error.response?.data || error.message);
       alert("Failed to delete service. Please try again.");
     } finally {
       setLoading(false);
@@ -328,7 +329,6 @@ function Service() {
                 onChange={handleInput}
                 className="shadow-sm"
               >
-                {/* Map over the dynamically fetched unitOptions */}
                 {unitOptions.map((unitName, index) => (
                   <option key={index} value={unitName}>
                     {unitName}
@@ -362,7 +362,6 @@ function Service() {
               />
             </Form.Group>
 
-            {/* New: Invoiceable Checkbox */}
             <Form.Group className="mb-3">
               <Form.Check
                 type="checkbox"
@@ -411,38 +410,31 @@ function Service() {
         <Modal.Body>
           {viewData && (
             <div className="p-3">
-              {/* Service Name & SKU */}
               <div className="mb-4">
                 <h5 className="text-primary">{viewData.name}</h5>
                 <p className="text-muted mb-0">SKU: <strong>{viewData.sku || 'N/A'}</strong></p>
               </div>
 
-              {/* Service Description */}
               <div className="mb-4">
                 <h6>Service Description</h6>
                 <p>{viewData.serviceDescription || 'N/A'}</p>
               </div>
 
-              {/* Details Grid: Unit, Tax, Price */}
               <div className="row mb-4">
                 <div className="col-md-6">
                   <h6>Unit of Measure</h6>
                   <p className="text-dark">{viewData.unit}</p>
                 </div>
-
                 <div className="col-md-6">
                   <h6>Default Tax</h6>
                   <p className="text-dark">{viewData.tax || 'N/A'}</p>
                 </div>
-
                 <div className="col-md-6">
                   <h6>Price</h6>
                   <p className="text-success">
                     <strong>₹{parseFloat(viewData.price || 0).toFixed(2)}</strong>
                   </p>
                 </div>
-
-                {/* Invoiceable Status */}
                 <div className="col-md-6">
                   <h6>Available in Invoices</h6>
                   <p>
@@ -455,7 +447,6 @@ function Service() {
                 </div>
               </div>
 
-              {/* Remarks */}
               <div>
                 <h6>Remarks</h6>
                 <p>{viewData.remarks || 'N/A'}</p>
