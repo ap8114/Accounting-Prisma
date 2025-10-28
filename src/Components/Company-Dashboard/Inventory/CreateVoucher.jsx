@@ -108,17 +108,14 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
   if (vendorId) formData.append('vendor_id', vendorId);
   if (customerId) formData.append('customer_id', customerId);
   if (transferAmount > 0) formData.append('transfer_amount', transferAmount);
-
   if (fromName) formData.append('from_name', fromName);
   if (fromEmail) formData.append('from_email', fromEmail);
   if (fromPhone) formData.append('from_phone', fromPhone);
   if (fromAddress) formData.append('from_address', fromAddress);
   if (toName) formData.append('to_name', toName);
 
-  // Helper: check if string is a data URL
   const isDataURL = (str) => str && typeof str === 'string' && str.startsWith('data:image');
 
-  // Helper: dataURL to Blob
   function dataURLtoBlob(dataurl) {
     try {
       if (!dataurl || !dataurl.startsWith('data:image')) {
@@ -140,7 +137,6 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
     }
   }
 
-  // Files — only upload if it's a newly selected data URL (not an existing HTTP URL)
   if (localVoucher.logo && isDataURL(localVoucher.logo)) {
     const logoBlob = dataURLtoBlob(localVoucher.logo);
     formData.append('logo', logoBlob, 'logo.png');
@@ -154,7 +150,6 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
     formData.append('photos', photoBlob, 'photo.png');
   }
 
-  // Handle additional attachments
   localVoucher.attachments.forEach((attachment) => {
     if (attachment.data && isDataURL(attachment.data)) {
       const blob = dataURLtoBlob(attachment.data);
@@ -166,7 +161,6 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
     }
   });
 
-  // Items — use "quantity", not "qty"
   const itemsArray = localVoucher.items.map(item => ({
     item_name: item.description,
     description: item.description,
@@ -186,8 +180,8 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
 
 // 🔁 Map API response to local format
 const mapApiVoucherToLocal = (apiVoucher) => {
-  // Items are already an array of objects (not JSON string)
-  const items = (apiVoucher.items || []).map(item => ({
+  // ✅ Fix: Use `voucher_items`, not `items`
+  const items = (apiVoucher.voucher_items || []).map(item => ({
     description: item.item_name || item.description || "",
     rate: parseFloat(item.rate) || 0,
     quantity: item.quantity ? parseFloat(item.quantity) : 1,
@@ -204,13 +198,14 @@ const mapApiVoucherToLocal = (apiVoucher) => {
     apiVoucher.to_name || 
     "";
 
-  // Map attachments from API's `attachments` array
-  const attachments = (apiVoucher.attachments || []).map(att => ({
+  // ✅ Fix: Use `voucher_attachments` for attachments
+  const attachments = (apiVoucher.voucher_attachments || []).map(att => ({
     name: att.file_name || "attachment",
     type: att.file_type || "application/octet-stream",
     data: att.file_url?.trim() || "",
   }));
 
+  // Use first photo if available
   const photo = attachments.length > 0 ? attachments[0].data : null;
 
   return {
@@ -229,20 +224,14 @@ const mapApiVoucherToLocal = (apiVoucher) => {
     companyName: "Your Company Name",
     total: items.reduce((sum, i) => sum + i.amount, 0),
     status: apiVoucher.status || "Pending",
-
     partyName: apiVoucher.from_name || "",
     partyEmail: apiVoucher.from_email || "",
     partyPhone: apiVoucher.from_phone || "",
     partyAddress: apiVoucher.from_address || "",
-
     customerVendor: customerVendorName,
-
     fromAccount: apiVoucher.from_account_name || "",
     toAccount: apiVoucher.to_account_name || "",
-
     items,
-
-    // Extra fields for form state
     transferAmount: apiVoucher.transfer_amount ? parseFloat(apiVoucher.transfer_amount) : 0,
     from_account_id: apiVoucher.from_account,
     to_account_id: apiVoucher.to_account,
@@ -263,7 +252,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
   const pdfRef = useRef();
   const [printLanguage, setPrintLanguage] = useState("both");
 
-  // 💡 Dynamic Data for dropdowns
   const [vendors, setVendors] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -283,7 +271,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     name: '', category: '', hsn: '', tax: 0, sellingPrice: 0, uom: 'PCS'
   });
 
-  // Fetch dropdown data
   const fetchDropdownData = async () => {
     if (!companyId) return;
     try {
@@ -409,7 +396,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
       total: totals.total,
       status: "Pending"
     };
-
     onSave(finalData, vendors, customers, accounts)
       .then(() => {
         setFormData(initialFormData);
@@ -955,7 +941,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 </div>
               )}
             </div>
-
             <Form.Group className="mb-3">
               <Form.Label>Voucher Type</Form.Label>
               <Form.Select value={voucherType} onChange={e => setVoucherType(e.target.value)}>
@@ -963,7 +948,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 {VOUCHER_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
               </Form.Select>
             </Form.Group>
-
             <div className="d-flex justify-content-between align-items-start mb-4">
               <div>
                 <Form.Group className="mb-3">
@@ -986,7 +970,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 )}
               </div>
             </div>
-
             <Row className="mb-5">
               <Col md={6}>
                 <h6 className="fw-bold mb-3 text-dark">{getFromLabel()}</h6>
@@ -997,7 +980,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 {renderToField()}
               </Col>
             </Row>
-
             <Row className="mb-4">
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -1018,9 +1000,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 </Form.Group>
               </Col>
             </Row>
-
             {renderCustomForm()}
-
             {voucherType !== "Contra" && (
               <Row className="mb-4">
                 <Col md={{ span: 4, offset: 8 }}>
@@ -1035,11 +1015,9 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 </Col>
               </Row>
             )}
-
             <Form.Group className="mb-4">
               <Form.Control as="textarea" rows={3} placeholder="Notes" name="note" value={formData.note} onChange={handleChange} />
             </Form.Group>
-
             <Form.Group className="mb-4">
               <div className="d-flex align-items-center gap-3">
                 {formData.signature ? (
@@ -1054,7 +1032,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 )}
               </div>
             </Form.Group>
-
             <h6 className="fw-bold mb-3 border-bottom pb-2">Photos</h6>
             <Form.Group className="mb-4">
               <div className="d-flex align-items-center gap-3 flex-wrap">
@@ -1071,7 +1048,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 <input type="file" ref={fileInputRef} onChange={e => handlePhotoUpload(e, 'photo')} accept="image/*" style={{ display: "none" }} />
               </div>
             </Form.Group>
-
             <h6 className="fw-bold mb-3 border-bottom pb-2">Reference Documents</h6>
             <Form.Group className="mb-4">
               <div className="d-flex align-items-center gap-3 flex-wrap">
@@ -1095,7 +1071,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 <input type="file" ref={attachmentInputRef} onChange={handleAttachmentUpload} accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple style={{ display: "none" }} />
               </div>
             </Form.Group>
-
             <div className="d-flex justify-content-between align-items-center mt-4">
               <div className="d-flex gap-2">
                 <Button variant={printLanguage === "en" ? "primary" : "outline-primary"} size="sm" onClick={() => setPrintLanguage("en")}>English</Button>
@@ -1112,7 +1087,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
             </div>
           </Form>
         </Modal.Body>
-
         <Modal show={showSignatureModal} onHide={() => setShowSignatureModal(false)} centered>
           <Modal.Header closeButton><Modal.Title>Add Signature</Modal.Title></Modal.Header>
           <Modal.Body>
@@ -1126,7 +1100,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
           </Modal.Body>
         </Modal>
       </Modal>
-
       <AddProductModal
         showAdd={showAdd}
         showEdit={showEdit}
@@ -1194,7 +1167,6 @@ const VoucherViewModal = ({ show, onHide, voucher }) => {
           <p><strong>Total:</strong> ₹{total.toFixed(2)}</p>
           {voucher.signature && <img src={voucher.signature} alt="sig" style={{ width: "200px" }} />}
         </div>
-
         <h4 className="fw-bold">{voucher.voucherType}</h4>
         <p><strong>From:</strong> {voucher.partyName || voucher.fromAccount || "N/A"}</p>
         <p><strong>To:</strong> {voucher.customerVendor || voucher.toAccount || "N/A"}</p>
@@ -1348,7 +1320,8 @@ const CreateVoucher = () => {
                   <td>{v.date}</td>
                   <td>{v.customerVendor}</td>
                   <td>{v.voucherNo}</td>
-                  <td>₹{v.total?.toFixed(2) || 0}</td>
+                  {/* ✅ FIXED: Show total amount of all items */}
+                  <td>₹{v.items.reduce((sum, item) => sum + item.amount, 0).toFixed(2)}</td>
                   <td>
                     <button className="btn text-primary" onClick={() => handleView(i)} aria-label="View"><FaEye /></button>
                     <button className="btn text-success" onClick={() => handleEdit(i)} aria-label="Edit"><FaEdit /></button>
