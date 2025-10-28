@@ -22,13 +22,14 @@ const Login = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${BaseUrl}adminuser/login`, {
+      const response = await axios.post(`${BaseUrl}auth/login`, {
         email,
         password,
       });
 
-      // ✅ Updated response destructuring (according to your new API)
-      const { message, user, token } = response.data;
+      // ✅ Fixed response destructuring to match actual API response
+      const { message, data } = response.data;
+      const { user, token } = data;
 
       if (token && user && user.id) {
         // ✅ Save in localStorage (same as before)
@@ -38,8 +39,8 @@ const Login = () => {
 
         toast.success(message || "Login Successfully!");
 
-        // ✅ Redirect based on role
-        if (user.role === "superadmin") {
+        // ✅ Fixed role comparison to match uppercase API response
+        if (user.role === "SUPERADMIN") {
           navigate("/dashboard");
         } else {
           navigate("/company/dashboard");
