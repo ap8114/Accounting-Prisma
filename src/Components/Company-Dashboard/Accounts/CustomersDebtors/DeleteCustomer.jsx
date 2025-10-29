@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Modal, Spinner, Alert } from 'react-bootstrap';
 import axiosInstance from "../../../../Api/axiosInstance";
-import BaseUrl from "../../../../Api/BaseUrl";
 import { toast } from "react-toastify";
 
 const DeleteCustomer = ({ show, onHide, onConfirm, customerId }) => {
@@ -21,14 +20,12 @@ const DeleteCustomer = ({ show, onHide, onConfirm, customerId }) => {
       setError(null);
       
       // Make DELETE API call
-      const response = await axiosInstance.delete(`${BaseUrl}customers/${customerId}`);
+      const response = await axiosInstance.delete(`/vendorCustomer/${customerId}`);
       
       if (response.data.status) {
-        // Call the onConfirm function to notify parent component of successful deletion
+        // Notify parent component of successful deletion
         onConfirm();
-        // Close the modal
         onHide();
-        // Show success toast notification
         toast.success("Customer deleted successfully");
       } else {
         const errorMsg = response.data.message || "Failed to delete customer";

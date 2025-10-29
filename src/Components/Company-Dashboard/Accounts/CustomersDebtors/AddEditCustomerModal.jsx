@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Button, Col, Form, Modal, Row, Alert } from "react-bootstrap";
-import { toast } from "react-toastify"; // ✅ Import toast
-import "react-toastify/dist/ReactToastify.css"; // ✅ Import styles
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import GetCompanyId from "../../../../Api/GetCompanyId";
 import axiosInstance from "../../../../Api/axiosInstance";
-import BaseUrl from "../../../../Api/BaseUrl";
 
 const AddEditCustomerModal = ({
   show,
@@ -17,26 +16,27 @@ const AddEditCustomerModal = ({
 }) => {
   const companyId = GetCompanyId();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null); // Keep for form-specific validation errors
+  const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [originalData, setOriginalData] = useState(null);
 
   useEffect(() => {
     if (!show) return;
 
     if (!editMode) {
       setCustomerFormData({
-        name: "",
+        nameEnglish: "",
         nameArabic: "",
         companyName: "",
-        companyLocation: "",
+        googleLocation: "",
         idCardImage: null,
-        extraFile: null,
+        anyFile: null,
         accountName: "",
         accountBalance: "0.00",
         creationDate: new Date().toISOString().split("T")[0],
         bankAccountNumber: "",
-        bankIFSC: "",
-        bankName: "",
+        bankIfsc: "",
+        bankNameBranch: "",
         country: "",
         state: "",
         pincode: "",
@@ -45,10 +45,11 @@ const AddEditCustomerModal = ({
         shippingAddress: "",
         phone: "",
         email: "",
-        creditPeriod: "",
-        gstEnabled: false,
+        creditPeriodDays: "",
+        enableGst: false,
         gstin: "",
       });
+      setOriginalData(null);
       setError(null);
     } else if (editMode && customerId) {
       const fetchCustomerData = async () => {
@@ -56,25 +57,27 @@ const AddEditCustomerModal = ({
         setError(null);
         try {
           const response = await axiosInstance.get(
-            `customers/${customerId}`
+            `/vendorCustomer/${customerId}`
           );
-          if (response.data.status && response.data.data) {
+
+          if (response.data.success && response.data.data) {
             const customer = response.data.data;
+            setOriginalData(customer);
             setCustomerFormData({
-              name: customer.name_english || "",
+              nameEnglish: customer.name_english || "",
               nameArabic: customer.name_arabic || "",
               companyName: customer.company_name || "",
-              companyLocation: customer.google_location || "",
+              googleLocation: customer.google_location || "",
               idCardImage: null,
-              extraFile: null,
+              anyFile: null,
               accountName: customer.account_name || "",
               accountBalance: customer.account_balance?.toString() || "0.00",
               creationDate: customer.creation_date
-                ? customer.creation_date.split("T")[0]
+                ? new Date(customer.creation_date).toISOString().split("T")[0]
                 : new Date().toISOString().split("T")[0],
               bankAccountNumber: customer.bank_account_number || "",
-              bankIFSC: customer.bank_ifsc || "",
-              bankName: customer.bank_name_branch || "",
+              bankIfsc: customer.bank_ifsc || "",
+              bankNameBranch: customer.bank_name_branch || "",
               country: customer.country || "",
               state: customer.state || "",
               pincode: customer.pincode || "",
@@ -83,19 +86,18 @@ const AddEditCustomerModal = ({
               shippingAddress: customer.shipping_address || "",
               phone: customer.phone || "",
               email: customer.email || "",
-              creditPeriod: customer.credit_period?.toString() || "",
-              gstEnabled:
-                customer.enable_gst === "1" || customer.enable_gst === true,
-              gstin: customer.gstin || "",
+              creditPeriodDays: customer.credit_period_days?.toString() || "",
+              enableGst: customer.enable_gst === true,
+              gstin: customer.gstIn || "",
             });
           } else {
             setError("Failed to load customer data.");
-            toast.error("Failed to load customer data."); // ✅ Toast error
+            toast.error("Failed to load customer data.");
           }
         } catch (err) {
           console.error("Error fetching customer:", err);
           setError("Error loading customer. Please try again.");
-          toast.error("Error loading customer. Please try again."); // ✅ Toast error
+          toast.error("Error loading customer. Please try again.");
         } finally {
           setIsLoading(false);
         }
@@ -108,23 +110,24 @@ const AddEditCustomerModal = ({
   const handleSaveCustomer = async () => {
     try {
       setIsSubmitting(true);
-      setError(null); // Clear inline error
+      setError(null);
 
       const formData = new FormData();
       formData.append("company_id", companyId);
-      formData.append("name_english", customerFormData.name);
+      formData.append("name_english", customerFormData.nameEnglish);
       formData.append("name_arabic", customerFormData.nameArabic);
       formData.append("company_name", customerFormData.companyName);
-      formData.append("google_location", customerFormData.companyLocation);
+      formData.append("google_location", customerFormData.googleLocation);
       formData.append("account_name", customerFormData.accountName);
       formData.append("account_balance", customerFormData.accountBalance);
-      formData.append("creation_date", customerFormData.creationDate);
-      formData.append(
-        "bank_account_number",
-        customerFormData.bankAccountNumber
-      );
-      formData.append("bank_ifsc", customerFormData.bankIFSC);
-      formData.append("bank_name_branch", customerFormData.bankName);
+
+      // ✅ FIX: Convert "YYYY-MM-DD" to ISO 8601 datetime string
+      const creationDateISO = new Date(customerFormData.creationDate).toISOString();
+      formData.append("creation_date", creationDateISO);
+
+      formData.append("bank_account_number", customerFormData.bankAccountNumber);
+      formData.append("bank_ifsc", customerFormData.bankIfsc);
+      formData.append("bank_name_branch", customerFormData.bankNameBranch);
       formData.append("country", customerFormData.country);
       formData.append("state", customerFormData.state);
       formData.append("pincode", customerFormData.pincode);
@@ -133,9 +136,12 @@ const AddEditCustomerModal = ({
       formData.append("shipping_address", customerFormData.shippingAddress);
       formData.append("phone", customerFormData.phone);
       formData.append("email", customerFormData.email);
-      formData.append("credit_period", customerFormData.creditPeriod);
-      formData.append("enable_gst", customerFormData.gstEnabled ? "1" : "0");
-      formData.append("gstin", customerFormData.gstin);
+      formData.append("credit_period_days", customerFormData.creditPeriodDays || "0");
+      formData.append("enable_gst", customerFormData.enableGst ? "1" : "0");
+      formData.append("gstIn", customerFormData.gstin);
+
+      // ✅ CRITICAL: Add type = customer so backend recognizes it
+      formData.append("type", "customer");
 
       if (
         customerFormData.idCardImage &&
@@ -151,19 +157,15 @@ const AddEditCustomerModal = ({
           setIsSubmitting(false);
           return;
         }
-        formData.append(
-          "id_card_image",
-          customerFormData.idCardImage,
-          customerFormData.idCardImage.name
-        );
+        formData.append("id_card_image", customerFormData.idCardImage);
       }
 
       if (
-        customerFormData.extraFile &&
-        customerFormData.extraFile instanceof File
+        customerFormData.anyFile &&
+        customerFormData.anyFile instanceof File
       ) {
-        if (customerFormData.extraFile.type.match("image.*")) {
-          if (!validateImageFile(customerFormData.extraFile)) {
+        if (customerFormData.anyFile.type.match("image.*")) {
+          if (!validateImageFile(customerFormData.anyFile)) {
             setError(
               "Invalid image file. Please upload a valid image file (JPEG, PNG, or JPG under 5MB)."
             );
@@ -174,35 +176,34 @@ const AddEditCustomerModal = ({
             return;
           }
         }
-        formData.append(
-          "image",
-          customerFormData.extraFile,
-          customerFormData.extraFile.name
-        );
+        formData.append("any_file", customerFormData.anyFile);
       }
 
       let response;
       if (editMode && customerId) {
-        response = await axiosInstance.patch(
-          `customers/${customerId}`,
+        response = await axiosInstance.put(
+          `/vendorCustomer/${customerId}`,
           formData,
           {
             headers: { "Content-Type": "multipart/form-data" },
           }
         );
       } else {
-        response = await axiosInstance.post("customers", formData, {
+        response = await axiosInstance.post("/vendorCustomer", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
       }
 
-      if (response.data.status) {
+      if (response.data.success) {
         onSave(response.data.data, editMode ? "edit" : "add");
         onHide();
-        // toast.success(editMode ? "Customer updated successfully!" : "Customer added successfully!"); // ✅ Success toast
+        toast.success(
+          editMode ? "Customer updated successfully!" : "Customer added successfully!"
+        );
       } else {
-        setError(response.data.message || "Error saving customer");
-        toast.error(response.data.message || "Error saving customer"); // ✅ Error toast
+        const msg = response.data.message || "Error saving customer";
+        setError(msg);
+        toast.error(msg);
       }
     } catch (error) {
       console.error("Error saving customer:", error);
@@ -210,7 +211,7 @@ const AddEditCustomerModal = ({
         error.response?.data?.message ||
         "An error occurred while saving customer";
       setError(errorMessage);
-      toast.error(errorMessage); // ✅ Error toast
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -219,7 +220,7 @@ const AddEditCustomerModal = ({
   const validateImageFile = (file) => {
     const validTypes = ["image/jpeg", "image/png", "image/jpg"];
     if (!validTypes.includes(file.type)) return false;
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) return false;
     return true;
   };
@@ -228,51 +229,35 @@ const AddEditCustomerModal = ({
     setError(null);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.type.match("image.*")) {
-        if (validateImageFile(file)) {
-          setCustomerFormData({
-            ...customerFormData,
-            idCardImage: file,
-          });
-        } else {
-          setError(
-            "Invalid ID card image. Please upload a valid image file (JPEG, PNG, or JPG under 5MB)."
-          );
-          toast.error(
-            "Invalid ID card image. Please upload a valid image file (JPEG, PNG, or JPG under 5MB)."
-          );
-        }
-      } else {
+      if (!file.type.match("image.*")) {
         setError("Please select an image file for ID card");
         toast.error("Please select an image file for ID card");
+        return;
       }
+      if (!validateImageFile(file)) {
+        setError(
+          "Invalid ID card image. Please upload a valid image file (JPEG, PNG, or JPG under 5MB)."
+        );
+        toast.error(
+          "Invalid ID card image. Please upload a valid image file (JPEG, PNG, or JPG under 5MB)."
+        );
+        return;
+      }
+      setCustomerFormData({
+        ...customerFormData,
+        idCardImage: file,
+      });
     }
   };
 
-  const handleExtraFileChange = (e) => {
+  const handleAnyFileChange = (e) => {
     setError(null);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.type.match("image.*")) {
-        if (validateImageFile(file)) {
-          setCustomerFormData({
-            ...customerFormData,
-            extraFile: file,
-          });
-        } else {
-          setError(
-            "Invalid image file. Please upload a valid image file (JPEG, PNG, or JPG under 5MB)."
-          );
-          toast.error(
-            "Invalid image file. Please upload a valid image file (JPEG, PNG, or JPG under 5MB)."
-          );
-        }
-      } else {
-        setCustomerFormData({
-          ...customerFormData,
-          extraFile: file,
-        });
-      }
+      setCustomerFormData({
+        ...customerFormData,
+        anyFile: file,
+      });
     }
   };
 
@@ -282,7 +267,6 @@ const AddEditCustomerModal = ({
         <Modal.Title>{editMode ? "Edit Customer" : "Add Customer"}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {/* Keep inline error for immediate form feedback */}
         {error && <Alert variant="danger">{error}</Alert>}
         {isLoading && <Alert variant="info">Loading customer data...</Alert>}
 
@@ -293,14 +277,14 @@ const AddEditCustomerModal = ({
                 <Form.Label>Name (English)</Form.Label>
                 <Form.Control
                   type="text"
-                  value={customerFormData.name}
+                  value={customerFormData.nameEnglish}
                   onChange={(e) => {
                     const value = e.target.value;
                     setCustomerFormData({
                       ...customerFormData,
-                      name: value,
+                      nameEnglish: value,
                       accountName:
-                        customerFormData.name === customerFormData.accountName
+                        customerFormData.accountName === customerFormData.nameEnglish
                           ? value
                           : customerFormData.accountName,
                     });
@@ -347,11 +331,11 @@ const AddEditCustomerModal = ({
                 <Form.Label>Company Google Location</Form.Label>
                 <Form.Control
                   type="text"
-                  value={customerFormData.companyLocation}
+                  value={customerFormData.googleLocation}
                   onChange={(e) =>
                     setCustomerFormData({
                       ...customerFormData,
-                      companyLocation: e.target.value,
+                      googleLocation: e.target.value,
                     })
                   }
                   placeholder="Enter Google Maps link"
@@ -366,19 +350,21 @@ const AddEditCustomerModal = ({
                   accept="image/jpeg, image/png, image/jpg"
                   onChange={handleIdCardImageChange}
                 />
-                {customerFormData.idCardImage ? (
+                {editMode && originalData?.id_card_image && (
                   <div className="mt-2">
-                    <small className="text-muted">
-                      {customerFormData.idCardImage instanceof File}
-                    </small>
+                    <small className="text-muted">Previously uploaded</small>
+                    <div>
+                      <a
+                        href={originalData.id_card_image.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary"
+                      >
+                        View ID Image
+                      </a>
+                    </div>
                   </div>
-                ) : editMode ? (
-                  <div className="mt-2">
-                    <small className="text-muted">
-                      Previously uploaded (re-upload to change)
-                    </small>
-                  </div>
-                ) : null}
+                )}
                 <Form.Text className="text-muted">
                   JPEG, PNG or JPG (max 5MB)
                 </Form.Text>
@@ -387,20 +373,22 @@ const AddEditCustomerModal = ({
             <Col md={3}>
               <Form.Group>
                 <Form.Label>Any File</Form.Label>
-                <Form.Control type="file" onChange={handleExtraFileChange} />
-                {customerFormData.extraFile ? (
+                <Form.Control type="file" onChange={handleAnyFileChange} />
+                {editMode && originalData?.any_file && (
                   <div className="mt-2">
-                    <small className="text-muted">
-                      {customerFormData.extraFile instanceof File}
-                    </small>
+                    <small className="text-muted">Previously uploaded</small>
+                    <div>
+                      <a
+                        href={originalData.any_file.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary"
+                      >
+                        View File
+                      </a>
+                    </div>
                   </div>
-                ) : editMode ? (
-                  <div className="mt-2">
-                    <small className="text-muted">
-                      Previously uploaded (re-upload to change)
-                    </small>
-                  </div>
-                ) : null}
+                )}
                 <Form.Text className="text-muted">
                   Any file type. If image, max 5MB
                 </Form.Text>
@@ -448,7 +436,6 @@ const AddEditCustomerModal = ({
                       accountName: e.target.value,
                     })
                   }
-                  placeholder=""
                 />
               </Form.Group>
             </Col>
@@ -466,7 +453,6 @@ const AddEditCustomerModal = ({
                       accountBalance: value || "0.00",
                     });
                   }}
-                  placeholder="Enter account balance"
                 />
               </Form.Group>
             </Col>
@@ -511,11 +497,11 @@ const AddEditCustomerModal = ({
                 <Form.Label>Bank IFSC</Form.Label>
                 <Form.Control
                   type="text"
-                  value={customerFormData.bankIFSC}
+                  value={customerFormData.bankIfsc}
                   onChange={(e) =>
                     setCustomerFormData({
                       ...customerFormData,
-                      bankIFSC: e.target.value,
+                      bankIfsc: e.target.value,
                     })
                   }
                 />
@@ -526,11 +512,11 @@ const AddEditCustomerModal = ({
                 <Form.Label>Bank Name & Branch</Form.Label>
                 <Form.Control
                   type="text"
-                  value={customerFormData.bankName}
+                  value={customerFormData.bankNameBranch}
                   onChange={(e) =>
                     setCustomerFormData({
                       ...customerFormData,
-                      bankName: e.target.value,
+                      bankNameBranch: e.target.value,
                     })
                   }
                 />
@@ -676,11 +662,11 @@ const AddEditCustomerModal = ({
                 <Form.Label>Credit Period (days)</Form.Label>
                 <Form.Control
                   type="number"
-                  value={customerFormData.creditPeriod}
+                  value={customerFormData.creditPeriodDays}
                   onChange={(e) =>
                     setCustomerFormData({
                       ...customerFormData,
-                      creditPeriod: e.target.value,
+                      creditPeriodDays: e.target.value,
                     })
                   }
                 />
@@ -689,7 +675,7 @@ const AddEditCustomerModal = ({
 
             <Col md={6}>
               <Form.Group className="d-flex align-items-center">
-                {customerFormData.gstEnabled && (
+                {customerFormData.enableGst && (
                   <div className="flex-grow-1 me-3">
                     <Form.Label>GSTIN</Form.Label>
                     <Form.Control
@@ -706,15 +692,15 @@ const AddEditCustomerModal = ({
                 )}
 
                 <div>
-                  <Form.Label className="me-2">Enable</Form.Label>
+                  <Form.Label className="me-2">Enable GST</Form.Label>
                   <Form.Check
                     type="switch"
                     id="gstin-toggle"
-                    checked={customerFormData.gstEnabled}
+                    checked={customerFormData.enableGst}
                     onChange={(e) =>
                       setCustomerFormData({
                         ...customerFormData,
-                        gstEnabled: e.target.checked,
+                        enableGst: e.target.checked,
                         gstin: e.target.checked ? customerFormData.gstin : "",
                       })
                     }

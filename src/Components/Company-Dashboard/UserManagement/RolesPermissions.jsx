@@ -160,21 +160,57 @@ const RolesPermissions = () => {
     setShowAdd(true);
   };
 
-  // Save a new role
-  const handleAddSave = () => {
+  // Create new role via API
+  const handleAddSave = async () => {
     if (!form.name.trim()) return;
-    const newRole = {
-      id: Date.now(),
-      name: form.name,
-      users: 0,
-      permissions: [...form.permissions],
-      lastModified: new Date().toISOString().split('T')[0],
-      type: form.type,
-      isActive: true,
-      modulePermissions: { ...form.modulePermissions }
-    };
-    setRoles((prev) => [...prev, newRole]);
-    setShowAdd(false);
+
+    try {
+      // Build payload in the shape requested by backend:
+      // general_permissions: array of lowercased strings
+      // permissions: array of { module_name, can_create, can_view, can_update, can_delete, full_access }
+      const buildModulePermissionsArray = (modulePermsObj) => {
+        return Object.entries(modulePermsObj || {}).map(([moduleName, perms]) => {
+          const set = new Set((perms || []).map(p => String(p).toLowerCase()));
+          return {
+            module_name: moduleName,
+            can_create: set.has('create'),
+            can_view: set.has('view'),
+            can_update: set.has('update') || set.has('edit'),
+            can_delete: set.has('delete'),
+            full_access: set.has('full access') || set.has('full_access') || set.has('fullaccess')
+          };
+        });
+      };
+
+      const permissionsPayload = buildModulePermissionsArray(form.modulePermissions || {});
+
+      const response = await axios.post(`${BaseUrl}user-roles`, {
+        company_id: companyId,
+        role_name: form.name,
+        general_permissions: Array.isArray(form.permissions) ? form.permissions.map(p => String(p).toLowerCase()) : [],
+        permissions: permissionsPayload
+      });
+
+      if (response.data && response.data.status) {
+        const newRole = {
+          id: Date.now(),
+          name: form.name,
+          users: 0,
+          permissions: [...form.permissions],
+          lastModified: new Date().toISOString().split('T')[0],
+          type: form.type,
+          isActive: true,
+          modulePermissions: { ...form.modulePermissions }
+        };
+        
+        setRoles(prev => [...prev, newRole]);
+        setShowAdd(false);
+      } else {
+        alert(`Error: ${response.data.message || 'Failed to create role'}`);
+      }
+    } catch (error) {
+      alert('Failed to create role. Please try again.');
+    }
   };
 
   // Handle editing a role
@@ -189,24 +225,57 @@ const RolesPermissions = () => {
     setShowEdit(true);
   };
 
-  // Save edits to a role
-  const handleEditSave = () => {
+  // Update role via API
+  const handleEditSave = async () => {
     if (!form.name.trim()) return;
-    setRoles((prev) =>
-      prev.map((r) =>
-        r.id === selected.id
-          ? {
-            ...r,
-            name: form.name,
-            permissions: [...form.permissions],
-            lastModified: new Date().toISOString().split('T')[0],
-            type: form.type,
-            modulePermissions: { ...form.modulePermissions }
-          }
-          : r
-      )
-    );
-    setShowEdit(false);
+
+    try {
+      const buildModulePermissionsArray = (modulePermsObj) => {
+        return Object.entries(modulePermsObj || {}).map(([moduleName, perms]) => {
+          const set = new Set((perms || []).map(p => String(p).toLowerCase()));
+          return {
+            module_name: moduleName,
+            can_create: set.has('create'),
+            can_view: set.has('view'),
+            can_update: set.has('update') || set.has('edit'),
+            can_delete: set.has('delete'),
+            full_access: set.has('full access') || set.has('full_access') || set.has('fullaccess')
+          };
+        });
+      };
+
+      const permissionsPayload = buildModulePermissionsArray(form.modulePermissions || {});
+
+      const response = await axios.put(`${BaseUrl}user-roles/${selected.id}`, {
+        company_id: companyId,
+        role_name: form.name,
+        general_permissions: Array.isArray(form.permissions) ? form.permissions.map(p => String(p).toLowerCase()) : [],
+        permissions: permissionsPayload
+      });
+
+      if (response.data && response.data.status) {
+        setRoles(prev =>
+          prev.map(r =>
+            r.id === selected.id
+              ? {
+                  ...r,
+                  name: form.name,
+                  permissions: [...form.permissions],
+                  lastModified: new Date().toISOString().split('T')[0],
+                  type: form.type,
+                  modulePermissions: { ...form.modulePermissions }
+                }
+              : r
+          )
+        );
+        setShowEdit(false);
+      } else {
+        alert(`Error: ${response.data.message || 'Failed to update role'}`);
+      }
+    } catch (error) {
+      console.error('API Error:', error);
+      alert('Failed to update role. Please try again.');
+    }
   };
 
   // Handle deleting a role
@@ -215,10 +284,23 @@ const RolesPermissions = () => {
     setShowDelete(true);
   };
 
-  // Confirm deletion of a role
-  const handleDeleteConfirm = () => {
-    setRoles((prev) => prev.filter((r) => r.id !== selected.id));
-    setShowDelete(false);
+  // Delete role via API
+  const handleDeleteConfirm = async () => {
+    try {
+      const response = await axios.delete(`${BaseUrl}user-roles/${selected.id}`, {
+        params: { company_id: companyId }
+      });
+
+      if (response.data && response.data.status) {
+        setRoles(prev => prev.filter(r => r.id !== selected.id));
+        setShowDelete(false);
+      } else {
+        alert(`Error: ${response.data.message || 'Failed to delete role'}`);
+      }
+    } catch (error) {
+      console.error('API Error:', error);
+      alert('Failed to delete role. Please try again.');
+    }
   };
 
   // Handle viewing a role
@@ -230,12 +312,12 @@ const RolesPermissions = () => {
   // Toggle a general permission in the form
   const toggleGeneralPerm = (perm) => {
     if (perm === "Full Access") {
-      setForm((f) => ({
+      setForm(f => ({
         ...f,
         permissions: f.permissions.includes("Full Access") ? [] : ["Full Access"]
       }));
     } else { 
-      setForm((f) => {
+      setForm(f => {
         const currentPerms = [...f.permissions];
         const fullAccessIndex = currentPerms.indexOf("Full Access");
         if (fullAccessIndex !== -1) {
@@ -261,7 +343,7 @@ const RolesPermissions = () => {
 
   // Toggle a specific module permission
   const toggleModulePerm = (moduleName, perm) => {
-    setForm((prevForm) => {
+    setForm(prevForm => {
       const currentModulePerms = prevForm.modulePermissions[moduleName] || [];
       const permIndex = currentModulePerms.indexOf(perm);
       let newModulePerms;
@@ -282,7 +364,7 @@ const RolesPermissions = () => {
 
   // Toggle "Full Access" for a specific module
   const toggleModuleFullAccess = (moduleName) => {
-    setForm((prevForm) => {
+    setForm(prevForm => {
       const module = tallyModules.find(m => m.name === moduleName);
       const allModulePerms = module ? module.permissions : [];
       const hasFullAccess = prevForm.modulePermissions[moduleName]?.includes("Full Access");
@@ -319,15 +401,12 @@ const RolesPermissions = () => {
     try {
       const response = await axios.post(`${BaseUrl}roletype`, {
         type_name: newRoleType,
-        company_id: companyId // Include company_id in the request
+        company_id: companyId
       });
 
       if (response.data && response.data.status) {
-        // Add the new role type to the list
         setCustomRoleTypes([...customRoleTypes, newRoleType]);
-        // Auto-select the new role type in the form
         setForm({ ...form, type: newRoleType });
-        // Reset and close modal
         setNewRoleType("");
         setShowAddTypeModal(false);
       } else {
@@ -428,7 +507,7 @@ const RolesPermissions = () => {
           
           {/* Roles Table */}
           <div style={{ overflowX: "auto" }}>
-            <Table responsive className="align-middle mb-0" style={{ minWidth: 800 }}>
+            <Table responsive alignMiddle mb0 style={{ minWidth: 800 }}>
               <thead>
                 <tr style={{ background: "#f2f2f2" }}>
                   <th><Form.Check /></th>
@@ -538,7 +617,7 @@ const RolesPermissions = () => {
         <Modal.Header closeButton>
           <Modal.Title>Role Details: {selected?.name}</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body style={{ padding: "20px", maxHeight: '70vh', overflowY: 'auto' }}>
           {selected && (
             <>
               <div className="mb-3">
@@ -627,54 +706,17 @@ const RolesPermissions = () => {
         <Modal.Header closeButton>
           <Modal.Title>Add Role</Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <Modal.Body style={{ padding: "20px", maxHeight: '70vh', overflowY: 'auto' }}>
           <Form>
             {/* Role Name */}
             <Form.Group className="mb-3">
-              <Form.Label>Role Name</Form.Label>
+              <Form.Label>Role Name *</Form.Label>
               <Form.Control
                 placeholder="Enter role name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </Form.Group>
-            
-            {/* Role Type with Add Button */}
-            {/* <Form.Group className="mb-3">
-              <Form.Label>Role Type</Form.Label>
-              <div className="d-flex gap-2 align-items-center">
-                <Form.Select
-                  value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  style={{
-                    border: "1px solid #e0e0e0",
-                    borderRadius: 6,
-                    padding: "8px 12px",
-                    fontSize: 14,
-                    flex: 1
-                  }}
-                >
-                  <option value="">Select type</option>
-                  <option value="superadmin">Superadmin</option>
-                  <option value="company">Company</option>
-                  <option value="user">User</option>
-                  {customRoleTypes.map((type, idx) => (
-                    <option key={idx} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </Form.Select>
-
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => setShowAddTypeModal(true)}
-                  style={{ whiteSpace: "nowrap" }}
-                >
-                  + Add Type
-                </Button>
-              </div>
-            </Form.Group> */}
             
             {/* General Permissions */}
             <Form.Group className="mb-4">
@@ -704,9 +746,9 @@ const RolesPermissions = () => {
               </div>
             </Form.Group>
             
-            {/* Module Permissions Section */}
+            {/* Permissions Section */}
             <div className="mb-3">
-              <h6 className="fw-semibold mb-3">
+              <h6 className="fw-semibold mb-3" style={{ fontSize: 14 }}>
                 Assign Module Permissions to Role
               </h6>
               <div style={{ border: "1px solid #dee2e6", borderRadius: "0.375rem" }}>
@@ -778,20 +820,36 @@ const RolesPermissions = () => {
             </div>
           </Form>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAdd(false)}>
+        <Modal.Footer style={{ borderTop: "1px solid #e9ecef", padding: "15px 20px" }}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowAdd(false)}
+            style={{
+              background: "#6c757d",
+              border: "none",
+              borderRadius: 4,
+              padding: "8px 20px",
+              fontWeight: 500
+            }}
+          >
             Cancel
           </Button>
           <Button
-            style={{ background: "#53b2a5", border: "none" }}
             onClick={handleAddSave}
             disabled={!form.name.trim()}
+            style={{
+              background: "#53b2a5",
+              border: "none",
+              borderRadius: 4,
+              padding: "8px 20px",
+              fontWeight: 500
+            }}
           >
             Add Role
           </Button>
         </Modal.Footer>
       </Modal>
-      
+
       {/* Edit Role Modal */}
       <Modal show={showEdit} onHide={() => setShowEdit(false)} centered size="xl">
         <Modal.Header closeButton style={{ borderBottom: "1px solid #e9ecef" }}>
@@ -799,6 +857,7 @@ const RolesPermissions = () => {
         </Modal.Header>
         <Modal.Body style={{ padding: "20px", maxHeight: '70vh', overflowY: 'auto' }}>
           <Form>
+            {/* Role Name */}
             <Form.Group className="mb-3">
               <Form.Label style={{ fontWeight: 500 }}>Role Name *</Form.Label>
               <Form.Control

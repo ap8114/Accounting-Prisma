@@ -62,7 +62,7 @@ const ViewCustomerModal = ({ show, onHide, customer }) => {
                   <strong>Credit Period:</strong> {customer.creditPeriod || "-"} days
                 </p>
                 <p>
-                  <strong>Creation Date:</strong> {customer.creationDate || "-"}
+                  <strong>Creation Date:</strong> {customer?.creationDate ? new Date(customer.creationDate).toLocaleDateString() : "-"}
                 </p>
               </Col>
             </Row>
@@ -165,9 +165,9 @@ const ViewCustomerModal = ({ show, onHide, customer }) => {
                 <Col md={12}>
                   <p className="mb-2">
                     <strong>Google Location:</strong>{" "}
-                    <a 
-                      href={customer.companyLocation} 
-                      target="_blank" 
+                    <a
+                      href={customer.companyLocation}
+                      target="_blank"
                       rel="noopener noreferrer"
                     >
                       {customer.companyLocation}
@@ -190,9 +190,9 @@ const ViewCustomerModal = ({ show, onHide, customer }) => {
                   <Col md={6}>
                     <p className="mb-2">
                       <strong>ID Card Image:</strong>{" "}
-                      <a 
-                        href={customer.idCardImage} 
-                        target="_blank" 
+                      <a
+                        href={customer.idCardImage}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-sm btn-primary"
                       >
@@ -205,9 +205,9 @@ const ViewCustomerModal = ({ show, onHide, customer }) => {
                   <Col md={6}>
                     <p className="mb-2">
                       <strong>Additional File:</strong>{" "}
-                      <a 
-                        href={customer.extraFile} 
-                        target="_blank" 
+                      <a
+                        href={customer.extraFile}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-sm btn-primary"
                       >
