@@ -30,10 +30,8 @@ import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "../../../../Api/axiosInstance";
 import BaseUrl from "../../../../Api/BaseUrl";
 import GetCompanyId from "../../../../Api/GetCompanyId";
-
-// Import modal components
-import ViewCustomerModal from "./ViewCustomerModal";
 import DeleteCustomer from "./DeleteCustomer";
+import ViewCustomerModal from "./ViewCustomerModal";
 import AddEditCustomerModal from "./AddEditCustomerModal";
 
 // Empty customer template
@@ -64,33 +62,6 @@ const emptyCustomer = {
     zip: "",
   },
 };
-
-// Get customer columns for Excel
-const getCustomerColumns = () => [
-  "name",
-  "contact",
-  "email",
-  "taxNumber",
-  "altMobile",
-  "balance",
-  "taxEnabled",
-  "billing.name",
-  "billing.phone",
-  "billing.address",
-  "billing.city",
-  "billing.state",
-  "billing.country",
-  "billing.zip",
-  "shipping.name",
-  "shipping.phone",
-  "shipping.address",
-  "shipping.city",
-  "shipping.state",
-  "shipping.country",
-  "shipping.zip",
-  "accountType",
-  "accountName",
-];
 
 // Account types for dropdown
 const accountTypes = [
@@ -171,7 +142,7 @@ const CustomersDebtors = () => {
     creditPeriod: "",
     gstin: "",
     gstType: "Registered",
-    gstEnabled: true,
+    taxEnabled: true,
     taxNumber: "",
   });
 
@@ -188,64 +159,67 @@ const CustomersDebtors = () => {
       setError(null);
 
       const response = await axiosInstance.get(
-        `customers/company/${companyId}`
+        `vendorCustomer/company/${companyId}?type=customer`
       );
 
-      console.log("get all data:-", response.data);
-      
-      if (response.data.status) {
-        // Transform API data to match our component structure
-        const transformedCustomers = response.data.data.map((customer) => ({
-          id: customer.id,
-          name: customer.name_english,
-          nameArabic: customer.name_arabic,
-          companyName: customer.company_name,
-          contact: customer.phone,
-          email: customer.email,
-          taxNumber: customer.gstin,
-          altMobile: "",
-          balance: customer.account_balance,
-          taxEnabled: customer.enable_gst === "1",
-          accountType: customer.account_type,
-          accountName: customer.account_name,
-          balanceType: customer.balance_type,
-          creationDate: customer.creation_date,
-          bankAccountNumber: customer.bank_account_number,
-          bankIFSC: customer.bank_ifsc,
-          bankName: customer.bank_name_branch,
-          country: customer.country,
-          state: customer.state,
-          pincode: customer.pincode,
-          address: customer.address,
-          stateCode: customer.state_code,
-          shippingAddress: customer.shipping_address,
-          phone: customer.phone,
-          email: customer.email,
-          creditPeriod: customer.credit_period,
-          gstin: customer.gstin,
-          gstEnabled: customer.enable_gst === "1",
-          companyLocation: customer.google_location,
-          idCardImage: customer.id_card_image,
-          extraFile: customer.image,
-          billing: {
-            name: customer.name_english,
-            phone: customer.phone,
-            address: customer.address,
-            city: "", // Not directly available in API
-            state: customer.state,
-            country: customer.country,
-            zip: customer.pincode,
-          },
-          shipping: {
-            name: customer.name_english,
-            phone: customer.phone,
-            address: customer.shipping_address,
-            city: "", // Not directly available in API
-            state: customer.state,
-            country: customer.country,
-            zip: customer.pincode,
-          },
-        }));
+      if (response?.status) {
+        
+        // Transform API response to match our component structure
+        const transformedCustomers = response.data.data.map((apiCustomer) => {
+          // Map API fields to component fields
+          return {
+            id: apiCustomer.id,
+            name: apiCustomer.name_english,
+            nameArabic: apiCustomer.name_arabic,
+            companyName: apiCustomer.company_name,
+            contact: apiCustomer.phone,
+            email: apiCustomer.email,
+            taxNumber: apiCustomer.gstIn || "",
+            altMobile: "",
+            balance: apiCustomer.account_balance?.toString(),
+            accountBalance: apiCustomer.account_balance?.toString() || "0.00",
+            taxEnabled: apiCustomer.enable_gst === true,
+            accountType: apiCustomer.account_type || "Sundry Debtors",
+            accountName: apiCustomer.account_name || "Accounts Receivable",
+            balanceType: apiCustomer.balance_type || "Debit",
+            creationDate: apiCustomer.creation_date,
+            bankAccountNumber: apiCustomer.bank_account_number,
+            bankIFSC: apiCustomer.bank_ifsc,
+            bankName: apiCustomer.bank_name_branch,
+            country: apiCustomer.country,
+            state: apiCustomer.state,
+            pincode: apiCustomer.pincode,
+            address: apiCustomer.address,
+            stateCode: apiCustomer.state_code,
+            shippingAddress: apiCustomer.shipping_address,
+            phone: apiCustomer.phone,
+            email: apiCustomer.email,
+            creditPeriod: apiCustomer.credit_period_days.toString(),
+            gstin: apiCustomer.gstIn || "",
+            gstEnabled: apiCustomer.enable_gst === true,
+            companyLocation: apiCustomer.google_location,
+            idCardImage: apiCustomer.id_card_image,
+            extraFile: apiCustomer.any_file,
+            billing: {
+              name: apiCustomer.name_english,
+              phone: apiCustomer.phone,
+              address: apiCustomer.address,
+              city: "", // Not available in API
+              state: apiCustomer.state,
+              country: apiCustomer.country,
+              zip: apiCustomer.pincode,
+            },
+            shipping: {
+              name: apiCustomer.name_english,
+              phone: apiCustomer.phone,
+              address: apiCustomer.shipping_address,
+              city: "", // Not available in API
+              state: apiCustomer.state,
+              country: apiCustomer.country,
+              zip: apiCustomer.pincode,
+            },
+          };
+        });
 
         setCustomersList(transformedCustomers);
       } else {
@@ -339,7 +313,6 @@ const CustomersDebtors = () => {
   };
 
   const handleSave = (savedCustomer, mode) => {
-    // If we have a saved customer from the API response, use it
     if (savedCustomer) {
       // Transform the API response to match our component structure
       const transformedCustomer = {
@@ -349,13 +322,13 @@ const CustomersDebtors = () => {
         companyName: savedCustomer.company_name,
         contact: savedCustomer.phone,
         email: savedCustomer.email,
-        taxNumber: savedCustomer.gstin,
+        taxNumber: savedCustomer.gstIn || "",
         altMobile: "",
-        balance: savedCustomer.account_balance,
-        taxEnabled: savedCustomer.enable_gst === "1",
-        accountType: savedCustomer.account_type,
-        accountName: savedCustomer.account_name,
-        balanceType: savedCustomer.balance_type,
+        balance: savedCustomer.account_balance.toString(),
+        taxEnabled: savedCustomer.enable_gst === true,
+        accountType: savedCustomer.account_type || "Sundry Debtors",
+        accountName: savedCustomer.account_name || "Accounts Receivable",
+        balanceType: savedCustomer.balance_type || "Debit",
         creationDate: savedCustomer.creation_date,
         bankAccountNumber: savedCustomer.bank_account_number,
         bankIFSC: savedCustomer.bank_ifsc,
@@ -368,12 +341,12 @@ const CustomersDebtors = () => {
         shippingAddress: savedCustomer.shipping_address,
         phone: savedCustomer.phone,
         email: savedCustomer.email,
-        creditPeriod: savedCustomer.credit_period,
-        gstin: savedCustomer.gstin,
-        gstEnabled: savedCustomer.enable_gst === "1",
+        creditPeriod: savedCustomer.credit_period_days.toString(),
+        gstin: savedCustomer.gstIn || "",
+        gstEnabled: savedCustomer.enable_gst === true,
         companyLocation: savedCustomer.google_location,
         idCardImage: savedCustomer.id_card_image,
-        extraFile: savedCustomer.image,
+        extraFile: savedCustomer.any_file,
         billing: {
           name: savedCustomer.name_english,
           phone: savedCustomer.phone,
@@ -398,29 +371,8 @@ const CustomersDebtors = () => {
         const updatedList = [...customersList];
         updatedList[currentIndex] = transformedCustomer;
         setCustomersList(updatedList);
-        // toast.success(`Customer "${transformedCustomer.name}" updated successfully`);
       } else {
         setCustomersList([...customersList, transformedCustomer]);
-        // toast.success(`Customer "${transformedCustomer.name}" added successfully`);
-      }
-    } else {
-      // Fallback to existing behavior if no API response
-      const newCustomerData = {
-        ...customerFormData,
-        id: currentCustomer.id || Date.now().toString(36),
-      };
-
-      if (editMode && currentIndex !== null) {
-        const updatedList = [...customersList];
-        updatedList[currentIndex] = { ...currentCustomer, ...newCustomerData };
-        setCustomersList(updatedList);
-        toast.success(`Customer "${newCustomerData.name}" updated successfully`);
-      } else {
-        setCustomersList([
-          ...customersList,
-          { ...currentCustomer, ...newCustomerData },
-        ]);
-        toast.success(`Customer "${newCustomerData.name}" added successfully`);
       }
     }
 
@@ -431,7 +383,6 @@ const CustomersDebtors = () => {
   };
 
   const handleDelete = () => {
-    // In a real implementation, you would make an API call to delete the customer
     if (deleteIndex !== null) {
       const customerToDelete = customersList[deleteIndex];
       setCustomersList((prev) => prev.filter((_, idx) => idx !== deleteIndex));
@@ -475,9 +426,7 @@ const CustomersDebtors = () => {
     const matchesSearch =
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.billing?.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.shipping?.city.toLowerCase().includes(searchTerm.toLowerCase());
+      customer.contact.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -584,7 +533,7 @@ const CustomersDebtors = () => {
       <div className="mb-3">
         <Row className="gy-2 align-items-center">
           <Col xs={12} md="auto">
-            <h6 className="fw-semibold mb-0">Customer Table</h6>
+            <h4 className="fw-bold mb-0">Customer Table</h4>
           </Col>
           <Col xs={12} md>
             <div className="d-flex flex-wrap gap-2 justify-content-md-end">
@@ -774,7 +723,7 @@ const CustomersDebtors = () => {
                                       cust.shippingAddress || "Same as above",
                                     country: cust.billing.country || "India",
                                     state: cust.billing.state || "N/A",
-                                    pincode: cust.billing.pincode || "N/A",
+                                    pincode: cust.billing.zip || "N/A",
                                     gst: cust.taxNumber,
                                     gstEnabled: !!cust.taxNumber,
                                     pan: cust.pan || "",
@@ -815,7 +764,7 @@ const CustomersDebtors = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="text-center text-muted py-4">
+                    <td colSpan="9" className="text-center text-muted py-4">
                       {customersList.length === 0
                         ? "No customers found. Add your first customer!"
                         : "No matching customers found."}
@@ -861,9 +810,7 @@ const CustomersDebtors = () => {
             className="text-muted fs-6 mb-0"
             style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
           >
-            <li>
-              Manage customer records including contact and address details.
-            </li>
+            <li>Manage customer records including contact and address details.</li>
             <li>Track customer balances and tax information (e.g., GSTIN).</li>
             <li>Perform actions like add, view, edit, and delete customers.</li>
             <li>

@@ -67,8 +67,9 @@ const VendorsCreditors = () => {
     try {
       setLoading(true);
       console.log(`Fetching vendors for Company ID: ${CompanyId}`);
-      const response = await axiosInstance.get(`/vendors/Company/${CompanyId}`);
-      if (response.data.status && Array.isArray(response.data.data)) {
+      const response = await axiosInstance.get(`/vendorCustomer/company/${CompanyId}?type=vender`);
+
+      if (response.status && Array.isArray(response.data.data)) {
         const mappedVendors = response.data.data.map(vendor => ({
           id: vendor.id,
           name: vendor.name_english?.trim() || "N/A",
@@ -226,10 +227,10 @@ const VendorsCreditors = () => {
       let response;
       if (selectedVendor) {
         // Update existing vendor
-        response = await axiosInstance.put(`/vendors/${selectedVendor.id}`, payload);
+        response = await axiosInstance.put(`/vendorCustomer/${selectedVendor.id}`, payload);
       } else {
         // Create new vendor
-        response = await axiosInstance.post('/vendors', payload);
+        response = await axiosInstance.post('/vendorCustomer', payload);
       }
 
       if (response.data.status) {
@@ -292,7 +293,7 @@ const VendorsCreditors = () => {
     }
     setDeleting(true);
     try {
-      const response = await axiosInstance.delete(`/vendors/${selectedVendor.id}`);
+      const response = await axiosInstance.delete(`/vendorCustomer/${selectedVendor.id}`);
       if (response.data.status) {
         toast.success("Vendor deleted successfully!");
         setShowDelete(false);
