@@ -4,29 +4,31 @@ import axios from "axios";
 import BaseUrl from "../../../../Api/BaseUrl";
 import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
+
 const AddVendorModal = ({ show, onHide, onSave, vendorFormData, setVendorFormData }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-const companyId = GetCompanyId();
+  const companyId = GetCompanyId();
+
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
       // Create FormData object to handle file uploads
       const formData = new FormData();
       
-      // Add all form fields to FormData
-      formData.append('company_id',companyId ); // Adding company_id as shown in the image
+      // Add all form fields to FormData with updated field names
+      formData.append('company_id', companyId);
       formData.append('name_english', vendorFormData.name || '');
       formData.append('name_arabic', vendorFormData.nameArabic || '');
       formData.append('company_name', vendorFormData.companyName || '');
-      formData.append('company_location', vendorFormData.companyLocation || '');
-      formData.append('account_type', 'Sundry Creditors');
+      formData.append('google_location', vendorFormData.companyLocation || '');
+      formData.append('account_type', 'Current'); // Changed from "Sundry Creditors"
       formData.append('balance_type', 'Credit');
       formData.append('account_name', vendorFormData.accountName || '');
       formData.append('account_balance', vendorFormData.accountBalance || '0.00');
       formData.append('creation_date', vendorFormData.creationDate || '');
       formData.append('bank_account_number', vendorFormData.bankAccountNumber || '');
       formData.append('bank_ifsc', vendorFormData.bankIFSC || '');
-      formData.append('bank_name', vendorFormData.bankName || '');
+      formData.append('bank_name_branch', vendorFormData.bankName || ''); // Changed field name
       formData.append('country', vendorFormData.country || '');
       formData.append('state', vendorFormData.state || '');
       formData.append('pincode', vendorFormData.pincode || '');
@@ -35,12 +37,10 @@ const companyId = GetCompanyId();
       formData.append('shipping_address', vendorFormData.shippingAddress || '');
       formData.append('phone', vendorFormData.phone || '');
       formData.append('email', vendorFormData.email || '');
-      formData.append('credit_period', vendorFormData.creditPeriod || '');
-      
-      // Add GSTIN if enabled
-      if (vendorFormData.gstEnabled) {
-        formData.append('gstin', vendorFormData.gstin || '');
-      }
+      formData.append('credit_period_days', vendorFormData.creditPeriod || ''); // Changed field name
+      formData.append('enable_gst', vendorFormData.gstEnabled); // Changed field name
+      formData.append('gstIn', vendorFormData.gstin || ''); // Changed field name
+      formData.append('type', 'vender'); // Added default type
       
       // Add files if they exist
       if (vendorFormData.idCardImage) {
@@ -48,11 +48,11 @@ const companyId = GetCompanyId();
       }
       
       if (vendorFormData.extraFile) {
-        formData.append('extra_file', vendorFormData.extraFile);
+        formData.append('any_file', vendorFormData.extraFile); // Changed field name
       }
 
       // Make API call
-      const response = await axiosInstance.post(`${BaseUrl}vendor`, formData, {
+      const response = await axiosInstance.post(`${BaseUrl}vendorCustomer`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -219,7 +219,7 @@ const companyId = GetCompanyId();
                 <Form.Label>Account Type</Form.Label>
                 <Form.Control
                   type="text"
-                  value="Sundry Creditors"
+                  value="Current"  // Changed from "Sundry Creditors"
                   disabled
                   style={{ backgroundColor: "#fff" }}
                 />
