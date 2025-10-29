@@ -699,7 +699,7 @@ const Transaction = () => {
                     }}
                   >
                     <option value="customer">Customer</option>
-                    <option value="vendor">Vendor</option> {/* ✅ Correct spelling */}
+                    <option value="vendor">Vendor</option>
                   </Form.Select>
                 </Col>
                 <Col>

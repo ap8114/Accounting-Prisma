@@ -22,7 +22,7 @@ const emptyUser = {
   phone: "",
   email: "",
   role: "",
-  role_id: "3", // default role_id
+  user_role: "", // default role_id
   status: "Active",
   img: "",
   password: "",
@@ -33,7 +33,7 @@ const emptyUser = {
 const statusBadge = (status) => {
   const normalized = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
   return (
-    <badge
+    <Badge
       style={{
         background: normalized === "Active" ? "#27ae60" : "#e74c3c",
         color: "#fff",
@@ -57,7 +57,7 @@ const statusBadge = (status) => {
         }}
       ></span>
       {normalized}
-    </badge>
+    </Badge>
   );
 };
 
@@ -111,25 +111,31 @@ const Users = () => {
       }
 
       try {
-        const response = await axiosInstance.get('/adminuser');
-        if (response.data.status && Array.isArray(response.data.data)) {
-          const companyUsers = response.data.data
-            .filter(user => user.company_id == companyId)
-            .map(user => {
-              const roleName = user.role_name || user.role || "Sales Executive";
-              const roleId = user.role_id?.toString() || roleToIdMap[roleName] || "3";
-              return {
-                id: user.id,
-                name: user.name,
-                phone: user.phone,
-                email: user.email,
-                role: roleName,
-                role_id: roleId,
-                status: user.status,
-                img: user.image || "",
-                company_id: user.company_id,
-              };
-            });
+        const response = await axiosInstance.get(`/auth/User/company/${companyId}`);
+
+        if (response.data.success && Array.isArray(response.data.data)) {
+          const companyUsers = response.data.data.map(user => {
+            // Normalize role names - convert "USER" to "Sales Executive"
+            const roleName = user.role === "USER" ? "Sales Executive" :
+              user.role_name || user.role || "Sales Executive";
+
+            const roleId = user.user_role?.toString() ||
+              roleToIdMap[roleName] || "3";
+
+            return {
+              id: user.id,
+              name: user.name,
+              phone: user.phone,
+              email: user.email,
+              role: roleName,
+              user_role: roleId,
+              status: user.UserStatus || user.status || "Active",
+              // Use 'profile' field from API response
+              img: user.profile || "",
+              company_id: user.company_id,
+            };
+          });
+
           setUsers(companyUsers);
         } else {
           setError("Unexpected API response format.");
@@ -188,7 +194,7 @@ const Users = () => {
     formData.append('name', form.name);
     formData.append('phone', form.phone);
     formData.append('email', form.email);
-    formData.append('role_id', form.role_id || "3");
+    formData.append('user_role', form.user_role);
     formData.append('status', form.status);
 
     if (modalType === "add") {
@@ -198,33 +204,33 @@ const Users = () => {
     if (previewImg && previewImg.startsWith('blob:')) {
       const response = await fetch(previewImg);
       const blob = await response.blob();
-      formData.append('image', blob, 'profile.jpg');
+      formData.append('profile', blob, 'profile.jpg');
     }
 
     try {
       let response;
       if (modalType === "add") {
-        response = await axiosInstance.post('/adminuser', formData, {
+        response = await axiosInstance.post('/auth/User', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        const newUser = { 
-          ...form, 
-          id: response.data.id || Date.now(), 
-          img: previewImg, 
+        const newUser = {
+          ...form,
+          id: response.data.id || Date.now(),
+          img: previewImg,
           company_id: companyId,
-          role: idToRoleMap[form.role_id] || form.role || "Sales Executive"
+          role: idToRoleMap[form.user_role] || form.role || "Sales Executive"
         };
         setUsers(prev => [...prev, newUser]);
         alert('User created successfully!');
       } else if (modalType === "edit") {
-        response = await axiosInstance.patch(`/adminuser/${form.id}`, formData, {
+        response = await axiosInstance.put(`/auth/User/${form.id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        const updatedRole = idToRoleMap[form.role_id] || form.role || "Sales Executive";
-        setUsers(prev => 
-          prev.map(u => 
-            u.id === form.id 
-              ? { ...form, img: previewImg, company_id: companyId, role: updatedRole } 
+        const updatedRole = idToRoleMap[form.user_role] || form.role || "Sales Executive";
+        setUsers(prev =>
+          prev.map(u =>
+            u.id === form.id
+              ? { ...form, img: previewImg, company_id: companyId, role: updatedRole }
               : u
           )
         );
@@ -265,7 +271,9 @@ const Users = () => {
 
   const handleConfirmDelete = async () => {
     try {
-      await axiosInstance.delete(`/adminuser/${userToDelete.id}`);
+      await axiosInstance.delete(`/auth/User/${userToDelete.id}`, {
+        params: { company_id: companyId }
+      });
       setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
       alert('User deleted successfully!');
     } catch (err) {
@@ -319,7 +327,6 @@ const Users = () => {
     setShowResetModal(true);
   };
 
-  // ✅ FIXED: Send FULL user data + new password to prevent nulling fields
   const handleResetPassword = async () => {
     if (newPassword !== confirmNewPassword) {
       alert("New Password and Confirm Password do not match!");
@@ -343,13 +350,13 @@ const Users = () => {
         name: currentUser.name,
         phone: currentUser.phone,
         email: currentUser.email,
-        role_id: currentUser.role_id,
+        user_role: currentUser.user_role,
         status: currentUser.status,
         company_id: companyId,
         password: newPassword,
       };
 
-      await axiosInstance.patch(`/adminuser/${userToReset.id}`, payload);
+      await axiosInstance.put(`/auth/User/${userToReset.id}`, payload);
 
       // Update local state (do NOT store password)
       setUsers(prev =>
@@ -383,12 +390,12 @@ const Users = () => {
   if (error) {
     return (
       <div className="p-2 text-center">
-      <p className="text-danger">{error}</p>
-      <Button variant="primary" onClick={() => window.location.reload()}>
-        Retry
-      </Button>
-    </div>
-  );
+        <p className="text-danger">{error}</p>
+        <Button variant="primary" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -553,8 +560,7 @@ const Users = () => {
                               <FaEdit />
                             </Button>
                             <Button
-                              variant="outline-secondary"
-                              size="sm"
+                              variant="outline-secondary" size="sm"
                               onClick={() => openResetModal(user)}
                               title="Reset Password"
                             >
@@ -616,12 +622,12 @@ const Users = () => {
             <Form.Group className="mb-2">
               <Form.Label>Role</Form.Label>
               <Form.Select
-                value={form.role_id}
+                value={form.user_role}
                 onChange={(e) => {
                   const selectedId = e.target.value;
-                  setForm({ 
-                    ...form, 
-                    role_id: selectedId,
+                  setForm({
+                    ...form,
+                    user_role: selectedId,
                     role: idToRoleMap[selectedId] || "Sales Executive"
                   });
                 }}
@@ -691,7 +697,7 @@ const Users = () => {
               !form.name ||
               !form.email ||
               !form.phone ||
-              !form.role_id ||
+              !form.user_role ||
               (modalType === "add" && (!form.password || !form.confirmPassword))
             }
             style={{ backgroundColor: "#3daaaa", borderColor: "#3daaaa" }}

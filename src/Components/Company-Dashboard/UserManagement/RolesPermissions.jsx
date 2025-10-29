@@ -475,7 +475,7 @@ const RolesPermissions = () => {
                     <td>
                       <div className="d-flex gap-2">
                         <Button
-                          variant="outline-secondary"
+                          variant="outline-primary"
                           size="sm"
                           title="View Details"
                           onClick={() => handleView(role)}
@@ -483,7 +483,7 @@ const RolesPermissions = () => {
                           <FaEye size={14} />
                         </Button>
                         <Button
-                          variant="outline-secondary"
+                          variant="outline-success"
                           size="sm"
                           title="Edit"
                           onClick={() => handleEdit(role)}
@@ -491,12 +491,12 @@ const RolesPermissions = () => {
                           <FaEdit />
                         </Button>
                         <Button
-                          variant="outline-secondary"
+                          variant="outline-danger"
                           size="sm"
                           title="Delete"
                           onClick={() => handleDelete(role)}
                         >
-                          <FaTrash color="#d32f2f" />
+                          <FaTrash />
                         </Button>
                       </div>
                     </td>
@@ -544,7 +544,7 @@ const RolesPermissions = () => {
               <div className="mb-3">
                 <h6>General Information</h6>
                 <p><strong>Name:</strong> {selected.name}</p>
-                <p><strong>Type:</strong> {selected.type}</p>
+                {/* <p><strong>Type:</strong> {selected.type}</p> */}
                 <p><strong>Last Modified:</strong> {selected.lastModified}</p>
                 <p><strong>Number of Users:</strong> {selected.users}</p>
                 <p><strong>Status:</strong> 
@@ -594,7 +594,7 @@ const RolesPermissions = () => {
                               {perms && perms.length > 0 ? (
                                 <div className="d-flex flex-wrap gap-1">
                                   {perms.map((perm, idx) => (
-                                    <span key={idx} className="badge bg-light text-dark me-1">
+                                    <span key={idx} className="badge me-1 bg-primary">
                                       {perm}
                                     </span>
                                   ))}
@@ -640,7 +640,7 @@ const RolesPermissions = () => {
             </Form.Group>
             
             {/* Role Type with Add Button */}
-            <Form.Group className="mb-3">
+            {/* <Form.Group className="mb-3">
               <Form.Label>Role Type</Form.Label>
               <div className="d-flex gap-2 align-items-center">
                 <Form.Select
@@ -674,7 +674,7 @@ const RolesPermissions = () => {
                   + Add Type
                 </Button>
               </div>
-            </Form.Group>
+            </Form.Group> */}
             
             {/* General Permissions */}
             <Form.Group className="mb-4">
