@@ -184,7 +184,7 @@ const AllAccounts = () => {
       
       groupedData[subgroupName].rows.push({
         name: account.account_name || `Account ${account.id}`,
-        bal: "0.00", // API doesn't provide balance, setting default
+        bal: account.accountBalance || "0.00", // Use accountBalance from API
         id: account.id,
         has_bank_details: hasBankDetails,
         account_number: account.account_number,
@@ -286,8 +286,8 @@ const AllAccounts = () => {
         // Make API call to delete the account
         await axiosInstance.delete(`${BaseUrl}account/${row.id}`);
         
-        // Refresh the page after successful deletion
-        window.location.reload();
+        // Refresh the data after successful deletion
+        setRefreshData(!refreshData);
       }
     } catch (error) {
       console.error("Failed to delete account:", error);
@@ -322,6 +322,7 @@ const AllAccounts = () => {
       // Prepare payload for update
       const payload = {
         account_name: updatedAccount.name,
+        accountBalance: updatedAccount.balance, // Add balance to payload
         has_bank_details: updatedAccount.has_bank_details === "Yes" ? "1" : "0",
       };
 
@@ -349,6 +350,7 @@ const AllAccounts = () => {
                 return {
                   ...row,
                   name: updatedAccount.name,
+                  bal: updatedAccount.balance.toString(), // Update balance
                   has_bank_details: updatedAccount.has_bank_details,
                   account_number: updatedAccount.account_number || "",
                   ifsc_code: updatedAccount.ifsc_code || "",
@@ -367,10 +369,7 @@ const AllAccounts = () => {
       // Close modal
       setActionModal({ show: false, mode: null });
       
-      // Then refresh data from server to ensure consistency
-      setTimeout(() => {
-        setRefreshData(!refreshData);
-      }, 500);
+      // No need to refresh data from server since we've already updated the state
     } catch (error) {
       console.error("Failed to update account:", error);
       if (error.response) {
@@ -415,10 +414,8 @@ const AllAccounts = () => {
       // Close modal
       setActionModal({ show: false, mode: null });
       
-      // Then refresh data from server to ensure consistency
-      setTimeout(() => {
-        setRefreshData(!refreshData);
-      }, 500);
+      // Refresh data from server to ensure consistency
+      setRefreshData(!refreshData);
     } catch (error) {
       console.error("Failed to delete account:", error);
       if (error.response) {
