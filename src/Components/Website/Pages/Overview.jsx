@@ -30,6 +30,39 @@ const Overview = () => {
     setActiveKey(activeKey === key ? null : key);
   };
 
+  const [openIndex, setOpenIndex] = useState(null);
+
+  const toggleItem = (index) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
+
+  const faqItems = [
+    {
+      question: "Can I manage customers and vendors from one dashboard?",
+      answer: "Yes! ZirakBook's Client & Vendor Hub lets you track balances, set credit periods, and manage all transactions in one place — making relationship management effortless and organized."
+    },
+    {
+      question: "Does the software support multiple warehouse locations?",
+      answer: "Absolutely. You can manage stock across different warehouses — track batches, set expiry dates, use barcodes, and even apply automated valuation methods like FIFO for accurate inventory control."
+    },
+    {
+      question: "Can I assign different access levels to my team members?",
+      answer: "Yes. With Role-Based Access Control, you can define custom permissions for each user — whether they handle finance, inventory, or sales — ensuring data security while enabling smooth collaboration."
+    },
+    {
+      question: "Are vouchers automated or do I have to create them manually?",
+      answer: "You can do both. Create vouchers manually or let the system auto-generate them with unique numbering. Every entry includes a full audit trail for transparency and easy tracking."
+    },
+    {
+      question: "Can I generate real-time business reports?",
+      answer: "Definitely. Get instant insights with reports on sales, inventory, cash flow, and profit & loss. All reports are visual, exportable, and updated in real time to help you make smarter decisions."
+    },
+    {
+      question: "Can I organize products by category, brand, and SKU?",
+      answer: "Yes. Each product can be fully customized — add descriptions, set min/max stock levels, assign valuation methods, and categorize by brand or SKU for easy search and management."
+    }
+  ];
+
   const features = [
     {
       img: f3,
@@ -508,51 +541,44 @@ const Overview = () => {
             </p>
           </div>
           <Row className="justify-content-center">
-            <Col xs={12} lg={10} xl={8} style={{ width: '90%', maxWidth: '90%' }} className="mx-auto"> {/* 👈 Width 90% */}
-              <Accordion flush>
-                <Accordion.Item eventKey="0">
-                  <Accordion.Header>Can I manage customers and vendors from one dashboard?</Accordion.Header>
-                  <Accordion.Body style={{ backgroundColor: '#e7ffe7', borderRadius: '0 0 8px 8px' }}>
-                    Yes! ZirakBook’s Client & Vendor Hub lets you track balances, set credit
-                    periods, and manage all transactions in one place — making relationship management effortless and organized.
-                  </Accordion.Body>
-                </Accordion.Item>
-                <Accordion.Item eventKey="1">
-                  <Accordion.Header>Does the software support multiple warehouse locations?</Accordion.Header>
-                  <Accordion.Body style={{ backgroundColor: '#e7ffe7', borderRadius: '0 0 8px 8px' }}>
-                    Absolutely. You can manage stock across different warehouses — track batches, set expiry dates,
-                    use barcodes, and even apply automated valuation methods like FIFO for accurate inventory control.
-                  </Accordion.Body>
-                </Accordion.Item>
-                <Accordion.Item eventKey="2">
-                  <Accordion.Header>Can I assign different access levels to my team members?</Accordion.Header>
-                  <Accordion.Body style={{ backgroundColor: '#e7ffe7', borderRadius: '0 0 8px 8px' }}>
-                    Yes. With Role-Based Access Control, you can define custom permissions for each user —
-                    whether they handle finance, inventory, or sales — ensuring data security while enabling smooth collaboration.
-                  </Accordion.Body>
-                </Accordion.Item>
-                <Accordion.Item eventKey="3">
-                  <Accordion.Header>Are vouchers automated or do I have to create them manually?</Accordion.Header>
-                  <Accordion.Body style={{ backgroundColor: '#e7ffe7', borderRadius: '0 0 8px 8px' }}>
-                    You can do both. Create vouchers manually or let the system auto-generate them with unique numbering.
-                    Every entry includes a full audit trail for transparency and easy tracking.
-                  </Accordion.Body>
-                </Accordion.Item>
-                <Accordion.Item eventKey="4">
-                  <Accordion.Header>Can I generate real-time business reports?</Accordion.Header>
-                  <Accordion.Body style={{ backgroundColor: '#e7ffe7', borderRadius: '0 0 8px 8px' }}>
-                    Definitely. Get instant insights with reports on sales, inventory, cash flow, and profit & loss.
-                    All reports are visual, exportable, and updated in real time to help you make smarter decisions.
-                  </Accordion.Body>
-                </Accordion.Item>
-                <Accordion.Item eventKey="5">
-                  <Accordion.Header>Can I organize products by category, brand, and SKU?</Accordion.Header>
-                  <Accordion.Body style={{ backgroundColor: '#e7ffe7', borderRadius: '0 0 8px 8px' }}>
-                    Yes. Each product can be fully customized — add descriptions, set min/max stock levels, assign valuation methods,
-                    and categorize by brand or SKU for easy search and management.
-                  </Accordion.Body>
-                </Accordion.Item>
-              </Accordion>
+            <Col xs={12} lg={10} xl={8} style={{ width: '90%', maxWidth: '90%' }} className="mx-auto">
+              <div style={{ border: 'none' }}>
+                {faqItems.map((item, index) => (
+                  <div key={index} style={{ marginBottom: '1px' }}>
+                    <div
+                      style={{
+                        padding: '1rem',
+                        backgroundColor: '#f8f9fa',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        borderBottom: '1px solid rgba(0,0,0,.125)'
+                      }}
+                      onClick={() => toggleItem(index)}
+                    >
+                      <span style={{ fontWeight: '500' }}>{item.question}</span>
+                      <span style={{ fontSize: '0.8rem' }}>
+                        {openIndex === index ? '▲' : '▼'}
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        backgroundColor: '#e7ffe7',
+                        borderRadius: '0 0 8px 8px',
+                        padding: openIndex === index ? '1rem' : '0',
+                        overflow: 'hidden',
+                        transition: 'all 0.3s ease',
+                        maxHeight: openIndex === index ? '500px' : '0',
+                        opacity: openIndex === index ? 1 : 0
+                      }}
+                    >
+                      {item.answer}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Col>
           </Row>
         </Container>
