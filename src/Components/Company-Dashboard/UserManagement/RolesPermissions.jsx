@@ -6,6 +6,9 @@ import {
   Modal,
   Form,
   InputGroup,
+  Spinner,
+  Toast,
+  ToastContainer
 } from "react-bootstrap";
 import {
   FaEdit,
@@ -17,64 +20,8 @@ import GetCompanyId from "../../../Api/GetCompanyId";
 import axios from "axios";
 import BaseUrl from "../../../Api/BaseUrl";
 
-// Default roles data with active status
-const defaultRoles = [
-  {
-    id: 1,
-    name: "Admin",
-    users: 2,
-    permissions: ["Full Access"],
-    lastModified: "12 Sep 2024",
-    type: "superadmin",
-    isActive: true,
-    modulePermissions: {
-      "Account": ["Create", "View", "Update", "Delete"],
-      "Inventory": ["Create", "View", "Update", "Delete"],
-      "POS": ["Create", "View", "Update", "Delete"],
-      "Sales": ["Create", "View", "Update", "Delete"],
-      "Purchase": ["Create", "View", "Update", "Delete"],
-      "GST": ["Create", "View", "Update", "Delete"],
-      "User Management": ["Create", "View", "Update", "Delete"],
-      "Report": ["View"],
-      "Setting": ["View", "Update"]
-    }
-  },
-  {
-    id: 2,
-    name: "Manager",
-    users: 3,
-    permissions: ["View", "Create", "Edit"],
-    lastModified: "24 Oct 2024",
-    type: "company",
-    isActive: true,
-    modulePermissions: {
-      "Account": ["View"],
-      "Inventory": ["Create", "View", "Update"],
-      "POS": ["Create", "View"],
-      "Sales": ["Create", "View", "Update"],
-      "Purchase": ["Create", "View"],
-      "Report": ["View"]
-    }
-  },
-  {
-    id: 3,
-    name: "Salesman",
-    users: 4,
-    permissions: ["View", "Create"],
-    lastModified: "18 Feb 2024",
-    type: "user",
-    isActive: false,
-    modulePermissions: {
-      "POS": ["Create", "View"],
-      "Sales": ["Create", "View"],
-      "Inventory": ["View"]
-    }
-  },
-];
-
 // All available general permissions
 const allPermissions = ["View", "Create", "Edit", "Full Access"];
-
 // Modules and their specific permissions
 const tallyModules = [
   { name: "Account", permissions: ["Create", "View", "Update", "Delete"] },
@@ -92,7 +39,9 @@ const RolesPermissions = () => {
   const companyId = GetCompanyId();
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [roles, setRoles] = useState(defaultRoles);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -101,15 +50,19 @@ const RolesPermissions = () => {
   const [form, setForm] = useState({ name: "", permissions: [], type: "user", modulePermissions: {} });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-
   // Custom Role Types
   const [customRoleTypes, setCustomRoleTypes] = useState([]);
   const [showAddTypeModal, setShowAddTypeModal] = useState(false);
   const [newRoleType, setNewRoleType] = useState("");
-  const [isAddingType, setIsAddingType] = useState(false); // Loading state
-  const [typeError, setTypeError] = useState(""); // Error state
+  const [isAddingType, setIsAddingType] = useState(false);
+  const [typeError, setTypeError] = useState("");
 
-  // Load custom role types from localStorage on mount
+  // ✅ TOAST NOTIFICATION STATE
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastVariant, setToastVariant] = useState("success"); // 'success', 'danger'
+
+  // Load custom role types from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("customRoleTypes");
     if (saved) {
@@ -117,40 +70,101 @@ const RolesPermissions = () => {
     }
   }, []);
 
-  // Save to localStorage whenever custom types change
   useEffect(() => {
     if (customRoleTypes.length > 0) {
       localStorage.setItem("customRoleTypes", JSON.stringify(customRoleTypes));
     }
   }, [customRoleTypes]);
 
-  // Toggle role active status
+  // ✅ FETCH ROLES FUNCTION
+  const fetchRoles = async () => {
+    if (!companyId) {
+      setError("Company ID not found.");
+      setLoading(false);
+      return;
+    }
+    try {
+      const response = await axios.get(`${BaseUrl}user-roles?company_id=${companyId}`);
+      if (response.data?.success && Array.isArray(response.data.data)) {
+        const mappedRoles = response.data.data.map(role => {
+          let generalPerms = [];
+          try {
+            generalPerms = JSON.parse(role.general_permissions || "[]");
+            generalPerms = generalPerms.map(p => {
+              if (p.toLowerCase() === "full access") return "Full Access";
+              return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
+            });
+          } catch (e) {
+            console.warn("Failed to parse general_permissions for role:", role.id);
+          }
+          const modulePermissions = {};
+          tallyModules.forEach(module => {
+            const permObj = role.permissions.find(p => p.module_name === module.name);
+            if (permObj) {
+              const perms = [];
+              if (permObj.full_access) {
+                perms.push("Full Access", ...module.permissions);
+              } else {
+                if (permObj.can_create) perms.push("Create");
+                if (permObj.can_view) perms.push("View");
+                if (permObj.can_update) perms.push("Update");
+                if (permObj.can_delete) perms.push("Delete");
+              }
+              modulePermissions[module.name] = perms;
+            } else {
+              modulePermissions[module.name] = [];
+            }
+          });
+          return {
+            id: role.id,
+            name: role.role_name,
+            users: 0,
+            permissions: generalPerms,
+            lastModified: new Date(role.created_at).toISOString().split('T')[0],
+            type: "user",
+            isActive: true,
+            modulePermissions,
+          };
+        });
+        setRoles(mappedRoles);
+      } else {
+        setError("Failed to load roles.");
+      }
+    } catch (err) {
+      console.error("Error fetching roles:", err);
+      setError("Unable to fetch roles. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchRoles();
+  }, [companyId]);
+
   const toggleRoleStatus = (roleId) => {
-    setRoles(roles.map(role => 
+    // Note: This is local-only toggle. If you want to sync with backend, add API call here.
+    setRoles(roles.map(role =>
       role.id === roleId ? { ...role, isActive: !role.isActive } : role
     ));
   };
 
   const filteredRoles = roles.filter((role) => {
     const matchesSearch = role.name.toLowerCase().includes(search.toLowerCase());
-  
     const matchesStatus =
       statusFilter === "All" ||
       (statusFilter === "Active" && role.isActive) ||
       (statusFilter === "Inactive" && !role.isActive);
-  
     const roleDate = new Date(role.lastModified);
     const from = fromDate ? new Date(fromDate) : null;
     const to = toDate ? new Date(toDate) : null;
-  
     const matchesDate =
       (!from || roleDate >= from) &&
       (!to || roleDate <= to);
-  
     return matchesSearch && matchesStatus && matchesDate;
   });
 
-  // Handle adding a new role
   const handleAdd = () => {
     const initialModulePermissions = {};
     tallyModules.forEach(module => {
@@ -160,14 +174,9 @@ const RolesPermissions = () => {
     setShowAdd(true);
   };
 
-  // Create new role via API
   const handleAddSave = async () => {
     if (!form.name.trim()) return;
-
     try {
-      // Build payload in the shape requested by backend:
-      // general_permissions: array of lowercased strings
-      // permissions: array of { module_name, can_create, can_view, can_update, can_delete, full_access }
       const buildModulePermissionsArray = (modulePermsObj) => {
         return Object.entries(modulePermsObj || {}).map(([moduleName, perms]) => {
           const set = new Set((perms || []).map(p => String(p).toLowerCase()));
@@ -181,39 +190,37 @@ const RolesPermissions = () => {
           };
         });
       };
-
       const permissionsPayload = buildModulePermissionsArray(form.modulePermissions || {});
-
       const response = await axios.post(`${BaseUrl}user-roles`, {
         company_id: companyId,
         role_name: form.name,
         general_permissions: Array.isArray(form.permissions) ? form.permissions.map(p => String(p).toLowerCase()) : [],
         permissions: permissionsPayload
       });
-
-      if (response.data && response.data.status) {
-        const newRole = {
-          id: Date.now(),
-          name: form.name,
-          users: 0,
-          permissions: [...form.permissions],
-          lastModified: new Date().toISOString().split('T')[0],
-          type: form.type,
-          isActive: true,
-          modulePermissions: { ...form.modulePermissions }
-        };
-        
-        setRoles(prev => [...prev, newRole]);
+      if (response.data && response.status) {
         setShowAdd(false);
+        setForm({ name: "", permissions: [], type: "user", modulePermissions: {} });
+        // ✅ REFRESH LIST AFTER ADD
+        await fetchRoles();
+        // ✅ SHOW SUCCESS TOAST
+        setToastMessage("Role created successfully!");
+        setToastVariant("success");
+        setShowToast(true);
       } else {
-        alert(`Error: ${response.data.message || 'Failed to create role'}`);
+        // ❌ Show error toast or alert if needed
+        setToastMessage(`Error: ${response.data.message || 'Failed to create role'}`);
+        setToastVariant("danger");
+        setShowToast(true);
       }
     } catch (error) {
-      alert('Failed to create role. Please try again.');
+      console.error('API Error:', error);
+      // ❌ Show error toast or alert if needed
+      setToastMessage('Failed to create role. Please try again.');
+      setToastVariant("danger");
+      setShowToast(true);
     }
   };
 
-  // Handle editing a role
   const handleEdit = (role) => {
     setSelected(role);
     setForm({
@@ -225,10 +232,8 @@ const RolesPermissions = () => {
     setShowEdit(true);
   };
 
-  // Update role via API
   const handleEditSave = async () => {
     if (!form.name.trim()) return;
-
     try {
       const buildModulePermissionsArray = (modulePermsObj) => {
         return Object.entries(modulePermsObj || {}).map(([moduleName, perms]) => {
@@ -243,88 +248,86 @@ const RolesPermissions = () => {
           };
         });
       };
-
       const permissionsPayload = buildModulePermissionsArray(form.modulePermissions || {});
-
       const response = await axios.put(`${BaseUrl}user-roles/${selected.id}`, {
         company_id: companyId,
         role_name: form.name,
         general_permissions: Array.isArray(form.permissions) ? form.permissions.map(p => String(p).toLowerCase()) : [],
         permissions: permissionsPayload
       });
-
-      if (response.data && response.data.status) {
-        setRoles(prev =>
-          prev.map(r =>
-            r.id === selected.id
-              ? {
-                  ...r,
-                  name: form.name,
-                  permissions: [...form.permissions],
-                  lastModified: new Date().toISOString().split('T')[0],
-                  type: form.type,
-                  modulePermissions: { ...form.modulePermissions }
-                }
-              : r
-          )
-        );
+      if (response.data && response.status) {
         setShowEdit(false);
+        // ✅ REFRESH LIST AFTER UPDATE
+        await fetchRoles();
+        // ✅ SHOW SUCCESS TOAST
+        setToastMessage("Role updated successfully!");
+        setToastVariant("success");
+        setShowToast(true);
       } else {
-        alert(`Error: ${response.data.message || 'Failed to update role'}`);
+        // ❌ Show error toast or alert if needed
+        setToastMessage(`Error: ${response.data.message || 'Failed to update role'}`);
+        setToastVariant("danger");
+        setShowToast(true);
       }
     } catch (error) {
       console.error('API Error:', error);
-      alert('Failed to update role. Please try again.');
+      // ❌ Show error toast or alert if needed
+      setToastMessage('Failed to update role. Please try again.');
+      setToastVariant("danger");
+      setShowToast(true);
     }
   };
 
-  // Handle deleting a role
   const handleDelete = (role) => {
     setSelected(role);
     setShowDelete(true);
   };
 
-  // Delete role via API
   const handleDeleteConfirm = async () => {
     try {
       const response = await axios.delete(`${BaseUrl}user-roles/${selected.id}`, {
         params: { company_id: companyId }
       });
-
-      if (response.data && response.data.status) {
-        setRoles(prev => prev.filter(r => r.id !== selected.id));
+      if (response.data && response.status) {
         setShowDelete(false);
+        // ✅ REFRESH LIST AFTER DELETE
+        await fetchRoles();
+        // ✅ SHOW SUCCESS TOAST
+        setToastMessage("Role deleted successfully!");
+        setToastVariant("success");
+        setShowToast(true);
       } else {
-        alert(`Error: ${response.data.message || 'Failed to delete role'}`);
+        // ❌ Show error toast or alert if needed
+        setToastMessage(`Error: ${response.data.message || 'Failed to delete role'}`);
+        setToastVariant("danger");
+        setShowToast(true);
       }
     } catch (error) {
       console.error('API Error:', error);
-      alert('Failed to delete role. Please try again.');
+      // ❌ Show error toast or alert if needed
+      setToastMessage('Failed to delete role. Please try again.');
+      setToastVariant("danger");
+      setShowToast(true);
     }
   };
 
-  // Handle viewing a role
   const handleView = (role) => {
     setSelected(role);
     setShowView(true);
   };
 
-  // Toggle a general permission in the form
   const toggleGeneralPerm = (perm) => {
     if (perm === "Full Access") {
       setForm(f => ({
         ...f,
         permissions: f.permissions.includes("Full Access") ? [] : ["Full Access"]
       }));
-    } else { 
+    } else {
       setForm(f => {
         const currentPerms = [...f.permissions];
         const fullAccessIndex = currentPerms.indexOf("Full Access");
         if (fullAccessIndex !== -1) {
-          return {
-            ...f,
-            permissions: [perm]
-          };
+          return { ...f, permissions: [perm] };
         } else {
           const permIndex = currentPerms.indexOf(perm);
           if (permIndex !== -1) {
@@ -332,26 +335,19 @@ const RolesPermissions = () => {
           } else {
             currentPerms.push(perm);
           }
-          return {
-            ...f,
-            permissions: currentPerms
-          };
+          return { ...f, permissions: currentPerms };
         }
       });
     }
   };
 
-  // Toggle a specific module permission
   const toggleModulePerm = (moduleName, perm) => {
     setForm(prevForm => {
       const currentModulePerms = prevForm.modulePermissions[moduleName] || [];
       const permIndex = currentModulePerms.indexOf(perm);
-      let newModulePerms;
-      if (permIndex !== -1) {
-        newModulePerms = currentModulePerms.filter(p => p !== perm);
-      } else {
-        newModulePerms = [...currentModulePerms, perm];
-      }
+      let newModulePerms = permIndex !== -1
+        ? currentModulePerms.filter(p => p !== perm)
+        : [...currentModulePerms, perm];
       return {
         ...prevForm,
         modulePermissions: {
@@ -362,7 +358,6 @@ const RolesPermissions = () => {
     });
   };
 
-  // Toggle "Full Access" for a specific module
   const toggleModuleFullAccess = (moduleName) => {
     setForm(prevForm => {
       const module = tallyModules.find(m => m.name === moduleName);
@@ -378,37 +373,34 @@ const RolesPermissions = () => {
     });
   };
 
-  // Handle adding a new role type via API
   const handleAddRoleType = async () => {
     if (!newRoleType.trim()) {
       setTypeError("Role type name is required");
       return;
     }
-
     if (customRoleTypes.includes(newRoleType)) {
       setTypeError("This role type already exists");
       return;
     }
-
     if (!companyId) {
       setTypeError("Company ID not found. Please try again.");
       return;
     }
-
     setIsAddingType(true);
     setTypeError("");
-
     try {
       const response = await axios.post(`${BaseUrl}roletype`, {
         type_name: newRoleType,
         company_id: companyId
       });
-
-      if (response.data && response.data.status) {
+      if (response.data && response.status) {
         setCustomRoleTypes([...customRoleTypes, newRoleType]);
-        setForm({ ...form, type: newRoleType });
         setNewRoleType("");
         setShowAddTypeModal(false);
+        // ✅ SHOW SUCCESS TOAST FOR ROLE TYPE
+        setToastMessage("Role type added successfully!");
+        setToastVariant("success");
+        setShowToast(true);
       } else {
         setTypeError(response.data?.message || "Failed to add role type");
       }
@@ -419,6 +411,23 @@ const RolesPermissions = () => {
       setIsAddingType(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-danger">{error}</p>
+        <Button onClick={fetchRoles}>Retry</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4" style={{ background: "#f8f9fa", minHeight: "100vh" }}>
@@ -437,13 +446,12 @@ const RolesPermissions = () => {
           </Button>
         </div>
       </div>
-      
+
       {/* Main Card */}
       <Card className="">
         <Card.Body>
           {/* Filters */}
           <div className="d-flex flex-wrap gap-3 mb-3 align-items-end">
-            {/* Search */}
             <div>
               <Form.Label>Search Role</Form.Label>
               <InputGroup style={{ maxWidth: 300 }}>
@@ -454,7 +462,6 @@ const RolesPermissions = () => {
                 />
               </InputGroup>
             </div>
-            {/* Status Filter */}
             <div>
               <Form.Label>Status</Form.Label>
               <Form.Select
@@ -467,7 +474,6 @@ const RolesPermissions = () => {
                 <option value="Inactive">Inactive</option>
               </Form.Select>
             </div>
-            {/* From Date */}
             <div>
               <Form.Label>From Date</Form.Label>
               <Form.Control
@@ -477,7 +483,6 @@ const RolesPermissions = () => {
                 style={{ minWidth: 140 }}
               />
             </div>
-            {/* To Date */}
             <div>
               <Form.Label>To Date</Form.Label>
               <Form.Control
@@ -487,7 +492,6 @@ const RolesPermissions = () => {
                 style={{ minWidth: 140 }}
               />
             </div>
-            {/* Clear Filters Button */}
             <div>
               <Form.Label>&nbsp;</Form.Label>
               <Button
@@ -504,7 +508,7 @@ const RolesPermissions = () => {
               </Button>
             </div>
           </div>
-          
+
           {/* Roles Table */}
           <div style={{ overflowX: "auto" }}>
             <Table responsive alignMiddle mb0 style={{ minWidth: 800 }}>
@@ -524,7 +528,7 @@ const RolesPermissions = () => {
                     <td>{role.name}</td>
                     <td>{role.lastModified}</td>
                     <td>
-                      <span 
+                      <span
                         style={{
                           background: role.isActive ? "#27ae60" : "#e74c3c",
                           color: "#fff",
@@ -593,7 +597,8 @@ const RolesPermissions = () => {
           </div>
         </Card.Body>
       </Card>
-      
+
+      {/* Modals: Delete, View, Add, Edit, Add Type — same as before */}
       {/* Delete Confirmation Modal */}
       <Modal show={showDelete} onHide={() => setShowDelete(false)} centered>
         <Modal.Header closeButton>
@@ -611,7 +616,7 @@ const RolesPermissions = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-      
+
       {/* View Role Details Modal */}
       <Modal show={showView} onHide={() => setShowView(false)} centered size="lg">
         <Modal.Header closeButton>
@@ -623,10 +628,9 @@ const RolesPermissions = () => {
               <div className="mb-3">
                 <h6>General Information</h6>
                 <p><strong>Name:</strong> {selected.name}</p>
-                {/* <p><strong>Type:</strong> {selected.type}</p> */}
                 <p><strong>Last Modified:</strong> {selected.lastModified}</p>
                 <p><strong>Number of Users:</strong> {selected.users}</p>
-                <p><strong>Status:</strong> 
+                <p><strong>Status:</strong>
                   <span className={`badge ${selected.isActive ? 'bg-success' : 'bg-danger'} ms-2`}>
                     {selected.isActive ? 'Active' : 'Inactive'}
                   </span>
@@ -700,7 +704,7 @@ const RolesPermissions = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-      
+
       {/* Add Role Modal */}
       <Modal show={showAdd} onHide={() => setShowAdd(false)} centered size="xl">
         <Modal.Header closeButton>
@@ -708,7 +712,6 @@ const RolesPermissions = () => {
         </Modal.Header>
         <Modal.Body style={{ padding: "20px", maxHeight: '70vh', overflowY: 'auto' }}>
           <Form>
-            {/* Role Name */}
             <Form.Group className="mb-3">
               <Form.Label>Role Name *</Form.Label>
               <Form.Control
@@ -717,8 +720,6 @@ const RolesPermissions = () => {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </Form.Group>
-            
-            {/* General Permissions */}
             <Form.Group className="mb-4">
               <Form.Label>General Permissions</Form.Label>
               <div className="d-flex flex-wrap gap-2">
@@ -745,8 +746,6 @@ const RolesPermissions = () => {
                 })}
               </div>
             </Form.Group>
-            
-            {/* Permissions Section */}
             <div className="mb-3">
               <h6 className="fw-semibold mb-3" style={{ fontSize: 14 }}>
                 Assign Module Permissions to Role
@@ -790,7 +789,6 @@ const RolesPermissions = () => {
                             {module.permissions.map((perm) => {
                               const isFullAccess = form.modulePermissions[module.name]?.includes("Full Access");
                               const isSelected = form.modulePermissions[module.name]?.includes(perm);
-                              
                               return (
                                 <Form.Check
                                   key={`add-${module.name}-${perm}`}
@@ -857,7 +855,6 @@ const RolesPermissions = () => {
         </Modal.Header>
         <Modal.Body style={{ padding: "20px", maxHeight: '70vh', overflowY: 'auto' }}>
           <Form>
-            {/* Role Name */}
             <Form.Group className="mb-3">
               <Form.Label style={{ fontWeight: 500 }}>Role Name *</Form.Label>
               <Form.Control
@@ -871,8 +868,6 @@ const RolesPermissions = () => {
                 }}
               />
             </Form.Group>
-            
-            {/* Role Type in Edit Modal */}
             <Form.Group className="mb-3">
               <Form.Label style={{ fontWeight: 500 }}>Role Type</Form.Label>
               <div className="d-flex gap-2 align-items-center">
@@ -897,7 +892,6 @@ const RolesPermissions = () => {
                     </option>
                   ))}
                 </Form.Select>
-
                 <Button
                   variant="outline-primary"
                   size="sm"
@@ -908,8 +902,6 @@ const RolesPermissions = () => {
                 </Button>
               </div>
             </Form.Group>
-            
-            {/* General Permissions */}
             <Form.Group className="mb-4">
               <Form.Label>General Permissions</Form.Label>
               <div className="d-flex flex-wrap gap-2">
@@ -936,8 +928,6 @@ const RolesPermissions = () => {
                 })}
               </div>
             </Form.Group>
-            
-            {/* Permissions Section */}
             <div className="mb-3">
               <h6 className="fw-semibold mb-3" style={{ fontSize: 14 }}>
                 Assign Module Permissions to Role
@@ -981,7 +971,6 @@ const RolesPermissions = () => {
                             {module.permissions.map((perm) => {
                               const isFullAccess = form.modulePermissions[module.name]?.includes("Full Access");
                               const isSelected = form.modulePermissions[module.name]?.includes(perm);
-                              
                               return (
                                 <Form.Check
                                   key={`edit-${module.name}-${perm}`}
@@ -1042,13 +1031,13 @@ const RolesPermissions = () => {
       </Modal>
 
       {/* Add Role Type Modal */}
-      <Modal 
-        show={showAddTypeModal} 
+      <Modal
+        show={showAddTypeModal}
         onHide={() => {
           setShowAddTypeModal(false);
           setNewRoleType("");
           setTypeError("");
-        }} 
+        }}
         centered
       >
         <Modal.Header closeButton>
@@ -1091,10 +1080,23 @@ const RolesPermissions = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-      
+
       <p className="text-muted text-center mt-3">
         This page allows you to define and manage user roles with specific permissions such as create, read, update, and delete. Control access across the application.
       </p>
+
+      {/* ✅ TOAST CONTAINER */}
+      <ToastContainer position="top-end" className="p-3">
+        <Toast
+          onClose={() => setShowToast(false)}
+          show={showToast}
+          delay={3000}
+          autohide
+          bg={toastVariant}
+        >
+          <Toast.Body className="text-white">{toastMessage}</Toast.Body>
+        </Toast>
+      </ToastContainer>
     </div>
   );
 };
