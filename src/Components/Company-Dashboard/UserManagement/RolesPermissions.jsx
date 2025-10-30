@@ -1095,7 +1095,6 @@ const RolesPermissions = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-
       <p className="text-muted text-center mt-3">
         This page allows you to define and manage user roles with specific permissions such as create, read, update, and delete. Control access across the application.
       </p>
