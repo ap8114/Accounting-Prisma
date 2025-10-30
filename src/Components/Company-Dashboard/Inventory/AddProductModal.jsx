@@ -468,7 +468,7 @@ const AddProductModal = ({
         console.log(pair[0] + ': ' + pair[1]);
       }
 
-      const response = await axiosInstance.patch(`products/${localNewItem.id}`, formData, {
+      const response = await axiosInstance.put(`products/${localNewItem.id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 

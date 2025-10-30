@@ -32,6 +32,8 @@ function Service() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [unitsLoading, setUnitsLoading] = useState(false);
 
   useEffect(() => {
     fetchServices();
@@ -40,10 +42,11 @@ function Service() {
 
   const fetchServices = async () => {
     try {
-      setLoading(true);
-      const response = await axiosInstance.get(`${BaseUrl}services`, {
-        params: { company_id: companyId }
-      });
+      setServicesLoading(true);
+      // ✅ Updated endpoint to include company_id
+      const response = await axiosInstance.get(`${BaseUrl}services/company/${companyId}`);
+      
+      console.log("Services API Response:", response.data); // Debug log
       
       if (response.data.success && response.data.data) {
         const transformedServices = response.data.data.map(service => ({
@@ -51,7 +54,7 @@ function Service() {
           name: service.service_name,
           sku: service.sku,
           serviceDescription: service.description,
-          unit: service.uom, // This is a string like "piece", "kg"
+          unit: service.uom_name, // ✅ Changed from 'uom' to 'uom_name' to match API response
           price: service.price,
           tax: service.tax_percent,
           remarks: service.remarks,
@@ -66,20 +69,27 @@ function Service() {
       alert("Failed to fetch services. Please try again.");
       setServices([]);
     } finally {
-      setLoading(false);
+      setServicesLoading(false);
     }
   };
 
   const fetchUnitOptions = async () => {
     try {
-      const response = await axiosInstance.get(`${BaseUrl}uom`);
+      setUnitsLoading(true);
+      const response = await axiosInstance.get(`${BaseUrl}uoms`);
+      
+      console.log("UOMs API Response:", response.data); // Debug log
+      
       if (response.data.success && response.data.data) {
         const unitNames = response.data.data.map(uom => uom.unit_name);
         setUnitOptions(unitNames);
       }
     } catch (error) {
       console.error("Error fetching unit options:", error.response?.data || error.message);
+      // Fallback to default options
       setUnitOptions(["piece", "kg", "meter", "liter", "box", "day", "yard", "sq.ft", "cubic meter", "Project"]);
+    } finally {
+      setUnitsLoading(false);
     }
   };
 
@@ -118,7 +128,7 @@ function Service() {
     try {
       setLoading(true);
       const payload = {
-        company_id: companyId,
+        company_id: parseInt(companyId), // ✅ Convert to integer
         service_name: form.name,
         sku: form.sku,
         description: form.serviceDescription,
@@ -233,44 +243,52 @@ function Service() {
             </tr>
           </thead>
           <tbody>
-            {services.map((s) => (
-              <tr key={s.id}>
-                <td className="align-middle">{s.name}</td>
-                <td className="align-middle">{s.serviceDescription}</td>
-                <td className="text-center align-middle">
-                  <Button 
-                    size="sm" 
-                    style={viewButtonStyle} 
-                    onClick={() => handleView(s)} 
-                    title="View"
-                    className="me-1"
-                  >
-                    <FaEye />
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    style={editButtonStyle} 
-                    onClick={() => handleEdit(s)} 
-                    title="Edit"
-                    className="me-1"
-                  >
-                    <FaEdit />
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    style={deleteButtonStyle} 
-                    onClick={() => handleDeleteClick(s.id)} 
-                    title="Delete"
-                  >
-                    <FaTrash />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-            {services.length === 0 && (
+            {servicesLoading ? (
               <tr>
                 <td colSpan="3" className="text-center py-3">
-                  {loading ? 'Loading services...' : 'No Services Added'}
+                  <div className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+                  Loading services...
+                </td>
+              </tr>
+            ) : services.length > 0 ? (
+              services.map((s) => (
+                <tr key={s.id}>
+                  <td className="align-middle">{s.name}</td>
+                  <td className="align-middle">{s.serviceDescription}</td>
+                  <td className="text-center align-middle">
+                    <Button 
+                      size="sm" 
+                      style={viewButtonStyle} 
+                      onClick={() => handleView(s)} 
+                      title="View"
+                      className="me-1"
+                    >
+                      <FaEye />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      style={editButtonStyle} 
+                      onClick={() => handleEdit(s)} 
+                      title="Edit"
+                      className="me-1"
+                    >
+                      <FaEdit />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      style={deleteButtonStyle} 
+                      onClick={() => handleDeleteClick(s.id)} 
+                      title="Delete"
+                    >
+                      <FaTrash />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="3" className="text-center py-3">
+                  No Services Added
                 </td>
               </tr>
             )}
@@ -328,12 +346,17 @@ function Service() {
                 value={form.unit} 
                 onChange={handleInput}
                 className="shadow-sm"
+                disabled={unitsLoading}
               >
-                {unitOptions.map((unitName, index) => (
-                  <option key={index} value={unitName}>
-                    {unitName}
-                  </option>
-                ))}
+                {unitsLoading ? (
+                  <option value="">Loading units...</option>
+                ) : (
+                  unitOptions.map((unitName, index) => (
+                    <option key={index} value={unitName}>
+                      {unitName}
+                    </option>
+                  ))
+                )}
               </Form.Select>
             </Form.Group>
 

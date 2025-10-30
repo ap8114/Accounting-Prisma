@@ -63,18 +63,14 @@ const UnitOfMeasure = () => {
   const fetchUnits = async () => {
     setUnitsLoading(true);
     try {
-      // ✅ NEW ENDPOINT: /api/unit-details
-      // Backend should filter by company_id internally or via query param
-      const response = await axiosInstance.get(`${BaseUrl}unit-details`, {
-        params: { company_id: companyId } // ✅ Add company_id as query param
-      });
+      // ✅ NEW ENDPOINT: /api/unit-details/getUnitDetailsByCompanyId/{company_id}
+      const response = await axiosInstance.get(`${BaseUrl}unit-details/getUnitDetailsByCompanyId/${companyId}`);
       
       console.log("API Response:", response.data); // Debug log
       
       if (response.data.success) { // ✅ Changed from 'status' to 'success'
-        // Filter units by company_id on frontend as fallback
-        const filteredUnits = response.data.data.filter(unit => unit.company_id === companyId);
-        setUnits(filteredUnits);
+        // The API already filters by company_id, so we can use the data directly
+        setUnits(response.data.data);
       } else {
         setError("Failed to fetch units");
       }
@@ -103,7 +99,7 @@ const UnitOfMeasure = () => {
   const handleModalShow = (data = null) => {
     if (data) {
       setEditId(data.id);
-      setUnitName(data.unit_name || "");
+      setUnitName(data.uom_name || ""); // ✅ Changed from 'unit_name' to 'uom_name'
       setWeightPerUnit(data.weight_per_unit || "");
     }
     setShowModal(true);
@@ -133,16 +129,16 @@ const UnitOfMeasure = () => {
 
       if (editId) {
         // Update existing unit
-        const response = await axiosInstance.patch(`${BaseUrl}unit-details/${editId}`, unitData);
+        const response = await axiosInstance.put(`${BaseUrl}unit-details/${editId}`, unitData);
         if (response.data.success) { // ✅ Changed from 'status' to 'success'
-          setUnits(units.map(u => u.id === editId ? { ...u, ...unitData, unit_name: unitName } : u));
+          setUnits(units.map(u => u.id === editId ? { ...u, ...unitData, uom_name: unitName } : u)); // ✅ Changed from 'unit_name' to 'uom_name'
           alert("Unit updated successfully!");
         }
       } else {
         // Create new unit
         const response = await axiosInstance.post(`${BaseUrl}unit-details`, unitData);
         if (response.data.success) { // ✅ Changed from 'status' to 'success'
-          setUnits([...units, { ...response.data.data, unit_name: unitName }]);
+          setUnits([...units, { ...response.data.data, uom_name: unitName }]); // ✅ Changed from 'unit_name' to 'uom_name'
           alert("Unit created successfully!");
         }
       }
@@ -244,8 +240,8 @@ const UnitOfMeasure = () => {
 
   // Export to Excel
   const handleExport = () => {
-    const exportData = units.map(({ unit_name, weight_per_unit }) => ({
-      "Unit Name": unit_name || "",
+    const exportData = units.map(({ uom_name, weight_per_unit }) => ({ // ✅ Changed from 'unit_name' to 'uom_name'
+      "Unit Name": uom_name || "",
       "Weight per Unit": weight_per_unit || "",
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -442,7 +438,7 @@ const UnitOfMeasure = () => {
                 currentItems.map((u, index) => (
                   <tr key={u.id}>
                     <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                    <td>{u.unit_name || ""}</td>
+                    <td>{u.uom_name || ""}</td> {/* ✅ Changed from 'unit_name' to 'uom_name' */}
                     <td>{u.weight_per_unit || ""}</td>
                     <td>
                       <Button

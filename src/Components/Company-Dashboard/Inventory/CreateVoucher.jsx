@@ -1,7 +1,7 @@
 // 📄 File Name: CreateVoucher.js
 import React, { useState, useEffect, useRef } from "react";
-import { Button, Form, Table, Modal, Row, Col, Spinner } from "react-bootstrap";
-import { FaEye, FaEdit, FaTrash, FaSignature, FaCamera, FaTimes } from "react-icons/fa";
+import { Button, Form, Table, Modal, Row, Col, Spinner, InputGroup, FormControl, Dropdown } from "react-bootstrap";
+import { FaEye, FaEdit, FaTrash, FaSignature, FaCamera, FaTimes, FaSearch, FaChevronDown } from "react-icons/fa";
 import SignatureCanvas from "react-signature-canvas";
 import AddProductModal from "./AddProductModal";
 import GetCompanyId from "../../../Api/GetCompanyId";
@@ -21,7 +21,7 @@ const initialFormData = {
   voucherNo: "INV0001",
   receiptNo: "",
   paymentMode: "",
-  items: [{ description: "", rate: 0, quantity: 1, amount: 0 }],
+  items: [{ description: "", rate: 0, quantity: 1, amount: 0, productId: null }],
   note: "",
   reference: "",
   billNo: "",
@@ -115,7 +115,6 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
   if (toName) formData.append('to_name', toName);
 
   const isDataURL = (str) => str && typeof str === 'string' && str.startsWith('data:image');
-
   function dataURLtoBlob(dataurl) {
     try {
       if (!dataurl || !dataurl.startsWith('data:image')) {
@@ -180,7 +179,6 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
 
 // 🔁 Map API response to local format
 const mapApiVoucherToLocal = (apiVoucher) => {
-  // ✅ Fix: Use `voucher_items`, not `items`
   const items = (apiVoucher.voucher_items || []).map(item => ({
     description: item.item_name || item.description || "",
     rate: parseFloat(item.rate) || 0,
@@ -190,6 +188,7 @@ const mapApiVoucherToLocal = (apiVoucher) => {
     tax: parseFloat(item.tax_rate) || 0,
     uom: "PCS",
     tax_amount: parseFloat(item.tax_amount) || 0,
+    productId: item.product_id || null,
   }));
 
   const customerVendorName = 
@@ -198,14 +197,12 @@ const mapApiVoucherToLocal = (apiVoucher) => {
     apiVoucher.to_name || 
     "";
 
-  // ✅ Fix: Use `voucher_attachments` for attachments
   const attachments = (apiVoucher.voucher_attachments || []).map(att => ({
     name: att.file_name || "attachment",
     type: att.file_type || "application/octet-stream",
     data: att.file_url?.trim() || "",
   }));
 
-  // Use first photo if available
   const photo = attachments.length > 0 ? attachments[0].data : null;
 
   return {
@@ -251,7 +248,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
   const attachmentInputRef = useRef(null);
   const pdfRef = useRef();
   const [printLanguage, setPrintLanguage] = useState("both");
-
   const [vendors, setVendors] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -270,6 +266,13 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
   const [newItem, setNewItem] = useState({
     name: '', category: '', hsn: '', tax: 0, sellingPrice: 0, uom: 'PCS'
   });
+
+  // ✅ NEW: Product search states
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [selectedProductIndex, setSelectedProductIndex] = useState(null);
 
   const fetchDropdownData = async () => {
     if (!companyId) return;
@@ -290,6 +293,63 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
       setLoadingCustomers(false);
       setLoadingAccounts(false);
     }
+  };
+
+  // ✅ Fetch products (with optional search)
+  const fetchProducts = async (searchTerm = "") => {
+    if (!companyId) return;
+    try {
+      setLoadingProducts(true);
+      const response = await axiosInstance.get(`/products/company/${companyId}`, {
+        params: { search: searchTerm }
+      });
+      if (response.data.success && response.data.data) {
+        setProducts(response.data.data);
+      } else {
+        setProducts([]);
+      }
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      setProducts([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  // Debounced search handler
+  useEffect(() => {
+    if (productSearchTerm.trim() === "") {
+      // If empty, still show all products on focus/click
+      if (showProductDropdown && selectedProductIndex !== null) {
+        fetchProducts("");
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      fetchProducts(productSearchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [productSearchTerm, showProductDropdown, selectedProductIndex, companyId]);
+
+  // Handle product selection
+  const handleProductSelect = (product, index) => {
+    const newItems = [...formData.items];
+    newItems[index] = {
+      description: product.item_name,
+      rate: parseFloat(product.sale_price) || 0,
+      quantity: 1,
+      amount: parseFloat(product.sale_price) || 0,
+      hsn: product.hsn || "",
+      tax: 0,
+      uom: "PCS",
+      productId: product.id
+    };
+    setFormData({ ...formData, items: newItems });
+    setShowProductDropdown(false);
+    setProductSearchTerm("");
+    setSelectedProductIndex(null);
   };
 
   useEffect(() => {
@@ -326,7 +386,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
   const addNewItem = () => {
     setFormData({
       ...formData,
-      items: [...formData.items, { description: "", rate: 0, quantity: 1, amount: 0 }]
+      items: [...formData.items, { description: "", rate: 0, quantity: 1, amount: 0, productId: null }]
     });
   };
 
@@ -730,6 +790,78 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     setShowAddCategoryModal(false);
   };
 
+  // ✅ Render product search field with immediate dropdown on click
+  const renderProductSearchField = (index) => {
+    return (
+      <div className="position-relative">
+        <InputGroup>
+          <FormControl
+            placeholder="Search and select a product..."
+            value={productSearchTerm}
+            onChange={(e) => {
+              setProductSearchTerm(e.target.value);
+              setSelectedProductIndex(index);
+              setShowProductDropdown(true);
+            }}
+            onClick={() => {
+              setSelectedProductIndex(index);
+              setShowProductDropdown(true);
+              if (products.length === 0) {
+                fetchProducts(""); // Load all products on first click
+              }
+            }}
+            onFocus={() => {
+              setSelectedProductIndex(index);
+              setShowProductDropdown(true);
+              if (products.length === 0) {
+                fetchProducts("");
+              }
+            }}
+          />
+          <InputGroup.Text>
+            <FaSearch />
+          </InputGroup.Text>
+        </InputGroup>
+
+        {showProductDropdown && selectedProductIndex === index && (
+          <div
+            className="position-absolute w-100 mt-1 shadow-sm bg-white border rounded-1"
+            style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}
+            onMouseDown={(e) => e.preventDefault()} // Prevent input blur on scroll/click
+          >
+            {loadingProducts ? (
+              <div className="p-3 text-center">
+                <Spinner as="span" animation="border" size="sm" />
+                <span className="ms-2">Loading products...</span>
+              </div>
+            ) : products.length > 0 ? (
+              products.map(product => (
+                <div
+                  key={product.id}
+                  className="p-3 border-bottom"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleProductSelect(product, index)}
+                >
+                  <div className="fw-bold">{product.item_name}</div>
+                  <div className="small text-muted">
+                    {product.item_category?.item_category_name} • ₹{parseFloat(product.sale_price).toFixed(2)}
+                  </div>
+                  {product.description && (
+                    <div className="small text-truncate">{product.description}</div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="p-3 text-center text-muted">
+                No products found
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderProductSection = () => (
     <>
       <div className="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
@@ -751,7 +883,15 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
         <tbody>
           {formData.items.map((item, index) => (
             <tr key={index}>
-              <td><Form.Control value={item.description} onChange={e => handleItemChange(index, "description", e.target.value)} placeholder="Enter product name" /></td>
+              <td>
+                {renderProductSearchField(index)}
+                <Form.Control 
+                  value={item.description} 
+                  onChange={e => handleItemChange(index, "description", e.target.value)} 
+                  placeholder="Enter product name" 
+                  className="mt-2"
+                />
+              </td>
               <td><Form.Control type="number" value={item.rate} onChange={e => handleItemChange(index, "rate", parseFloat(e.target.value) || 0)} placeholder="Rate" /></td>
               <td><Form.Control type="number" value={item.quantity} onChange={e => handleItemChange(index, "quantity", parseInt(e.target.value) || 0)} placeholder="Qty" /></td>
               <td>₹{item.amount.toFixed(2)}</td>
@@ -840,6 +980,20 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     "Liability": ["Loan", "Creditors", "Outstanding Expenses"],
     "Equity": ["Capital", "Retained Earnings"],
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.position-relative')) {
+        setShowProductDropdown(false);
+        setSelectedProductIndex(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   return (
     <>
@@ -941,6 +1095,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 </div>
               )}
             </div>
+
             <Form.Group className="mb-3">
               <Form.Label>Voucher Type</Form.Label>
               <Form.Select value={voucherType} onChange={e => setVoucherType(e.target.value)}>
@@ -948,6 +1103,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 {VOUCHER_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
               </Form.Select>
             </Form.Group>
+
             <div className="d-flex justify-content-between align-items-start mb-4">
               <div>
                 <Form.Group className="mb-3">
@@ -970,6 +1126,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 )}
               </div>
             </div>
+
             <Row className="mb-5">
               <Col md={6}>
                 <h6 className="fw-bold mb-3 text-dark">{getFromLabel()}</h6>
@@ -980,6 +1137,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 {renderToField()}
               </Col>
             </Row>
+
             <Row className="mb-4">
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -1000,7 +1158,9 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 </Form.Group>
               </Col>
             </Row>
+
             {renderCustomForm()}
+
             {voucherType !== "Contra" && (
               <Row className="mb-4">
                 <Col md={{ span: 4, offset: 8 }}>
@@ -1015,9 +1175,11 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 </Col>
               </Row>
             )}
+
             <Form.Group className="mb-4">
               <Form.Control as="textarea" rows={3} placeholder="Notes" name="note" value={formData.note} onChange={handleChange} />
             </Form.Group>
+
             <Form.Group className="mb-4">
               <div className="d-flex align-items-center gap-3">
                 {formData.signature ? (
@@ -1032,6 +1194,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 )}
               </div>
             </Form.Group>
+
             <h6 className="fw-bold mb-3 border-bottom pb-2">Photos</h6>
             <Form.Group className="mb-4">
               <div className="d-flex align-items-center gap-3 flex-wrap">
@@ -1048,6 +1211,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 <input type="file" ref={fileInputRef} onChange={e => handlePhotoUpload(e, 'photo')} accept="image/*" style={{ display: "none" }} />
               </div>
             </Form.Group>
+
             <h6 className="fw-bold mb-3 border-bottom pb-2">Reference Documents</h6>
             <Form.Group className="mb-4">
               <div className="d-flex align-items-center gap-3 flex-wrap">
@@ -1071,6 +1235,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 <input type="file" ref={attachmentInputRef} onChange={handleAttachmentUpload} accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple style={{ display: "none" }} />
               </div>
             </Form.Group>
+
             <div className="d-flex justify-content-between align-items-center mt-4">
               <div className="d-flex gap-2">
                 <Button variant={printLanguage === "en" ? "primary" : "outline-primary"} size="sm" onClick={() => setPrintLanguage("en")}>English</Button>
@@ -1087,6 +1252,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
             </div>
           </Form>
         </Modal.Body>
+
         <Modal show={showSignatureModal} onHide={() => setShowSignatureModal(false)} centered>
           <Modal.Header closeButton><Modal.Title>Add Signature</Modal.Title></Modal.Header>
           <Modal.Body>
@@ -1100,6 +1266,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
           </Modal.Body>
         </Modal>
       </Modal>
+
       <AddProductModal
         showAdd={showAdd}
         showEdit={showEdit}
@@ -1167,6 +1334,7 @@ const VoucherViewModal = ({ show, onHide, voucher }) => {
           <p><strong>Total:</strong> ₹{total.toFixed(2)}</p>
           {voucher.signature && <img src={voucher.signature} alt="sig" style={{ width: "200px" }} />}
         </div>
+
         <h4 className="fw-bold">{voucher.voucherType}</h4>
         <p><strong>From:</strong> {voucher.partyName || voucher.fromAccount || "N/A"}</p>
         <p><strong>To:</strong> {voucher.customerVendor || voucher.toAccount || "N/A"}</p>
@@ -1320,7 +1488,6 @@ const CreateVoucher = () => {
                   <td>{v.date}</td>
                   <td>{v.customerVendor}</td>
                   <td>{v.voucherNo}</td>
-                  {/* ✅ FIXED: Show total amount of all items */}
                   <td>₹{v.items.reduce((sum, item) => sum + item.amount, 0).toFixed(2)}</td>
                   <td>
                     <button className="btn text-primary" onClick={() => handleView(i)} aria-label="View"><FaEye /></button>
@@ -1336,6 +1503,7 @@ const CreateVoucher = () => {
           </Table>
         </div>
       )}
+
       <CreateVoucherModal
         show={showModal}
         onHide={() => { setShowModal(false); setEditVoucher(null); }}
@@ -1343,6 +1511,7 @@ const CreateVoucher = () => {
         editData={editVoucher !== null ? vouchers[editVoucher] : null}
         companyId={companyId}
       />
+
       <VoucherViewModal
         show={showViewModal}
         onHide={() => setShowViewModal(false)}
