@@ -22,7 +22,7 @@ const emptyUser = {
   phone: "",
   email: "",
   role: "",
-  user_role: "", // default role_id
+  user_role: "", // will hold role ID as string
   status: "Active",
   img: "",
   password: "",
@@ -61,22 +61,9 @@ const statusBadge = (status) => {
   );
 };
 
-// Role name to ID mapping (for display -> ID conversion)
-const roleToIdMap = {
-  "Admin": "1",
-  "HR Manager": "2",
-  "Sales Executive": "3",
-};
-
-// Reverse map for ID -> name (optional, but useful)
-const idToRoleMap = {
-  "1": "Admin",
-  "2": "HR Manager",
-  "3": "Sales Executive",
-};
-
 const Users = () => {
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]); // <-- NEW: store dynamic roles
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -102,6 +89,28 @@ const Users = () => {
 
   const companyId = GetCompanyId();
 
+  // Fetch roles dynamically
+  useEffect(() => {
+    const fetchRoles = async () => {
+      if (!companyId) return;
+
+      try {
+        const response = await axiosInstance.get(`/user-roles?company_id=${companyId}`);
+        if (response.data.success && Array.isArray(response.data.data)) {
+          setRoles(response.data.data);
+        } else {
+          console.warn("Unexpected role API response:", response.data);
+        }
+      } catch (err) {
+        console.error("Fetch Roles Error:", err);
+        // Optionally set error state if needed
+      }
+    };
+
+    fetchRoles();
+  }, [companyId]);
+
+  // Fetch users
   useEffect(() => {
     const fetchUsers = async () => {
       if (!companyId) {
@@ -115,12 +124,10 @@ const Users = () => {
 
         if (response.data.success && Array.isArray(response.data.data)) {
           const companyUsers = response.data.data.map(user => {
-            // Normalize role names - convert "USER" to "Sales Executive"
-            const roleName = user.role === "USER" ? "Sales Executive" :
-              user.role_name || user.role || "Sales Executive";
-
-            const roleId = user.user_role?.toString() ||
-              roleToIdMap[roleName] || "3";
+            // Map role ID to role name using fetched roles
+            const roleId = user.user_role?.toString() || "3";
+            const roleObj = roles.find(r => r.id.toString() === roleId);
+            const roleName = roleObj ? roleObj.role_name : "Sales Executive";
 
             return {
               id: user.id,
@@ -130,7 +137,6 @@ const Users = () => {
               role: roleName,
               user_role: roleId,
               status: user.UserStatus || user.status || "Active",
-              // Use 'profile' field from API response
               img: user.profile || "",
               company_id: user.company_id,
             };
@@ -148,10 +154,13 @@ const Users = () => {
       }
     };
 
-    fetchUsers();
-  }, [companyId]);
+    if (roles.length > 0) {
+      fetchUsers(); // Only fetch users after roles are loaded
+    }
+  }, [companyId, roles]);
 
-  const uniqueRoles = ["All", ...new Set(users.map(user => user.role))];
+  // Unique roles for filter dropdown (from fetched roles)
+  const uniqueRoles = ["All", ...new Set(roles.map(role => role.role_name))];
 
   const filtered = users.filter((u) => {
     const toLower = (str) => (str == null ? '' : String(str).toLowerCase());
@@ -194,7 +203,7 @@ const Users = () => {
     formData.append('name', form.name);
     formData.append('phone', form.phone);
     formData.append('email', form.email);
-    formData.append('user_role', form.user_role);
+    formData.append('user_role', form.user_role); // role ID as string
     formData.append('status', form.status);
 
     if (modalType === "add") {
@@ -218,7 +227,7 @@ const Users = () => {
           id: response.data.id || Date.now(),
           img: previewImg,
           company_id: companyId,
-          role: idToRoleMap[form.user_role] || form.role || "Sales Executive"
+          role: roles.find(r => r.id.toString() === form.user_role)?.role_name || "Sales Executive"
         };
         setUsers(prev => [...prev, newUser]);
         alert('User created successfully!');
@@ -226,11 +235,11 @@ const Users = () => {
         response = await axiosInstance.put(`/auth/User/${form.id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        const updatedRole = idToRoleMap[form.user_role] || form.role || "Sales Executive";
+        const updatedRoleName = roles.find(r => r.id.toString() === form.user_role)?.role_name || "Sales Executive";
         setUsers(prev =>
           prev.map(u =>
             u.id === form.id
-              ? { ...form, img: previewImg, company_id: companyId, role: updatedRole }
+              ? { ...form, img: previewImg, company_id: companyId, role: updatedRoleName }
               : u
           )
         );
@@ -345,7 +354,7 @@ const Users = () => {
         return;
       }
 
-      // Send ALL fields to avoid overwriting with null
+      // Full payload with all required fields
       const payload = {
         name: currentUser.name,
         phone: currentUser.phone,
@@ -625,17 +634,24 @@ const Users = () => {
                 value={form.user_role}
                 onChange={(e) => {
                   const selectedId = e.target.value;
+                  const selectedRole = roles.find(r => r.id.toString() === selectedId);
                   setForm({
                     ...form,
                     user_role: selectedId,
-                    role: idToRoleMap[selectedId] || "Sales Executive"
+                    role: selectedRole ? selectedRole.role_name : ""
                   });
                 }}
                 required
               >
-                <option value="1">Admin</option>
-                <option value="2">HR Manager</option>
-                <option value="3">Sales Executive</option>
+                   <option > 
+                    Select Role
+                  </option>
+                {roles.map(role => (
+                  <option key={role.id} value={role.id.toString()}>
+                    {role.role_name}
+                  </option>
+                ))}
+                 
               </Form.Select>
             </Form.Group>
             <Form.Group className="mb-2">

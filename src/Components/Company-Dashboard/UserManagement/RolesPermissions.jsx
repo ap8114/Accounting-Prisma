@@ -23,7 +23,6 @@ import BaseUrl from "../../../Api/BaseUrl";
 // All available general permissions
 const allPermissions = ["View", "Create", "Edit", "Full Access"];
 
-// Modules and their specific permissions
 const tallyModules = [
   { name: "Account", permissions: ["Create", "View", "Update", "Delete"] },
   { name: "Inventory", permissions: ["Create", "View", "Update", "Delete"] },
