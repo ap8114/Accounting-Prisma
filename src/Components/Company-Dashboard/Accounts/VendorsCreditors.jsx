@@ -11,7 +11,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const VendorsCreditors = () => {
+const VendorsCustomers = () => {
   const navigate = useNavigate();
   const CompanyId = GetCompanyId();
   const [vendors, setVendors] = useState([]);
@@ -24,11 +24,13 @@ const VendorsCreditors = () => {
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [vendorType, setVendorType] = useState("vender");
 
-  // Default values for vendor form
+  const getAccountType = (type) => type === "vender" ? "Sundry Creditors" : "Sundry Debtors";
+
   const [vendorFormData, setVendorFormData] = useState({
     name: "",
-    accountType: "Sundry Creditors",
+    accountType: getAccountType("vender"),
     accountName: "",
     balanceType: "Credit",
     payable: "",
@@ -57,17 +59,17 @@ const VendorsCreditors = () => {
     accountBalance: "",
   });
 
-  // FETCH VENDORS FROM API
+  // ✅ Centralized fetch function with loading/error handling
   const fetchVendors = async () => {
     if (!CompanyId) {
       setError("Company ID not found. Please login again.");
       setLoading(false);
       return;
     }
+
     try {
       setLoading(true);
-      console.log(`Fetching vendors for Company ID: ${CompanyId}`);
-      const response = await axiosInstance.get(`/vendorCustomer/company/${CompanyId}?type=vender`);
+      const response = await axiosInstance.get(`/vendorCustomer/company/${CompanyId}?type=${vendorType}`);
 
       if (response.status && Array.isArray(response.data.data)) {
         const mappedVendors = response.data.data.map(vendor => ({
@@ -78,7 +80,7 @@ const VendorsCreditors = () => {
           phone: vendor.phone?.trim() || "",
           payable: parseFloat(vendor.account_balance) || 0,
           address: vendor.address?.trim() || "",
-          accountType: vendor.account_type?.trim() || "Sundry Creditors",
+          accountType: vendor.account_type?.trim() || getAccountType(vendorType),
           accountName: vendor.account_name?.trim() || vendor.name_english?.trim() || "Accounts Payable",
           creationDate: vendor.creation_date?.trim() || "",
           bankAccountNumber: vendor.bank_account_number?.trim() || "",
@@ -89,8 +91,8 @@ const VendorsCreditors = () => {
           pincode: vendor.pincode?.trim() || "",
           stateCode: vendor.state_code?.trim() || "",
           shippingAddress: vendor.shipping_address?.trim() || "",
-          creditPeriod: vendor.credit_period || "",
-          gstin: vendor.gstin?.trim() || "", // ✅ Fixed: Use the API's 'gstin' field
+          creditPeriod: vendor.credit_period_days || "",
+          gstin: vendor.gstin?.trim() || "",
           gstEnabled: vendor.enable_gst === "1",
           companyLocation: vendor.google_location?.trim() || "",
           companyName: vendor.company_name?.trim() || "",
@@ -98,7 +100,6 @@ const VendorsCreditors = () => {
         }));
         setVendors(mappedVendors);
         setError(null);
-        console.log(`Loaded ${mappedVendors.length} vendors.`);
       } else {
         throw new Error(response.data.message || "Failed to load vendors");
       }
@@ -111,19 +112,16 @@ const VendorsCreditors = () => {
     }
   };
 
-  // Initial Load
-  useEffect(() => {
-    fetchVendors();
-  }, [CompanyId]);
-
-  const updateField = (field, value) => {
-    setVendorFormData(prev => ({ ...prev, [field]: value }));
+  // ✅ Re-fetch data after any CRUD operation
+  const refetchData = () => {
+    fetchVendors(); // This ensures fresh data is loaded
   };
 
   const handleAddClick = () => {
+    const accountType = getAccountType(vendorType);
     setVendorFormData({
       name: "",
-      accountType: "Sundry Creditors",
+      accountType: accountType,
       accountName: "",
       balanceType: "Credit",
       payable: "",
@@ -156,12 +154,13 @@ const VendorsCreditors = () => {
   };
 
   const handleEditClick = (vendor) => {
+    const accountType = getAccountType(vendorType);
     setVendorFormData({
       name: vendor.name || "",
       nameArabic: vendor.nameArabic || "",
       companyName: vendor.companyName || "",
       companyLocation: vendor.companyLocation || "",
-      accountType: vendor.accountType || "Sundry Creditors",
+      accountType: vendor.accountType || accountType,
       accountName: vendor.accountName || "",
       balanceType: "Credit",
       payable: vendor.payable || "",
@@ -179,7 +178,7 @@ const VendorsCreditors = () => {
       phone: vendor.phone || "",
       email: vendor.email || "",
       creditPeriod: vendor.creditPeriod || "",
-      gstin: vendor.gstin || "", // ✅ Added: Populate the GSTIN field from the vendor data
+      gstin: vendor.gstin || "",
       gstType: vendor.gstType || "Registered",
       gstEnabled: vendor.gstEnabled !== undefined ? vendor.gstEnabled : true,
       idCardImage: null,
@@ -189,72 +188,94 @@ const VendorsCreditors = () => {
     setShowAddEditModal(true);
   };
 
-  // SAVE (Create or Update) with API
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Prepare the base payload
-      const payload = {
-        company_id: CompanyId,
-        name_english: vendorFormData.name.trim(),
-        name_arabic: vendorFormData.nameArabic?.trim() || "",
-        company_name: vendorFormData.companyName?.trim() || "",
-        google_location: vendorFormData.companyLocation?.trim() || "",
-        account_type: "Sundry Creditors",
-        balance_type: "Credit",
-        account_name: vendorFormData.accountName?.trim() || vendorFormData.name.trim(),
-        account_balance: parseFloat(vendorFormData.accountBalance) || 0,
-        creation_date: vendorFormData.creationDate || new Date().toISOString().split('T')[0],
-        bank_account_number: vendorFormData.bankAccountNumber?.trim() || "",
-        bank_ifsc: vendorFormData.bankIFSC?.trim() || "",
-        bank_name_branch: vendorFormData.bankName?.trim() || "",
-        country: vendorFormData.country?.trim() || "",
-        state: vendorFormData.state?.trim() || "",
-        pincode: vendorFormData.pincode?.trim() || "",
-        address: vendorFormData.address?.trim() || "",
-        state_code: vendorFormData.stateCode?.trim() || "",
-        shipping_address: vendorFormData.shippingAddress?.trim() || "",
-        phone: vendorFormData.phone?.trim() || "",
-        email: vendorFormData.email?.trim() || "",
-        credit_period: parseInt(vendorFormData.creditPeriod) || 0,
-        enable_gst: vendorFormData.gstEnabled ? "1" : "0",
-      };
+      const companyIdNum = parseInt(CompanyId, 10);
+      if (isNaN(companyIdNum) || companyIdNum <= 0) {
+        toast.error("Invalid company ID. Please log in again.");
+        setSaving(false);
+        return;
+      }
 
-      // ✅✅✅ FIXED: Always include 'gstin' in payload.
-      // If GST is enabled, send the value. If not, send an empty string.
-      payload.gstin = vendorFormData.gstEnabled ? (vendorFormData.gstin || "") : "";
+      const formData = new FormData();
+      formData.append("company_id", companyIdNum);
+      formData.append("name_english", vendorFormData.name.trim());
+      formData.append("name_arabic", vendorFormData.nameArabic?.trim() || "");
+      formData.append("company_name", vendorFormData.companyName?.trim() || "");
+      formData.append("google_location", vendorFormData.companyLocation?.trim() || "");
+      formData.append("account_type", getAccountType(vendorType));
+      formData.append("balance_type", "Credit");
+      formData.append("account_name", vendorFormData.accountName?.trim() || vendorFormData.name.trim());
+      formData.append("account_balance", parseFloat(vendorFormData.accountBalance) || 0);
+
+    // In handleSave, inside the try block, when building formData:
+formData.append("creation_date", vendorFormData.creationDate 
+  ? `${vendorFormData.creationDate}T00:00:00.000Z` 
+  : new Date().toISOString());
+
+      formData.append("bank_account_number", vendorFormData.bankAccountNumber?.trim() || "");
+      formData.append("bank_ifsc", vendorFormData.bankIFSC?.trim() || "");
+      formData.append("bank_name_branch", vendorFormData.bankName?.trim() || "");
+      formData.append("country", vendorFormData.country?.trim() || "");
+      formData.append("state", vendorFormData.state?.trim() || "");
+      formData.append("pincode", vendorFormData.pincode?.trim() || "");
+      formData.append("address", vendorFormData.address?.trim() || "");
+      formData.append("state_code", vendorFormData.stateCode?.trim() || "");
+      formData.append("shipping_address", vendorFormData.shippingAddress?.trim() || "");
+      formData.append("phone", vendorFormData.phone?.trim() || "");
+      formData.append("email", vendorFormData.email?.trim() || "");
+      formData.append("credit_period_days", parseInt(vendorFormData.creditPeriod) || 0);
+      formData.append("enable_gst", vendorFormData.gstEnabled ? "1" : "0");
+      if (vendorFormData.gstEnabled) {
+        formData.append("gstin", vendorFormData.gstin?.trim() || "");
+      }
+      formData.append("type", vendorType);
+
+      if (vendorFormData.idCardImage) {
+        formData.append("id_card_image", vendorFormData.idCardImage);
+      }
+      if (vendorFormData.extraFile) {
+        formData.append("any_file", vendorFormData.extraFile);
+      }
 
       let response;
       if (selectedVendor) {
-        // Update existing vendor
-        response = await axiosInstance.put(`/vendorCustomer/${selectedVendor.id}`, payload);
+        response = await axiosInstance.put(`/vendorCustomer/${selectedVendor.id}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
       } else {
-        // Create new vendor
-        response = await axiosInstance.post('/vendorCustomer', payload);
+        response = await axiosInstance.post('/vendorCustomer', formData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
       }
 
       if (response.data.status) {
-        toast.success(selectedVendor ? "Vendor updated successfully!" : "Vendor added successfully!");
+        toast.success(selectedVendor
+          ? `${vendorType === 'vender' ? 'Vendor' : 'Customer'} updated successfully!`
+          : `${vendorType === 'vender' ? 'Vendor' : 'Customer'} added successfully!`
+        );
         setShowAddEditModal(false);
         setSelectedVendor(null);
         resetForm();
-        fetchVendors(); // Refresh list
+        // ✅ Auto-reload data
+        refetchData();
       } else {
         throw new Error(response.data.message || 'Operation failed');
       }
     } catch (err) {
       console.error("Save Error:", err);
-      toast.error(err.response?.data?.message || "Failed to save vendor. Please try again.");
+      toast.error(err.response?.data?.message || "Failed to save. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  // Helper to reset form
   const resetForm = () => {
+    const accountType = getAccountType(vendorType);
     setVendorFormData({
       name: "",
-      accountType: "Sundry Creditors",
+      accountType: accountType,
       accountName: "",
       balanceType: "Credit",
       payable: "",
@@ -284,7 +305,6 @@ const VendorsCreditors = () => {
     });
   };
 
-  // DELETE VENDOR with API
   const handleDeleteVendor = async () => {
     if (!selectedVendor?.id) {
       toast.error("Vendor ID not found.");
@@ -295,10 +315,11 @@ const VendorsCreditors = () => {
     try {
       const response = await axiosInstance.delete(`/vendorCustomer/${selectedVendor.id}`);
       if (response.data.status) {
-        toast.success("Vendor deleted successfully!");
+        toast.success(`${vendorType === 'vender' ? 'Vendor' : 'Customer'} deleted successfully!`);
         setShowDelete(false);
         setSelectedVendor(null);
-        fetchVendors(); // Refresh list
+        // ✅ Auto-reload data
+        refetchData();
       } else {
         throw new Error(response.data.message || 'Failed to delete vendor');
       }
@@ -316,11 +337,12 @@ const VendorsCreditors = () => {
     (v.phone && v.phone.includes(searchTerm))
   );
 
+  // ====== Export / Import / PDF logic unchanged ======
   const handleDownloadTemplate = () => {
     const doc = new jsPDF('p', 'mm', 'a4');
     let yPos = 20;
     doc.setFontSize(20);
-    doc.text("Vendor Detailed Report", 14, yPos);
+    doc.text(`${vendorType === 'vender' ? 'Vendor' : 'Customer'} Detailed Report`, 14, yPos);
     yPos += 10;
     const today = new Date().toLocaleString();
     doc.setFontSize(10);
@@ -340,24 +362,17 @@ const VendorsCreditors = () => {
         doc.setFontSize(14);
         doc.setTextColor(0);
         doc.setFont("helvetica", "bold");
-        doc.text(`Vendor #${index + 1}: ${vendor.name}`, 14, yPos);
+        doc.text(`${vendorType === 'vender' ? 'Vendor' : 'Customer'} #${index + 1}: ${vendor.name}`, 14, yPos);
         yPos += 8;
         doc.setDrawColor(39, 178, 182);
         doc.line(14, yPos, 200, yPos);
         yPos += 8;
         doc.setFont("helvetica", "normal");
-        // Basic Information
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text("Basic Information:", 14, yPos);
-        yPos += 6;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
         const basicInfo = [
           `Name: ${vendor.name || "-"}`,
           `Phone: ${vendor.phone || "-"}`,
           `Email: ${vendor.email || "-"}`,
-          `Account Type: ${vendor.accountType || "Sundry Creditors"}`,
+          `Account Type: ${vendor.accountType || getAccountType(vendorType)}`,
           `Account Name: ${vendor.accountName || "-"}`,
           `Opening Balance: $${vendor.payable ? vendor.payable.toFixed(2) : "0.00"}`,
           `Credit Period: ${vendor.creditPeriod || "N/A"} days`,
@@ -372,7 +387,6 @@ const VendorsCreditors = () => {
           yPos += 6;
         });
         yPos += 4;
-        // Billing Information
         if (vendor.address || vendor.country || vendor.state || vendor.pincode || vendor.stateCode) {
           doc.setFontSize(12);
           doc.setFont("helvetica", "bold");
@@ -397,7 +411,6 @@ const VendorsCreditors = () => {
           });
           yPos += 4;
         }
-        // Shipping Information
         if (vendor.shippingAddress) {
           doc.setFontSize(12);
           doc.setFont("helvetica", "bold");
@@ -412,7 +425,6 @@ const VendorsCreditors = () => {
           doc.text(`Address: ${vendor.shippingAddress || "-"}`, 16, yPos);
           yPos += 8;
         }
-        // Bank Details
         if (vendor.bankAccountNumber || vendor.bankIFSC || vendor.bankName) {
           doc.setFontSize(12);
           doc.setFont("helvetica", "bold");
@@ -434,7 +446,6 @@ const VendorsCreditors = () => {
           });
           yPos += 4;
         }
-        // Company & Location
         if (vendor.companyName || vendor.companyLocation) {
           doc.setFontSize(12);
           doc.setFont("helvetica", "bold");
@@ -460,7 +471,6 @@ const VendorsCreditors = () => {
           }
           yPos += 4;
         }
-        // GST Information
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
         doc.text("Tax Information:", 14, yPos);
@@ -473,7 +483,6 @@ const VendorsCreditors = () => {
         }
         doc.text(`GST Enabled: ${vendor.gstEnabled ? "Yes" : "No"}`, 16, yPos);
         yPos += 6;
-        // ✅ Display GSTIN if available
         if (vendor.gstin) {
           doc.text(`GSTIN: ${vendor.gstin}`, 16, yPos);
           yPos += 6;
@@ -489,15 +498,15 @@ const VendorsCreditors = () => {
         }
       });
     }
-    doc.save("vendors_detailed_report.pdf");
+    doc.save(`${vendorType}_detailed_report.pdf`);
   };
 
   const handleExport = () => {
     const ws = XLSX.utils.json_to_sheet(vendors);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Vendors");
+    XLSX.utils.book_append_sheet(wb, ws, `${vendorType === 'vender' ? 'Vendor' : 'Customer'}`);
     const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(new Blob([wbout], { type: "application/octet-stream" }), "Vendors_Export.xlsx");
+    saveAs(new Blob([wbout], { type: "application/octet-stream" }), `${vendorType}_Export.xlsx`);
   };
 
   const handleImportClick = () => {
@@ -525,26 +534,16 @@ const VendorsCreditors = () => {
     navigate(`/company/ledgervendor`, { state: { vendor } });
   };
 
-  const accountTypes = [
-    "Cash-in-hand",
-    "Bank A/Cs",
-    "Sundry Debtors",
-    "Sundry Creditors",
-    "Purchases A/C",
-    "Purchases Return",
-    "Sales A/C",
-    "Sales Return",
-    "Capital A/C",
-    "Direct Expenses",
-    "Indirect Expenses"
-  ];
+  useEffect(() => {
+    fetchVendors();
+  }, [CompanyId, vendorType]);
 
   return (
     <div className="p-2">
       <ToastContainer position="top-right" autoClose={3000} />
       <Row className="align-items-center mb-3">
         <Col xs={12} md={4}>
-          <h4 className="fw-bold mb-0">Manage Vendors</h4>
+          <h4 className="fw-bold mb-0">{vendorType === 'vender' ? 'Vendor' : 'Customer'} Management</h4>
         </Col>
         <Col xs={12} md={8}>
           <div className="d-flex flex-wrap gap-2 justify-content-md-end">
@@ -555,19 +554,25 @@ const VendorsCreditors = () => {
               variant="warning"
               className="rounded-pill d-flex align-items-center"
               onClick={handleDownloadTemplate}
-              title="Download PDF Report"
+              title={`Download ${vendorType === 'vender' ? 'Vendor' : 'Customer'} PDF Report`}
             >
               Download PDF
             </Button>
             <Button variant="success" className="rounded-pill d-flex align-items-center" style={{ backgroundColor: "#53b2a5", border: "none" }} onClick={handleAddClick}>
-              <FaPlus /> Add Vendor
+              <FaPlus /> Add {vendorType === 'vender' ? 'Vendor' : 'Customer'}
             </Button>
           </div>
         </Col>
       </Row>
       <Row className="mb-3 justify-content-start">
         <Col xs={12} md={6} lg={4}>
-          <Form.Control type="text" placeholder="Search vendor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="rounded-pill" />
+          <Form.Control type="text" placeholder={`Search ${vendorType === 'vender' ? 'Vendor' : 'Customer'}...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="rounded-pill" />
+        </Col>
+        <Col xs={12} md={6} lg={4} className="ms-auto">
+          <Form.Select value={vendorType} onChange={(e) => setVendorType(e.target.value)}>
+            <option value="vender">Vendor</option>
+            <option value="customer">Customer</option>
+          </Form.Select>
         </Col>
       </Row>
       {loading && (
@@ -575,7 +580,7 @@ const VendorsCreditors = () => {
           <div className="spinner-border text-primary" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
-          <p className="mt-2">Loading vendors for Company</p>
+          <p className="mt-2">Loading {vendorType === 'vender' ? 'Vendors' : 'Customers'} for Company</p>
         </div>
       )}
       {error && (
@@ -631,7 +636,7 @@ const VendorsCreditors = () => {
                         </span>
                       </td>
                       <td>{vendor.accountName}</td>
-                      <td>{vendor.payable.toFixed(2)}$</td>
+                      <td>${vendor.payable.toFixed(2)}</td>
                       <td>
                         <div
                           className="d-flex align-items-center gap-2"
@@ -687,7 +692,7 @@ const VendorsCreditors = () => {
                 ) : (
                   <tr>
                     <td colSpan="9" className="text-center text-muted">
-                      No vendors found.
+                      No {vendorType === 'vender' ? 'Vendors' : 'Customers'} found.
                     </td>
                   </tr>
                 )}
@@ -710,10 +715,10 @@ const VendorsCreditors = () => {
         </div>
       )}
 
-      {/* View Modal */}
+      {/* View Modal - unchanged */}
       <Modal show={showView} onHide={() => setShowView(false)} centered size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>Vendor Details</Modal.Title>
+          <Modal.Title>{vendorType === 'vender' ? 'Vendor' : 'Customer'} Details</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedVendor && (
@@ -724,20 +729,10 @@ const VendorsCreditors = () => {
                   <Col md={6}><p><strong>Name:</strong> {selectedVendor.name}</p></Col>
                   <Col md={6}><p><strong>Phone:</strong> {selectedVendor.phone}</p></Col>
                   <Col md={6}><p><strong>Email:</strong> {selectedVendor.email}</p></Col>
-                  <Col md={6}>
-                    <p>
-                      <strong>Account Type:</strong>{" "}
-                      {selectedVendor.accountType}
-                    </p>
-                  </Col>
-                  <Col md={6}>
-                    <p>
-                      <strong>Account Name:</strong>{" "}
-                      {selectedVendor.accountName}
-                    </p>
-                  </Col>
-                  <Col md={6}><p><strong>Balance:</strong> {selectedVendor.payable.toFixed(2)}$</p></Col>
-                  <Col md={6}><p><strong>Credit Period:</strong> {selectedVendor.creditPeriod || "N/A"}</p></Col>
+                  <Col md={6}><p><strong>Account Type:</strong> {selectedVendor.accountType}</p></Col>
+                  <Col md={6}><p><strong>Account Name:</strong> {selectedVendor.accountName}</p></Col>
+                  <Col md={6}><p><strong>Balance:</strong> ${selectedVendor.payable.toFixed(2)}</p></Col>
+                  <Col md={6}><p><strong>Credit Period:</strong> {selectedVendor.creditPeriod || "N/A"} days</p></Col>
                   <Col md={6}><p><strong>Creation Date:</strong> {selectedVendor.creationDate || "N/A"}</p></Col>
                 </Row>
               </div>
@@ -751,12 +746,14 @@ const VendorsCreditors = () => {
                   <Col md={6}><p><strong>State Code:</strong> {selectedVendor.stateCode || "N/A"}</p></Col>
                 </Row>
               </div>
-              <div className="border rounded p-3 mb-4">
-                <h6 className="fw-semibold mb-3">Shipping Information</h6>
-                <Row>
-                  <Col md={12}><p><strong>Shipping Address:</strong> {selectedVendor.shippingAddress || "N/A"}</p></Col>
-                </Row>
-              </div>
+              {selectedVendor.shippingAddress && (
+                <div className="border rounded p-3 mb-4">
+                  <h6 className="fw-semibold mb-3">Shipping Information</h6>
+                  <Row>
+                    <Col md={12}><p><strong>Shipping Address:</strong> {selectedVendor.shippingAddress || "N/A"}</p></Col>
+                  </Row>
+                </div>
+              )}
               {selectedVendor.bankAccountNumber && (
                 <div className="border rounded p-3 mb-4">
                   <h6 className="fw-semibold mb-3">Bank Details</h6>
@@ -767,19 +764,35 @@ const VendorsCreditors = () => {
                   </Row>
                 </div>
               )}
-              {/* ✅ GST Information Section */}
+              {(selectedVendor.companyName || selectedVendor.companyLocation) && (
+                <div className="border rounded p-3 mb-4">
+                  <h6 className="fw-semibold mb-3">Company Information</h6>
+                  <Row>
+                    {selectedVendor.companyName && (
+                      <Col md={6}><p><strong>Company Name:</strong> {selectedVendor.companyName}</p></Col>
+                    )}
+                    {selectedVendor.companyLocation && (
+                      <Col md={6}><p><strong>Google Location:</strong> {selectedVendor.companyLocation}</p></Col>
+                    )}
+                  </Row>
+                </div>
+              )}
               <div className="border rounded p-3 mb-4">
                 <h6 className="fw-semibold mb-3">Tax Information</h6>
                 <Row>
                   <Col md={6}><p><strong>GST Enabled:</strong> {selectedVendor.gstEnabled ? "Yes" : "No"}</p></Col>
-                  <Col md={6}><p><strong>GSTIN:</strong> {selectedVendor.gstin || "N/A"}</p></Col>
+                  {selectedVendor.gstin && (
+                    <Col md={6}><p><strong>GSTIN:</strong> {selectedVendor.gstin}</p></Col>
+                  )}
                 </Row>
               </div>
             </>
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowView(false)}>Close</Button>
+          <Button variant="secondary" onClick={() => setShowView(false)}>
+            Close
+          </Button>
         </Modal.Footer>
       </Modal>
 
@@ -788,11 +801,10 @@ const VendorsCreditors = () => {
         show={showAddEditModal}
         onHide={() => setShowAddEditModal(false)}
         size="xl"
-        centered
         backdrop="static"
       >
         <Modal.Header closeButton className="bg-light">
-          <Modal.Title>{selectedVendor ? "Edit Vendor" : "Add Vendor"}</Modal.Title>
+          <Modal.Title>{selectedVendor ? `Edit ${vendorType === 'vender' ? 'Vendor' : 'Customer'}` : `Add ${vendorType === 'vender' ? 'Vendor' : 'Customer'}`}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
@@ -891,7 +903,7 @@ const VendorsCreditors = () => {
                   <Form.Label>Account Type</Form.Label>
                   <Form.Control
                     type="text"
-                    value="Sundry Creditors"
+                    value={getAccountType(vendorType)}
                     disabled
                     style={{ backgroundColor: "#fff" }}
                   />
@@ -1155,7 +1167,7 @@ const VendorsCreditors = () => {
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? 'Saving...' : selectedVendor ? "Update Vendor" : "Save Vendor"}
+            {saving ? 'Saving...' : selectedVendor ? `Update ${vendorType === 'vender' ? 'Vendor' : 'Customer'}` : `Save ${vendorType === 'vender' ? 'Vendor' : 'Customer'}`}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -1166,8 +1178,7 @@ const VendorsCreditors = () => {
           <Modal.Title>Confirm Delete</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Are you sure you want to delete vendor <strong>"{selectedVendor?.name}"</strong>?
-          This action cannot be undone.
+          Are you sure you want to delete {vendorType === 'vender' ? 'Vendor' : 'Customer'} <strong>"{selectedVendor?.name}"</strong>? This action cannot be undone.
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDelete(false)} disabled={deleting}>
@@ -1188,11 +1199,11 @@ const VendorsCreditors = () => {
         <Card.Body>
           <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
           <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
-            <li>Manage vendor details including contact and billing information.</li>
+            <li>Manage {vendorType === 'vender' ? 'Vendor' : 'Customer'} details including contact and billing information.</li>
             <li>Track payable balances and credit periods.</li>
-            <li>Perform CRUD operations: add, view, edit, and delete vendors.</li>
-            <li>Import and export vendor data using Excel templates.</li>
-            <li>Assign account types and view transaction ledger for each vendor.</li>
+            <li>Perform CRUD operations: add, view, edit, and delete {vendorType === 'vender' ? 'Vendors' : 'Customers'}.</li>
+            <li>Import and export {vendorType === 'vender' ? 'Vendor' : 'Customer'} data using Excel templates.</li>
+            <li>Assign account types and view transaction ledger for each {vendorType === 'vender' ? 'Vendor' : 'Customer'}.</li>
           </ul>
         </Card.Body>
       </Card>
@@ -1200,4 +1211,4 @@ const VendorsCreditors = () => {
   );
 };
 
-export default VendorsCreditors;
+export default VendorsCustomers;
