@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Modal, Button, Form, Row, Col, Card, Alert } from 'react-bootstrap';
-import { FaEye, FaEdit, FaTrash, FaPlus, FaBook } from 'react-icons/fa';
+import { Modal, Button, Form, Row, Col, Card, Alert, Image } from 'react-bootstrap';
+import { FaEye, FaEdit, FaTrash, FaPlus, FaBook, FaFile } from 'react-icons/fa';
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import GetCompanyId from '../../../Api/GetCompanyId';
@@ -59,7 +59,7 @@ const VendorsCustomers = () => {
     accountBalance: "",
   });
 
-  // ✅ Centralized fetch function with loading/error handling
+  // Centralized fetch function with loading/error handling
   const fetchVendors = async () => {
     if (!CompanyId) {
       setError("Company ID not found. Please login again.");
@@ -69,9 +69,11 @@ const VendorsCustomers = () => {
 
     try {
       setLoading(true);
+      setError(null); // Clear previous errors
       const response = await axiosInstance.get(`/vendorCustomer/company/${CompanyId}?type=${vendorType}`);
 
-      if (response.status && Array.isArray(response.data.data)) {
+      // Check if response is successful and has data
+      if (response.status === 200 && response.data && Array.isArray(response.data.data)) {
         const mappedVendors = response.data.data.map(vendor => ({
           id: vendor.id,
           name: vendor.name_english?.trim() || "N/A",
@@ -96,12 +98,13 @@ const VendorsCustomers = () => {
           gstEnabled: vendor.enable_gst === "1",
           companyLocation: vendor.google_location?.trim() || "",
           companyName: vendor.company_name?.trim() || "",
+          idCardImage: vendor.id_card_image || null, // Store file URLs
+          extraFile: vendor.any_file || null, // Store file URLs
           raw: vendor
         }));
         setVendors(mappedVendors);
-        setError(null);
       } else {
-        throw new Error(response.data.message || "Failed to load vendors");
+        throw new Error("Invalid response format");
       }
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -112,7 +115,7 @@ const VendorsCustomers = () => {
     }
   };
 
-  // ✅ Re-fetch data after any CRUD operation
+  // Re-fetch data after any CRUD operation
   const refetchData = () => {
     fetchVendors(); // This ensures fresh data is loaded
   };
@@ -181,8 +184,8 @@ const VendorsCustomers = () => {
       gstin: vendor.gstin || "",
       gstType: vendor.gstType || "Registered",
       gstEnabled: vendor.gstEnabled !== undefined ? vendor.gstEnabled : true,
-      idCardImage: null,
-      extraFile: null,
+      idCardImage: null, // Reset file inputs for editing
+      extraFile: null, // Reset file inputs for editing
     });
     setSelectedVendor(vendor);
     setShowAddEditModal(true);
@@ -190,6 +193,7 @@ const VendorsCustomers = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    setError(null); // Clear previous errors
     try {
       const companyIdNum = parseInt(CompanyId, 10);
       if (isNaN(companyIdNum) || companyIdNum <= 0) {
@@ -209,10 +213,10 @@ const VendorsCustomers = () => {
       formData.append("account_name", vendorFormData.accountName?.trim() || vendorFormData.name.trim());
       formData.append("account_balance", parseFloat(vendorFormData.accountBalance) || 0);
 
-    // In handleSave, inside the try block, when building formData:
-formData.append("creation_date", vendorFormData.creationDate 
-  ? `${vendorFormData.creationDate}T00:00:00.000Z` 
-  : new Date().toISOString());
+      // Format creation date properly
+      formData.append("creation_date", vendorFormData.creationDate 
+        ? new Date(vendorFormData.creationDate).toISOString() 
+        : new Date().toISOString());
 
       formData.append("bank_account_number", vendorFormData.bankAccountNumber?.trim() || "");
       formData.append("bank_ifsc", vendorFormData.bankIFSC?.trim() || "");
@@ -250,7 +254,8 @@ formData.append("creation_date", vendorFormData.creationDate
         });
       }
 
-      if (response.data.status) {
+      // Check if response is successful (status 200-299)
+      if (response.status >= 200 && response.status < 300) {
         toast.success(selectedVendor
           ? `${vendorType === 'vender' ? 'Vendor' : 'Customer'} updated successfully!`
           : `${vendorType === 'vender' ? 'Vendor' : 'Customer'} added successfully!`
@@ -258,10 +263,10 @@ formData.append("creation_date", vendorFormData.creationDate
         setShowAddEditModal(false);
         setSelectedVendor(null);
         resetForm();
-        // ✅ Auto-reload data
+        // Auto-reload data
         refetchData();
       } else {
-        throw new Error(response.data.message || 'Operation failed');
+        throw new Error(response.data?.message || 'Operation failed');
       }
     } catch (err) {
       console.error("Save Error:", err);
@@ -312,16 +317,19 @@ formData.append("creation_date", vendorFormData.creationDate
       return;
     }
     setDeleting(true);
+    setError(null); // Clear previous errors
     try {
       const response = await axiosInstance.delete(`/vendorCustomer/${selectedVendor.id}`);
-      if (response.data.status) {
+      
+      // Check if response is successful (status 200-299)
+      if (response.status >= 200 && response.status < 300) {
         toast.success(`${vendorType === 'vender' ? 'Vendor' : 'Customer'} deleted successfully!`);
         setShowDelete(false);
         setSelectedVendor(null);
-        // ✅ Auto-reload data
+        // Auto-reload data
         refetchData();
       } else {
-        throw new Error(response.data.message || 'Failed to delete vendor');
+        throw new Error(response.data?.message || 'Failed to delete vendor');
       }
     } catch (err) {
       console.error("Delete Error:", err);
@@ -337,7 +345,7 @@ formData.append("creation_date", vendorFormData.creationDate
     (v.phone && v.phone.includes(searchTerm))
   );
 
-  // ====== Export / Import / PDF logic unchanged ======
+  // Export / Import / PDF logic unchanged
   const handleDownloadTemplate = () => {
     const doc = new jsPDF('p', 'mm', 'a4');
     let yPos = 20;
@@ -715,7 +723,7 @@ formData.append("creation_date", vendorFormData.creationDate
         </div>
       )}
 
-      {/* View Modal - unchanged */}
+      {/* View Modal */}
       <Modal show={showView} onHide={() => setShowView(false)} centered size="lg">
         <Modal.Header closeButton>
           <Modal.Title>{vendorType === 'vender' ? 'Vendor' : 'Customer'} Details</Modal.Title>
@@ -786,6 +794,54 @@ formData.append("creation_date", vendorFormData.creationDate
                   )}
                 </Row>
               </div>
+              
+              {/* File Display Section */}
+              {(selectedVendor.idCardImage || selectedVendor.extraFile) && (
+                <div className="border rounded p-3 mb-4">
+                  <h6 className="fw-semibold mb-3">Documents</h6>
+                  <Row>
+                    {selectedVendor.idCardImage && (
+                      <Col md={6} className="mb-3">
+                        <p><strong>ID Card Image:</strong></p>
+                        <div className="text-center">
+                          {selectedVendor.idCardImage.endsWith('.pdf') ? (
+                            <a 
+                              href={selectedVendor.idCardImage} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="btn btn-sm btn-primary"
+                            >
+                              <FaFile className="me-1" /> View PDF
+                            </a>
+                          ) : (
+                            <Image 
+                              src={selectedVendor.idCardImage} 
+                              alt="ID Card" 
+                              thumbnail 
+                              style={{ maxHeight: '150px' }}
+                            />
+                          )}
+                        </div>
+                      </Col>
+                    )}
+                    {selectedVendor.extraFile && (
+                      <Col md={6} className="mb-3">
+                        <p><strong>Additional File:</strong></p>
+                        <div className="text-center">
+                          <a 
+                            href={selectedVendor.extraFile} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-primary"
+                          >
+                            <FaFile className="me-1" /> View File
+                          </a>
+                        </div>
+                      </Col>
+                    )}
+                  </Row>
+                </div>
+              )}
             </>
           )}
         </Modal.Body>
@@ -878,11 +934,16 @@ formData.append("creation_date", vendorFormData.creationDate
                   <Form.Label>ID Card Image</Form.Label>
                   <Form.Control
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf"
                     onChange={(e) =>
                       setVendorFormData({ ...vendorFormData, idCardImage: e.target.files[0] })
                     }
                   />
+                  {selectedVendor?.idCardImage && (
+                    <Form.Text className="text-muted">
+                      Current file: {selectedVendor.idCardImage.split('/').pop()}
+                    </Form.Text>
+                  )}
                 </Form.Group>
               </Col>
               <Col md={3}>
@@ -894,6 +955,11 @@ formData.append("creation_date", vendorFormData.creationDate
                       setVendorFormData({ ...vendorFormData, extraFile: e.target.files[0] })
                     }
                   />
+                  {selectedVendor?.extraFile && (
+                    <Form.Text className="text-muted">
+                      Current file: {selectedVendor.extraFile.split('/').pop()}
+                    </Form.Text>
+                  )}
                 </Form.Group>
               </Col>
             </Row>
