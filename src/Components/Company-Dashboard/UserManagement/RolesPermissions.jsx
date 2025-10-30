@@ -22,6 +22,7 @@ import BaseUrl from "../../../Api/BaseUrl";
 
 // All available general permissions
 const allPermissions = ["View", "Create", "Edit", "Full Access"];
+
 // Modules and their specific permissions
 const tallyModules = [
   { name: "Account", permissions: ["Create", "View", "Update", "Delete"] },
@@ -50,6 +51,7 @@ const RolesPermissions = () => {
   const [form, setForm] = useState({ name: "", permissions: [], type: "user", modulePermissions: {} });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+
   // Custom Role Types
   const [customRoleTypes, setCustomRoleTypes] = useState([]);
   const [showAddTypeModal, setShowAddTypeModal] = useState(false);
@@ -122,7 +124,7 @@ const RolesPermissions = () => {
             permissions: generalPerms,
             lastModified: new Date(role.created_at).toISOString().split('T')[0],
             type: "user",
-            isActive: true,
+            status: role.status || "Active", // ✅ Direct string from backend
             modulePermissions,
           };
         });
@@ -143,19 +145,45 @@ const RolesPermissions = () => {
     fetchRoles();
   }, [companyId]);
 
-  const toggleRoleStatus = (roleId) => {
-    // Note: This is local-only toggle. If you want to sync with backend, add API call here.
-    setRoles(roles.map(role =>
-      role.id === roleId ? { ...role, isActive: !role.isActive } : role
-    ));
+  // ✅ PATCH API FOR TOGGLING ROLE STATUS — SEND STRING "Active"/"Inactive"
+  const toggleRoleStatus = async (roleId) => {
+    const role = roles.find(r => r.id === roleId);
+    if (!role) return;
+
+    const newStatus = role.status === "Active" ? "Inactive" : "Active";
+
+    try {
+      // ✅ Send STRING payload as per your backend requirement
+      const response = await axios.patch(`${BaseUrl}user-roles/${roleId}/status`, {
+        company_id: companyId,
+        status: newStatus // ✅ "Active" or "Inactive" (string)
+      });
+
+      if (response.data?.success) {
+        // ✅ Update local state with new string status
+        setRoles(roles.map(r =>
+          r.id === roleId ? { ...r, status: newStatus } : r
+        ));
+        setToastMessage(`Role marked as ${newStatus} successfully!`);
+        setToastVariant("success");
+        setShowToast(true);
+      } else {
+        throw new Error(response.data?.message || "Failed to update status");
+      }
+    } catch (err) {
+      console.error("Error updating role status:", err);
+      setToastMessage("Failed to update role status. Please try again.");
+      setToastVariant("danger");
+      setShowToast(true);
+    }
   };
 
   const filteredRoles = roles.filter((role) => {
     const matchesSearch = role.name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus =
       statusFilter === "All" ||
-      (statusFilter === "Active" && role.isActive) ||
-      (statusFilter === "Inactive" && !role.isActive);
+      (statusFilter === "Active" && role.status === "Active") ||
+      (statusFilter === "Inactive" && role.status === "Inactive");
     const roleDate = new Date(role.lastModified);
     const from = fromDate ? new Date(fromDate) : null;
     const to = toDate ? new Date(toDate) : null;
@@ -200,21 +228,17 @@ const RolesPermissions = () => {
       if (response.data && response.status) {
         setShowAdd(false);
         setForm({ name: "", permissions: [], type: "user", modulePermissions: {} });
-        // ✅ REFRESH LIST AFTER ADD
         await fetchRoles();
-        // ✅ SHOW SUCCESS TOAST
         setToastMessage("Role created successfully!");
         setToastVariant("success");
         setShowToast(true);
       } else {
-        // ❌ Show error toast or alert if needed
         setToastMessage(`Error: ${response.data.message || 'Failed to create role'}`);
         setToastVariant("danger");
         setShowToast(true);
       }
     } catch (error) {
       console.error('API Error:', error);
-      // ❌ Show error toast or alert if needed
       setToastMessage('Failed to create role. Please try again.');
       setToastVariant("danger");
       setShowToast(true);
@@ -257,21 +281,17 @@ const RolesPermissions = () => {
       });
       if (response.data && response.status) {
         setShowEdit(false);
-        // ✅ REFRESH LIST AFTER UPDATE
         await fetchRoles();
-        // ✅ SHOW SUCCESS TOAST
         setToastMessage("Role updated successfully!");
         setToastVariant("success");
         setShowToast(true);
       } else {
-        // ❌ Show error toast or alert if needed
         setToastMessage(`Error: ${response.data.message || 'Failed to update role'}`);
         setToastVariant("danger");
         setShowToast(true);
       }
     } catch (error) {
       console.error('API Error:', error);
-      // ❌ Show error toast or alert if needed
       setToastMessage('Failed to update role. Please try again.');
       setToastVariant("danger");
       setShowToast(true);
@@ -290,21 +310,17 @@ const RolesPermissions = () => {
       });
       if (response.data && response.status) {
         setShowDelete(false);
-        // ✅ REFRESH LIST AFTER DELETE
         await fetchRoles();
-        // ✅ SHOW SUCCESS TOAST
         setToastMessage("Role deleted successfully!");
         setToastVariant("success");
         setShowToast(true);
       } else {
-        // ❌ Show error toast or alert if needed
         setToastMessage(`Error: ${response.data.message || 'Failed to delete role'}`);
         setToastVariant("danger");
         setShowToast(true);
       }
     } catch (error) {
       console.error('API Error:', error);
-      // ❌ Show error toast or alert if needed
       setToastMessage('Failed to delete role. Please try again.');
       setToastVariant("danger");
       setShowToast(true);
@@ -397,7 +413,6 @@ const RolesPermissions = () => {
         setCustomRoleTypes([...customRoleTypes, newRoleType]);
         setNewRoleType("");
         setShowAddTypeModal(false);
-        // ✅ SHOW SUCCESS TOAST FOR ROLE TYPE
         setToastMessage("Role type added successfully!");
         setToastVariant("success");
         setShowToast(true);
@@ -530,7 +545,7 @@ const RolesPermissions = () => {
                     <td>
                       <span
                         style={{
-                          background: role.isActive ? "#27ae60" : "#e74c3c",
+                          background: role.status === "Active" ? "#27ae60" : "#e74c3c",
                           color: "#fff",
                           padding: "4px 14px",
                           borderRadius: 20,
@@ -542,7 +557,7 @@ const RolesPermissions = () => {
                           transition: "background-color 0.3s ease"
                         }}
                         onClick={() => toggleRoleStatus(role.id)}
-                        title={`Click to mark as ${role.isActive ? "Inactive" : "Active"}`}
+                        title={`Click to mark as ${role.status === "Active" ? "Inactive" : "Active"}`}
                       >
                         <span
                           style={{
@@ -552,7 +567,7 @@ const RolesPermissions = () => {
                             borderRadius: "50%",
                           }}
                         ></span>
-                        {role.isActive ? "Active" : "Inactive"}
+                        {role.status}
                       </span>
                     </td>
                     <td>
@@ -631,8 +646,8 @@ const RolesPermissions = () => {
                 <p><strong>Last Modified:</strong> {selected.lastModified}</p>
                 <p><strong>Number of Users:</strong> {selected.users}</p>
                 <p><strong>Status:</strong>
-                  <span className={`badge ${selected.isActive ? 'bg-success' : 'bg-danger'} ms-2`}>
-                    {selected.isActive ? 'Active' : 'Inactive'}
+                  <span className={`badge ${selected.status === 'Active' ? 'bg-success' : 'bg-danger'} ms-2`}>
+                    {selected.status}
                   </span>
                 </p>
               </div>
