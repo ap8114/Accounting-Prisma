@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Table, Modal, Button, Form, Row, Col, Card, Alert } from "react-bootstrap";
+import {
+  Table,
+  Modal,
+  Button,
+  Form,
+  Row,
+  Col,
+  Card,
+  Alert,
+} from "react-bootstrap";
 import { FaArrowRight, FaBoxes, FaEdit, FaTrash } from "react-icons/fa";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
@@ -38,7 +47,9 @@ const WareHouse = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axiosInstance.get("warehouses");
+      const response = await axiosInstance.get(
+        `/warehouses/company/${companyId}`
+      );
 
       let warehouseData = [];
       if (Array.isArray(response.data)) {
@@ -53,6 +64,7 @@ const WareHouse = () => {
         .filter((w) => w.company_id == companyId)
         .map((w) => ({
           _id: w.id?.toString() || w._id?.toString(),
+          id: w.id?.toString() || w._id?.toString(), // Add id field for consistency
           name: w.warehouse_name || w.name,
           location: w.location,
           totalStocks: 0,
@@ -128,7 +140,7 @@ const WareHouse = () => {
       if (response.data) {
         // Refresh the warehouse list
         await fetchWarehouses();
-        
+
         // Reset form and close modal
         resetFormAndCloseModal();
       } else {
@@ -136,9 +148,12 @@ const WareHouse = () => {
       }
     } catch (err) {
       console.error("API Error:", err);
-      const errorMessage = err.response?.data?.message || 
-                          err.message || 
-                          (editId ? "Failed to update warehouse." : "Failed to create warehouse.");
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        (editId
+          ? "Failed to update warehouse."
+          : "Failed to create warehouse.");
       setModalError(errorMessage);
     } finally {
       setSaving(false);
@@ -146,7 +161,9 @@ const WareHouse = () => {
   };
 
   const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this warehouse?");
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this warehouse?"
+    );
     if (!confirmDelete) return;
 
     try {
@@ -200,7 +217,7 @@ const WareHouse = () => {
   const handleDownloadTemplate = () => {
     const template = [{ "Warehouse Name": "", Location: "" }];
     const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new(); 
+    const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
     XLSX.writeFile(wb, "warehouse-template.xlsx");
   };
@@ -251,8 +268,16 @@ const WareHouse = () => {
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [categories, setCategories] = useState([
-    "Electronics", "Furniture", "Apparel", "Food", "Books",
-    "Automotive", "Medical", "Software", "Stationery", "Other"
+    "Electronics",
+    "Furniture",
+    "Apparel",
+    "Food",
+    "Books",
+    "Automotive",
+    "Medical",
+    "Software",
+    "Stationery",
+    "Other",
   ]);
 
   const handleAddCategory = () => {
@@ -334,8 +359,9 @@ const WareHouse = () => {
     setShowEdit(false);
   };
 
+  // Updated function to handle adding stock to a specific warehouse
   const handleAddStockModal = (warehouse) => {
-    setSelectedWarehouse(warehouse.name);
+    setSelectedWarehouse(warehouse);
     setShowAdd(true);
   };
 
@@ -429,10 +455,15 @@ const WareHouse = () => {
                         <td
                           className="text-primary"
                           style={{ cursor: "pointer" }}
-                          onClick={() => navigate(`/company/warehouse/${w._id}`)}
+                          onClick={() => {
+                            localStorage.setItem("warehouseName", w.name);
+                         localStorage.setItem("warehouseid", w.id);
+                            navigate(`/company/warehouse/${w._id}`);
+                          }}
                         >
                           <u>{w.name}</u>
                         </td>
+
                         <td>{w.totalStocks}</td>
                         <td>{w.location}</td>
                         <td>
@@ -455,27 +486,8 @@ const WareHouse = () => {
                             >
                               <FaTrash size={18} />
                             </Button>
+                            {/* Add Stock button removed from Actions column */}
                           </div>
-
-                          <AddProductModal
-                            showAdd={showAdd}
-                            showEdit={showEdit}
-                            newItem={newItem}
-                            categories={categories}
-                            newCategory={newCategory}
-                            showUOMModal={showUOMModal}
-                            showAddCategoryModal={showAddCategoryModal}
-                            setShowAdd={setShowAdd}
-                            setShowEdit={setShowEdit}
-                            setShowUOMModal={setShowUOMModal}
-                            setShowAddCategoryModal={setShowAddCategoryModal}
-                            setNewCategory={setNewCategory}
-                            handleChange={handleChange}
-                            handleAddItem={handleAddItem}
-                            handleUpdateItem={handleUpdateItem}
-                            handleAddCategory={handleAddCategory}
-                            formMode="addStock"
-                          />
                         </td>
                       </tr>
                     ))
@@ -498,10 +510,16 @@ const WareHouse = () => {
               </span>
               <nav>
                 <ul className="pagination pagination-sm mb-0 flex-wrap">
-                  <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                  <li
+                    className={`page-item ${
+                      currentPage === 1 ? "disabled" : ""
+                    }`}
+                  >
                     <button
                       className="page-link rounded-start"
-                      onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                      onClick={() =>
+                        currentPage > 1 && setCurrentPage(currentPage - 1)
+                      }
                     >
                       &laquo;
                     </button>
@@ -509,13 +527,18 @@ const WareHouse = () => {
                   {Array.from({ length: totalPages }, (_, index) => (
                     <li
                       key={index + 1}
-                      className={`page-item ${currentPage === index + 1 ? "active" : ""}`}
+                      className={`page-item ${
+                        currentPage === index + 1 ? "active" : ""
+                      }`}
                     >
                       <button
                         className="page-link"
                         style={
                           currentPage === index + 1
-                            ? { backgroundColor: "#3daaaa", borderColor: "#3daaaa" }
+                            ? {
+                                backgroundColor: "#3daaaa",
+                                borderColor: "#3daaaa",
+                              }
                             : {}
                         }
                         onClick={() => handlePageChange(index + 1)}
@@ -524,11 +547,16 @@ const WareHouse = () => {
                       </button>
                     </li>
                   ))}
-                  <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                  <li
+                    className={`page-item ${
+                      currentPage === totalPages ? "disabled" : ""
+                    }`}
+                  >
                     <button
                       className="page-link rounded-end"
                       onClick={() =>
-                        currentPage < totalPages && setCurrentPage(currentPage + 1)
+                        currentPage < totalPages &&
+                        setCurrentPage(currentPage + 1)
                       }
                     >
                       &raquo;
@@ -544,11 +572,17 @@ const WareHouse = () => {
       {/* Add/Edit Warehouse Modal */}
       <Modal show={showModal} onHide={resetFormAndCloseModal} size="md">
         <Modal.Header closeButton>
-          <Modal.Title>{editId ? "Edit Warehouse" : "Create Warehouse"}</Modal.Title>
+          <Modal.Title>
+            {editId ? "Edit Warehouse" : "Create Warehouse"}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {modalError && (
-            <Alert variant="danger" onClose={() => setModalError(null)} dismissible>
+            <Alert
+              variant="danger"
+              onClose={() => setModalError(null)}
+              dismissible
+            >
               {modalError}
             </Alert>
           )}
@@ -585,7 +619,11 @@ const WareHouse = () => {
               >
                 {saving ? (
                   <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <span
+                      className="spinner-border spinner-border-sm me-2"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
                     {editId ? "Updating..." : "Creating..."}
                   </>
                 ) : editId ? (
@@ -599,10 +637,39 @@ const WareHouse = () => {
         </Modal.Body>
       </Modal>
 
+      {/* AddProductModal - moved outside the table */}
+      <AddProductModal
+        showAdd={showAdd}
+        showEdit={showEdit}
+        newItem={newItem}
+        categories={categories}
+        newCategory={newCategory}
+        showUOMModal={showUOMModal}
+        showAddCategoryModal={showAddCategoryModal}
+        setShowAdd={setShowAdd}
+        setShowEdit={setShowEdit}
+        setShowUOMModal={setShowUOMModal}
+        setShowAddCategoryModal={setShowAddCategoryModal}
+        setNewCategory={setNewCategory}
+        handleChange={handleChange}
+        handleAddItem={handleAddItem}
+        handleUpdateItem={handleUpdateItem}
+        handleAddCategory={handleAddCategory}
+        formMode="addStock"
+        selectedWarehouse={selectedWarehouse}
+        companyId={companyId}
+        onSuccess={() => {
+          // Refresh data or perform other actions on success
+          fetchWarehouses();
+        }}
+      />
+
       {/* Page Description */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
-          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
+          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
+            Page Info
+          </h5>
           <ul
             className="text-muted fs-6 mb-0"
             style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}

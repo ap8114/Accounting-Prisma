@@ -40,7 +40,7 @@ const InventoryItems = () => {
     try {
       setLoading(true);
       const response = await axiosInstance.get(
-        `products/getProductsByCompanyId/${companyId}`
+        `products/company/${companyId}`
       );
 
       if (response.data?.success && Array.isArray(response.data.data)) {
@@ -64,13 +64,15 @@ const InventoryItems = () => {
           salePriceInclusive: parseFloat(product.sale_price) || 0,
           discount: parseFloat(product.discount) || 0,
           category: "default",
-          itemCategory: product.item_category_name || "Unknown",
+          itemCategory: product.item_category?.item_category_name || "Unknown", // Fixed key path
           itemType: "Good",
           subcategory: "default",
           remarks: safeTrim(product.remarks) || "",
-          image: product.image && product.image.length > 0 ? product.image[0] : null,
+          image: product.image || null, // Fixed key
           status: (product.initial_qty || 0) > 0 ? "In Stock" : "Out of Stock",
-          warehouse: product.warehouse_name || "Unknown",
+          warehouse: product.warehouse?.warehouse_name || "Unknown", // Fixed key path
+          warehouseId: product.warehouse_id || "", // Added warehouse ID
+          itemCategoryId: product.item_category_id || "", // Added category ID
         }));
 
         setItems(transformedItems);
@@ -85,7 +87,7 @@ const InventoryItems = () => {
     }
   };
 
-  // ✅ Unified refresh function
+  // Unified refresh function
   const refreshProducts = () => {
     if (companyId) {
       fetchProductsByCompanyId(companyId);
@@ -155,7 +157,7 @@ const InventoryItems = () => {
     setItems(updatedItems);
   };
 
-  // ✅ Updated delete with axiosInstance and refresh
+  // Updated delete with axiosInstance and refresh
   const handleDeleteItem = async () => {
     if (!selectedItem?.id) {
       alert("No item selected for deletion");
@@ -369,7 +371,7 @@ const InventoryItems = () => {
             </Button>
           )}
 
-          {/* ✅ Updated Modal with onSuccess */}
+          {/* Updated Modal with onSuccess */}
           <AddProductModal
             showAdd={showAdd}
             showEdit={showEdit}
@@ -381,7 +383,7 @@ const InventoryItems = () => {
             setShowAddCategoryModal={setShowAddCategoryModal}
             newCategory={newCategory}
             setNewCategory={setNewCategory}
-            onSuccess={refreshProducts} // ✅ Key: triggers refresh after add/edit
+            onSuccess={refreshProducts} // Key: triggers refresh after add/edit
           />
         </Col>
       </Row>
@@ -657,7 +659,7 @@ const InventoryItems = () => {
               </Row>
               <Row className="mb-3">
                 <Col md={6}>
-                  <strong>Category:</strong> {selectedItem.category}
+                  <strong>Category:</strong> {selectedItem.itemCategory}
                 </Col>
                 <Col md={6}>
                   <strong>Subcategory:</strong> {selectedItem.subcategory}
@@ -672,11 +674,7 @@ const InventoryItems = () => {
                     <strong>Image Preview:</strong>
                     <br />
                     <img
-                      src={
-                        typeof selectedItem.image === "string"
-                          ? selectedItem.image
-                          : URL.createObjectURL(selectedItem.image)
-                      }
+                      src={selectedItem.image}
                       alt="item preview"
                       style={{ maxHeight: "200px", marginTop: "10px" }}
                     />

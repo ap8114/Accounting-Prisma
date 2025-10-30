@@ -6,37 +6,35 @@ import Col from "react-bootstrap/Col";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import axiosInstance from "../../../Api/axiosInstance";
+import GetCompanyId from "../../../Api/GetCompanyId";
 
 const AddProductModal = ({
   showAdd,
   showEdit,
-  // categories, // ❌ Remove: we fetch via API
   newCategory,
   showAddCategoryModal,
   setShowAdd,
   setShowEdit,
   setShowAddCategoryModal,
   setNewCategory,
-  // handleAddItem, // ❌ Replace with onSuccess
-  // handleUpdateItem,
-  // handleAddCategory,
   formMode,
-  // resetForm, // ❌ Not needed
   selectedItem,
   companyId,
-  onSuccess, // ✅ NEW: callback to refresh product list
+  onSuccess,
+  selectedWarehouse,
 }) => {
   const isEditing = showEdit;
   const isAdding = showAdd;
-
   const [localNewItem, setLocalNewItem] = useState({
     id: '',
     itemName: '',
     hsn: '',
     barcode: '',
     image: null,
-    warehouse: '',
+    warehouse: '', // This will be populated from localStorage
+    warehouseId: '', // Store the warehouse ID separately
     itemCategory: '',
+    itemCategoryId: '', // Store the category ID separately
     description: '',
     quantity: '',
     sku: '',
@@ -49,10 +47,10 @@ const AddProductModal = ({
     discount: '',
     remarks: ''
   });
-
+  const companyID = GetCompanyId();
   const [newUOM, setNewUOM] = useState("");
   const [showAddUOMModal, setShowAddUOMModal] = useState(false);
-  const [uoms] = useState(["Piece", "Box", "KG", "Meter", "Litre"]); // static for now
+  const [uoms] = useState(["Piece", "Box", "KG", "Meter", "Litre"]);
   const [fetchedCategories, setFetchedCategories] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -60,28 +58,55 @@ const AddProductModal = ({
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [warehouseError, setWarehouseError] = useState("");
+  const [isWarehouseRoute, setIsWarehouseRoute] = useState(false);
 
   const fileInputRef = useRef(null);
   const isInitialMount = useRef(true);
 
+  // Check if we're on a warehouse-specific route
+  useEffect(() => {
+    const path = window.location.pathname;
+    setIsWarehouseRoute(path.includes('/company/warehouse/'));
+  }, []);
+
   // Handle form input changes
   const handleChange = (e) => {
     const { name, value, files } = e.target;
-    setLocalNewItem(prev => ({
-      ...prev,
-      [name]: files ? files[0] : value
-    }));
+    
+    if (name === 'warehouse' && !isWarehouseRoute) {
+      // If warehouse dropdown is changed, update both name and ID
+      const selectedWarehouse = warehouses.find(wh => wh.warehouse_name === value);
+      if (selectedWarehouse) {
+        setLocalNewItem(prev => ({
+          ...prev,
+          warehouse: value,
+          warehouseId: selectedWarehouse.id
+        }));
+      }
+    } else {
+      setLocalNewItem(prev => ({
+        ...prev,
+        [name]: files ? files[0] : value
+      }));
+    }
   };
 
   const resetLocalForm = () => {
+    // Get warehouse name and ID from localStorage for reset form
+    const storedWarehouseName = localStorage.getItem("warehouseName") || '';
+    const storedWarehouseId = localStorage.getItem("warehouseid") || '';
+    
     setLocalNewItem({
       id: '',
       itemName: '',
       hsn: '',
       barcode: '',
       image: null,
-      warehouse: warehouses.length > 0 ? warehouses[0].warehouse_name : '',
+      warehouse: storedWarehouseName,
+      warehouseId: storedWarehouseId,
       itemCategory: '',
+      itemCategoryId: '',
       description: '',
       quantity: '',
       sku: '',
@@ -98,7 +123,26 @@ const AddProductModal = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    
+    // Clear any warehouse error
+    setWarehouseError("");
   };
+
+  // Get warehouse name and ID from localStorage on component mount
+  useEffect(() => {
+    const storedWarehouseName = localStorage.getItem("warehouseName") || '';
+    const storedWarehouseId = localStorage.getItem("warehouseid") || '';
+
+    setLocalNewItem(prev => ({
+      ...prev,
+      warehouse: storedWarehouseName,
+      warehouseId: storedWarehouseId
+    }));
+    
+    // Debug: Log the warehouse name and ID from localStorage
+    console.log("Warehouse name from localStorage:", storedWarehouseName);
+    console.log("Warehouse ID from localStorage:", storedWarehouseId);
+  }, []);
 
   // Populate form when editing
   useEffect(() => {
@@ -108,6 +152,9 @@ const AddProductModal = ({
     }
 
     if (isEditing && selectedItem) {
+      // Get warehouse ID from localStorage if not available in selectedItem
+      const storedWarehouseId = localStorage.getItem("warehouseid") || '';
+      
       setLocalNewItem({
         id: selectedItem.id || '',
         itemName: selectedItem.item_name || selectedItem.itemName || '',
@@ -115,7 +162,9 @@ const AddProductModal = ({
         barcode: selectedItem.barcode || '',
         image: null,
         warehouse: selectedItem.warehouse_name || selectedItem.warehouse || '',
+        warehouseId: selectedItem.warehouse_id || storedWarehouseId || '',
         itemCategory: selectedItem.item_category_name || selectedItem.itemCategory || '',
+        itemCategoryId: selectedItem.item_category_id || '',
         description: selectedItem.description || '',
         quantity: (selectedItem.initial_qty || selectedItem.quantity || '').toString(),
         sku: selectedItem.sku || '',
@@ -138,7 +187,7 @@ const AddProductModal = ({
     const fetchCategories = async () => {
       setIsLoadingCategories(true);
       try {
-        const response = await axiosInstance.get("item-categories");
+        const response = await axiosInstance.get(`item-categories/company/${companyID}`);
         if (response.data?.success && Array.isArray(response.data.data)) {
           const categoryNames = response.data.data.map(cat => cat.item_category_name);
           setFetchedCategories(categoryNames);
@@ -153,29 +202,54 @@ const AddProductModal = ({
       }
     };
     fetchCategories();
-  }, []);
+  }, [companyID]);
 
-  // Fetch warehouses
+  // Fetch warehouses and check if localStorage warehouse exists
   useEffect(() => {
     if (!companyId) return;
 
     const fetchWarehouses = async () => {
       setIsLoadingWarehouses(true);
+      setWarehouseError(""); // Clear any previous error
+      
       try {
-        const response = await axiosInstance.get("warehouses");
+        const response = await axiosInstance.get(`warehouses/company/${companyId}`);
         if (response.data?.success && Array.isArray(response.data.data)) {
-          const numericCompanyId = parseInt(companyId, 10);
-          const filteredWarehouses = response.data.data.filter(wh => {
-            const whCompanyId = parseInt(wh.company_id, 10);
-            return !isNaN(whCompanyId) && whCompanyId === numericCompanyId;
-          });
+          const filteredWarehouses = response.data.data;
+          
           setWarehouses(filteredWarehouses);
-
-          // Set default warehouse only if adding and none selected
-          if (isAdding && filteredWarehouses.length > 0 && !localNewItem.warehouse) {
+          
+          // Debug: Log the fetched warehouses
+          console.log("Fetched warehouses:", filteredWarehouses);
+          
+          // Only check localStorage warehouse if we're on a warehouse route
+          if (isWarehouseRoute) {
+            const storedWarehouseName = localStorage.getItem("warehouseName") || '';
+            const storedWarehouseId = localStorage.getItem("warehouseid") || '';
+            
+            if (storedWarehouseName && storedWarehouseId) {
+              const warehouseExists = filteredWarehouses.find(wh => 
+                wh.warehouse_name === storedWarehouseName && wh.id === storedWarehouseId
+              );
+              
+              if (warehouseExists) {
+                // Set both warehouse name and ID
+                setLocalNewItem(prev => ({
+                  ...prev,
+                  warehouse: storedWarehouseName,
+                  warehouseId: storedWarehouseId
+                }));
+              } else {
+                setWarehouseError(`Warehouse "${storedWarehouseName}" not found in the available warehouses.`);
+                console.error(`Warehouse "${storedWarehouseName}" not found in the available warehouses.`);
+              }
+            }
+          } else if (filteredWarehouses.length > 0) {
+            // If not on warehouse route, set the first warehouse as default
             setLocalNewItem(prev => ({
               ...prev,
-              warehouse: filteredWarehouses[0].warehouse_name
+              warehouse: filteredWarehouses[0].warehouse_name,
+              warehouseId: filteredWarehouses[0].id
             }));
           }
         } else {
@@ -190,7 +264,31 @@ const AddProductModal = ({
     };
 
     fetchWarehouses();
-  }, [companyId, isAdding]);
+  }, [companyId, isWarehouseRoute]);
+
+  // Update category ID when category changes
+  useEffect(() => {
+    const updateCategoryId = async () => {
+      if (localNewItem.itemCategory && fetchedCategories.length > 0) {
+        try {
+          const response = await axiosInstance.get(`item-categories/company/${companyID}`);
+          if (response.data?.success && Array.isArray(response.data.data)) {
+            const category = response.data.data.find(cat => cat.item_category_name === localNewItem.itemCategory);
+            if (category) {
+              setLocalNewItem(prev => ({
+                ...prev,
+                itemCategoryId: category.id
+              }));
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching category ID:", error);
+        }
+      }
+    };
+    
+    updateCategoryId();
+  }, [localNewItem.itemCategory, fetchedCategories, companyID]);
 
   // Add new category
   const handleAddCategoryApi = async () => {
@@ -202,11 +300,23 @@ const AddProductModal = ({
         item_category_name: newCategory.trim(),
       });
 
-      const res = await axiosInstance.get("item-categories");
+      const res = await axiosInstance.get(`item-categories/company/${companyID}`);
       if (res.data?.success && Array.isArray(res.data.data)) {
         const names = res.data.data.map(c => c.item_category_name);
         setFetchedCategories(names);
-        setLocalNewItem(prev => ({ ...prev, itemCategory: newCategory.trim() }));
+        setLocalNewItem(prev => ({ 
+          ...prev, 
+          itemCategory: newCategory.trim() 
+        }));
+        
+        // Set the category ID
+        const newCategoryObj = res.data.data.find(c => c.item_category_name === newCategory.trim());
+        if (newCategoryObj) {
+          setLocalNewItem(prev => ({
+            ...prev,
+            itemCategoryId: newCategoryObj.id
+          }));
+        }
       }
 
       setNewCategory("");
@@ -221,29 +331,37 @@ const AddProductModal = ({
 
   // Add product
   const handleAddProductApi = async () => {
+    // Clear previous errors
+    setWarehouseError("");
+    
+    // Debug: Log current state
+    console.log("Current warehouse name:", localNewItem.warehouse);
+    console.log("Current warehouse ID:", localNewItem.warehouseId);
+    console.log("Available warehouses:", warehouses);
+    
+    // Validate required fields
+    if (!localNewItem.itemName.trim()) {
+      alert("Please enter an item name.");
+      return;
+    }
+    
+    if (!localNewItem.warehouseId) {
+      const errorMsg = localNewItem.warehouse 
+        ? `Warehouse "${localNewItem.warehouse}" not found. Please select a valid warehouse.`
+        : "No warehouse selected. Please select a warehouse.";
+      setWarehouseError(errorMsg);
+      alert(errorMsg);
+      return;
+    }
+
     setIsAddingProduct(true);
     try {
-      let categoryId = 1;
-      try {
-        const res = await axiosInstance.get("item-categories");
-        if (res.data?.success && Array.isArray(res.data.data)) {
-          const cat = res.data.data.find(c => c.item_category_name === localNewItem.itemCategory);
-          if (cat) categoryId = cat.id;
-        }
-      } catch (error) {
-        console.error("Error fetching category ID:", error);
-      }
-
-      const selectedWarehouse = warehouses.find(w => w.warehouse_name === localNewItem.warehouse);
-      if (!selectedWarehouse) {
-        alert("Please select a valid warehouse.");
-        return;
-      }
-
       const formData = new FormData();
-      formData.append('company_id', companyId);
-      formData.append('warehouse_id', selectedWarehouse.id);
-      formData.append('item_category_id', categoryId);
+      
+      // Add all required fields to FormData according to API structure
+      formData.append('company_id', companyID);
+      formData.append('warehouse_id', localNewItem.warehouseId);
+      formData.append('item_category_id', localNewItem.itemCategoryId || '1'); // Default to 1 if not set
       formData.append('item_name', localNewItem.itemName || '');
       formData.append('hsn', localNewItem.hsn || '');
       formData.append('barcode', localNewItem.barcode || '');
@@ -258,24 +376,34 @@ const AddProductModal = ({
       formData.append('discount', localNewItem.discount || '0');
       formData.append('tax_account', localNewItem.taxAccount || '');
       formData.append('remarks', localNewItem.remarks || '');
+      
+      // Add image if exists
       if (localNewItem.image) {
         formData.append('image', localNewItem.image);
+      }
+
+      // Debug: Log the FormData
+      console.log("FormData being sent:");
+      for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
       }
 
       const response = await axiosInstance.post("products", formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
+      console.log("API Response:", response.data);
+
       if (response.data?.success) {
         resetLocalForm();
         setShowAdd(false);
-        if (onSuccess) onSuccess(); // ✅ Refresh product list
+        if (onSuccess) onSuccess();
       } else {
         alert("Failed to add product. Please try again.");
       }
     } catch (error) {
       console.error("Error adding product:", error);
-      alert("An error occurred while adding the product.");
+      alert("An error occurred while adding the product: " + error.message);
     } finally {
       setIsAddingProduct(false);
     }
@@ -288,29 +416,32 @@ const AddProductModal = ({
       return;
     }
 
+    // Clear previous errors
+    setWarehouseError("");
+    
+    // Validate required fields
+    if (!localNewItem.itemName.trim()) {
+      alert("Please enter an item name.");
+      return;
+    }
+    
+    if (!localNewItem.warehouseId) {
+      const errorMsg = localNewItem.warehouse 
+        ? `Warehouse "${localNewItem.warehouse}" not found. Please select a valid warehouse.`
+        : "No warehouse selected. Please select a warehouse.";
+      setWarehouseError(errorMsg);
+      alert(errorMsg);
+      return;
+    }
+
     setIsUpdatingProduct(true);
     try {
-      let categoryId = 1;
-      try {
-        const res = await axiosInstance.get("item-categories");
-        if (res.data?.success && Array.isArray(res.data.data)) {
-          const cat = res.data.data.find(c => c.item_category_name === localNewItem.itemCategory);
-          if (cat) categoryId = cat.id;
-        }
-      } catch (error) {
-        console.error("Error fetching category ID:", error);
-      }
-
-      const selectedWarehouse = warehouses.find(w => w.warehouse_name === localNewItem.warehouse);
-      if (!selectedWarehouse) {
-        alert("Please select a valid warehouse.");
-        return;
-      }
-
       const formData = new FormData();
-      formData.append('company_id', companyId);
-      formData.append('warehouse_id', selectedWarehouse.id);
-      formData.append('item_category_id', categoryId);
+      
+      // Add all required fields to FormData according to API structure
+      formData.append('company_id', companyID);
+      formData.append('warehouse_id', localNewItem.warehouseId);
+      formData.append('item_category_id', localNewItem.itemCategoryId || '1'); // Default to 1 if not set
       formData.append('item_name', localNewItem.itemName || '');
       formData.append('hsn', localNewItem.hsn || '');
       formData.append('barcode', localNewItem.barcode || '');
@@ -324,25 +455,35 @@ const AddProductModal = ({
       formData.append('purchase_price', localNewItem.salePriceInclusive || '0');
       formData.append('discount', localNewItem.discount || '0');
       formData.append('tax_account', localNewItem.taxAccount || '');
-      formData.append('remarks', localNewItem.remarks || '');
+      formData.append('remarks', localNewItem.reremarks || '');
+      
+      // Add image if exists
       if (localNewItem.image) {
-        formData.append('image', localNewItem.image);
+        formData.append('images', localNewItem.image);
+      }
+
+      // Debug: Log the FormData
+      console.log("FormData being sent for update:");
+      for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
       }
 
       const response = await axiosInstance.patch(`products/${localNewItem.id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
+      console.log("API Update Response:", response.data);
+
       if (response.data?.success) {
         resetLocalForm();
         setShowEdit(false);
-        if (onSuccess) onSuccess(); // ✅ Refresh product list
+        if (onSuccess) onSuccess();
       } else {
         alert("Failed to update product. Please try again.");
       }
     } catch (error) {
       console.error("Error updating product:", error);
-      alert("An error occurred while updating the product.");
+      alert("An error occurred while updating the product: " + error.message);
     } finally {
       setIsUpdatingProduct(false);
     }
@@ -355,16 +496,6 @@ const AddProductModal = ({
     setNewUOM("");
     setShowAddUOMModal(false);
   };
-
-  // Set default warehouse for addStock mode
-  useEffect(() => {
-    if (formMode === "addStock" && warehouses.length > 0 && !localNewItem.warehouse) {
-      setLocalNewItem(prev => ({
-        ...prev,
-        warehouse: warehouses[0].warehouse_name
-      }));
-    }
-  }, [formMode, warehouses, localNewItem.warehouse]);
 
   const handleClose = () => {
     resetLocalForm();
@@ -388,8 +519,6 @@ const AddProductModal = ({
         </Modal.Header>
         <Modal.Body>
           <Form>
-            {/* ... (rest of your form fields remain unchanged) ... */}
-            {/* I'm keeping your form structure as-is since it's correct */}
             <Row className="mb-3">
               <Col md={6}>
                 <Form.Group>
@@ -450,42 +579,47 @@ const AddProductModal = ({
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Warehouse</Form.Label>
-                  {formMode === "addStock" ? (
+                  {isLoadingWarehouses ? (
                     <Form.Control
                       type="text"
-                      value={localNewItem.warehouse}
+                      value="Loading warehouses..."
                       readOnly
                       className="bg-light"
                     />
+                  ) : isWarehouseRoute ? (
+                    <>
+                      <Form.Control
+                        type="text"
+                        name="warehouse"
+                        value={localNewItem.warehouse}
+                        onChange={handleChange}
+                        placeholder="Warehouse name from localStorage"
+                        readOnly
+                        className="bg-light"
+                      />
+                      {warehouseError && (
+                        <Form.Text className="text-danger">
+                          {warehouseError}
+                        </Form.Text>
+                      )}
+                    </>
                   ) : (
                     <>
-                      {isLoadingWarehouses ? (
-                        <Form.Control
-                          type="text"
-                          value="Loading warehouses..."
-                          readOnly
-                          className="bg-light"
-                        />
-                      ) : (
-                        <Form.Select
-                          name="warehouse"
-                          value={localNewItem.warehouse}
-                          onChange={handleChange}
-                          className={warehouses.length === 0 ? "text-muted" : ""}
-                        >
-                          <option value="">
-                            {warehouses.length === 0 ? "No warehouses available" : "Select Warehouse"}
+                      <Form.Select
+                        name="warehouse"
+                        value={localNewItem.warehouse}
+                        onChange={handleChange}
+                      >
+                        <option value="">Select Warehouse</option>
+                        {warehouses.map((warehouse) => (
+                          <option key={warehouse.id} value={warehouse.warehouse_name}>
+                            {warehouse.warehouse_name}
                           </option>
-                          {warehouses.map((wh) => (
-                            <option key={wh.id} value={wh.warehouse_name}>
-                              {wh.warehouse_name} - {wh.location}
-                            </option>
-                          ))}
-                        </Form.Select>
-                      )}
-                      {warehouses.length === 0 && !isLoadingWarehouses && (
-                        <Form.Text className="text-muted">
-                          No warehouses found for company ID: {companyId}
+                        ))}
+                      </Form.Select>
+                      {warehouseError && (
+                        <Form.Text className="text-danger">
+                          {warehouseError}
                         </Form.Text>
                       )}
                     </>
@@ -602,6 +736,8 @@ const AddProductModal = ({
               </Col>
             </Row>
 
+
+
             <Row className="mb-3">
               <Col md={6}>
                 <Form.Group>
@@ -701,7 +837,8 @@ const AddProductModal = ({
             disabled={
               isAddingProduct ||
               isUpdatingProduct ||
-              (warehouses.length === 0 && !isLoadingWarehouses)
+              !localNewItem.warehouse ||
+              !!warehouseError
             }
           >
             {isAdding ? (
@@ -790,7 +927,7 @@ const AddProductModal = ({
             Add
           </Button>
         </Modal.Footer>
-      </Modal>
+      </Modal>  
     </>
   );
 };
