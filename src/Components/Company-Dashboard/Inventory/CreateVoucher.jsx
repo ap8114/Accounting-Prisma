@@ -131,7 +131,6 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
       }
       return new Blob([u8arr], { type: mime });
     } catch (e) {
-      console.error("Failed to convert data URL to blob:", e);
       return null;
     }
   }
@@ -278,17 +277,17 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     if (!companyId) return;
     try {
       setLoadingVendors(true);
-      const vendorRes = await axiosInstance.get(`/vendors/Company/${companyId}`);
+      const vendorRes = await axiosInstance.get(`/vendors/company/${companyId}`);
       setVendors(vendorRes.data.data || []);
       setLoadingCustomers(true);
-      const customerRes = await axiosInstance.get(`/customers/Company/${companyId}`);
+      const customerRes = await axiosInstance.get(`/customers/company/${companyId}`);
       setCustomers(customerRes.data.data || []);
       setLoadingAccounts(true);
-      const accountRes = await axiosInstance.get(`/account/Company/${companyId}`);
+      const accountRes = await axiosInstance.get(`/account/company/${companyId}`);
       setAccounts(accountRes.data.data || []);
     } catch (err) {
-      console.error("Error fetching dropdowns:", err);
-    } finally {
+      console.error("Error fetching dropdown data:", err);
+        } finally {
       setLoadingVendors(false);
       setLoadingCustomers(false);
       setLoadingAccounts(false);
@@ -309,7 +308,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
         setProducts([]);
       }
     } catch (err) {
-      console.error("Error fetching products:", err);
       setProducts([]);
     } finally {
       setLoadingProducts(false);
@@ -1373,7 +1371,7 @@ const CreateVoucher = () => {
     }
     try {
       setLoading(true);
-      const response = await axiosInstance.get(`/voucher/Company/${companyId}`);
+      const response = await axiosInstance.get(`/voucher/company/${companyId}`);
       if (response.data.success) {
         const mapped = response.data.data.map(mapApiVoucherToLocal);
         setVouchers(mapped);
@@ -1381,8 +1379,6 @@ const CreateVoucher = () => {
         setVouchers([]);
       }
     } catch (error) {
-      console.error("Error fetching vouchers:", error);
-      alert("Failed to load vouchers.");
       setVouchers([]);
     } finally {
       setLoading(false);
@@ -1422,7 +1418,6 @@ const CreateVoucher = () => {
       setShowModal(false);
       setEditVoucher(null);
     } catch (error) {
-      console.error("Error saving voucher:", error);
       alert("Failed to save voucher. Please try again.");
     }
   };
@@ -1435,7 +1430,6 @@ const CreateVoucher = () => {
       setVouchers(vouchers.filter((_, i) => i !== idx));
       alert("Voucher deleted successfully!");
     } catch (error) {
-      console.error("Error deleting voucher:", error);
       alert("Failed to delete voucher.");
     }
   };
@@ -1481,7 +1475,7 @@ const CreateVoucher = () => {
               </tr>
             </thead>
             <tbody>
-              {vouchers.map((v, i) => (
+              {vouchers?.map((v, i) => (
                 <tr key={v.id || i}>
                   <td>{i + 1}</td>
                   <td>{v.voucherType}</td>
