@@ -1461,7 +1461,7 @@ const CreateVoucher = () => {
         voucher={viewVoucher}
       />
     </div>
-  );
+  ); 
 };
 
 export default CreateVoucher;
