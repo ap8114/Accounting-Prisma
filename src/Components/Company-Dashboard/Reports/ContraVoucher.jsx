@@ -276,15 +276,15 @@ const ContraVoucher = () => {
           prev.map((v) =>
             v.id === currentVoucherId
               ? {
-                  ...v,
-                  voucher_no_manual: manualVoucherNo.trim() || v.voucher_no_manual,
-                  voucher_date: voucherDate,
-                  account_from_id: accountFromId,
-                  account_to_id: accountToId,
-                  amount,
-                  narration: narration || '',
-                  document: response.data?.document || v.document, // Preserve if not updated
-                }
+                ...v,
+                voucher_no_manual: manualVoucherNo.trim() || v.voucher_no_manual,
+                voucher_date: voucherDate,
+                account_from_id: accountFromId,
+                account_to_id: accountToId,
+                amount,
+                narration: narration || '',
+                document: response.data?.document || v.document, // Preserve if not updated
+              }
               : v
           )
         );
@@ -337,13 +337,12 @@ const ContraVoucher = () => {
   return (
     <div className="p-3">
       <div>
-       <div className="d-flex justify-content-between align-items-center mb-4">
-  <h2 className="text-start m-0">Contra Voucher</h2>
-  <Button variant="success" size="sm" onClick={handleAddClick}>
-    + Add Contra Voucher
-  </Button>
-</div>
-
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h2 className="text-start m-0">Contra Voucher</h2>
+          <Button variant="success" size="sm" onClick={handleAddClick}>
+            + Add Contra Voucher
+          </Button>
+        </div>
 
         {fetchError && <Alert variant="warning">{fetchError}</Alert>}
 
@@ -440,7 +439,7 @@ const ContraVoucher = () => {
                   />
                 </Form.Group>
               </Col>
-               <Col md={6}>
+              <Col md={6}>
                 <Form.Group>
                   <Form.Label>Voucher Date</Form.Label>
                   <Form.Control
@@ -545,7 +544,7 @@ const ContraVoucher = () => {
                   />
                 </Form.Group>
               </Col>
-                <Col md={6}>
+              <Col md={6}>
                 <Form.Group>
                   <Form.Label>Upload Document (Optional)</Form.Label>
                   <Form.Control type="file" onChange={handleFileUpload} />
