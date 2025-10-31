@@ -57,7 +57,7 @@ function InventoryAdjustment() {
   const fetchItems = async () => {
     if (!companyId) return;
     try {
-      const response = await axiosInstance.get(`products/getProductsByCompanyId/${companyId}`);
+      const response = await axiosInstance.get(`products/company/${companyId}`);
       if (Array.isArray(response.data.data)) {
         const mapped = response.data.data.map(item => ({
           id: item.id,
@@ -89,7 +89,7 @@ function InventoryAdjustment() {
     }
   };
 
-  // 🔥 FETCH ADJUSTMENTS — using refs to avoid stale closure
+  // 🔥 FETCH ADJUSTMENTS — FIXED DATE KEY
   const fetchAdjustments = async () => {
     if (!companyId) return;
     try {
@@ -101,7 +101,6 @@ function InventoryAdjustment() {
           else if (adj.adjustment_type === 'remove') typeLabel = 'Remove Stock';
 
           const mappedItems = (adj.adjustment_items || []).map((item, idx) => {
-            // ✅ Use .current to get latest
             const foundItem = allItemsRef.current.find(i => i.id === item.product_id);
             const foundWh = allWarehousesRef.current.find(w => w.id === item.warehouse_id);
 
@@ -119,15 +118,20 @@ function InventoryAdjustment() {
             };
           });
 
+          // 🔑 FIXED: Use voucher_date instead of adjustment_date
+          const voucherDateStr = adj.voucher_date 
+            ? new Date(adj.voucher_date).toISOString().split('T')[0] 
+            : '';
+
           return {
             id: adj.id,
             voucherNo: adj.voucher_no,
             manualVoucherNo: adj.manual_voucher_no || '',
-            voucherDate: new Date(adj.adjustment_date).toISOString().split('T')[0],
+            voucherDate: voucherDateStr,
             adjustmentType: typeLabel,
             items: mappedItems,
             narration: adj.notes || '',
-            totalAmount: mappedItems.reduce((sum, i) => sum + i.amount, 0),
+            totalAmount: parseFloat(adj.total_value) || 0, // 🔑 Use total_value from API
           };
         });
 
@@ -147,7 +151,7 @@ function InventoryAdjustment() {
     }
   }, [companyId]);
 
-  // Re-fetch adjustments when items/warehouses change (but use refs inside)
+  // Re-fetch adjustments when items/warehouses change
   useEffect(() => {
     if (companyId && allItems.length > 0 && allWarehouses.length > 0) {
       fetchAdjustments();
@@ -280,7 +284,10 @@ function InventoryAdjustment() {
   // 🔥 SUBMIT - FIXED VERSION
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!companyId || !voucherNo) return;
+    if (!companyId || !voucherNo || !voucherDate) {
+      alert('Company ID, Voucher Number, and Voucher Date are required.');
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -288,9 +295,7 @@ function InventoryAdjustment() {
       : adjustmentType === 'Remove Stock' ? 'remove'
         : 'adjust';
 
-    // FIXED: Properly format items payload with correct data types
     const itemsPayload = rows.map(row => {
-      // Convert to numbers for quantity and rate
       const quantity = parseFloat(row.quantity);
       const rate = parseFloat(row.rate);
       
@@ -304,7 +309,7 @@ function InventoryAdjustment() {
     }).filter(item => 
       item.product_id && 
       item.warehouse_id && 
-      (item.quantity > 0 || item.rate > 0) // Only include valid items
+      (item.quantity > 0 || item.rate > 0)
     );
 
     if (itemsPayload.length === 0) {
@@ -313,12 +318,14 @@ function InventoryAdjustment() {
       return;
     }
 
+    // ✅ FULLY CORRECTED PAYLOAD
     const payload = {
       company_id: companyId,
       voucher_no: voucherNo,
       manual_voucher_no: manualVoucherNo || null,
       adjustment_type: apiAdjustmentType,
-      adjustment_date: voucherDate,
+      voucher_date: voucherDate,
+      total_value: parseFloat(totalAmount) || 0,
       notes: narration || null,
       adjustment_items: itemsPayload
     };
@@ -330,11 +337,8 @@ function InventoryAdjustment() {
         await axiosInstance.post('/inventoryadjustment', payload);
       }
 
-      // ✅ Re-fetch all data using centralized functions
       await fetchItems();
       await fetchWarehouses();
-      // Adjustments will auto re-fetch via useEffect when items/warehouses update
-
       setShowModal(false);
       setEditingAdjustment(null);
       resetForm();
