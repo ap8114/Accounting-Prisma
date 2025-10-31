@@ -66,34 +66,35 @@ const Expense = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // ✅ FIXED: Use result.status instead of result.success
- const fetchAccounts = async () => {
-  try {
-    setLoading(true);
-    const response = await fetch(`${BaseUrl}account/Company/${companyId}`);
-    const result = await response.json();
+  const fetchAccounts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${BaseUrl}account/company/${companyId}`);
+      const result = await response.json();
 
-    // ✅ Change this line:
-    if (result.success) { // <-- was result.status
-      setAccounts(Array.isArray(result.data) ? result.data : [result.data]);
-    } else {
+      // ✅ Change this line:
+      if (result.success) { // <-- was result.status
+        setAccounts(Array.isArray(result.data) ? result.data : [result.data]);
+      } else {
+        setAccounts([]);
+      }
+    } catch (error) {
+      console.error("Error fetching accounts:", error);
       setAccounts([]);
+    } finally {
+      setLoading(false);
+      setAccountsLoaded(true);
     }
-  } catch (error) {
-    console.error("Error fetching accounts:", error);
-    setAccounts([]);
-  } finally {
-    setLoading(false);
-    setAccountsLoaded(true);
-  }
-};
+  };
 
   const fetchVendors = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${BaseUrl}vendors/getVendorsByCompany/${companyId}`);
+      const response = await fetch(`${BaseUrl}vendorCustomer/company/${companyId}?type=vender`);
       const result = await response.json();
+      console.log("Fetched vendorsfffffffffff:", result);
 
-      if (result.status) { // Changed from result.success to result.status
+      if (result.success) { // Changed from result.success to result.status
         setVendors(Array.isArray(result.data) ? result.data : [result.data]);
       } else {
         setVendors([]);
@@ -178,18 +179,26 @@ const Expense = () => {
 
   const getStatusBadge = () => "badge bg-success";
 
-  const calculateTotal = () =>
-    tableRows.reduce((total, row) => total + parseFloat(row.amount || 0), 0).toFixed(2);
+  // Calculate total amount safely
+  const calculateTotal = () => {
+    const total = tableRows.reduce(
+      (sum, row) => sum + (parseFloat(row.amount) || 0),
+      0
+    );
+    return total.toFixed(2);
+  };
 
+  // Add new row dynamically
   const handleAddRow = () => {
     const newRow = {
-      id: tableRows.length + 1,
+      id: Date.now(), // Unique ID (better than length+1)
       account: "",
-      amount: "0.00",
+      amount: 0.0,
       narration: "",
     };
-    setTableRows([...tableRows, newRow]);
+    setTableRows((prevRows) => [...prevRows, newRow]);
   };
+
 
   const handleDeleteRow = (id) => {
     if (tableRows.length > 1) {
@@ -380,7 +389,11 @@ const Expense = () => {
 
   const getPaidFromAccountName = (accountId) => {
     const account = accounts.find(acc => acc.id === accountId);
-    return account ? account.account_name : "Unknown";
+    return account
+      ? `${account?.parent_account?.subgroup_name || ""} (${account?.sub_of_subgroup?.name || ""})`
+      : "Unknown";
+
+
   };
 
   const getVendorName = (vendorId) => {
@@ -439,7 +452,7 @@ const Expense = () => {
               <option value="">All</option>
               {accounts.map(account => (
                 <option key={`filter-${account.id}`} value={account.id}>
-                  {account.account_name}
+                  {account?.parent_account?.subgroup_name || 'N/A'} ({account?.sub_of_subgroup?.name || 'N/A'})
                 </option>
               ))}
             </select>
@@ -557,8 +570,9 @@ const Expense = () => {
                 <select className="form-select" value={selectedPaidFrom} onChange={handlePaidFromChange} required>
                   <option value="">Select Account</option>
                   {accounts.map((account) => (
+
                     <option key={`paid-from-${account.id}`} value={account.id}>
-                      {account.account_name} ({account.subgroups?.name || 'N/A'})
+                      {account?.parent_account?.subgroup_name || 'N/A'} ({account?.sub_of_subgroup?.name || 'N/A'})
                     </option>
                   ))}
                 </select>
@@ -572,8 +586,8 @@ const Expense = () => {
                   <optgroup label="Accounts">
                     {accounts.length > 0 ? (
                       accounts.map((account) => (
-                        <option key={`acc-${account.id}`} value={account.account_name}>
-                          {account.account_name} ({account.subgroups?.name || 'N/A'})
+                        <option key={`acc-${account.id}`} value={account.parent_account.subgroup_name}>
+                          {account?.parent_account?.subgroup_name || 'N/A'} ({account?.sub_of_subgroup?.name || 'N/A'})
                         </option>
                       ))
                     ) : accountsLoaded ? (
@@ -630,6 +644,7 @@ const Expense = () => {
                           required
                         />
                       </td>
+
                       <td>
                         <input
                           type="text"
@@ -762,7 +777,7 @@ const Expense = () => {
                 <select className="form-select" name="paidFrom" defaultValue={editExpense.paid_from_account_id}>
                   {accounts.map(account => (
                     <option key={`edit-${account.id}`} value={account.id}>
-                      {account.account_name} ({account.subgroups?.name || 'N/A'})
+                      {account?.parent_account?.subgroup_name || 'N/A'} ({account?.sub_of_subgroup?.name || 'N/A'})
                     </option>
                   ))}
                 </select>
