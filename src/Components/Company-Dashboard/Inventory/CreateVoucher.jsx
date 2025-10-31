@@ -1,8 +1,7 @@
 // 📄 File Name: CreateVoucher.js
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Form, Table, Modal, Row, Col, Spinner, InputGroup, FormControl, Dropdown } from "react-bootstrap";
-import { FaEye, FaEdit, FaTrash, FaSignature, FaCamera, FaTimes, FaSearch, FaChevronDown } from "react-icons/fa";
-import SignatureCanvas from "react-signature-canvas";
+import { FaEye, FaEdit, FaTrash, FaFileSignature, FaCamera, FaTimes, FaSearch, FaChevronDown } from "react-icons/fa";
 import AddProductModal from "./AddProductModal";
 import GetCompanyId from "../../../Api/GetCompanyId";
 import axiosInstance from "../../../Api/axiosInstance";
@@ -41,7 +40,7 @@ const initialFormData = {
   taxRate: 5,
   discount: 0,
   discountAccount: "",
-  companyName: "Your Company Name",
+  companyName: "",
   fromAccount: "",
   toAccount: "",
   accountType: "",
@@ -76,30 +75,24 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
   let toName = localVoucher.customerVendor || "";
 
   if (localVoucher.voucherType === "Expense") {
-    const fromAcc = accounts.find(acc => acc.account_name === localVoucher.fromAccount);
+    fromAccountId = localVoucher.fromAccount || "";
     const vendor = vendors.find(v => v.name_english === localVoucher.customerVendor);
-    fromAccountId = fromAcc?.id || "";
     vendorId = vendor?.id || "";
   } else if (localVoucher.voucherType === "Income") {
-    const fromAcc = accounts.find(acc => acc.account_name === localVoucher.fromAccount);
+    fromAccountId = localVoucher.fromAccount || "";
     const customer = customers.find(c => c.name_english === localVoucher.customerVendor);
-    fromAccountId = fromAcc?.id || "";
     customerId = customer?.id || "";
   } else if (localVoucher.voucherType === "Contra") {
-    const fromAcc = accounts.find(acc => acc.account_name === localVoucher.fromAccount);
-    const toAcc = accounts.find(acc => acc.account_name === localVoucher.toAccount);
-    fromAccountId = fromAcc?.id || "";
-    toAccountId = toAcc?.id || "";
+    fromAccountId = localVoucher.fromAccount || "";
+    toAccountId = localVoucher.toAccount || "";
     transferAmount = localVoucher.transferAmount || 0;
   } else if (localVoucher.voucherType === "Purchase") {
-    const fromAcc = accounts.find(acc => acc.account_name === localVoucher.fromAccount);
+    fromAccountId = localVoucher.fromAccount || "";
     const vendor = vendors.find(v => v.name_english === localVoucher.customerVendor);
-    fromAccountId = fromAcc?.id || "";
     vendorId = vendor?.id || "";
   } else if (localVoucher.voucherType === "Sales") {
-    const fromAcc = accounts.find(acc => acc.account_name === localVoucher.fromAccount);
+    fromAccountId = localVoucher.fromAccount || "";
     const customer = customers.find(c => c.name_english === localVoucher.customerVendor);
-    fromAccountId = fromAcc?.id || "";
     customerId = customer?.id || "";
   }
 
@@ -114,16 +107,17 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
   if (fromAddress) formData.append('from_address', fromAddress);
   if (toName) formData.append('to_name', toName);
 
-  const isDataURL = (str) => str && typeof str === 'string' && str.startsWith('data:image');
+  const isDataURL = (str) => str && typeof str === 'string' && str.startsWith('data:');
+
   function dataURLtoBlob(dataurl) {
     try {
-      if (!dataurl || !dataurl.startsWith('data:image')) {
-        throw new Error('Not a valid data URL');
+      if (!dataurl || !dataurl.startsWith('data:')) {
+        console.error('Not a valid data URL:', dataurl);
+        return null;
       }
       const arr = dataurl.split(',');
       const mimeMatch = arr[0].match(/:(.*?);/);
-      if (!mimeMatch) throw new Error('Invalid MIME type');
-      const mime = mimeMatch[1];
+      const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
       const bstr = atob(arr[1]);
       const u8arr = new Uint8Array(bstr.length);
       for (let i = 0; i < bstr.length; i++) {
@@ -131,34 +125,57 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
       }
       return new Blob([u8arr], { type: mime });
     } catch (e) {
+      console.error("Error converting data URL to Blob:", e);
       return null;
     }
   }
 
+  // Logo
   if (localVoucher.logo && isDataURL(localVoucher.logo)) {
     const logoBlob = dataURLtoBlob(localVoucher.logo);
-    formData.append('logo', logoBlob, 'logo.png');
-  }
-  if (localVoucher.signature && isDataURL(localVoucher.signature)) {
-    const sigBlob = dataURLtoBlob(localVoucher.signature);
-    formData.append('signature', sigBlob, 'signature.png');
-  }
-  if (localVoucher.photo && isDataURL(localVoucher.photo)) {
-    const photoBlob = dataURLtoBlob(localVoucher.photo);
-    formData.append('photos', photoBlob, 'photo.png');
+    if (logoBlob) formData.append('logo', logoBlob, 'logo.png');
   }
 
+  // Signature
+  if (localVoucher.signature && isDataURL(localVoucher.signature)) {
+    const sigBlob = dataURLtoBlob(localVoucher.signature);
+    if (sigBlob) formData.append('signature', sigBlob, 'signature.png');
+  }
+
+  // Single photo (legacy)
+  if (localVoucher.photo && isDataURL(localVoucher.photo)) {
+    const photoBlob = dataURLtoBlob(localVoucher.photo);
+    if (photoBlob) formData.append('photos', photoBlob, 'photo.png');
+  }
+
+  // ✅ Handle attachments: photos (images) → 'photos', others → 'references'
   localVoucher.attachments.forEach((attachment) => {
-    if (attachment.data && isDataURL(attachment.data)) {
-      const blob = dataURLtoBlob(attachment.data);
-      if (attachment.type.startsWith("image/")) {
-        formData.append('photos', blob, attachment.name);
-      } else {
-        formData.append('references', blob, attachment.name);
-      }
+    if (!attachment.data || !isDataURL(attachment.data)) {
+      // Skip server URLs or invalid data
+      return;
+    }
+
+    const blob = dataURLtoBlob(attachment.data);
+    if (!blob) {
+      console.error("Failed to create blob for attachment:", attachment.name);
+      return;
+    }
+
+    // ✅ Robust image detection by file extension
+    const fileName = attachment.name.toLowerCase();
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'];
+    const isImage = imageExtensions.some(ext => fileName.endsWith(ext));
+
+    if (isImage) {
+      console.log(`Appending image: ${attachment.name} to 'photos'`);
+      formData.append('photos', blob, attachment.name);
+    } else {
+      console.log(`Appending reference: ${attachment.name} to 'references'`);
+      formData.append('references', blob, attachment.name); // ✅ FIXED: non-images go here
     }
   });
 
+  // Items
   const itemsArray = localVoucher.items.map(item => ({
     item_name: item.description,
     description: item.description,
@@ -171,8 +188,8 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
     amount: item.amount || 0,
     uom: item.uom || "PCS",
   }));
-
   formData.append('items', JSON.stringify(itemsArray));
+
   return formData;
 };
 
@@ -199,7 +216,7 @@ const mapApiVoucherToLocal = (apiVoucher) => {
   const attachments = (apiVoucher.voucher_attachments || []).map(att => ({
     name: att.file_name || "attachment",
     type: att.file_type || "application/octet-stream",
-    data: att.file_url?.trim() || "",
+    data: att.file_url?.trim() || "", // This is a URL, not a Data URL → will be skipped on re-upload
   }));
 
   const photo = attachments.length > 0 ? attachments[0].data : null;
@@ -217,7 +234,7 @@ const mapApiVoucherToLocal = (apiVoucher) => {
     signature: apiVoucher.signature_url?.trim() || null,
     photo: photo,
     attachments: attachments,
-    companyName: "Your Company Name",
+    companyName: "",
     total: items.reduce((sum, i) => sum + i.amount, 0),
     status: apiVoucher.status || "Pending",
     partyName: apiVoucher.from_name || "",
@@ -225,8 +242,8 @@ const mapApiVoucherToLocal = (apiVoucher) => {
     partyPhone: apiVoucher.from_phone || "",
     partyAddress: apiVoucher.from_address || "",
     customerVendor: customerVendorName,
-    fromAccount: apiVoucher.from_account_name || "",
-    toAccount: apiVoucher.to_account_name || "",
+    fromAccount: apiVoucher.from_account ? String(apiVoucher.from_account) : "",
+    toAccount: apiVoucher.to_account ? String(apiVoucher.to_account) : "",
     items,
     transferAmount: apiVoucher.transfer_amount ? parseFloat(apiVoucher.transfer_amount) : 0,
     from_account_id: apiVoucher.from_account,
@@ -240,10 +257,10 @@ const mapApiVoucherToLocal = (apiVoucher) => {
 const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
   const [voucherType, setVoucherType] = useState(editData?.voucherType || "Expense");
   const [formData, setFormData] = useState(editData || initialFormData);
-  const [showSignatureModal, setShowSignatureModal] = useState(false);
-  const sigCanvas = useRef(null);
+  const [isSaving, setIsSaving] = useState(false); // ✅ ADDED: Loading state for save operation
   const fileInputRef = useRef(null);
   const logoInputRef = useRef(null);
+  const signatureInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
   const pdfRef = useRef();
   const [printLanguage, setPrintLanguage] = useState("both");
@@ -265,8 +282,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
   const [newItem, setNewItem] = useState({
     name: '', category: '', hsn: '', tax: 0, sellingPrice: 0, uom: 'PCS'
   });
-
-  // ✅ NEW: Product search states
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [productSearchTerm, setProductSearchTerm] = useState("");
@@ -277,24 +292,23 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     if (!companyId) return;
     try {
       setLoadingVendors(true);
-      const vendorRes = await axiosInstance.get(`/vendors/company/${companyId}`);
+      const vendorRes = await axiosInstance.get(`vendorCustomer/company/${companyId}?type=vender`);
       setVendors(vendorRes.data.data || []);
       setLoadingCustomers(true);
-      const customerRes = await axiosInstance.get(`/customers/company/${companyId}`);
+      const customerRes = await axiosInstance.get(`vendorCustomer/company/${companyId}?type=customer`);
       setCustomers(customerRes.data.data || []);
       setLoadingAccounts(true);
       const accountRes = await axiosInstance.get(`/account/company/${companyId}`);
       setAccounts(accountRes.data.data || []);
     } catch (err) {
       console.error("Error fetching dropdown data:", err);
-        } finally {
+    } finally {
       setLoadingVendors(false);
       setLoadingCustomers(false);
       setLoadingAccounts(false);
     }
   };
 
-  // ✅ Fetch products (with optional search)
   const fetchProducts = async (searchTerm = "") => {
     if (!companyId) return;
     try {
@@ -308,30 +322,19 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
         setProducts([]);
       }
     } catch (err) {
+      console.error("Error fetching products:", err);
       setProducts([]);
     } finally {
       setLoadingProducts(false);
     }
   };
 
-  // Debounced search handler
   useEffect(() => {
-    if (productSearchTerm.trim() === "") {
-      // If empty, still show all products on focus/click
-      if (showProductDropdown && selectedProductIndex !== null) {
-        fetchProducts("");
-      }
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      fetchProducts(productSearchTerm);
-    }, 300);
-
+    if (productSearchTerm.trim() === "") return;
+    const timer = setTimeout(() => fetchProducts(productSearchTerm), 300);
     return () => clearTimeout(timer);
-  }, [productSearchTerm, showProductDropdown, selectedProductIndex, companyId]);
+  }, [productSearchTerm, companyId]);
 
-  // Handle product selection
   const handleProductSelect = (product, index) => {
     const newItems = [...formData.items];
     newItems[index] = {
@@ -454,6 +457,9 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
       total: totals.total,
       status: "Pending"
     };
+    
+    // ✅ UPDATED: Show loading state during save operation
+    setIsSaving(true);
     onSave(finalData, vendors, customers, accounts)
       .then(() => {
         setFormData(initialFormData);
@@ -462,19 +468,10 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
       })
       .catch((error) => {
         console.error("Save failed in modal:", error);
+      })
+      .finally(() => {
+        setIsSaving(false); // ✅ UPDATED: Hide loading state after operation completes
       });
-  };
-
-  const handleSaveSignature = () => {
-    if (sigCanvas.current) {
-      const signatureData = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
-      setFormData({ ...formData, signature: signatureData });
-      setShowSignatureModal(false);
-    }
-  };
-
-  const handleClearSignature = () => {
-    if (sigCanvas.current) sigCanvas.current.clear();
   };
 
   const handlePhotoUpload = (e, field) => {
@@ -545,7 +542,11 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
           {loadingAccounts ? <Spinner size="sm" /> : (
             <Form.Select name="fromAccount" value={formData.fromAccount} onChange={handleChange}>
               <option value="">Select Account</option>
-              {accounts.map(acc => <option key={acc.id} value={acc.account_name}>{acc.account_name}</option>)}
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.bank_name_branch} - {acc.account_number} (Balance: ₹{acc.accountBalance})
+                </option>
+              ))}
             </Form.Select>
           )}
         </>
@@ -568,7 +569,11 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
           {loadingAccounts ? <Spinner size="sm" /> : (
             <Form.Select name="toAccount" value={formData.toAccount} onChange={handleChange}>
               <option value="">Select To Account</option>
-              {accounts.map(acc => <option key={acc.id} value={acc.account_name}>{acc.account_name}</option>)}
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.bank_name_branch} - {acc.account_number} (Balance: ₹{acc.accountBalance})
+                </option>
+              ))}
             </Form.Select>
           )}
         </>
@@ -603,90 +608,29 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
 
   const printLabels = {
     en: {
-      salesInvoice: "SALES INVOICE",
-      receipt: "RECEIPT",
-      purchaseBill: "PURCHASE BILL",
-      payment: "PAYMENT",
-      expenseVoucher: "EXPENSE VOUCHER",
-      incomeVoucher: "INCOME VOUCHER",
-      contraVoucher: "CONTRA VOUCHER",
-      journalVoucher: "JOURNAL VOUCHER",
-      creditNote: "CREDIT NOTE",
-      debitNote: "DEBIT NOTE",
-      stockAdjustment: "STOCK/INVENTORY ADJUSTMENT",
-      openingBalance: "OPENING BALANCE",
-      from: "From",
-      to: "To",
-      voucherNo: "Voucher No",
-      receiptNo: "Receipt No",
-      date: "Date",
-      product: "Product",
-      rate: "Rate",
-      qty: "Qty",
-      amount: "Amount",
-      subtotal: "Subtotal",
-      gst: "GST",
-      tax: "Tax",
-      total: "Total",
-      notes: "Notes",
-      signature: "Signature",
-      photo: "Photo",
-      attachments: "Attachments",
-      transferAmount: "Transfer Amount",
-      receivedFrom: "Received From (Customer)",
-      purchasedFrom: "Purchased From (Vendor)",
-      paidTo: "Paid To (Vendor)",
-      soldTo: "Sold To (Customer)",
-      fromAccount: "From Account",
-      toAccount: "To Account",
-      companyName: "Company Name",
-      paidFrom: "Paid From",
-      paidTo: "Paid To",
-      receivedFrom: "Received From",
-      receivedInto: "Received Into"
+      salesInvoice: "SALES INVOICE", receipt: "RECEIPT", purchaseBill: "PURCHASE BILL", payment: "PAYMENT",
+      expenseVoucher: "EXPENSE VOUCHER", incomeVoucher: "INCOME VOUCHER", contraVoucher: "CONTRA VOUCHER",
+      journalVoucher: "JOURNAL VOUCHER", creditNote: "CREDIT NOTE", debitNote: "DEBIT NOTE",
+      stockAdjustment: "STOCK/INVENTORY ADJUSTMENT", openingBalance: "OPENING BALANCE", from: "From", to: "To",
+      voucherNo: "Voucher No", receiptNo: "Receipt No", date: "Date", product: "Product", rate: "Rate",
+      qty: "Qty", amount: "Amount", subtotal: "Subtotal", gst: "GST", tax: "Tax", total: "Total",
+      notes: "Notes", signature: "Signature", photo: "Photo", attachments: "Attachments",
+      transferAmount: "Transfer Amount", receivedFrom: "Received From (Customer)",
+      purchasedFrom: "Purchased From (Vendor)", paidTo: "Paid To (Vendor)", soldTo: "Sold To (Customer)",
+      fromAccount: "From Account", toAccount: "To Account", companyName: "Company Name",
+      paidFrom: "Paid From", paidTo: "Paid To", receivedFrom: "Received From", receivedInto: "Received Into"
     },
     ar: {
-      salesInvoice: "فاتورة مبيعات",
-      receipt: "إيصال",
-      purchaseBill: "فاتورة شراء",
-      payment: "دفع",
-      expenseVoucher: "سند مصروفات",
-      incomeVoucher: "سند إيرادات",
-      contraVoucher: "سند مقاصة",
-      journalVoucher: "سند يومية",
-      creditNote: "إشعار دائن",
-      debitNote: "إشارة مدين",
-      stockAdjustment: "تسوية المخزون",
-      openingBalance: "رصيد افتتاحي",
-      from: "من",
-      to: "إلى",
-      voucherNo: "رقم السند",
-      receiptNo: "رقم الإيصال",
-      date: "التاريخ",
-      product: "المنتج",
-      rate: "السعر",
-      qty: "الكمية",
-      amount: "المبلغ",
-      subtotal: "المجموع الفرعي",
-      gst: "ضريبة القيمة المضافة",
-      tax: "ضريبة",
-      total: "المجموع",
-      notes: "ملاحظات",
-      signature: "التوقيع",
-      photo: "صورة",
-      attachments: "مرفقات",
-      transferAmount: "مبلغ التحويل",
-      receivedFrom: "مستلم من (العميل)",
-      purchasedFrom: "مشترى من (المورد)",
-      paidTo: "مدفوع ل (المورد)",
-      soldTo: "مباع ل (العميل)",
-      fromAccount: "من الحساب",
-      toAccount: "إلى الحساب",
-      companyName: "اسم الشركة",
-      paidFrom: "دفع من",
-      paidTo: "دفع إلى",
-      receivedFrom: "مستلم من",
-      receivedInto: "تم الاستلام في"
+      salesInvoice: "فاتورة مبيعات", receipt: "إيصال", purchaseBill: "فاتورة شراء", payment: "دفع",
+      expenseVoucher: "سند مصروفات", incomeVoucher: "سند إيرادات", contraVoucher: "سند مقاصة",
+      journalVoucher: "سند يومية", creditNote: "إشعار دائن", debitNote: "إشارة مدين",
+      stockAdjustment: "تسوية المخزون", openingBalance: "رصيد افتتاحي", from: "من", to: "إلى",
+      voucherNo: "رقم السند", receiptNo: "رقم الإيصال", date: "التاريخ", product: "المنتج", rate: "السعر",
+      qty: "الكمية", amount: "المبلغ", subtotal: "المجموع الفرعي", gst: "ضريبة القيمة المضافة", tax: "ضريبة",
+      total: "المجموع", notes: "ملاحظات", signature: "التوقيع", photo: "صورة", attachments: "مرفقات",
+      transferAmount: "مبلغ التحويل", receivedFrom: "مستلم من (العميل)", purchasedFrom: "مشترى من (المورد)",
+      paidTo: "مدفوع ل (المورد)", soldTo: "مباع ل (العميل)", fromAccount: "من الحساب", toAccount: "إلى الحساب",
+      companyName: "اسم الشركة", paidFrom: "دفع من", paidTo: "دفع إلى", receivedFrom: "مستلم من", receivedInto: "تم الاستلام في"
     }
   };
 
@@ -788,7 +732,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     setShowAddCategoryModal(false);
   };
 
-  // ✅ Render product search field with immediate dropdown on click
   const renderProductSearchField = (index) => {
     return (
       <div className="position-relative">
@@ -805,7 +748,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
               setSelectedProductIndex(index);
               setShowProductDropdown(true);
               if (products.length === 0) {
-                fetchProducts(""); // Load all products on first click
+                fetchProducts("");
               }
             }}
             onFocus={() => {
@@ -820,12 +763,11 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
             <FaSearch />
           </InputGroup.Text>
         </InputGroup>
-
         {showProductDropdown && selectedProductIndex === index && (
           <div
             className="position-absolute w-100 mt-1 shadow-sm bg-white border rounded-1"
             style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}
-            onMouseDown={(e) => e.preventDefault()} // Prevent input blur on scroll/click
+            onMouseDown={(e) => e.preventDefault()}
           >
             {loadingProducts ? (
               <div className="p-3 text-center">
@@ -979,7 +921,6 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     "Equity": ["Capital", "Retained Earnings"],
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!event.target.closest('.position-relative')) {
@@ -1011,7 +952,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
               <Row className="mb-5">
                 <Col md={6}>
                   <h6 className="fw-bold">{getPrintFromLabel()}</h6>
-                  {voucherType === "Contra" ? <p><strong>{formData.fromAccount}</strong></p> : (
+                  {voucherType === "Contra" ? <p><strong>{accounts.find(a => a.id === parseInt(formData.fromAccount))?.bank_name_branch || formData.fromAccount}</strong></p> : (
                     <>
                       <p><strong>{formData.partyName}</strong></p>
                       {voucherType !== "Sales" && (
@@ -1026,7 +967,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 </Col>
                 <Col md={6}>
                   <h6 className="fw-bold">{getPrintToLabel()}</h6>
-                  {voucherType === "Contra" ? <p><strong>{formData.toAccount}</strong></p> : (
+                  {voucherType === "Contra" ? <p><strong>{accounts.find(a => a.id === parseInt(formData.toAccount))?.bank_name_branch || formData.toAccount}</strong></p> : (
                     <>
                       <p><strong>{formData.customerVendor}</strong></p>
                       <p>{formData.customerEmail}</p>
@@ -1178,18 +1119,21 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
               <Form.Control as="textarea" rows={3} placeholder="Notes" name="note" value={formData.note} onChange={handleChange} />
             </Form.Group>
 
+            {/* ✅ Signature Section */}
+            <h6 className="fw-bold mb-3 border-bottom pb-2">Signature</h6>
             <Form.Group className="mb-4">
-              <div className="d-flex align-items-center gap-3">
+              <div className="d-flex align-items-center gap-3 flex-wrap">
                 {formData.signature ? (
                   <>
-                    <div className="border p-2" style={{ width: "200px", height: "80px" }}>
+                    <div className="border p-2" style={{ width: "200px", height: "100px" }}>
                       <img src={formData.signature} alt="Signature" style={{ maxWidth: "100%", maxHeight: "100%" }} />
                     </div>
-                    <Button variant="outline-danger" size="sm" onClick={() => setFormData({ ...formData, signature: null })}><FaTimes /> Remove</Button>
+                    <Button variant="outline-danger" size="sm" onClick={() => handleRemovePhoto('signature')}><FaTimes /> Remove</Button>
                   </>
                 ) : (
-                  <Button style={{ backgroundColor: "#53b2a5", borderColor: "#53b2a5" }} size="sm" onClick={() => setShowSignatureModal(true)}><FaSignature /> Add Signature</Button>
+                  <Button style={{ backgroundColor: "#53b2a5", borderColor: "#53b2a5" }} size="sm" onClick={() => signatureInputRef.current.click()}><FaFileSignature /> Upload Signature</Button>
                 )}
+                <input type="file" ref={signatureInputRef} onChange={e => handlePhotoUpload(e, 'signature')} accept="image/png, image/jpeg" style={{ display: "none" }} />
               </div>
             </Form.Group>
 
@@ -1230,7 +1174,14 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
                 ) : (
                   <Button style={{ backgroundColor: "#53b2a5", borderColor: "#53b2a5" }} size="sm" onClick={() => attachmentInputRef.current.click()}>📎 Add File</Button>
                 )}
-                <input type="file" ref={attachmentInputRef} onChange={handleAttachmentUpload} accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple style={{ display: "none" }} />
+                <input
+                  type="file"
+                  ref={attachmentInputRef}
+                  onChange={handleAttachmentUpload}
+                  accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  multiple
+                  style={{ display: "none" }}
+                />
               </div>
             </Form.Group>
 
@@ -1243,26 +1194,21 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
               <div className="d-flex gap-2">
                 <Button variant="outline-secondary" className="rounded-pill" onClick={onHide}>Cancel</Button>
                 <Button variant="outline-info" onClick={handlePrint}>🖨️ Print</Button>
-                <Button style={{ backgroundColor: "#53b2a5", border: "none", borderRadius: "50px", fontWeight: 600 }} onClick={handleSubmit}>
-                  {editData ? "Update Voucher" : "Save Voucher"}
+                <Button 
+                  style={{ backgroundColor: "#53b2a5", border: "none", borderRadius: "50px", fontWeight: 600 }} 
+                  onClick={handleSubmit}
+                  disabled={isSaving} // ✅ UPDATED: Disable button when saving
+                >
+                  {isSaving ? ( // ✅ UPDATED: Show spinner when saving
+                    <>
+                      <Spinner as="span" animation="border" size="sm" /> Saving...
+                    </>
+                  ) : editData ? "Update Voucher" : "Save Voucher"}
                 </Button>
               </div>
             </div>
           </Form>
         </Modal.Body>
-
-        <Modal show={showSignatureModal} onHide={() => setShowSignatureModal(false)} centered>
-          <Modal.Header closeButton><Modal.Title>Add Signature</Modal.Title></Modal.Header>
-          <Modal.Body>
-            <div className="border" style={{ width: "100%", height: "200px" }}>
-              <SignatureCanvas ref={sigCanvas} penColor="black" canvasProps={{ width: "100%", height: "200px" }} />
-            </div>
-            <div className="d-flex justify-content-between mt-3">
-              <Button variant="secondary" onClick={handleClearSignature}>Clear</Button>
-              <Button style={{ backgroundColor: "#53b2a5", borderColor: "#53b2a5" }} onClick={handleSaveSignature}>Save Signature</Button>
-            </div>
-          </Modal.Body>
-        </Modal>
       </Modal>
 
       <AddProductModal
@@ -1379,6 +1325,7 @@ const CreateVoucher = () => {
         setVouchers([]);
       }
     } catch (error) {
+      console.error("Error fetching vouchers:", error);
       setVouchers([]);
     } finally {
       setLoading(false);
@@ -1394,7 +1341,7 @@ const CreateVoucher = () => {
       if (editVoucher !== null) {
         const voucherId = vouchers[editVoucher].id;
         const payload = mapLocalToApiPayload(voucher, companyId, vendors, customers, accounts);
-        await axiosInstance.put(`/voucher/${voucherId}`, payload, {
+        await axiosInstance.patch(`voucher/${voucherId}`, payload, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         setVouchers(prev => {
@@ -1418,6 +1365,7 @@ const CreateVoucher = () => {
       setShowModal(false);
       setEditVoucher(null);
     } catch (error) {
+      console.error("Error saving voucher:", error);
       alert("Failed to save voucher. Please try again.");
     }
   };
@@ -1430,6 +1378,7 @@ const CreateVoucher = () => {
       setVouchers(vouchers.filter((_, i) => i !== idx));
       alert("Voucher deleted successfully!");
     } catch (error) {
+      console.error("Error deleting voucher:", error);
       alert("Failed to delete voucher.");
     }
   };
@@ -1512,7 +1461,7 @@ const CreateVoucher = () => {
         voucher={viewVoucher}
       />
     </div>
-  );
+  ); 
 };
 
 export default CreateVoucher;

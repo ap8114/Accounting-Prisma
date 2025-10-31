@@ -202,11 +202,11 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
             label: "Product & Inventory",
           },
           { to: "/company/service", icon: "fas fa-boxes", label: "Service" },
-          {
-            to: "/company/createvoucher",
-            icon: "fas fa-file-invoice",
-            label: "Create Voucher",
-          },
+          // {
+          //   to: "/company/createvoucher",
+          //   icon: "fas fa-file-invoice",
+          //   label: "Create Voucher",
+          // },
           {
             to: "/company/stocktranfer",
             icon: "fas fa-exchange-alt",
