@@ -1,84 +1,148 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Form, Button, Container, Row, Col, Dropdown, Spinner, Alert } from 'react-bootstrap';
+import {
+  Form,
+  Button,
+  Container,
+  Row,
+  Col,
+  Dropdown,
+  Spinner,
+  Alert,
+  Table,
+  Modal,
+} from 'react-bootstrap';
 import axiosInstance from '../../../Api/axiosInstance';
 import GetCompanyId from '../../../Api/GetCompanyId';
 
 const ContraVoucher = () => {
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentVoucherId, setCurrentVoucherId] = useState(null);
+
+  // Form state
   const [autoVoucherNo, setAutoVoucherNo] = useState('');
   const [manualVoucherNo, setManualVoucherNo] = useState('');
-  const [voucherDate, setVoucherDate] = useState('2025-08-23');
-  const [accountFrom, setAccountFrom] = useState('');
-  const [accountTo, setAccountTo] = useState('');
+  const [voucherDate, setVoucherDate] = useState(new Date().toISOString().split('T')[0]);
+  const [accountFromId, setAccountFromId] = useState('');
+  const [accountToId, setAccountToId] = useState('');
+  const [accountFromDisplay, setAccountFromDisplay] = useState('');
+  const [accountToDisplay, setAccountToDisplay] = useState('');
   const [amount, setAmount] = useState('');
   const [narration, setNarration] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [currentDocumentUrl, setCurrentDocumentUrl] = useState(''); // For edit preview
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [accounts, setAccounts] = useState([]); // Store fetched accounts
+  const [accounts, setAccounts] = useState([]);
   const [fetchError, setFetchError] = useState('');
 
-  const companyId = GetCompanyId();
+  // Table data
+  const [contraVouchers, setContraVouchers] = useState([]);
+  const [tableLoading, setTableLoading] = useState(true);
 
+  const companyId = GetCompanyId();
   const accountFromRef = useRef(null);
   const accountToRef = useRef(null);
 
-  // Generate auto voucher number
-  useEffect(() => {
+  // Helpers
+  const generateAutoVoucherNo = () => {
     const timestamp = Date.now();
     const randomNum = Math.floor(Math.random() * 1000);
-    setAutoVoucherNo(`CON-${timestamp}-${randomNum}`);
-  }, []);
-
-  useEffect(() => {
-  if (!companyId) {
-    setFetchError('Company ID not found.');
-    return;
-  }
-
-  const fetchAccounts = async () => {
-    try {
-      const response = await axiosInstance.get(`account/getAccountByCompany/${companyId}`);
-      
-      // 👇 Handle different possible response structures
-      let accountsArray = [];
-
-      if (Array.isArray(response.data)) {
-        // Case 1: Direct array → [{}, {}]
-        accountsArray = response.data;
-      } else if (response.data && Array.isArray(response.data.data)) {
-        // Case 2: { data: [{}, {}] }
-        accountsArray = response.data.data;
-      } else if (response.data && typeof response.data === 'object') {
-        // Case 3: Try to find first array property (fallback)
-        const firstArray = Object.values(response.data).find(val => Array.isArray(val));
-        if (firstArray) accountsArray = firstArray;
-      }
-
-      // Extract account names
-      const accountList = accountsArray
-        .map(item => item.account_name || item.name || '')
-        .filter(name => typeof name === 'string' && name.trim() !== '');
-
-      setAccounts(accountList);
-
-      // Set defaults only if not already selected
-      if (!accountFrom && accountList.length > 0) setAccountFrom(accountList[0]);
-      if (!accountTo && accountList.length > 1) setAccountTo(accountList[1]);
-
-      if (accountList.length === 0) {
-        setFetchError('No accounts found for this company.');
-      }
-    } catch (err) {
-      console.error('API Error:', err);
-      const msg = err.response?.data?.message || 'Failed to load accounts. Please try again.';
-      setFetchError(msg);
-    }
+    return `CON-${timestamp}-${randomNum}`;
   };
 
-  fetchAccounts();
-}, [companyId]);
+  const formatAccountName = (acc) => {
+    const parent = acc.parent_account?.subgroup_name || 'Unknown';
+    const sub = acc.sub_of_subgroup?.name;
+    return sub ? `${parent} (${sub})` : parent;
+  };
 
-  // Close dropdowns on outside click
+  const getAccountDisplayName = (accountId) => {
+    if (!accountId || !accounts.length) return '—';
+    const acc = accounts.find(a => a.id == accountId);
+    return acc ? formatAccountName(acc) : 'Unknown Account';
+  };
+
+  // Get full document URL
+  const getDocumentUrl = (path) => {
+    if (!path) return '';
+    // If already full URL (e.g., starts with http), return as-is
+    if (path.startsWith('http')) return path;
+    // Otherwise, prepend base URL
+    const baseUrl = axiosInstance.defaults.baseURL || '';
+    return baseUrl + (path.startsWith('/') ? path : `/${path}`);
+  };
+
+  // Fetch accounts
+  useEffect(() => {
+    if (!companyId) {
+      setFetchError('Company ID not found.');
+      return;
+    }
+
+    const fetchAccounts = async () => {
+      try {
+        const response = await axiosInstance.get(`account/company/${companyId}`);
+        let accountsArray = [];
+
+        if (Array.isArray(response.data)) {
+          accountsArray = response.data;
+        } else if (response.data && Array.isArray(response.data.data)) {
+          accountsArray = response.data.data;
+        } else if (response.data && typeof response.data === 'object') {
+          const firstArray = Object.values(response.data).find(val => Array.isArray(val));
+          if (firstArray) accountsArray = firstArray;
+        }
+
+        setAccounts(accountsArray);
+
+        if (accountsArray.length > 0) {
+          const first = accountsArray[0];
+          const second = accountsArray.length > 1 ? accountsArray[1] : first;
+          setAccountFromId(first.id);
+          setAccountFromDisplay(formatAccountName(first));
+          setAccountToId(second.id);
+          setAccountToDisplay(formatAccountName(second));
+        }
+      } catch (err) {
+        console.error('Accounts API Error:', err);
+        setFetchError(err.response?.data?.message || 'Failed to load accounts.');
+      }
+    };
+
+    fetchAccounts();
+  }, [companyId]);
+
+  // Fetch vouchers
+  useEffect(() => {
+    if (!companyId) return;
+
+    const fetchContraVouchers = async () => {
+      setTableLoading(true);
+      try {
+        const response = await axiosInstance.get(`contravouchers/company/${companyId}`);
+        let data = [];
+        if (Array.isArray(response.data)) {
+          data = response.data;
+        } else if (response.data && Array.isArray(response.data.data)) {
+          data = response.data.data;
+        } else if (response.data && Array.isArray(response.data.contra_vouchers)) {
+          data = response.data.contra_vouchers;
+        }
+        setContraVouchers(data);
+      } catch (err) {
+        console.error('Failed to fetch contra vouchers:', err);
+      } finally {
+        setTableLoading(false);
+      }
+    };
+
+    fetchContraVouchers();
+  }, [companyId]);
+
+  // Close dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (accountFromRef.current && !accountFromRef.current.contains(event.target)) {
@@ -90,9 +154,7 @@ const ContraVoucher = () => {
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const toggleDropdown = (dropdownId) => {
@@ -102,9 +164,67 @@ const ContraVoucher = () => {
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setUploadedFile(file);
+    if (file) setUploadedFile(file);
+  };
+
+  const handleAddClick = () => {
+    setIsEditing(false);
+    setCurrentVoucherId(null);
+    setCurrentDocumentUrl('');
+    resetForm();
+    setAutoVoucherNo(generateAutoVoucherNo());
+    setShowModal(true);
+  };
+
+  const resetForm = () => {
+    setManualVoucherNo('');
+    setVoucherDate(new Date().toISOString().split('T')[0]);
+    setAmount('');
+    setNarration('');
+    setUploadedFile(null);
+    if (accounts.length > 0) {
+      const first = accounts[0];
+      const second = accounts.length > 1 ? accounts[1] : first;
+      setAccountFromId(first.id);
+      setAccountFromDisplay(formatAccountName(first));
+      setAccountToId(second.id);
+      setAccountToDisplay(formatAccountName(second));
     }
+  };
+
+  const handleEdit = (voucher) => {
+    setIsEditing(true);
+    setCurrentVoucherId(voucher.id);
+    setManualVoucherNo(voucher.voucher_no_manual || '');
+    const dateStr = voucher.voucher_date
+      ? voucher.voucher_date.split('T')[0]
+      : new Date().toISOString().split('T')[0];
+    setVoucherDate(dateStr);
+    setAmount(voucher.amount || '');
+    setNarration(voucher.narration || '');
+    setUploadedFile(null);
+    setCurrentDocumentUrl(voucher.document ? getDocumentUrl(voucher.document) : '');
+
+    const fromAcc = accounts.find(acc => acc.id == voucher.account_from_id);
+    const toAcc = accounts.find(acc => acc.id == voucher.account_to_id);
+
+    if (fromAcc) {
+      setAccountFromId(fromAcc.id);
+      setAccountFromDisplay(formatAccountName(fromAcc));
+    } else {
+      setAccountFromId(voucher.account_from_id || '');
+      setAccountFromDisplay('Unknown Account');
+    }
+
+    if (toAcc) {
+      setAccountToId(toAcc.id);
+      setAccountToDisplay(formatAccountName(toAcc));
+    } else {
+      setAccountToId(voucher.account_to_id || '');
+      setAccountToDisplay('Unknown Account');
+    }
+
+    setShowModal(true);
   };
 
   const handleSubmit = async (e) => {
@@ -118,25 +238,27 @@ const ContraVoucher = () => {
       return;
     }
 
-    if (accountFrom === accountTo) {
+    if (accountFromId === accountToId) {
       setError('Account From and Account To cannot be the same.');
       setLoading(false);
       return;
     }
 
-    if (!accountFrom || !accountTo) {
+    if (!accountFromId || !accountToId) {
       setError('Please select both accounts.');
       setLoading(false);
       return;
     }
 
     const formData = new FormData();
-    formData.append('voucher_no', manualVoucherNo || autoVoucherNo);
+    if (manualVoucherNo.trim()) {
+      formData.append('voucher_no_manual', manualVoucherNo.trim());
+    }
     formData.append('voucher_date', voucherDate);
-    formData.append('account_from', accountFrom);
-    formData.append('account_to', accountTo);
+    formData.append('account_from_id', accountFromId);
+    formData.append('account_to_id', accountToId);
     formData.append('amount', amount);
-    formData.append('narration', narration);
+    formData.append('narration', narration || '');
     formData.append('company_id', companyId);
 
     if (uploadedFile) {
@@ -144,202 +266,343 @@ const ContraVoucher = () => {
     }
 
     try {
-      await axiosInstance.post('contraVouchers', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      let response;
+      if (isEditing && currentVoucherId) {
+        response = await axiosInstance.put(`contravouchers/${currentVoucherId}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
 
-      alert('Contra Voucher created successfully!');
-      // Optional: Reset form
+        setContraVouchers((prev) =>
+          prev.map((v) =>
+            v.id === currentVoucherId
+              ? {
+                  ...v,
+                  voucher_no_manual: manualVoucherNo.trim() || v.voucher_no_manual,
+                  voucher_date: voucherDate,
+                  account_from_id: accountFromId,
+                  account_to_id: accountToId,
+                  amount,
+                  narration: narration || '',
+                  document: response.data?.document || v.document, // Preserve if not updated
+                }
+              : v
+          )
+        );
+        alert('Voucher updated successfully!');
+      } else {
+        response = await axiosInstance.post('contravouchers', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        const newVoucher = {
+          id: response.data?.id || Date.now(),
+          voucher_no: manualVoucherNo.trim() || response.data?.voucher_no || autoVoucherNo,
+          voucher_no_manual: manualVoucherNo.trim() || null,
+          voucher_date: voucherDate,
+          account_from_id: accountFromId,
+          account_to_id: accountToId,
+          amount,
+          narration: narration || '',
+          document: response.data?.document,
+        };
+        setContraVouchers((prev) => [newVoucher, ...prev]);
+        alert('Contra Voucher created successfully!');
+      }
+
+      setShowModal(false);
     } catch (err) {
       console.error('API Error:', err);
-      const msg = err.response?.data?.message || 'Failed to create contra voucher. Please try again.';
-      setError(msg);
+      setError(
+        err.response?.data?.message ||
+        (isEditing ? 'Failed to update voucher.' : 'Failed to create voucher.')
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm(`Are you sure you want to delete this voucher?`)) return;
+
+    try {
+      await axiosInstance.delete(`contravouchers/${id}`);
+      setContraVouchers((prev) => prev.filter((v) => v.id !== id));
+      alert('Voucher deleted successfully!');
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert(err.response?.data?.message || 'Failed to delete voucher.');
+    }
+  };
+
   return (
-    <div className='p-3'>
-      <Container className='card p-4'>
-        <h2 className="mb-4 text-center mt-2" style={{ color: '#2c3e50' }}>Contra Voucher</h2>
+    <div className="p-3">
+      <div>
+       <div className="d-flex justify-content-between align-items-center mb-4">
+  <h2 className="text-start m-0">Contra Voucher</h2>
+  <Button variant="success" size="sm" onClick={handleAddClick}>
+    + Add Contra Voucher
+  </Button>
+</div>
+
 
         {fetchError && <Alert variant="warning">{fetchError}</Alert>}
-        {error && <Alert variant="danger">{error}</Alert>}
 
-        <Form onSubmit={handleSubmit}>
-          <Row className="mb-3">
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>Voucher No (Auto)</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={autoVoucherNo}
-                  readOnly
-                  className="mb-2"
-                />
-                <Form.Label>Voucher No (Manual)</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={manualVoucherNo}
-                  onChange={(e) => setManualVoucherNo(e.target.value)}
-                  placeholder="Enter manual voucher no"
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>Voucher Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={voucherDate}
-                  onChange={(e) => setVoucherDate(e.target.value)}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group ref={accountFromRef}>
-                <Form.Label>Account From</Form.Label>
-                <div className="position-relative">
+        {/* Vouchers Table */}
+        <div className="card p-3">
+          <h5>Existing Contra Vouchers</h5>
+          {tableLoading ? (
+            <div className="text-center my-3">
+              <Spinner animation="border" size="sm" /> Loading...
+            </div>
+          ) : contraVouchers.length === 0 ? (
+            <Alert variant="info">No contra vouchers found.</Alert>
+          ) : (
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <Table striped bordered hover size="sm">
+                <thead>
+                  <tr>
+                    <th>Voucher No</th>
+                    <th>Date</th>
+                    <th>From Account</th>
+                    <th>To Account</th>
+                    <th>Amount</th>
+                    <th>Narration</th>
+                    <th>Document</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contraVouchers.map((voucher) => (
+                    <tr key={voucher.id}>
+                      <td>{voucher.voucher_no_auto || '—'}</td>
+                      <td>{voucher.voucher_date ? voucher.voucher_date.split('T')[0] : '—'}</td>
+                      <td>{getAccountDisplayName(voucher.account_from_id)}</td>
+                      <td>{getAccountDisplayName(voucher.account_to_id)}</td>
+                      <td>₹{parseFloat(voucher.amount).toFixed(2)}</td>
+                      <td>{voucher.narration || '—'}</td>
+                      <td>
+                        {voucher.document ? (
+                          <a
+                            href={getDocumentUrl(voucher.document)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-outline-info"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => handleEdit(voucher)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleDelete(voucher.id)}
+                        >
+                          Delete
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{isEditing ? 'Edit Contra Voucher' : 'Add Contra Voucher'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {error && <Alert variant="danger">{error}</Alert>}
+          <Form onSubmit={handleSubmit}>
+            <Row className="mb-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Voucher No (Manual)</Form.Label>
                   <Form.Control
                     type="text"
-                    value={accountFrom}
-                    onChange={(e) => setAccountFrom(e.target.value)}
-                    onClick={() => toggleDropdown('accountFromDropdown')}
-                    placeholder="Select account..."
-                    required
+                    value={manualVoucherNo}
+                    onChange={(e) => setManualVoucherNo(e.target.value)}
+                    placeholder="Optional"
                   />
-                  <div
-                    id="accountFromDropdown"
-                    className="dropdown-menu position-absolute w-100"
-                    style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}
-                  >
-                    {accounts.length > 0 ? (
-                      accounts.map((opt, idx) => (
-                        <Dropdown.Item
-                          key={idx}
-                          onClick={() => {
-                            setAccountFrom(opt);
-                            document.getElementById('accountFromDropdown')?.classList.remove('show');
-                          }}
-                        >
-                          {opt}
-                        </Dropdown.Item>
-                      ))
-                    ) : (
-                      <Dropdown.Item disabled>No accounts found</Dropdown.Item>
-                    )}
-                  </div>
-                </div>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group ref={accountToRef}>
-                <Form.Label>Account To</Form.Label>
-                <div className="position-relative">
+                </Form.Group>
+              </Col>
+               <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Voucher Date</Form.Label>
                   <Form.Control
-                    type="text"
-                    value={accountTo}
-                    onChange={(e) => setAccountTo(e.target.value)}
-                    onClick={() => toggleDropdown('accountToDropdown')}
-                    placeholder="Select account..."
+                    type="date"
+                    value={voucherDate}
+                    onChange={(e) => setVoucherDate(e.target.value)}
                     required
                   />
-                  <div
-                    id="accountToDropdown"
-                    className="dropdown-menu position-absolute w-100"
-                    style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}
-                  >
-                    {accounts.length > 0 ? (
-                      accounts.map((opt, idx) => (
-                        <Dropdown.Item
-                          key={idx}
-                          onClick={() => {
-                            setAccountTo(opt);
-                            document.getElementById('accountToDropdown')?.classList.remove('show');
-                          }}
-                        >
-                          {opt}
-                        </Dropdown.Item>
-                      ))
-                    ) : (
-                      <Dropdown.Item disabled>No accounts found</Dropdown.Item>
-                    )}
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row className="mb-3">
+              <Col md={6}>
+                <Form.Group ref={accountFromRef}>
+                  <Form.Label>Account From</Form.Label>
+                  <div className="position-relative">
+                    <Form.Control
+                      type="text"
+                      value={accountFromDisplay}
+                      readOnly
+                      onClick={() => toggleDropdown('accountFromDropdown')}
+                      placeholder="Select account..."
+                      required
+                    />
+                    <div
+                      id="accountFromDropdown"
+                      className="dropdown-menu position-absolute w-100"
+                      style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}
+                    >
+                      {accounts.length > 0 ? (
+                        accounts.map((acc) => (
+                          <Dropdown.Item
+                            key={acc.id}
+                            onClick={() => {
+                              setAccountFromId(acc.id);
+                              setAccountFromDisplay(formatAccountName(acc));
+                              document.getElementById('accountFromDropdown')?.classList.remove('show');
+                            }}
+                          >
+                            {formatAccountName(acc)}
+                          </Dropdown.Item>
+                        ))
+                      ) : (
+                        <Dropdown.Item disabled>No accounts found</Dropdown.Item>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Row className="mb-3">
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Amount</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  required
-                  min="0.01"
-                  step="0.01"
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Row className="mb-3">
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Upload Document</Form.Label>
-                <Form.Control type="file" onChange={handleFileUpload} />
-                {uploadedFile && (
-                  <div className="mt-2">
-                    <small>Selected file: {uploadedFile.name}</small>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group ref={accountToRef}>
+                  <Form.Label>Account To</Form.Label>
+                  <div className="position-relative">
+                    <Form.Control
+                      type="text"
+                      value={accountToDisplay}
+                      readOnly
+                      onClick={() => toggleDropdown('accountToDropdown')}
+                      placeholder="Select account..."
+                      required
+                    />
+                    <div
+                      id="accountToDropdown"
+                      className="dropdown-menu position-absolute w-100"
+                      style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}
+                    >
+                      {accounts.length > 0 ? (
+                        accounts.map((acc) => (
+                          <Dropdown.Item
+                            key={acc.id}
+                            onClick={() => {
+                              setAccountToId(acc.id);
+                              setAccountToDisplay(formatAccountName(acc));
+                              document.getElementById('accountToDropdown')?.classList.remove('show');
+                            }}
+                          >
+                            {formatAccountName(acc)}
+                          </Dropdown.Item>
+                        ))
+                      ) : (
+                        <Dropdown.Item disabled>No accounts found</Dropdown.Item>
+                      )}
+                    </div>
                   </div>
-                )}
-              </Form.Group>
-            </Col>
-          </Row>
+                </Form.Group>
+              </Col>
+            </Row>
 
-          <Row className="mb-3">
-            <Col md={12}>
-              <Form.Group>
-                <Form.Label>
-                  Narration <span style={{ fontSize: '12px', color: '#888' }}>(Optional)</span>
-                </Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={narration}
-                  onChange={(e) => setNarration(e.target.value)}
-                  placeholder="Enter details about the transaction..."
-                />
-              </Form.Group>
-            </Col>
-          </Row>
+            <Row className="mb-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Amount</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    required
+                    min="0.01"
+                    step="0.01"
+                  />
+                </Form.Group>
+              </Col>
+                <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Upload Document (Optional)</Form.Label>
+                  <Form.Control type="file" onChange={handleFileUpload} />
+                  {/* Show current document in edit mode */}
+                  {isEditing && currentDocumentUrl && !uploadedFile && (
+                    <div className="mt-2">
+                      <small className="text-muted">Current file: </small>
+                      <a
+                        href={currentDocumentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ms-1"
+                      >
+                        View Document
+                      </a>
+                    </div>
+                  )}
+                  {uploadedFile && <small className="text-muted d-block mt-1">New file: {uploadedFile.name}</small>}
+                </Form.Group>
+              </Col>
+            </Row>
 
-          <Row className="mb-4">
-            <Col className="text-center">
-              <Button
-                variant="primary"
-                type="submit"
-                disabled={loading || accounts.length === 0}
-                size="sm"
-              >
+            <Row className="mb-3">
+              <Col md={12}>
+                <Form.Group>
+                  <Form.Label>Narration (Optional)</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={narration}
+                    onChange={(e) => setNarration(e.target.value)}
+                    placeholder="Enter details..."
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <div className="d-flex justify-content-end gap-2">
+              <Button variant="secondary" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit" disabled={loading}>
                 {loading ? (
                   <>
-                    <Spinner as="span" animation="border" size="sm" className="me-2" />
-                    Saving...
+                    <Spinner as="span" animation="border" size="sm" className="me-1" />
+                    {isEditing ? 'Updating...' : 'Saving...'}
                   </>
+                ) : isEditing ? (
+                  'Update'
                 ) : (
                   'Save'
                 )}
               </Button>
-            </Col>
-          </Row>
-        </Form>
-      </Container>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
     </div>
   );
 };
