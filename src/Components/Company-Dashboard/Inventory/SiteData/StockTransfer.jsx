@@ -12,6 +12,7 @@ import {
 import axios from "axios";
 import BaseUrl from "../../../../Api/BaseUrl";
 import GetCompanyId from "../../../../Api/GetCompanyId";
+import axiosInstance from "../../../../Api/axiosInstance";
 
 function StockTransfer() {
   // All transfers list
@@ -57,7 +58,7 @@ function StockTransfer() {
     if (!companyId) return;
     setProductsLoading(true);
     try {
-      const response = await axios.get(`${BaseUrl}products/getProductsByCompanyId/${companyId}`);
+      const response = await axiosInstance.get(`${BaseUrl}products/company/${companyId}`);
       const isSuccess = response.data?.success || response.data?.status;
       const productsData = Array.isArray(response.data?.data) ? response.data.data : [];
 
@@ -95,7 +96,7 @@ function StockTransfer() {
     if (!companyId) return;
     setWarehousesLoading(true);
     try {
-      const response = await axios.get(`${BaseUrl}warehouses`);
+      const response = await axios.get(`${BaseUrl}warehouses/company/${companyId}`);
       const isSuccess = response.data?.success || response.data?.status;
       const warehousesData = Array.isArray(response.data?.data) ? response.data.data : [];
 
@@ -121,18 +122,40 @@ function StockTransfer() {
   };
 
   // ✅ Fetch stock transfers (FIXED: no 'items' in API response)
-  const fetchStockTransfers = async () => {
-    if (!companyId) return;
-    setDataLoading(true);
-    try {
-      const response = await axios.get(`${BaseUrl}stocktransfers/company/${companyId}`);
-      console.log("All stock transfers:", response.data);
+// ✅ Fetch stock transfers (FIXED: now properly handles 'transfer_items' in API response)
+const fetchStockTransfers = async () => {
+  if (!companyId) return;
+  setDataLoading(true);
+  try {
+    const response = await axios.get(`${BaseUrl}stocktransfers/company/${companyId}`);
+    console.log("All stock transfers:", response.data);
 
-      const isSuccess = response.data?.success || response.data?.status;
-      const transfersData = Array.isArray(response.data?.data) ? response.data.data : [];
+    const isSuccess = response.data?.success || response.data?.status;
+    const transfersData = Array.isArray(response.data?.data) ? response.data.data : [];
 
-      if (isSuccess && transfersData.length > 0) {
-        const transformed = transfersData.map(transfer => ({
+    if (isSuccess && transfersData.length > 0) {
+      const transformed = transfersData.map(transfer => {
+        // Process transfer items
+        const transferItems = Array.isArray(transfer.transfer_items) ? transfer.transfer_items : [];
+        const items = transferItems.map(item => ({
+          id: item.id,
+          productId: item.product_id,
+          itemName: item.products?.item_name || "",
+          sourceWarehouseId: item.source_warehouse_id,
+          sourceWarehouse: item.warehouses?.warehouse_name || `WH ID: ${item.source_warehouse_id}`,
+          quantity: item.qty || "0",
+          rate: item.rate || "0",
+          amount: (parseFloat(item.qty || 0) * parseFloat(item.rate || 0)).toFixed(2),
+          narration: item.narration || "",
+        }));
+
+        // Calculate total amount
+        const totalAmount = items.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+
+        // Get unique source warehouses
+        const sourceWarehouses = [...new Set(items.map(item => item.sourceWarehouse))];
+
+        return {
           id: transfer.id,
           voucherNo: transfer.voucher_no || "",
           manualVoucherNo: transfer.manual_voucher_no || "",
@@ -141,33 +164,34 @@ function StockTransfer() {
             : "",
           destinationWarehouseId: transfer.destination_warehouse_id || null,
           destinationWarehouse: "", // will resolve using warehouse list
-          sourceWarehouses: [], // not available in current API
-          items: [], // not available
+          sourceWarehouses: sourceWarehouses,
+          items: items,
           note: transfer.notes || "",
-          totalAmount: 0,
-        }));
+          totalAmount: totalAmount.toFixed(2),
+        };
+      });
 
-        // Resolve warehouse names
-        const transfersWithNames = transformed.map(t => {
-          const destWh = warehouses.find(w => w.id === t.destinationWarehouseId);
-          return {
-            ...t,
-            destinationWarehouse: destWh ? destWh.name : `WH ID: ${t.destinationWarehouseId}`,
-          };
-        });
+      // Resolve destination warehouse names
+      const transfersWithNames = transformed.map(t => {
+        const destWh = warehouses.find(w => w.id === t.destinationWarehouseId);
+        return {
+          ...t,
+          destinationWarehouse: destWh ? destWh.name : `WH ID: ${t.destinationWarehouseId}`,
+        };
+      });
 
-        setTransfers(transfersWithNames);
-      } else {
-        setTransfers([]);
-      }
-    } catch (err) {
-      console.error("Error fetching transfers:", err);
-      setError("Failed to load stock transfers");
+      setTransfers(transfersWithNames);
+    } else {
       setTransfers([]);
-    } finally {
-      setDataLoading(false);
     }
-  };
+  } catch (err) {
+    console.error("Error fetching transfers:", err);
+    setError("Failed to load stock transfers");
+    setTransfers([]);
+  } finally {
+    setDataLoading(false);
+  }
+};
 
   // Initial data load
   useEffect(() => {
