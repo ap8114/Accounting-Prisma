@@ -383,17 +383,7 @@ const Users = () => {
       const msg = err.response?.data?.message || 'Failed to reset password.';
       alert(msg);
     }
-  };
 
-  if (loading) {
-    return (
-      <div className="p-2 text-center">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-        <p>Loading users...</p>
-      </div>
-    );
   }
 
   if (error) {
