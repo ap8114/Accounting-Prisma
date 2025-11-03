@@ -140,7 +140,7 @@ const Pricing = () => {
     setSelectedPlan(plan);
     setBillingDuration("Yearly");
     setShowModal(true);
-  };
+  }; 
 
   const handleDurationChange = (e) => setBillingDuration(e.target.value);
   const handleInputChange = (e) =>
@@ -157,13 +157,13 @@ const Pricing = () => {
         company_id: formData.companyName, // This might need to be an actual company ID
         plan_id: selectedPlan.id,
         billing_cycle: billingDuration,
-        startdate: formData.startDate,
+        // startdate: formData.startDate,
         request_date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
         status: "Pending" // Default status
       };
       
       // Make API call to request plan
-      const response = await axiosInstance.post('/requestforplan', requestData);
+      const response = await axiosInstance.post('planreq', requestData);
       
       if (response.data.success) {
         alert("Plan request submitted successfully! We'll contact you shortly.");
