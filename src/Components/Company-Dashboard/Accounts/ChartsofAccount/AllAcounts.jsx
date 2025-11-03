@@ -246,7 +246,22 @@ const AllAccounts = () => {
   };
 
   const handleViewAccount = (type, name) => {
-    setSelectedAccount({ type, name });
+    // Find the actual row to get the ID and other details
+    const accountGroup = accountData.find((acc) => acc.type === type);
+    const row = accountGroup?.rows.find((r) => r.name === name);
+
+    setSelectedAccount({
+      type,
+      name,
+      id: row ? row.id : null,
+      balance: row ? parseFloat(row.bal) : 0,
+      has_bank_details: row ? row.has_bank_details : "No",
+      account_number: row ? row.account_number : "",
+      ifsc_code: row ? row.ifsc_code : "",
+      bank_name_branch: row ? row.bank_name_branch : "",
+      subgroup_id: row ? row.subgroup_id : "",
+      company_id: row ? row.company_id : "",
+    });
     setActionModal({ show: true, mode: 'view' });
   };
   
