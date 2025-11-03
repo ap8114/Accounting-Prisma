@@ -189,17 +189,11 @@ const AllAccounts = () => {
         hasBankDetails = "Yes";
       }
       
-      // Store both the account name and sub_of_subgroup name if available
-      let displayName = account.account_name || `Account ${account.id}`;
-      let subOfSubgroupName = null;
-      
-      if (account.sub_of_subgroup && account.sub_of_subgroup.name) {
-        subOfSubgroupName = account.sub_of_subgroup.name;
-      }
+      // Use sub_of_subgroup.name as the account name if available, otherwise use account_name or fallback
+      const accountName = account.sub_of_subgroup?.name || account.account_name || `Account ${account.id}`;
       
       groupedData[subgroupName].rows.push({
-        name: displayName,
-        originalName: displayName, // Store original name for reference
+        name: accountName,
         bal: account.accountBalance || "0.00", // Use accountBalance from API
         id: account.id,
         has_bank_details: hasBankDetails,
@@ -428,8 +422,9 @@ const AllAccounts = () => {
       // Close modal
       setActionModal({ show: false, mode: null });
       
-      // Refresh data from server to ensure consistency
-      setRefreshData(!refreshData);
+      // Trigger data refresh
+      setRefreshData(prev => !prev);
+      
     } catch (error) {
       console.error("Failed to update account:", error);
     } finally {
@@ -624,7 +619,7 @@ const AllAccounts = () => {
                           <tr key={`${accountGroup.type}-${index}`}>
                             <td className="text-start">{accountGroup.type}</td>
                             <td className="text-start">
-                              {row.sub_of_subgroup_name || row.name}
+                              {row?.name || ''}
                             </td>
                             <td>{parseFloat(row.bal).toFixed(2)}</td>
                             {/* Actions Column */}
