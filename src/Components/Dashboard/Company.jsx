@@ -28,7 +28,7 @@ const Company = () => {
   const companyId = GetCompanyId();
   const [showModal, setShowModal] = useState(false);
   const [companies, setCompanies] = useState([]);
-  const [plans, setPlans] = useState([]); // Initialize as empty array
+  const [plans, setPlans] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [refetching, setRefetching] = useState(false);
   const [apiError, setApiError] = useState(false);
