@@ -1,4 +1,4 @@
-// src/components/MultiStepSalesForm.jsx
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Tabs, Tab, Form, Button, Table, Row, Col, Modal, InputGroup, FormControl, Dropdown } from 'react-bootstrap';
 import html2pdf from 'html2pdf.js';
