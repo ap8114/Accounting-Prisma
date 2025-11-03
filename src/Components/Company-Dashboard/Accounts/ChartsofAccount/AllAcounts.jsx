@@ -189,25 +189,11 @@ const AllAccounts = () => {
         hasBankDetails = "Yes";
       }
       
-<<<<<<< HEAD
       // Use sub_of_subgroup.name as the account name if available, otherwise use account_name or fallback
       const accountName = account.sub_of_subgroup?.name || account.account_name || `Account ${account.id}`;
       
       groupedData[subgroupName].rows.push({
         name: accountName,
-=======
-      // Store both the account name and sub_of_subgroup name if available
-      let displayName = account.account_name || `Account ${account.id}`;
-      let subOfSubgroupName = null;
-      
-      if (account.sub_of_subgroup && account.sub_of_subgroup.name) {
-        subOfSubgroupName = account.sub_of_subgroup.name;
-      }
-      
-      groupedData[subgroupName].rows.push({
-        name: displayName,
-        originalName: displayName, // Store original name for reference
->>>>>>> 1d9d9ca5c679ddc2cfa5389828e4933c1976e2c1
         bal: account.accountBalance || "0.00", // Use accountBalance from API
         id: account.id,
         has_bank_details: hasBankDetails,
@@ -436,14 +422,9 @@ const AllAccounts = () => {
       // Close modal
       setActionModal({ show: false, mode: null });
       
-<<<<<<< HEAD
       // Trigger data refresh
       setRefreshData(prev => !prev);
       
-=======
-      // Refresh data from server to ensure consistency
-      setRefreshData(!refreshData);
->>>>>>> 1d9d9ca5c679ddc2cfa5389828e4933c1976e2c1
     } catch (error) {
       console.error("Failed to update account:", error);
     } finally {
@@ -638,11 +619,7 @@ const AllAccounts = () => {
                           <tr key={`${accountGroup.type}-${index}`}>
                             <td className="text-start">{accountGroup.type}</td>
                             <td className="text-start">
-<<<<<<< HEAD
                               {row?.name || ''}
-=======
-                              {row.sub_of_subgroup_name || row.name}
->>>>>>> 1d9d9ca5c679ddc2cfa5389828e4933c1976e2c1
                             </td>
                             <td>{parseFloat(row.bal).toFixed(2)}</td>
                             {/* Actions Column */}
