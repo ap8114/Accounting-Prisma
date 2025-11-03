@@ -7,33 +7,33 @@ import { Card, Modal, Button, Badge } from "react-bootstrap";
 
 const Daybook = () => {
   // Predefined account types and names
-// Replace the entire predefinedAccounts object
-const predefinedAccounts = [
-  "Cash-in-hand",
-  "Bank A/Cs",
-  "Sundry Debtors",
-  "Sundry Creditors",
-  "Purchases A/C",
-  "Purchases Return",
-  "Sales A/C",
-  "Sales Return",
-  "Capital A/C",
-  "Direct Expenses",
-  "Indirect Expenses",
-  "Current Assets",
-  "Current Liabilities",
-  "Misc. Expenses",
-  "Electricity",
-  "Office Supplies",
-  "Salaries",
-  "Rent",
-  "Depreciation",
-  "Equipment",
-  "Client Payment",
-  "Customer A",
-  "Interest Income",
-  "Bank B"
-];
+  // Replace the entire predefinedAccounts object
+  const predefinedAccounts = [
+    "Cash-in-hand",
+    "Bank A/Cs",
+    "Sundry Debtors",
+    "Sundry Creditors",
+    "Purchases A/C",
+    "Purchases Return",
+    "Sales A/C",
+    "Sales Return",
+    "Capital A/C",
+    "Direct Expenses",
+    "Indirect Expenses",
+    "Current Assets",
+    "Current Liabilities",
+    "Misc. Expenses",
+    "Electricity",
+    "Office Supplies",
+    "Salaries",
+    "Rent",
+    "Depreciation",
+    "Equipment",
+    "Client Payment",
+    "Customer A",
+    "Interest Income",
+    "Bank B"
+  ];
   // Updated entries with type + name structure
   const [entries, setEntries] = useState([
     {
@@ -139,20 +139,20 @@ const predefinedAccounts = [
   ]);
   const [deleteEntry, setDeleteEntry] = useState(null);
   const [viewEntry, setViewEntry] = useState(null);
-  
+
   // Filters
   const [voucherTypeFilter, setVoucherTypeFilter] = useState("");
   const [dateFromFilter, setDateFromFilter] = useState("");
   const [dateToFilter, setDateToFilter] = useState("");
   const [minAmountFilter, setMinAmountFilter] = useState("");
   const [maxAmountFilter, setMaxAmountFilter] = useState("");
-  
+
   // Calculate summary data
   const totalEntries = entries.length;
   const totalDebit = entries.reduce((sum, entry) => sum + entry.debitAmount, 0);
   const totalCredit = entries.reduce((sum, entry) => sum + entry.creditAmount, 0);
   const netBalance = totalDebit - totalCredit;
-  
+
   const filteredEntries = entries.filter((entry) => {
     const isVoucherTypeMatch =
       !voucherTypeFilter || entry.voucherType === voucherTypeFilter;
@@ -164,20 +164,20 @@ const predefinedAccounts = [
       (!maxAmountFilter || entry.debitAmount <= parseFloat(maxAmountFilter));
     return isVoucherTypeMatch && isDateInRange && isAmountInRange;
   });
-  
+
   // Delete Entry
   const handleDelete = (entry) => setDeleteEntry(entry);
   const confirmDelete = () => {
     setEntries(entries.filter((entry) => entry.id !== deleteEntry.id));
     setDeleteEntry(null);
   };
-  
+
   // View Entry Details
   const handleView = (entry) => setViewEntry(entry);
-  
+
   // Get badge color based on voucher type
   const getVoucherTypeBadgeColor = (type) => {
-    switch(type) {
+    switch (type) {
       case "Payment": return "bg-danger";
       case "Receipt": return "bg-success";
       case "Expense": return "bg-danger";
@@ -195,21 +195,21 @@ const predefinedAccounts = [
       default: return "bg-secondary";
     }
   };
-  
+
   return (
     <div className="container-fluid bg-light py-4 px-4">
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h5 className="fw-bold mb-1">DayBook</h5>
-          
+
         </div>
         <div className="d-flex gap-2">
           <button className="btn btn-light border text-danger"><FaFilePdf /></button>
           <button className="btn btn-light border text-success"><FaFileExcel /></button>
         </div>
       </div>
-      
+
       {/* Summary Cards */}
       <div className="row mb-4 g-4">
         <div className="col-md-3">
@@ -265,34 +265,34 @@ const predefinedAccounts = [
           </Card>
         </div>
       </div>
-      
-     
-      
+
+
+
       {/* Filter Section */}
       <div className="row mb-3" style={{ gap: "10px" }}>
         <div className="col-md-auto">
-        <select
-  className="form-select"
-  value={voucherTypeFilter}
-  onChange={(e) => setVoucherTypeFilter(e.target.value)}
-  style={{ minWidth: "160px" }}
->
-  <option value="">All Voucher Types</option>
-  <option value="Payment">Payment</option>
-  <option value="Receipt">Receipt</option>
-  <option value="Expense">Expense</option>
-  <option value="Income">Income</option>
-  <option value="Contra">Contra</option>
-  <option value="Journal">Journal</option>
-  <option value="Credit Note">Credit Note</option>
-  <option value="Debit Note">Debit Note</option>
-  <option value="Opening Balance">Opening Balance</option>
-  <option value="Current Balance">Current Balance</option>
-  <option value="Closing Balance">Closing Balance</option>
-  <option value="Sales">Sales</option>
-  <option value="Purchase">Purchase</option>
-  <option value="Delivery Challans">Delivery Challans</option>
-</select>
+          <select
+            className="form-select"
+            value={voucherTypeFilter}
+            onChange={(e) => setVoucherTypeFilter(e.target.value)}
+            style={{ minWidth: "160px" }}
+          >
+            <option value="">All Voucher Types</option>
+            <option value="Payment">Payment</option>
+            <option value="Receipt">Receipt</option>
+            <option value="Expense">Expense</option>
+            <option value="Income">Income</option>
+            <option value="Contra">Contra</option>
+            <option value="Journal">Journal</option>
+            <option value="Credit Note">Credit Note</option>
+            <option value="Debit Note">Debit Note</option>
+            <option value="Opening Balance">Opening Balance</option>
+            <option value="Current Balance">Current Balance</option>
+            <option value="Closing Balance">Closing Balance</option>
+            <option value="Sales">Sales</option>
+            <option value="Purchase">Purchase</option>
+            <option value="Delivery Challans">Delivery Challans</option>
+          </select>
         </div>
         <div className="col-md-auto">
           <input
@@ -331,68 +331,68 @@ const predefinedAccounts = [
           />
         </div>
       </div>
-      
+
       {/* Table with Separate Columns */}
       <div className="table-responsive">
         <table className="table table-bordered align-middle">
           <thead className="table-light">
-          <tr>
-  <th>Voucher Date</th>
-  <th>Voucher No</th>
-  <th>Voucher Type</th>
-  <th>Debit Account</th>
-  <th>Credit Account</th>
-  <th>Debit Amt</th>
-  <th>Credit Amt</th>
-  <th>Action</th>
-</tr>
+            <tr>
+              <th>Voucher Date</th>
+              <th>Voucher No</th>
+              <th>Voucher Type</th>
+              <th>Debit Account</th>
+              <th>Credit Account</th>
+              <th>Debit Amt</th>
+              <th>Credit Amt</th>
+              <th>Action</th>
+            </tr>
           </thead>
           <tbody>
-  {filteredEntries.length > 0 ? (
-    filteredEntries.map((entry) => (
-      <tr key={entry.id}>
-        <td>{entry.voucherDate}</td>
-        <td>{entry.voucherNo}</td>
-        <td>
-          <Badge className={getVoucherTypeBadgeColor(entry.voucherType)}>
-            {entry.voucherType}
-          </Badge>
-        </td>
-        <td>{entry.debit}</td>
-        <td>{entry.credit}</td>
-        <td>${entry.debitAmount.toLocaleString()}</td>
-        <td>${entry.creditAmount.toLocaleString()}</td>
-        <td className="d-flex gap-2 justify-content-center">
-          <button
-            className="btn btn-sm text-primary"
-            data-bs-toggle="modal"
-            data-bs-target="#viewEntryModal"
-            onClick={() => handleView(entry)}
-          >
-            <FaEye size={16} />
-          </button>
-          <button
-            className="btn btn-sm text-danger"
-            data-bs-toggle="modal"
-            data-bs-target="#deleteEntryModal"
-            onClick={() => handleDelete(entry)}
-          >
-            <FaTrash size={16} />
-          </button>
-        </td>
-      </tr>
-    ))
-  ) : (
-    <tr>
-      <td colSpan="8" className="text-center">  {/* ← Update colSpan to 8 now */}
-        No records found
-      </td>
-    </tr>
-  )}
-</tbody>
+            {filteredEntries.length > 0 ? (
+              filteredEntries.map((entry) => (
+                <tr key={entry.id}>
+                  <td>{entry.voucherDate}</td>
+                  <td>{entry.voucherNo}</td>
+                  <td>
+                    <Badge className={getVoucherTypeBadgeColor(entry.voucherType)}>
+                      {entry.voucherType}
+                    </Badge>
+                  </td>
+                  <td>{entry.debit}</td>
+                  <td>{entry.credit}</td>
+                  <td>${entry.debitAmount.toLocaleString()}</td>
+                  <td>${entry.creditAmount.toLocaleString()}</td>
+                  <td className="d-flex gap-2 justify-content-center">
+                    <button
+                      className="btn btn-sm text-primary"
+                      data-bs-toggle="modal"
+                      data-bs-target="#viewEntryModal"
+                      onClick={() => handleView(entry)}
+                    >
+                      <FaEye size={16} />
+                    </button>
+                    <button
+                      className="btn btn-sm text-danger"
+                      data-bs-toggle="modal"
+                      data-bs-target="#deleteEntryModal"
+                      onClick={() => handleDelete(entry)}
+                    >
+                      <FaTrash size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="8" className="text-center">  {/* ← Update colSpan to 8 now */}
+                  No records found
+                </td>
+              </tr>
+            )}
+          </tbody>
         </table>
       </div>
-      
+
       {/* Pagination */}
       <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap">
         <small className="text-muted ms-2">
@@ -415,7 +415,7 @@ const predefinedAccounts = [
           </ul>
         </nav>
       </div>
-      
+
       {/* Page Info */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
@@ -427,7 +427,7 @@ const predefinedAccounts = [
           </ul>
         </Card.Body>
       </Card>
-      
+
       {/* View Entry Modal - Updated to match Bookkeeper Software style */}
       <Modal show={!!viewEntry} onHide={() => setViewEntry(null)} centered size="lg">
         <Modal.Header closeButton className=" text-dark">
@@ -446,33 +446,33 @@ const predefinedAccounts = [
                   {viewEntry.voucherType}
                 </Badge>
               </div>
-              
-           {/* Account Details */}
-<div className="row mb-4">
-  <div className="col-md-6">
-    <Card className="h-100 border-0 bg-light">
-      <Card.Body>
-        <h6 className="fw-bold text-danger mb-3">Debit Account</h6>
-        <div>
-          <span className="text-muted">Account Name:</span>
-          <span className="fw-semibold ms-2">{viewEntry.debit}</span>
-        </div>
-      </Card.Body>
-    </Card>
-  </div>
-  <div className="col-md-6">
-    <Card className="h-100 border-0 bg-light">
-      <Card.Body>
-        <h6 className="fw-bold text-success mb-3">Credit Account</h6>
-        <div>
-          <span className="text-muted">Account Name:</span>
-          <span className="fw-semibold ms-2">{viewEntry.credit}</span>
-        </div>
-      </Card.Body>
-    </Card>
-  </div>
-</div>
-              
+
+              {/* Account Details */}
+              <div className="row mb-4">
+                <div className="col-md-6">
+                  <Card className="h-100 border-0 bg-light">
+                    <Card.Body>
+                      <h6 className="fw-bold text-danger mb-3">Debit Account</h6>
+                      <div>
+                        <span className="text-muted">Account Name:</span>
+                        <span className="fw-semibold ms-2">{viewEntry.debit}</span>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </div>
+                <div className="col-md-6">
+                  <Card className="h-100 border-0 bg-light">
+                    <Card.Body>
+                      <h6 className="fw-bold text-success mb-3">Credit Account</h6>
+                      <div>
+                        <span className="text-muted">Account Name:</span>
+                        <span className="fw-semibold ms-2">{viewEntry.credit}</span>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </div>
+              </div>
+
               {/* Amount Details */}
               <div className="row">
                 <div className="col-md-6">
@@ -515,7 +515,7 @@ const predefinedAccounts = [
           </Button>
         </Modal.Footer>
       </Modal>
-      
+
       {/* Delete Entry Modal */}
       <Modal show={!!deleteEntry} onHide={() => setDeleteEntry(null)} centered>
         <Modal.Header closeButton>

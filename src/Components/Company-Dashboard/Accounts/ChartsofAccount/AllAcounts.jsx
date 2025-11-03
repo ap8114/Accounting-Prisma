@@ -189,11 +189,25 @@ const AllAccounts = () => {
         hasBankDetails = "Yes";
       }
       
+<<<<<<< HEAD
       // Use sub_of_subgroup.name as the account name if available, otherwise use account_name or fallback
       const accountName = account.sub_of_subgroup?.name || account.account_name || `Account ${account.id}`;
       
       groupedData[subgroupName].rows.push({
         name: accountName,
+=======
+      // Store both the account name and sub_of_subgroup name if available
+      let displayName = account.account_name || `Account ${account.id}`;
+      let subOfSubgroupName = null;
+      
+      if (account.sub_of_subgroup && account.sub_of_subgroup.name) {
+        subOfSubgroupName = account.sub_of_subgroup.name;
+      }
+      
+      groupedData[subgroupName].rows.push({
+        name: displayName,
+        originalName: displayName, // Store original name for reference
+>>>>>>> 1d9d9ca5c679ddc2cfa5389828e4933c1976e2c1
         bal: account.accountBalance || "0.00", // Use accountBalance from API
         id: account.id,
         has_bank_details: hasBankDetails,
@@ -205,7 +219,8 @@ const AllAccounts = () => {
         subgroup_name: subgroupName,
         sub_of_subgroup_id: account.sub_of_subgroup_id || "", // Ensure this is always included
         parent_account: account.parent_account,
-        sub_of_subgroup: account.sub_of_subgroup
+        sub_of_subgroup: account.sub_of_subgroup,
+        sub_of_subgroup_name: subOfSubgroupName // Store sub_of_subgroup name separately
       });
     });
     
@@ -297,11 +312,12 @@ const AllAccounts = () => {
   const handleViewAccount = (type, name) => {
     // Find the actual row to get the ID and other details
     const accountGroup = accountData.find((acc) => acc.type === type);
-    const row = accountGroup?.rows.find((r) => r.name === name);
+    const row = accountGroup?.rows.find((r) => r.name === name || r.originalName === name);
 
     setSelectedAccount({
       type,
-      name,
+      name: row ? row.name : name,
+      originalName: row ? row.originalName : name,
       id: row ? row.id : null,
       balance: row ? parseFloat(row.bal) : 0,
       has_bank_details: row ? row.has_bank_details : "No",
@@ -318,11 +334,12 @@ const AllAccounts = () => {
   const handleEditAccount = (type, name) => {
     // Find the actual row to get the ID and other details
     const accountGroup = accountData.find((acc) => acc.type === type);
-    const row = accountGroup?.rows.find((r) => r.name === name);
+    const row = accountGroup?.rows.find((r) => r.name === name || r.originalName === name);
 
     setSelectedAccount({
       type,
-      name,
+      name: row ? row.name : name,
+      originalName: row ? row.originalName : name,
       id: row ? row.id : null,
       balance: row ? parseFloat(row.bal) : 0,
       has_bank_details: row ? row.has_bank_details : "No",
@@ -343,7 +360,7 @@ const AllAccounts = () => {
       
       // Find the actual row to get the ID
       const accountGroup = accountData.find((acc) => acc.type === type);
-      const row = accountGroup?.rows.find((r) => r.name === name);
+      const row = accountGroup?.rows.find((r) => r.name === name || r.originalName === name);
 
       if (!row || !row.id) {
         throw new Error("Account not found");
@@ -366,8 +383,13 @@ const AllAccounts = () => {
   };
   
   const handleViewLedger = (type, name) => {
+    // Find the actual row to get the correct name
+    const accountGroup = accountData.find((acc) => acc.type === type);
+    const row = accountGroup?.rows.find((r) => r.name === name || r.originalName === name);
+    const accountName = row ? (row.sub_of_subgroup_name || row.name) : name;
+    
     navigate("/company/ledgerpageaccount", {
-      state: { accountName: name, accountType: type },
+      state: { accountName: accountName, accountType: type },
     });
   };
 
@@ -414,9 +436,14 @@ const AllAccounts = () => {
       // Close modal
       setActionModal({ show: false, mode: null });
       
+<<<<<<< HEAD
       // Trigger data refresh
       setRefreshData(prev => !prev);
       
+=======
+      // Refresh data from server to ensure consistency
+      setRefreshData(!refreshData);
+>>>>>>> 1d9d9ca5c679ddc2cfa5389828e4933c1976e2c1
     } catch (error) {
       console.error("Failed to update account:", error);
     } finally {
@@ -464,9 +491,10 @@ const AllAccounts = () => {
     const typeMatches = accountGroup.type
       ?.toLowerCase()
       ?.includes(filterName.toLowerCase()) || false;
-    const nameMatches = accountGroup.rows.some((row) =>
-      row.name?.trim()?.toLowerCase()?.includes(filterName.toLowerCase()) || false
-    );
+    const nameMatches = accountGroup.rows.some((row) => {
+      const nameToCheck = row.sub_of_subgroup_name || row.name;
+      return nameToCheck?.trim()?.toLowerCase()?.includes(filterName.toLowerCase()) || false;
+    });
     return typeMatches || nameMatches;
   });
 
@@ -610,7 +638,11 @@ const AllAccounts = () => {
                           <tr key={`${accountGroup.type}-${index}`}>
                             <td className="text-start">{accountGroup.type}</td>
                             <td className="text-start">
+<<<<<<< HEAD
                               {row?.name || ''}
+=======
+                              {row.sub_of_subgroup_name || row.name}
+>>>>>>> 1d9d9ca5c679ddc2cfa5389828e4933c1976e2c1
                             </td>
                             <td>{parseFloat(row.bal).toFixed(2)}</td>
                             {/* Actions Column */}

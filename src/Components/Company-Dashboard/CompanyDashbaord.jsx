@@ -237,8 +237,8 @@ const CompanyDashboard = () => {
     { month: "Oct", revenue: 12000, expense: -7000 },
     { month: "Nov", revenue: 8000, expense: -6000 },
     { month: "Dec", revenue: 20000, expense: -12000 },
-  ];
-
+  ];  
+  
   const topCustomers = [
     {
       name: "Carlos Curran",

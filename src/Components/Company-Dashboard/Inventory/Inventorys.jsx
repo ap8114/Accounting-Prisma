@@ -291,14 +291,6 @@ const InventoryItems = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="alert alert-danger" role="alert">
-        Error: {error}
-      </div>
-    );
-  }
-
   if (!companyId) {
     return (
       <div className="alert alert-warning" role="alert">
