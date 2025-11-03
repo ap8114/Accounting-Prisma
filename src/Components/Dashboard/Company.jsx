@@ -99,21 +99,22 @@ const Company = () => {
   }, []);
 
   // Fetch plans data
-  useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        const response = await axios.get(`${BaseUrl}plans/${companyId}`);
-        // Ensure we always set an array, even if the response format is different
-        const plansData = response.data.data ? [response.data.data] : [];
-        setPlans(Array.isArray(plansData) ? plansData : []);
-      } catch (err) {
-        console.error("Error fetching plans:", err);
-        // Set empty plans array when API fails
-        setPlans([]);
-      }
-    };
-    fetchPlans();
-  }, [companyId]); // Add companyId as dependency
+  // Fetch plans data
+useEffect(() => {
+  const fetchPlans = async () => {
+    try {
+      const response = await axios.get(`${BaseUrl}plans`);
+      // The API returns plans in response.data.data as an array
+      const plansData = response.data.data || [];
+      setPlans(Array.isArray(plansData) ? plansData : []);
+    } catch (err) {
+      console.error("Error fetching plans:", err);
+      // Set empty plans array when API fails
+      setPlans([]);
+    }
+  };
+  fetchPlans();
+}, [companyId]); // Add companyId as dependency// Add companyId as dependency
 
   // Fetch company users when viewUserIndex changes
   useEffect(() => {
