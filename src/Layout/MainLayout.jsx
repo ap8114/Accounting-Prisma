@@ -104,14 +104,12 @@ const MainLayout = () => {
         </main>
       </div>
 
-      <div
-  style={{
-    position: "fixed",
-    right: 16,
-    top: "55%",
-    zIndex: 1000,
-  }}
->
+      <div style={{
+         position: "fixed",
+         right: 16,
+         top: "55%",
+         zIndex: 1000,}}>
+
   <Button
     onClick={() => setShowSettings(true)}
     style={{
@@ -137,15 +135,13 @@ const MainLayout = () => {
 
       {/* Offcanvas Sidebar - for mobile and tablet */}
       {(screenSize === 'mobile' || screenSize === 'tablet') && (
-        <div
-          className="offcanvas offcanvas-start"
+        <div className="offcanvas offcanvas-start"
           tabIndex="-1"
           id="mobileSidebar"
           aria-labelledby="mobileSidebarLabel"
           data-bs-scroll="true"
           data-bs-backdrop="false"
-          style={{ width: '240px' }}
-        >
+          style={{ width: '240px' }}>
           <div className="offcanvas-body p-0">
             <Sidebar isMobile={true} onLinkClick={handleCloseSidebar} />
           </div>

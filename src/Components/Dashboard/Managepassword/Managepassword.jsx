@@ -84,7 +84,7 @@ const SuperAdminPasswordRequests = () => {
           </tr>
         </thead>
         <tbody>
-          {requests.map((req) => (
+          {requests?.map((req) => (
             <tr key={req.id}>
               <td>{req.id}</td>
               <td>{req.company}</td>

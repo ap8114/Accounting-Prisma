@@ -30,37 +30,22 @@ const CustomerList = ({ onSelectCustomer }) => {
     <div className="customer-search-container position-relative mx-3 my-3">
       <div className="input-group mt-4">
         <span className="input-group-text">Customer</span>
-        <input
-          type="text"
-          className="form-control"
-          placeholder="Search customer"
-          value={searchTerm}
+        <input type="text"  className="form-control" placeholder="Search customer" value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
             setIsDropdownOpen(true);
           }}
-          onFocus={() => setIsDropdownOpen(true)}
-          onBlur={handleBlur}
-        />
-        <span
-          className="input-group-text btn text-white"
-          style={{ backgroundColor: "#1d1b31", cursor: "pointer" }}
-          onClick={() => navigate("/company/customersdebtors")}
-        >
+          onFocus={() => setIsDropdownOpen(true)}  onBlur={handleBlur} />
+        <span  className="input-group-text btn text-white"
+          style={{ backgroundColor: "#1d1b31", cursor: "pointer" }}   onClick={() => navigate("/company/customersdebtors")} >
           <i className="fa fa-plus"></i>
         </span>
       </div>
 
       {isDropdownOpen && (
-        <ul
-          className="list-group position-absolute bg-white border shadow-sm"
+        <ul className="list-group position-absolute bg-white border shadow-sm"
           style={{
-            maxHeight: "200px",
-            overflowY: "auto",
-            width: "100%",
-            zIndex: 1000,
-          }}
-        >
+            maxHeight: "200px", overflowY: "auto", width: "100%", zIndex: 1000,}}>
           {filteredCustomers.length > 0 ? (
             filteredCustomers.map((customer) => (
               <li

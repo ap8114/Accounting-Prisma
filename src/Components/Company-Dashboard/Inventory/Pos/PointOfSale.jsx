@@ -1,17 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Container,
-  Alert,
-  Modal,
-  Button,
-  Form,
-  Row,
-  Col,
-  Card,
-  Image,
-  Table,
-} from "react-bootstrap";
+import {  Container,  Alert,  Modal,  Button,  Form,  Row,  Col,  Card,  Image,  Table,} from "react-bootstrap";
 import CustomerList from "./CustomerList";
 import AddProductModal from "../AddProductModal";
 

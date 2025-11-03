@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Table, Button, Badge, Modal, Form } from 'react-bootstrap';
 import { FaArrowLeft } from "react-icons/fa";
 import MultiStepSalesForm from './MultiStepSalesForm';
-import axiosInstance from '../../../Api/axiosInstance';
 import GetCompanyId from '../../../Api/GetCompanyId';
 
 const statusBadge = (status) => {
@@ -25,7 +24,7 @@ const Invoice = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [invoiceNoFilter, setInvoiceNoFilter] = useState('');
-  const [stepNameFilter, setStepNameFilter] = useState(''); // 🔥 New: for direct step selection
+  const [stepNameFilter, setStepNameFilter] = useState('');
   const [quotationStatusFilter, setQuotationStatusFilter] = useState('');
   const [salesOrderStatusFilter, setSalesOrderStatusFilter] = useState('');
   const [deliveryChallanStatusFilter, setDeliveryChallanStatusFilter] = useState('');
@@ -54,8 +53,6 @@ const Invoice = () => {
     }
   }, [stepNameFilter]);
 
-  // 🔥 FETCH QUOTATIONS (optional - currently commented)
-  // useEffect(() => { ... }, [companyId]);
 
   const handleCreateNewInvoice = (order = null) => {
     setSelectedOrder(order);
@@ -98,7 +95,7 @@ const Invoice = () => {
     );
 
     handleCloseModal();
-  };
+  };  
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
@@ -149,7 +146,7 @@ const Invoice = () => {
         matchesDeliveryChallan &&
         matchesInvoice &&
         matchesPayment &&
-        matchesStepName
+        matchesStepName 
       );
     });
   }, [
@@ -172,13 +169,8 @@ const Invoice = () => {
           <FaArrowLeft size={20} color="blue" />
           <h5 className="mb-0">Sales Workflow</h5>
         </div>
-        <Button
-          variant="primary"
-          onClick={() => handleCreateNewInvoice()}
-          style={{ backgroundColor: "#53b2a5", border: "none", padding: "8px 16px" }}
-        >
-          + Create sales order
-        </Button>
+        <Button  variant="primary"  onClick={() => handleCreateNewInvoice()}
+          style={{ backgroundColor: "#53b2a5", border: "none", padding: "8px 16px" }} >   + Create sales order  </Button>
       </div>
 
       {/* 🔥 Sales Steps Dropdown + Show Filters Button */}
@@ -187,8 +179,7 @@ const Invoice = () => {
           <label className="form-label text-secondary fw-bold">Sales Steps</label>
           <Form.Select
             value={stepNameFilter}
-            onChange={(e) => setStepNameFilter(e.target.value)}
-          >
+            onChange={(e) => setStepNameFilter(e.target.value)}>
             <option value="">Select Steps</option>
             <option value="Quotation">Quotation</option>
             <option value="Sales Order">Sales Order</option>
@@ -198,11 +189,9 @@ const Invoice = () => {
           </Form.Select>
         </div>
 
-        <Button
-          variant="outline-secondary"
+        <Button variant="outline-secondary"
           size="sm"
-          onClick={() => setShowFilters(!showFilters)}
-        >
+          onClick={() => setShowFilters(!showFilters)}>
           {showFilters ? 'Hide Filters' : 'Show Filters'}
         </Button>
       </div>
@@ -216,8 +205,7 @@ const Invoice = () => {
               type="date"
               className="form-control"
               value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-            />
+              onChange={(e) => setFromDate(e.target.value)}/>
           </div>
 
           <div>
@@ -245,11 +233,9 @@ const Invoice = () => {
           {/* Quotation Status */}
           <div>
             <label className="form-label text-secondary">Quotation</label>
-            <Form.Select
-              value={quotationStatusFilter}
+            <Form.Select value={quotationStatusFilter}
               onChange={(e) => setQuotationStatusFilter(e.target.value)}
-              style={{ minWidth: "130px" }}
-            >
+              style={{ minWidth: "130px" }}>
               <option value="">All</option>
               <option value="Pending">Pending</option>
               <option value="Done">Done</option>
@@ -259,11 +245,9 @@ const Invoice = () => {
 
           <div>
             <label className="form-label text-secondary">Sales Order</label>
-            <Form.Select
-              value={salesOrderStatusFilter}
+            <Form.Select  value={salesOrderStatusFilter}
               onChange={(e) => setSalesOrderStatusFilter(e.target.value)}
-              style={{ minWidth: "130px" }}
-            >
+              style={{ minWidth: "130px" }}>
               <option value="">All</option>
               <option value="Pending">Pending</option>
               <option value="Done">Done</option>
@@ -276,8 +260,7 @@ const Invoice = () => {
             <Form.Select
               value={deliveryChallanStatusFilter}
               onChange={(e) => setDeliveryChallanStatusFilter(e.target.value)}
-              style={{ minWidth: "130px" }}
-            >
+              style={{ minWidth: "130px" }}>
               <option value="">All</option>
               <option value="Pending">Pending</option>
               <option value="Done">Done</option>
@@ -326,7 +309,6 @@ const Invoice = () => {
                 setDeliveryChallanStatusFilter('');
                 setInvoiceStatusFilter('');
                 setPaymentStatusFilter('');
-                // Note: stepNameFilter is NOT cleared here (it's outside)
               }}
             >
               Clear
@@ -357,14 +339,14 @@ const Invoice = () => {
           </tr>
         </thead>
         <tbody>
-          {filteredOrders.length === 0 ? (
+          {filteredOrders?.length === 0 ? (
             <tr>
               <td colSpan="8" className="text-center text-muted">
                 No records found.
               </td>
             </tr>
           ) : (
-            filteredOrders.map((order, idx) => (
+            filteredOrders?.map((order, idx) => (
               <tr key={order.id}>
                 <td>{idx + 1}</td>
                 <td>{order.invoice?.invoiceNo || '-'}</td>
