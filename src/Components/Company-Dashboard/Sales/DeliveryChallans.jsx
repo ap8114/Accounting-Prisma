@@ -93,9 +93,7 @@ const DeliveryChallans = () => {
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-4 mb-4">
         <div>
           <h5 className="fw-bold mb-1">DeliveryChallan</h5>
-
         </div>
-
         <div className="d-flex align-items-center gap-2 flex-wrap">
           <button className="btn btn-light border text-danger coupon-btn-icon">
             <FaFilePdf />

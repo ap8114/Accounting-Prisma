@@ -70,7 +70,7 @@ const Income = () => {
       setError(null);
 
       const response = await axiosInstance.get(
-        `https://sbph7x24-8080.inc1.devtunnels.ms/api/v1/vendorCustomer/company/3?type=customer`
+        `vendorCustomer/company/${companyId}?type=customer`
       );
 
       console.log("Customers API response:", response.data);
@@ -133,7 +133,7 @@ const Income = () => {
     try {
       console.log("Fetching income vouchers...");
       const response = await axiosInstance.get(
-        `/income-vouchers/company/${companyId}`
+        `income-vouchers/company/${companyId}`
       );
       console.log("Income vouchers response:", response.data);
       if (response.data.success) {
