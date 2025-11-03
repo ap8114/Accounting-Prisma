@@ -375,7 +375,6 @@ const Users = () => {
             : user
         )
       );
-
       setShowResetModal(false);
       alert(`Password for ${userToReset.name} has been reset successfully!`);
     } catch (err) {
@@ -383,20 +382,7 @@ const Users = () => {
       const msg = err.response?.data?.message || 'Failed to reset password.';
       alert(msg);
     }
-
   }
-
-  if (error) {
-    return (
-      <div className="p-2 text-center">
-        <p className="text-danger">{error}</p>
-        <Button variant="primary" onClick={() => window.location.reload()}>
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="p-3">
       <div className="">
