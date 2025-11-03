@@ -556,7 +556,7 @@ const AllAccounts = () => {
                 <th>Account Type</th>
                 <th>Account Name</th>
                 <th>Account Balance</th>
-                <th>Total Balance</th>
+                {/* <th>Total Balance</th> */}
                 <th>Actions</th> 
               </tr>
             </thead>
@@ -584,7 +584,7 @@ const AllAccounts = () => {
                                 row.name || ''}
                             </td>
                             <td>{parseFloat(row.bal).toFixed(2)}</td>
-                            <td></td>
+                            {/* <td></td> */}
                             {/* Actions Column */}
                             <td>
                               <div className="d-flex justify-content-center gap-2">

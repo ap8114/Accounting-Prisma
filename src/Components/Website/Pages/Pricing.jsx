@@ -14,14 +14,13 @@ import { FaCheck, FaCrown, FaPhoneAlt } from "react-icons/fa";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import "./Pages.css";
-import axios from "axios";
-import BaseUrl from "../../../Api/BaseUrl";
 import axiosInstance from "../../../Api/axiosInstance";
 
 const Pricing = () => {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false); // New state for form submission
 
   const [showModal, setShowModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -36,7 +35,7 @@ const Pricing = () => {
   const calculateTotalMonthlyPrice = (basePrice, modules = []) => {
     const base = parseFloat(basePrice) || 0;
     const moduleTotal = (modules || []).reduce((sum, mod) => {
-      return sum + (parseFloat(mod.price) || 0);
+      return sum + (parseFloat(mod.module_price) || 0); // Fixed: use module_price instead of price
     }, 0);
     return base + moduleTotal;
   };
@@ -47,22 +46,22 @@ const Pricing = () => {
         setError(null);
         const response = await axiosInstance.get('plans');
 
-        // Handle your API structure: { message,  [...] }
-        const apiPlans = Array.isArray(response.data.data) ? response.data.data : [];
+        // Fixed: Properly handle the API response structure
+        const apiPlans = response.data.success && response.data.data ? response.data.data : [];
 
         const mappedPlans = apiPlans.map((plan) => {
           // ✅ Calculate total monthly price including modules
-          const totalMonthlyUsd = calculateTotalMonthlyPrice(plan.base_price, plan.modules);
+          const totalMonthlyUsd = calculateTotalMonthlyPrice(plan.base_price, plan.plan_modules); // Fixed: use plan_modules
           
           // Convert to yearly INR
           const usdToInr = 83;
           const totalYearlyInr = Math.round(totalMonthlyUsd * 12 * usdToInr);
 
-          const nameLower = plan.name.toLowerCase();
+          const nameLower = plan.plan_name.toLowerCase(); // Fixed: use plan_name instead of name
           let buttonColor = "#007bff";
-          if (nameLower.includes("bronze")) buttonColor = "#b87333";
+          if (nameLower.includes("basic")) buttonColor = "#b87333"; // Fixed: match "basic" instead of "bronze"
           else if (nameLower.includes("silver")) buttonColor = "var(--brand)";
-          else if (nameLower.includes("gold")) buttonColor = "#ffc107";
+          else if (nameLower.includes("golden")) buttonColor = "#ffc107"; // Fixed: match "golden" instead of "gold"
           else if (nameLower.includes("platinum") || nameLower.includes("enterprise"))
             buttonColor = "#6f42c1";
 
@@ -80,8 +79,11 @@ const Pricing = () => {
             text: `User Limit: ${plan.user_limit === -1 ? "Unlimited" : plan.user_limit}`,
             included: true,
           });
+          
+          // Convert storage capacity from bytes to GB
+          const storageGB = Math.round(plan.storage_capacity / (1024 * 1024 * 1024));
           features.push({
-            text: `${plan.storage_capacity_gb === -1 ? "Unlimited" : plan.storage_capacity_gb}GB Storage`,
+            text: `${storageGB}GB Storage`,
             included: true,
           });
 
@@ -90,11 +92,11 @@ const Pricing = () => {
             features.push({ text: plan.description, included: true });
           }
 
-          // Modules — use `label` and `price` from API
-          if (Array.isArray(plan.modules)) {
-            plan.modules.forEach((mod) => {
-              const label = mod.label || `Module ${mod.id}`;
-              const price = parseFloat(mod.price);
+          // Modules — use `module_name` and `module_price` from API
+          if (Array.isArray(plan.plan_modules)) {
+            plan.plan_modules.forEach((mod) => {
+              const label = mod.module_name || `Module ${mod.id}`;
+              const price = parseFloat(mod.module_price);
               features.push({
                 text: `${label} (${price > 0 ? `+$${price.toFixed(2)}` : "Included"})`,
                 included: price === 0,
@@ -103,11 +105,12 @@ const Pricing = () => {
           }
 
           return {
-            name: plan.name,
+            id: plan.id, // Add plan ID for API call
+            name: plan.plan_name, // Fixed: use plan_name
             price: totalYearlyInr, // ✅ For modal
             duration: plan.billing_cycle,
             buttonColor,
-            btnText: `Buy ${plan.name.split(" ")[0]}`,
+            btnText: `Buy ${plan.plan_name.split(" ")[0]}`, // Fixed: use plan_name
             features,
           };
         });
@@ -143,16 +146,37 @@ const Pricing = () => {
   const handleInputChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e) => {
+  // Updated handleSubmit function to make API call
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Purchase ", {
-      plan: selectedPlan.name,
-      billing: billingDuration,
-      price: calculatePrice(),
-      ...formData,
-    });
-    alert("Thank you! We'll contact you shortly.");
-    handleCloseModal();
+    setSubmitting(true);
+    
+    try {
+      // Prepare data for API call
+      const requestData = {
+        company_id: formData.companyName, // This might need to be an actual company ID
+        plan_id: selectedPlan.id,
+        billing_cycle: billingDuration,
+        startdate: formData.startDate,
+        request_date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+        status: "Pending" // Default status
+      };
+      
+      // Make API call to request plan
+      const response = await axiosInstance.post('/requestforplan', requestData);
+      
+      if (response.data.success) {
+        alert("Plan request submitted successfully! We'll contact you shortly.");
+        handleCloseModal();
+      } else {
+        alert("Failed to submit plan request. Please try again.");
+      }
+    } catch (err) {
+      console.error("API Error:", err);
+      alert("An error occurred while submitting your request. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -378,8 +402,23 @@ const Pricing = () => {
                   width: "100%",
                   padding: "0.75rem 1rem",
                 }}
+                disabled={submitting}
               >
-                Confirm Purchase
+                {submitting ? (
+                  <>
+                    <Spinner
+                      as="span"
+                      animation="border"
+                      size="sm"
+                      role="status"
+                      aria-hidden="true"
+                      className="me-2"
+                    />
+                    Submitting...
+                  </>
+                ) : (
+                  "Confirm Purchase"
+                )}
               </Button>
             </Form>
           )}
