@@ -5,12 +5,12 @@ import axios from "axios";
 import BaseUrl from "../../../../Api/BaseUrl";
 import axiosInstance from "../../../../Api/axiosInstance";
 
-const AccountActionModal = ({ 
-  show, 
-  onHide, 
+const AccountActionModal = ({
+  show,
+  onHide,
   mode, // 'view', 'edit', 'delete'
-  accountData, 
-  selectedAccount, 
+  accountData,
+  selectedAccount,
   setSelectedAccount,
   onSave,
   onDelete,
@@ -37,15 +37,15 @@ const AccountActionModal = ({
 
   const handleSave = async () => {
     if (!selectedAccount) return;
-    
+
     setIsSaving(true);
     setModalError(null);
-    
+
     try {
       // Find the account ID from the accountData
       const accountGroup = accountData.find(acc => acc.type === selectedAccount.type);
       const accountRow = accountGroup?.rows.find(row => row.name === selectedAccount.name);
-      
+
       if (accountRow && accountRow.id) {
         // Prepare the payload according to the API response format
         const payload = {
@@ -56,22 +56,22 @@ const AccountActionModal = ({
           bank_name_branch: localAccountData.bank_name_branch || "",
           accountBalance: parseFloat(localAccountData.balance || 0)
         };
-        
+
         console.log("PUT Payload:", payload);
-        
+
         // Make the API call to update the account
         const response = await axiosInstance.put(`${BaseUrl}account/${accountRow.id}`, payload);
-        
+
         console.log("PUT Response:", response.data);
-        
+
         // Check if response is successful
         if (response.data) {
           // Update the local state with the new data
           setSelectedAccount(localAccountData);
-          
+
           // Call the onSave callback to update the UI
           onSave(localAccountData);
-          
+
           // Close the modal
           resetFormAndCloseModal();
         } else {
@@ -82,9 +82,9 @@ const AccountActionModal = ({
       }
     } catch (error) {
       console.error("Error updating account:", error);
-      const errorMessage = error.response?.data?.message || 
-                          error.message || 
-                          "Failed to update account. Please try again later.";
+      const errorMessage = error.response?.data?.message ||
+        error.message ||
+        "Failed to update account. Please try again later.";
       setModalError(errorMessage);
     } finally {
       setIsSaving(false);
@@ -93,17 +93,17 @@ const AccountActionModal = ({
 
   const handleDeleteConfirmed = async () => {
     if (!selectedAccount) return;
-    
+
     setIsDeleting(true);
     try {
       // Find the account ID from the accountData
       const accountGroup = accountData.find(acc => acc.type === selectedAccount.type);
       const accountRow = accountGroup?.rows.find(row => row.name === selectedAccount.name);
-      
+
       if (accountRow && accountRow.id) {
         // Make the API call to delete the account
         const response = await axiosInstance.delete(`${BaseUrl}account/${accountRow.id}`);
-        
+
         if (response.data) {
           // Call the onDelete callback to update the UI
           onDelete();
@@ -117,9 +117,9 @@ const AccountActionModal = ({
       }
     } catch (error) {
       console.error("Error deleting account:", error);
-      const errorMessage = error.response?.data?.message || 
-                          error.message || 
-                          "Failed to delete account. Please try again later.";
+      const errorMessage = error.response?.data?.message ||
+        error.message ||
+        "Failed to delete account. Please try again later.";
       setModalError(errorMessage);
     } finally {
       setIsDeleting(false);
@@ -143,7 +143,7 @@ const AccountActionModal = ({
             </p>
           </div>
         );
-      
+
       case 'edit':
         return (
           <>
@@ -249,7 +249,7 @@ const AccountActionModal = ({
             </Form>
           </>
         );
-      
+
       case 'delete':
         return (
           <>
@@ -265,7 +265,7 @@ const AccountActionModal = ({
             </p>
           </>
         );
-      
+
       default:
         return null;
     }
@@ -292,7 +292,7 @@ const AccountActionModal = ({
             Close
           </Button>
         );
-      
+
       case 'edit':
         return (
           <>
@@ -315,7 +315,7 @@ const AccountActionModal = ({
             </Button>
           </>
         );
-      
+
       case 'delete':
         return (
           <>
@@ -331,7 +331,7 @@ const AccountActionModal = ({
             </Button>
           </>
         );
-      
+
       default:
         return null;
     }
