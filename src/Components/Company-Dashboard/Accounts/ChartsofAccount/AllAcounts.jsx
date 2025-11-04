@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  Table,
-  Container,
-  Card,
-  Button,
-  Row,
-  Col,
-  Form,
-} from "react-bootstrap";
+import { Table, Container, Card, Button, Row,  Col,  Form,} from "react-bootstrap";
 import { FaUserPlus, FaUserFriends } from "react-icons/fa";
 import { FaEye, FaEdit, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -192,6 +184,9 @@ const AllAccounts = () => {
       // Use sub_of_subgroup.name as the account name if available, otherwise use account_name or fallback
       const accountName = account.sub_of_subgroup?.name || account.account_name || `Account ${account.id}`;
       
+      // FIX: Define subOfSubgroupName properly
+      const subOfSubgroupName = account.sub_of_subgroup?.name || "";
+      
       groupedData[subgroupName].rows.push({
         name: accountName,
         bal: account.accountBalance || "0.00", // Use accountBalance from API
@@ -206,7 +201,7 @@ const AllAccounts = () => {
         sub_of_subgroup_id: account.sub_of_subgroup_id || "", // Ensure this is always included
         parent_account: account.parent_account,
         sub_of_subgroup: account.sub_of_subgroup,
-        sub_of_subgroup_name: subOfSubgroupName // Store sub_of_subgroup name separately
+        sub_of_subgroup_name: subOfSubgroupName // Now properly defined
       });
     });
     
@@ -753,7 +748,7 @@ const AllAccounts = () => {
           </h5>
           <ul
             className="text-muted fs-6 mb-0"
-            style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
+            style={{ listStyleType: "disc", paddingLeft: "1.5rem"}}>
             <li>Displays all financial accounts.</li>
             <li>Accounts are categorized by type.</li>
             <li>Helps in easy management and tracking.</li>
