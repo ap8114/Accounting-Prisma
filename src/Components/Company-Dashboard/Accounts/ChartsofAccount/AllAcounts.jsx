@@ -27,7 +27,7 @@ const AllAccounts = () => {
   const [accountData, setAccountData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [refreshData, setRefreshData] = useState(false);
+  const [refreshData, setRefreshData] = useState(0); // Changed to counter
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
@@ -36,6 +36,7 @@ const AllAccounts = () => {
   const isDeletingRef = useRef(false);
   const isSavingRef = useRef(false);
   const apiCallLock = useRef(false);
+  const lastSaveTime = useRef(0); // For preventing double clicks
   
   const options = accountData.flatMap((group) =>
     group.rows.map((row) => ({ value: row.name, label: row.name }))
@@ -123,38 +124,8 @@ const AllAccounts = () => {
     isDefault: false,
   });
 
-  // Fetch account data from API - extracted as a separate function
-  const fetchAccountData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await axiosInstance.get(`${BaseUrl}account/company/${companyId}`);
-      console.log("API Response:", response.data);
-      
-      // Check if response has the expected structure
-      if (response.data && response.data.success) {
-        // Transform API data to match the component's expected format
-        const transformedData = transformAccountData(response.data.data);
-        setAccountData(transformedData);
-      } else {
-        // Handle different response structure
-        const transformedData = transformAccountData(response.data);
-        setAccountData(transformedData);
-      }
-    } catch (err) {
-      console.error("Error fetching account data:", err);
-      setError("No Account Found");
-    } finally {
-      setLoading(false);
-    }
-  }, [companyId]);
-
-  // Initial data fetch and refresh when refreshData changes
-  useEffect(() => {
-    fetchAccountData();
-  }, [fetchAccountData, refreshData]);
-
-  // Transform API data to match component's expected format
-  const transformAccountData = (apiData) => {
+  // Memoize transformAccountData to prevent unnecessary re-renders
+  const transformAccountData = useCallback((apiData) => {
     // Check if apiData is an array
     if (!Array.isArray(apiData)) {
       console.error("API data is not an array:", apiData);
@@ -184,7 +155,7 @@ const AllAccounts = () => {
       // Use sub_of_subgroup.name as the account name if available, otherwise use account_name or fallback
       const accountName = account.sub_of_subgroup?.name || account.account_name || `Account ${account.id}`;
       
-      // FIX: Define subOfSubgroupName properly
+      // Define subOfSubgroupName properly
       const subOfSubgroupName = account.sub_of_subgroup?.name || "";
       
       groupedData[subgroupName].rows.push({
@@ -207,7 +178,37 @@ const AllAccounts = () => {
     
     // Convert to array
     return Object.values(groupedData);
-  };
+  }, []);
+
+  // Fetch account data from API - extracted as a separate function
+  const fetchAccountData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await axiosInstance.get(`${BaseUrl}account/company/${companyId}`);
+      console.log("API Response:", response.data);
+      
+      // Check if response has the expected structure
+      if (response.data && response.data.success) {
+        // Transform API data to match the component's expected format
+        const transformedData = transformAccountData(response.data.data);
+        setAccountData(transformedData);
+      } else {
+        // Handle different response structure
+        const transformedData = transformAccountData(response.data);
+        setAccountData(transformedData);
+      }
+    } catch (err) {
+      console.error("Error fetching account data:", err);
+      setError("No Account Found");
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId, transformAccountData]);
+
+  // Initial data fetch and refresh when refreshData changes
+  useEffect(() => {
+    fetchAccountData();
+  }, [fetchAccountData, refreshData]);
 
   // Handlers
   const handleSaveVendor = () => {
@@ -232,6 +233,14 @@ const AllAccounts = () => {
       console.log("API call already in progress, ignoring duplicate call");
       return;
     }
+    
+    // Prevent double clicks
+    const now = Date.now();
+    if (now - lastSaveTime.current < 2000) {
+      console.log("Ignoring duplicate save call");
+      return;
+    }
+    lastSaveTime.current = now;
     
     // Lock API calls
     apiCallLock.current = true;
@@ -268,7 +277,7 @@ const AllAccounts = () => {
       });
       
       // Trigger data refresh
-      setRefreshData(prev => !prev);
+      setRefreshData(prev => prev + 1); // Increment counter
       
     } catch (error) {
       console.error("Failed to save new account:", error);
@@ -353,7 +362,7 @@ const AllAccounts = () => {
         await axiosInstance.delete(`${BaseUrl}account/${row.id}`);
         
         // Trigger data refresh
-        setRefreshData(prev => !prev);
+        setRefreshData(prev => prev + 1); // Increment counter
       }
     } catch (error) {
       console.error("Failed to delete account:", error);
@@ -361,7 +370,7 @@ const AllAccounts = () => {
       setIsDeleting(false);
       isDeletingRef.current = false;
     }
-  };
+  };  
   
   const handleViewLedger = (type, name) => {
     // Find the actual row to get the correct name
@@ -380,6 +389,14 @@ const AllAccounts = () => {
       console.log("API call already in progress, ignoring duplicate call");
       return;
     }
+    
+    // Prevent double clicks
+    const now = Date.now();
+    if (now - lastSaveTime.current < 2000) {
+      console.log("Ignoring duplicate save call");
+      return;
+    }
+    lastSaveTime.current = now;
     
     // Lock API calls
     apiCallLock.current = true;
@@ -413,12 +430,12 @@ const AllAccounts = () => {
       const response = await axiosInstance.put(`${BaseUrl}account/${selectedAccount.id}`, payload);
       
       console.log("Account updated:", response.data);
-      
+        
       // Close modal
       setActionModal({ show: false, mode: null });
       
       // Trigger data refresh
-      setRefreshData(prev => !prev);
+      setRefreshData(prev => prev + 1); // Increment counter
       
     } catch (error) {
       console.error("Failed to update account:", error);
@@ -451,7 +468,7 @@ const AllAccounts = () => {
       setActionModal({ show: false, mode: null });
       
       // Trigger data refresh
-      setRefreshData(prev => !prev);
+      setRefreshData(prev => prev + 1); // Increment counter
       
     } catch (error) {
       console.error("Failed to delete account:", error);
@@ -467,19 +484,20 @@ const AllAccounts = () => {
     const typeMatches = accountGroup.type
       ?.toLowerCase()
       ?.includes(filterName.toLowerCase()) || false;
-    const nameMatches = accountGroup.rows.some((row) => {
+     const nameMatches = accountGroup.rows.some((row) => {
       const nameToCheck = row.sub_of_subgroup_name || row.name;
       return nameToCheck?.trim()?.toLowerCase()?.includes(filterName.toLowerCase()) || false;
     });
     return typeMatches || nameMatches;
   });
-
+   
   // Add this function to calculate total balance for each account type
   const calculateTotalBalance = (accountGroup) => {
     return accountGroup.rows
       .filter((row) => row.name && row.name.trim() !== "")
       .reduce((total, row) => {
-        const bal = parseFloat(row.bal) || 0;
+        // FIX: Convert balance to number properly
+        const bal = parseFloat(row.bal.toString().replace(/,/g, '')) || 0;
         return total + bal;
       }, 0);
   };
@@ -494,8 +512,7 @@ const AllAccounts = () => {
         <Col xs={12} md="auto">
           <h4
             className="fw-bold text-start mb-2 mb-md-0"
-            style={{ marginTop: "1rem" }}
-          >
+            style={{ marginTop: "1rem" }}>
             All Accounts
           </h4>
         </Col>
@@ -527,11 +544,11 @@ const AllAccounts = () => {
             <FaUserPlus size={18} />
             Add Vendor
           </Button>
-          <Button
+          <Button  
             style={{
               backgroundColor: "#53b2a5",
-              border: "none",
-              padding: "8px 16px",
+              border: "none",  
+              padding: "8px 16px",    
             }}
             className="d-flex align-items-center gap-2 text-white fw-semibold flex-shrink-0"
             onClick={() => setShowCustomerModal(true)}
