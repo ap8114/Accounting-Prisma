@@ -1,28 +1,42 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {  Container,  Alert,  Modal,  Button,  Form,  Row,  Col,  Card,  Image,  Table,} from "react-bootstrap";
+import { 
+  Container,  
+  Alert,  
+  Modal,  
+  Button,  
+  Form,  
+  Row,  
+  Col,  
+  Card,  
+  Image,  
+  Table,
+  ListGroup,
+  Badge
+} from "react-bootstrap";
 import CustomerList from "./CustomerList";
 import AddProductModal from "../AddProductModal";
+import axiosInstance from "../../../../Api/axiosInstance";
+import GetCompanyId from "../../../../Api/GetCompanyId";
 
 const PointOfSale = () => {
+  const companyId = GetCompanyId();
+  const navigate = useNavigate();
+  
+  // State declarations
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [quantity, setQuantity] = useState({});
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
   const [quantityError, setQuantityError] = useState("");
-  const [taxes, setTaxes] = useState([
-    { _id: "1", taxClass: "GST", taxValue: 10 },
-    { _id: "2", taxClass: "Luxury Tax", taxValue: 18 },
-  ]);
-  const [selectedTax, setSelectedTax] = useState(taxes[0]);
+  const [taxes, setTaxes] = useState([{ id: 1, tax_class: "GST", tax_value: 10, company_id: companyId }]); // Default tax
+  const [selectedTax, setSelectedTax] = useState({ id: 1, tax_class: "GST", tax_value: 10, company_id: companyId });
   const [paymentStatus, setPaymentStatus] = useState("3"); // Cash
   const [amountPaid, setAmountPaid] = useState(0);
   const [amountDue, setAmountDue] = useState(0);
   const [priceMap, setPriceMap] = useState({});
   const [price, setPrice] = useState(0);
-  const [showCashPaymentModal, setShowCashPaymentModal] = useState(false);
-  const [cashAmount, setCashAmount] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [newItem, setNewItem] = useState({});
@@ -30,6 +44,64 @@ const PointOfSale = () => {
   const [newCategory, setNewCategory] = useState("");
   const [showUOMModal, setShowUOMModal] = useState(false);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showPaymentCompletedModal, setShowPaymentCompletedModal] = useState(false);
+
+  // Modals
+  const [showAddTaxModal, setShowAddTaxModal] = useState(false);
+  const [newTaxClass, setNewTaxClass] = useState("");
+  const [newTaxValue, setNewTaxValue] = useState("");
+
+  // Fetch products and taxes
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch products
+        const productResponse = await axiosInstance.get(`/products/company/${companyId}`);
+        console.log("Product API Response:", productResponse.data);
+        
+        if (productResponse.data && productResponse.data.success) {
+          setProducts(productResponse.data.data || []);
+        } else {
+          setProducts([]);
+        }
+        
+        // Fetch taxes 
+        const taxResponse = await axiosInstance.get(`/taxclasses/company/${companyId}`);
+        console.log("Tax API Response:", taxResponse.data);
+        
+        if (taxResponse.data && taxResponse.data.success && taxResponse.data.data && taxResponse.data.data.length > 0) {
+          setTaxes(taxResponse.data.data);
+          setSelectedTax(taxResponse.data.data[0]);
+        }
+        // Keep default tax if API fails or returns empty
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError("Failed to load data");
+        setProducts([]);
+        // Keep default tax
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [companyId]);
+
+  // Initialize warehouse stock from products
+  const [warehouseStock, setWarehouseStock] = useState({});
+  
+  useEffect(() => {
+    const stock = {};
+    products.forEach(product => {
+      stock[product.id] = product.initial_qty;
+    });
+    setWarehouseStock(stock);
+  }, [products]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -48,80 +120,41 @@ const PointOfSale = () => {
     setShowAddCategoryModal(false);
   };
 
-  const navigate = useNavigate();
+  // --- Payment Completed Modal ---
+  const handleCreateInvoice = async () => {
+    try {
+      // Prepare invoice data
+      const invoiceData = {
+        customer_id: selectedCustomer.id,
+        products: selectedProducts.map(product => ({
+          product_id: product.id,
+          quantity: quantity[product.id] || 1,
+          price: parseFloat(priceMap[product.id] ?? product.initial_cost)
+        })),
+        subtotal: calculateSubTotal(),
+        total: calculateTotal(),
+        tax_id: selectedTax.id,
+        payment_status: paymentStatus === "3" ? "cash" : 
+                         paymentStatus === "2" ? "paid" : 
+                         paymentStatus === "1" ? "partial" : "due"
+      };
 
-  // Warehouse management
-  const [warehouseStock, setWarehouseStock] = useState({
-    p1: 100,
-    p2: 100,
-  });
-
-  const productList = [
-    {
-      _id: "p1",
-      name: "Product A",
-      price: 100,
-      warehouse: "Main Warehouse",
-      image:
-        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=80&h=80&fit=crop&crop=center",
-    },
-   
-  ];
-
-  // Modals
-  const [showAddTaxModal, setShowAddTaxModal] = useState(false);
-  const [newTaxClass, setNewTaxClass] = useState("");
-  const [newTaxValue, setNewTaxValue] = useState("");
-
-  // --- NEW: Payment Completed Modal ---
-  const [showPaymentCompletedModal, setShowPaymentCompletedModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("onhold");
-  const [showOrdersModal, setShowOrdersModal] = useState(false);
-
-  // --- Mock Orders ---
-const mockOrders = [
-  {
-    id: "#45698",
-    Warehouse: "Main Warehouse",
-    total: 900,
-    date: "24 Dec 2024 13:39:11",
-    productName: "Product A",
-    status: "onhold",
-    notes: "Customer need to recheck the product once",
-  },
-  {
-    id: "#666659",
-    Warehouse: "Secondary Warehouse",
-    total: 900,
-    date: "24 Dec 2024 13:39:11",
-    productName: "Product B",
-    status: "unpaid",
-    notes: "",
-  },
-  {
-    id: "#777777",
-    Warehouse: "Outer Warehouse",
-    total: 1000,
-    date: "24 Dec 2024 13:39:11",
-    productName: "Product C",
-    status: "paid",
-    notes: "Customer need to recheck the product once",
-  },
-];
-
-const filteredOrders = mockOrders.filter((order) => {
-  if (activeTab === "onhold") return order.status === "onhold";
-  if (activeTab === "unpaid") return order.status === "unpaid";
-  if (activeTab === "paid") return order.status === "paid";
-  return true;
-});
-
-
-  const handleCreateInvoice = () => {
-    // Update warehouse stock
-    updateWarehouseStock();
-    // Show the success modal
-    setShowPaymentCompletedModal(true);
+      // Send data to backend
+      const response = await axiosInstance.post('/invoices', invoiceData);
+      
+      if (response.data.success) {
+        // Update warehouse stock
+        updateWarehouseStock();
+        
+        // Show success modal
+        setShowPaymentCompletedModal(true);
+      } else {
+        alert("Failed to create invoice: " + response.data.message);
+      }
+    } catch (err) {
+      console.error("Error creating invoice:", err);
+      alert("Failed to create invoice. Please try again.");
+    }
   };
 
   const handlePrintReceipt = () => {
@@ -141,9 +174,6 @@ const filteredOrders = mockOrders.filter((order) => {
     });
   };
 
-
-
-
   // --- Clear All Data ---
   const handleClear = () => {
     setSelectedCustomer(null);
@@ -158,7 +188,7 @@ const filteredOrders = mockOrders.filter((order) => {
   const updateWarehouseStock = () => {
     const updatedStock = { ...warehouseStock };
     selectedProducts.forEach((product) => {
-      const productId = product._id;
+      const productId = product.id;
       const soldQuantity = quantity[productId] || 1;
       updatedStock[productId] = Math.max(0, (updatedStock[productId] || 0) - soldQuantity);
     });
@@ -166,25 +196,60 @@ const filteredOrders = mockOrders.filter((order) => {
   };
 
   // --- Tax Handlers ---
-  const handleTaxFormSubmit = (e) => {
+  const handleTaxFormSubmit = async (e) => {
     e.preventDefault();
     if (!newTaxClass.trim() || !newTaxValue) return;
-    const newTax = {
-      _id: Date.now().toString(),
-      taxClass: newTaxClass,
-      taxValue: parseFloat(newTaxValue),
-    };
-    setTaxes([...taxes, newTax]);
-    setSelectedTax(newTax);
-    setShowAddTaxModal(false);
-    setNewTaxClass("");
-    setNewTaxValue("");
+    
+    try {
+      const response = await axiosInstance.post('/taxclasses', {
+        tax_class: newTaxClass,
+        tax_value: parseFloat(newTaxValue),
+        company_id: companyId
+      });
+      
+      if (response.data.success) {
+        const newTax = {
+          id: response.data.data.id,
+          tax_class: newTaxClass,
+          tax_value: parseFloat(newTaxValue),
+          company_id: companyId
+        };
+        setTaxes([...taxes, newTax]);
+        setSelectedTax(newTax);
+        setShowAddTaxModal(false);
+        setNewTaxClass("");
+        setNewTaxValue("");
+      }
+    } catch (err) {
+      console.error("Error adding tax class:", err);
+      alert("Failed to add tax class. Please try again.");
+    }
   };
 
   const handleTaxSelect = (e) => {
     const value = e.target.value;
-    const tax = taxes.find((tax) => tax._id === value);
+    const tax = taxes.find((tax) => tax.id === parseInt(value));
     setSelectedTax(tax || taxes[0]);
+  };
+
+  const handleDeleteTax = async (taxId) => {
+    if (window.confirm("Are you sure you want to delete this tax class?")) {
+      try {
+        const response = await axiosInstance.delete(`/taxclasses/${taxId}`);
+        
+        if (response.data.success) {
+          const updatedTaxes = taxes.filter(tax => tax.id !== taxId);
+          setTaxes(updatedTaxes);
+          
+          if (selectedTax && selectedTax.id === taxId) {
+            setSelectedTax(updatedTaxes.length > 0 ? updatedTaxes[0] : { id: 1, tax_class: "GST", tax_value: 10, company_id: companyId });
+          }
+        }
+      } catch (err) {
+        console.error("Error deleting tax class:", err);
+        alert("Failed to delete tax class. Please try again.");
+      }
+    }
   };
 
   // --- Price & Quantity ---
@@ -195,16 +260,16 @@ const filteredOrders = mockOrders.filter((order) => {
     if (!isNaN(newPrice)) {
       setPriceMap((prev) => ({
         ...prev,
-        [currentProduct._id]: newPrice,
+        [currentProduct.id]: newPrice,
       }));
     }
   };
 
   const calculateSubTotal = () => {
     const productSubTotal = selectedProducts.reduce((total, item) => {
-      const productPrice = parseFloat(priceMap[item._id] ?? item.price);
-      const productQuantity = quantity[item._id] || 1;
-      const priceWithoutGST = productPrice / (1 + (selectedTax.taxValue || 0) / 100);
+      const productPrice = parseFloat(priceMap[item.id] ?? item.initial_cost);
+      const productQuantity = quantity[item.id] || 1;
+      const priceWithoutGST = productPrice / (1 + (selectedTax?.tax_value || 0) / 100);
       return total + priceWithoutGST * productQuantity;
     }, 0);
     return parseFloat(productSubTotal.toFixed(2));
@@ -212,8 +277,8 @@ const filteredOrders = mockOrders.filter((order) => {
 
   const calculateTotal = () => {
     const total = selectedProducts.reduce((sum, item) => {
-      const productPrice = parseFloat(priceMap[item._id] ?? item.price);
-      const qty = quantity[item._id] || 1;
+      const productPrice = parseFloat(priceMap[item.id] ?? item.initial_cost);
+      const qty = quantity[item.id] || 1;
       return sum + productPrice * qty;
     }, 0);
     return parseFloat(total.toFixed(2));
@@ -229,10 +294,10 @@ const filteredOrders = mockOrders.filter((order) => {
 
   // --- Product Selection ---
   const handleProductSelection = (product) => {
-    const index = selectedProducts.findIndex((p) => p._id === product._id);
+    const index = selectedProducts.findIndex((p) => p.id === product.id);
     const updated = [...selectedProducts];
     if (index > -1) {
-      updated[index] = { ...updated[index], quantity: quantity[product._id] || 1 };
+      updated[index] = { ...updated[index], quantity: quantity[product.id] || 1 };
     } else {
       updated.push({ ...product, quantity: 1 });
     }
@@ -241,17 +306,17 @@ const filteredOrders = mockOrders.filter((order) => {
 
   const showModal = (product) => {
     setCurrentProduct(product);
-    setPrice(product.price);
+    setPrice(product.initial_cost);
     setQuantity((prev) => ({
       ...prev,
-      [product._id]: prev[product._id] || 1,
+      [product.id]: prev[product.id] || 1,
     }));
     setIsModalVisible(true);
   };
 
   const handleOk = () => {
-    const availableStock = warehouseStock[currentProduct._id] || 0;
-    const requestedQuantity = quantity[currentProduct._id] || 1;
+    const availableStock = warehouseStock[currentProduct.id] || 0;
+    const requestedQuantity = quantity[currentProduct.id] || 1;
 
     if (requestedQuantity > availableStock) {
       setQuantityError(`Only ${availableStock} units available in stock.`);
@@ -259,12 +324,12 @@ const filteredOrders = mockOrders.filter((order) => {
     }
 
     setQuantityError("");
-    const index = selectedProducts.findIndex((p) => p._id === currentProduct._id);
+    const index = selectedProducts.findIndex((p) => p.id === currentProduct.id);
     const updated = [...selectedProducts];
     if (index > -1) {
-      updated[index] = { ...updated[index], quantity: quantity[currentProduct._id] || 1 };
+      updated[index] = { ...updated[index], quantity: quantity[currentProduct.id] || 1 };
     } else {
-      updated.push({ ...currentProduct, quantity: quantity[currentProduct._id] || 1 });
+      updated.push({ ...currentProduct, quantity: quantity[currentProduct.id] || 1 });
     }
     setSelectedProducts(updated);
     setIsModalVisible(false);
@@ -273,7 +338,7 @@ const filteredOrders = mockOrders.filter((order) => {
   const handleCancel = () => setIsModalVisible(false);
 
   const handleRemoveProduct = (id) => {
-    setSelectedProducts(selectedProducts.filter((p) => p._id !== id));
+    setSelectedProducts(selectedProducts.filter((p) => p.id !== id));
   };
 
   // --- Payment Status ---
@@ -281,18 +346,18 @@ const filteredOrders = mockOrders.filter((order) => {
     const status = e.target.value;
     setPaymentStatus(status);
 
-    if (status === "2") {
+    if (status === "2") { // Paid
       setAmountPaid(calculateTotal());
       setAmountDue(0);
-    } else if (status === "0") {
+    } else if (status === "0") { // Due
       setAmountPaid(0);
       setAmountDue(calculateTotal());
-    } else if (status === "1") {
+    } else if (status === "1") { // Partial
       setAmountPaid(calculateTotal() / 2);
       setAmountDue(calculateTotal() / 2);
-    } else if (status === "3") {
-      setAmountPaid(0);
-      setAmountDue(calculateTotal());
+    } else if (status === "3") { // Cash
+      setAmountPaid(calculateTotal());
+      setAmountDue(0);
     }
   };
 
@@ -302,28 +367,30 @@ const filteredOrders = mockOrders.filter((order) => {
     setAmountDue(calculateTotal() - paid);
   };
 
-  // --- Cash Payment ---
-  const handleCashPayment = () => {
-    setShowCashPaymentModal(true);
-    setCashAmount(calculateTotal());
-  };
+  // Loading and error states
+  if (loading) {
+    return (
+      <Container fluid className="mt-4 p-3 rounded-4 bg-white text-center">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+        <p className="mt-2">Loading products and tax classes...</p>
+      </Container>
+    );
+  }
 
-  const processCashPayment = () => {
-    const total = calculateTotal();
-    const paid = parseFloat(cashAmount) || 0;
-    setAmountPaid(paid);
-    setAmountDue(total - paid);
-
-    if (paid >= total) {
-      setPaymentStatus("2");
-    } else if (paid > 0) {
-      setPaymentStatus("1");
-    } else {
-      setPaymentStatus("0");
-    }
-
-    setShowCashPaymentModal(false);
-  };
+  if (error) {
+    return (
+      <Container fluid className="mt-4 p-3 rounded-4 bg-white">
+        <Alert variant="danger">{error}</Alert>
+        <div className="text-center mt-3">
+          <Button variant="primary" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <Container fluid className="mt-4 p-3 rounded-4 bg-white">
@@ -341,7 +408,8 @@ const filteredOrders = mockOrders.filter((order) => {
           <div className="mb-4">
             <div className="d-flex justify-content-between align-items-center mb-4 mt-2">
               <h4 className="mb-0">Available Products</h4>
-              <button  onClick={() => setShowAdd(true)}
+              <button  
+                onClick={() => setShowAdd(true)}
                 className="btn"
                 style={{
                   backgroundColor: "#27b2b6",
@@ -353,59 +421,71 @@ const filteredOrders = mockOrders.filter((order) => {
                 Add Product
               </button>
             </div>
-            <Table striped bordered hover responsive>
-              <thead>
-                <tr>
-                  <th>Image</th>
-                  <th>Product Name</th>
-                  <th>Price</th>
-                  <th>Warehouse</th>
-                  <th>Stock</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {productList.map((product) => {
-                  const stock = warehouseStock[product._id] || 0;
-                  const isSelected = selectedProducts.some((p) => p._id === product._id);
-                  return (
-                    <tr key={product._id}>
-                      <td>
-                        <div className="cursor-pointer"
-                          onClick={() => showModal(product)}
-                          style={{ cursor: "pointer" }}>
-                          <Image
-                            src={product.image}
-                            alt={product.name}
-                            rounded
-                            style={{
-                              width: "50px",
-                              height: "50px",
-                              objectFit: "cover",
-                              border: isSelected ? "2px solid #27b2b6" : "none",
-                              borderRadius: "4px",
-                            }}
-                          />
-                        </div>
-                      </td>
-                      <td>{product.name}</td>
-                      <td>A${product.price.toFixed(2)}</td>
-                      <td>{product.warehouse}</td>
-                      <td>{stock} units</td>
-                      <td>
-                        <Button
-                          variant={isSelected ? "success" : "primary"}
-                          onClick={() => showModal(product)}
-                          size="sm"
-                        >
-                          {isSelected ? "Selected" : "Select"}
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
+            {products.length === 0 ? (
+              <Alert variant="warning">
+                <div className="d-flex align-items-center">
+                  <i className="bi bi-exclamation-triangle me-2"></i>
+                  <div>
+                    <strong>No products found</strong>
+                    <p className="mb-0">Please add products to the system to continue.</p>
+                  </div>
+                </div>
+              </Alert>
+            ) : (
+              <Table striped bordered hover responsive>
+                <thead>
+                  <tr>
+                    <th>Image</th>
+                    <th>Product Name</th>
+                    <th>Price</th>
+                    <th>Warehouse</th>
+                    <th>Stock</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((product) => {
+                    const stock = warehouseStock[product.id] || 0;
+                    const isSelected = selectedProducts.some((p) => p.id === product.id);
+                    return (
+                      <tr key={product.id}>
+                        <td>
+                          <div className="cursor-pointer"
+                            onClick={() => showModal(product)}
+                            style={{ cursor: "pointer" }}>
+                            <Image
+                              src={product.image || "https://via.placeholder.com/50"}
+                              alt={product.item_name}
+                              rounded
+                              style={{
+                                width: "50px",
+                                height: "50px",
+                                objectFit: "cover",
+                                border: isSelected ? "2px solid #27b2b6" : "none",
+                                borderRadius: "4px",
+                              }}
+                            />
+                          </div>
+                        </td>
+                        <td>{product.item_name}</td>
+                        <td>A${parseFloat(product.initial_cost).toFixed(2)}</td>
+                        <td>{product.warehouse?.warehouse_name || "N/A"}</td>
+                        <td>{stock} units</td>
+                        <td>
+                          <Button
+                            variant={isSelected ? "success" : "primary"}
+                            onClick={() => showModal(product)}
+                            size="sm"
+                          >
+                            {isSelected ? "Selected" : "Select"}
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </Table>
+            )}
           </div>
 
           {/* Selected Products */}
@@ -413,29 +493,37 @@ const filteredOrders = mockOrders.filter((order) => {
             <h4>Selected Products</h4>
             <div className="product-list">
               {selectedProducts.length === 0 ? (
-                <p>No products selected</p>
+                <Alert variant="info">
+                  <div className="d-flex align-items-center">
+                    <i className="bi bi-info-circle me-2"></i>
+                    <div>
+                      <strong>No products selected</strong>
+                      <p className="mb-0">Select products from the list above to add them to your order.</p>
+                    </div>
+                  </div>
+                </Alert>
               ) : (
                 <Row>
-                  {selectedProducts.map((product) => {
-                    const qty = quantity[product._id] || 1;
-                    const unitPrice = parseFloat(priceMap[product._id] ?? product.price) || 0;
+                  {selectedProducts?.map((product) => {
+                    const qty = quantity[product.id] || 1;
+                    const unitPrice = parseFloat(priceMap[product.id] ?? product.initial_cost) || 0;
                     const total = unitPrice * qty;
-                    const stock = warehouseStock[product._id] || 0;
+                    const stock = warehouseStock[product.id] || 0;
                     return (
-                      <Col key={product._id} md={6} className="mb-3">
+                      <Col key={product.id} md={6} className="mb-3">
                         <Card>
                           <Card.Body className="d-flex">
                             <Image
-                              src={product.image}
-                              alt={product.name}
+                              src={product.image || "https://via.placeholder.com/80"}
+                              alt={product.item_name}
                               rounded
                               style={{ width: "80px", height: "80px", objectFit: "cover" }}
                               className="me-3"
                             />
                             <div className="flex-grow-1">
-                              <Card.Title>{product.name}</Card.Title>
+                              <Card.Title>{product.item_name}</Card.Title>
                               <Card.Text>
-                                Warehouse: {product.warehouse}
+                                Warehouse: {product.warehouse?.warehouse_name || "N/A"}
                                 <br />
                                 Stock: {stock} units
                                 <br />
@@ -443,7 +531,7 @@ const filteredOrders = mockOrders.filter((order) => {
                               </Card.Text>
                               <Button
                                 variant="danger"
-                                onClick={() => handleRemoveProduct(product._id)}
+                                onClick={() => handleRemoveProduct(product.id)}
                                 size="sm"
                               >
                                 Remove
@@ -466,10 +554,10 @@ const filteredOrders = mockOrders.filter((order) => {
             <Col>
               <Form.Label>Tax</Form.Label>
               <div className="d-flex">
-                <Form.Select value={selectedTax?._id || ""} onChange={handleTaxSelect}>
+                <Form.Select value={selectedTax?.id || ""} onChange={handleTaxSelect}>
                   {taxes.map((tax) => (
-                    <option key={tax._id} value={tax._id}>
-                      {tax.taxClass} - {tax.taxValue}%
+                    <option key={tax.id} value={tax.id}>
+                      {tax.tax_class} - {tax.tax_value}%
                     </option>
                   ))}
                 </Form.Select>
@@ -479,7 +567,7 @@ const filteredOrders = mockOrders.filter((order) => {
                   onClick={() => setShowAddTaxModal(true)}
                 >
                   ➕
-                </Button>
+                </Button> 
               </div>
             </Col>
             <Col>
@@ -508,26 +596,6 @@ const filteredOrders = mockOrders.filter((order) => {
             </Row>
           )}
 
-          {paymentStatus === "3" && (
-            <Row className="mb-3">
-              <Col>
-                <Button
-                  className="w-100"
-                  onClick={handleCashPayment}
-                  style={{
-                    backgroundColor: "#27b2b6",
-                    color: "#fff",
-                    padding: "4px 10px",
-                    borderRadius: "4px",
-                    fontSize: "13px",
-                  }}
-                >
-                  Enter Cash Amount 💵
-                </Button>
-              </Col>
-            </Row>
-          )}
-
           <div className="border p-3 rounded bg-white">
             <div className="d-flex justify-content-between mb-3">
               <strong>Subtotal:</strong>
@@ -537,12 +605,12 @@ const filteredOrders = mockOrders.filter((order) => {
               <strong>GST:</strong>
               <input
                 type="text"
-                value={`${selectedTax?.taxValue || 0}%`}
+                value={`${selectedTax?.tax_value || 0}%`}
                 readOnly
                 className="form-control-plaintext ms-auto text-end"
               />
             </div>
-            {(paymentStatus === "1" || (paymentStatus === "3" && amountPaid > 0)) && (
+            {(paymentStatus === "1" || paymentStatus === "3") && (
               <>
                 <div className="d-flex justify-content-between mb-2">
                   <strong>Amount Paid:</strong>
@@ -575,85 +643,8 @@ const filteredOrders = mockOrders.filter((order) => {
           <Button variant="danger" onClick={handleClear} disabled={selectedProducts.length === 0}>
             Clear Selection ❌
           </Button>
-          <Button
-            variant="info"
-            onClick={() => setShowOrdersModal(true)}
-            disabled={selectedProducts.length === 0}
-          >
-            View Order
-          </Button>
-        </div>ritm      
-
+        </div>
       </Row>
-
-      {/* NEW: Orders Modal */}
-<Modal show={showOrdersModal} onHide={() => setShowOrdersModal(false)} size="lg">
-  <Modal.Header closeButton>
-    <Modal.Title>Orders</Modal.Title>
-  </Modal.Header>
-  <Modal.Body>
-    {/* Tabs */}
-    <div className="d-flex gap-2 mb-3">
-      <Button
-        variant={activeTab === "onhold" ? "warning" : "light"}
-        onClick={() => setActiveTab("onhold")}
-      >
-        Onhold
-      </Button>
-      <Button
-        variant={activeTab === "unpaid" ? "warning" : "light"}
-        onClick={() => setActiveTab("unpaid")}
-      >
-        Unpaid
-      </Button>
-      <Button
-        variant={activeTab === "paid" ? "warning" : "light"}
-        onClick={() => setActiveTab("paid")}
-      >
-        Paid
-      </Button>
-    </div>
-
-    {/* Search Bar */}
-    <Form.Group className="mb-3">
-      <Form.Control
-        type="text"
-        placeholder="Search Product"
-        value=""
-        onChange={() => {}}
-      />
-    </Form.Group>
-
-    {/* Orders List */}
-    {filteredOrders.map((order) => (
-      <Card key={order.id} className="mb-3 p-3 border">
-        <div className="d-flex justify-content-between align-items-start mb-2">
-          <span className="badge bg-dark">{order.id}</span>
-          <small className="text-muted">{order.date}</small>
-        </div>
-        <div className="row">
-          <div className="col-md-6">
-            <p><strong>Product Name:</strong> {order.productName}</p>
-            <p><strong>Total:</strong> A${order.total}</p>
-          </div>
-          <div className="col-md-6">
-            <p><strong>WAREHOUSE:</strong> {order.Warehouse}</p>
-          </div>
-        </div>
-        {order.notes && (
-          <Alert variant="info" className="mt-2">
-            {order.notes}
-          </Alert>
-        )}
-        <div className="d-flex gap-2 mt-3">
-          <Button variant="danger">Open Order</Button>
-          <Button variant="success">View Products</Button>
-          <Button variant="primary">Print</Button>
-        </div>
-      </Card>
-    ))}
-  </Modal.Body>
-</Modal>
 
       {/* Modals */}
       <Modal show={isModalVisible} onHide={handleCancel} centered>
@@ -661,18 +652,18 @@ const filteredOrders = mockOrders.filter((order) => {
           <Modal.Title>Enter Product Quantity</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <h5>{currentProduct?.name}</h5>
-          <p>Warehouse: {currentProduct?.warehouse}</p>
-          <p>Available Stock: {warehouseStock[currentProduct?._id] || 0} units</p>
+          <h5>{currentProduct?.item_name}</h5>
+          <p>Warehouse: {currentProduct?.warehouse?.warehouse_name || "N/A"}</p>
+          <p>Available Stock: {warehouseStock[currentProduct?.id] || 0} units</p>
           <Form.Group className="mb-3">
             <Form.Label>Quantity</Form.Label>
             <Form.Control
               type="number"
               min={1}
-              max={warehouseStock[currentProduct?._id] || 1}
-              value={quantity[currentProduct?._id] || 1}
+              max={warehouseStock[currentProduct?.id] || 1}
+              value={quantity[currentProduct?.id] || 1}
               onChange={(e) =>
-                handleQuantityChange(currentProduct._id, parseInt(e.target.value))
+                handleQuantityChange(currentProduct.id, parseInt(e.target.value))
               }
             />
           </Form.Group>
@@ -681,10 +672,9 @@ const filteredOrders = mockOrders.filter((order) => {
             <Form.Control type="number" value={price} onChange={handlePriceChange} />
           </Form.Group>
           <p className="mt-3">
-            <strong>Total Price:</strong> A$
-            {isNaN(price * (quantity[currentProduct?._id] || 1))
+            <strong>Total Price:</strong> A$  {isNaN(price * (quantity[currentProduct?.id] || 1))
               ? "0.00"
-              : (price * (quantity[currentProduct?._id] || 1)).toFixed(2)}
+              : (price * (quantity[currentProduct?.id] || 1)).toFixed(2)}
           </p>
           {quantityError && <Alert variant="danger" className="mt-2">{quantityError}</Alert>}
         </Modal.Body>
@@ -734,53 +724,6 @@ const filteredOrders = mockOrders.filter((order) => {
         </Modal.Body>
       </Modal>
 
-      <Modal
-        show={showCashPaymentModal}
-        onHide={() => setShowCashPaymentModal(false)}
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Cash Payment</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {/* Cash payment form */}
-          <Form.Group className="mb-3">
-            <Form.Label>Total Amount Due</Form.Label>
-            <Form.Control type="text" value={`A$${calculateTotal()}`} readOnly />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Cash Amount Received</Form.Label>
-            <Form.Control
-              type="number"
-              value={cashAmount}
-              onChange={(e) => setCashAmount(parseFloat(e.target.value) || 0)}
-              min={0}
-              step="0.01"
-            />
-          </Form.Group>
-          {cashAmount > 0 && (
-            <div className="border p-2 rounded bg-light">
-              <div className="d-flex justify-content-between">
-                <strong>Amount Paid:</strong>
-                <span>A${cashAmount.toFixed(2)}</span>
-              </div>
-              <div className="d-flex justify-content-between">
-                <strong>Amount Due:</strong>
-                <span>A${(calculateTotal() - cashAmount).toFixed(2)}</span>
-              </div>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCashPaymentModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={processCashPayment}>
-            Process Payment
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
       {/* ✅ PAYMENT COMPLETED MODAL */}
       <Modal
         show={showPaymentCompletedModal}
@@ -813,7 +756,6 @@ const filteredOrders = mockOrders.filter((order) => {
             <Button variant="dark" onClick={handlePrintReceipt}>
               Print Receipt
             </Button>
-
           </div>
         </Modal.Body>
       </Modal>
