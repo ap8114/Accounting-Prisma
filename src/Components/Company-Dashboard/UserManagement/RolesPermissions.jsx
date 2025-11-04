@@ -131,9 +131,6 @@ const RolesPermissions = () => {
       } else {
         setError("Failed to load roles.");
       }
-    } catch (err) {
-      console.error("Error fetching roles:", err);
-      setError("Unable to fetch roles. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -425,14 +422,6 @@ const RolesPermissions = () => {
       setIsAddingType(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
-        <Spinner animation="border" variant="primary" />
-      </div>
-    );
-  }
 
   if (error) {
     return (

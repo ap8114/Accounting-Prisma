@@ -195,7 +195,7 @@ const ContraVoucher = () => {
   const handleEdit = (voucher) => {
     setIsEditing(true);
     setCurrentVoucherId(voucher.id);
-    setManualVoucherNo(voucher.voucher_no_manual || '');
+    setManualVoucherNo(voucher.voucher_number || '');
     const dateStr = voucher.voucher_date
       ? voucher.voucher_date.split('T')[0]
       : new Date().toISOString().split('T')[0];
@@ -252,7 +252,7 @@ const ContraVoucher = () => {
 
     const formData = new FormData();
     if (manualVoucherNo.trim()) {
-      formData.append('voucher_no_manual', manualVoucherNo.trim());
+      formData.append('voucher_number', manualVoucherNo.trim());
     }
     formData.append('voucher_date', voucherDate);
     formData.append('account_from_id', accountFromId);
@@ -277,7 +277,7 @@ const ContraVoucher = () => {
             v.id === currentVoucherId
               ? {
                 ...v,
-                voucher_no_manual: manualVoucherNo.trim() || v.voucher_no_manual,
+                voucher_number: manualVoucherNo.trim() || v.voucher_number,
                 voucher_date: voucherDate,
                 account_from_id: accountFromId,
                 account_to_id: accountToId,
@@ -297,7 +297,7 @@ const ContraVoucher = () => {
         const newVoucher = {
           id: response.data?.id || Date.now(),
           voucher_no: manualVoucherNo.trim() || response.data?.voucher_no || autoVoucherNo,
-          voucher_no_manual: manualVoucherNo.trim() || null,
+          voucher_number: manualVoucherNo.trim() || null,
           voucher_date: voucherDate,
           account_from_id: accountFromId,
           account_to_id: accountToId,
@@ -375,9 +375,10 @@ const ContraVoucher = () => {
                     <tr key={voucher.id}>
 
                       {/* voucher_no_auto */}
- {/* <td>{voucher.voucher_no_auto || '—'}</td> */}
+                      <td>{voucher.voucher_no_auto || '—'}</td>
 
-                      <td>{voucher.voucher_number || '—'}</td>
+                      {/* <td>{voucher.voucher_number || '—'}</td> */}
+                      
                       <td>{voucher.voucher_date ? voucher.voucher_date.split('T')[0] : '—'}</td>
                       <td>{getAccountDisplayName(voucher.account_from_id)}</td>
                       <td>{getAccountDisplayName(voucher.account_to_id)}</td>
