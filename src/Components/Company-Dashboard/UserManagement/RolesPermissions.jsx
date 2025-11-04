@@ -131,6 +131,9 @@ const RolesPermissions = () => {
       } else {
         setError("Failed to load roles.");
       }
+    } catch (err) {
+      console.error("Error fetching roles:", err);
+      setError("Server error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -239,7 +242,7 @@ const RolesPermissions = () => {
       setToastVariant("danger");
       setShowToast(true);
     }
-  };
+    };
 
   const handleEdit = (role) => {
     setSelected(role);
@@ -422,6 +425,14 @@ const RolesPermissions = () => {
       setIsAddingType(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
+  }
 
   if (error) {
     return (
