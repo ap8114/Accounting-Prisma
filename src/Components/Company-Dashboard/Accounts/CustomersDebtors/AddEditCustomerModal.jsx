@@ -344,7 +344,7 @@ const AddEditCustomerModal = ({
             </Col>
             <Col md={3}>
               <Form.Group>
-                <Form.Label>ID Card Image</Form.Label>
+                <Form.Label>Profile Image</Form.Label>
                 <Form.Control
                   type="file"
                   accept="image/jpeg, image/png, image/jpg"

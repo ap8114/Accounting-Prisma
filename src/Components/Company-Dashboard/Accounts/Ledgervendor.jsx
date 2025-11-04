@@ -6,6 +6,7 @@ import {
   FaSearch,
   FaFileExport,
   FaFilePdf,
+  FaGlobe,
 } from "react-icons/fa";
 import {
   Button,
@@ -707,6 +708,22 @@ const Ledgervendor = () => {
                     <i className="bi bi-envelope text-success me-2"></i>
                     <strong>Email:</strong> {vendor.email}
                   </p>
+
+                  <p className="mb-0 d-flex align-items-center">
+                    <FaGlobe className="me-2" style={{ color: "#53b2a5" }} />
+                    <span>
+                      <strong>Location:</strong>{" "}
+                      <a
+                        href={vendor.companyLocation}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "#007bff", textDecoration: "none" }}
+                      >
+                        Click Location
+                      </a>
+                    </span>
+                  </p>
+
                 </div>
               </Col>
 
