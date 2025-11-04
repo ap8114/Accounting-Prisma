@@ -356,7 +356,7 @@ const ContraVoucher = () => {
           ) : contraVouchers.length === 0 ? (
             <Alert variant="info">No contra vouchers found.</Alert>
           ) : (
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            <div className='' style={{ maxHeight: '400px', overflowY: 'auto' }}>
               <Table striped bordered hover size="sm">
                 <thead>
                   <tr>
@@ -373,7 +373,11 @@ const ContraVoucher = () => {
                 <tbody>
                   {contraVouchers.map((voucher) => (
                     <tr key={voucher.id}>
-                      <td>{voucher.voucher_no_auto || '—'}</td>
+
+                      {/* voucher_no_auto */}
+ {/* <td>{voucher.voucher_no_auto || '—'}</td> */}
+
+                      <td>{voucher.voucher_number || '—'}</td>
                       <td>{voucher.voucher_date ? voucher.voucher_date.split('T')[0] : '—'}</td>
                       <td>{getAccountDisplayName(voucher.account_from_id)}</td>
                       <td>{getAccountDisplayName(voucher.account_to_id)}</td>
