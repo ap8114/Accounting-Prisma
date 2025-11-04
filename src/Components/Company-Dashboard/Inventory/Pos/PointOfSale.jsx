@@ -65,14 +65,7 @@ const PointOfSale = () => {
       image:
         "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=80&h=80&fit=crop&crop=center",
     },
-    {
-      _id: "p2",
-      name: "Product B",
-      price: 200,
-      warehouse: "Secondary Warehouse",
-      image:
-        "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=80&h=80&fit=crop&crop=center", // Fixed extra space
-    },
+   
   ];
 
   // Modals
@@ -340,7 +333,7 @@ const filteredOrders = mockOrders.filter((order) => {
           <CustomerList onSelectCustomer={setSelectedCustomer} />
           {selectedCustomer && (
             <Alert variant="info" className="mt-2">
-              Selected Customer: {selectedCustomer.first_name} {selectedCustomer.last_name}
+              Selected Customer: {selectedCustomer?.name_english} 
             </Alert>
           )}
 
@@ -348,8 +341,7 @@ const filteredOrders = mockOrders.filter((order) => {
           <div className="mb-4">
             <div className="d-flex justify-content-between align-items-center mb-4 mt-2">
               <h4 className="mb-0">Available Products</h4>
-              <button
-                onClick={() => setShowAdd(true)}
+              <button  onClick={() => setShowAdd(true)}
                 className="btn"
                 style={{
                   backgroundColor: "#27b2b6",
@@ -357,8 +349,7 @@ const filteredOrders = mockOrders.filter((order) => {
                   padding: "4px 10px",
                   borderRadius: "4px",
                   fontSize: "13px",
-                }}
-              >
+                }}>
                 Add Product
               </button>
             </div>
@@ -380,11 +371,9 @@ const filteredOrders = mockOrders.filter((order) => {
                   return (
                     <tr key={product._id}>
                       <td>
-                        <div
-                          className="cursor-pointer"
+                        <div className="cursor-pointer"
                           onClick={() => showModal(product)}
-                          style={{ cursor: "pointer" }}
-                        >
+                          style={{ cursor: "pointer" }}>
                           <Image
                             src={product.image}
                             alt={product.name}

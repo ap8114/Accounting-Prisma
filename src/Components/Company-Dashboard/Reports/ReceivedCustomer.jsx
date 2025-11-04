@@ -1,38 +1,51 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Form, Button, Container, Table, Row, Col, Dropdown } from 'react-bootstrap';
+import {
+  Form,
+  Button,
+  Container,
+  Table,
+  Row,
+  Col,
+  Modal,
+  Dropdown,
+} from 'react-bootstrap';
 import './ReceivedCustomer.css';
 import axiosInstance from '../../../Api/axiosInstance';
 import GetCompanyId from '../../../Api/GetCompanyId';
 
-// Static payment data (as per your example)
-const paymentData = [
+// Initial static data converted to editable state
+const initialReceipts = [
   {
+    id: 1,
     account: 'Muhammad Yaqoob',
     description: 'Sales\nVoucher No: IV/843/78\nVoucher Date: 24/05/2025\nVoucher Due Date: 27/06/2025',
-    totalAmount: 454.000,
-    outstandingAmount: 454.000,
-    amountToPay: 454.000,
+    totalAmount: 454.0,
+    outstandingAmount: 454.0,
+    amountToPay: 454.0,
   },
   {
+    id: 2,
     account: 'Muhammad Yaqoob',
     description: 'Sales\nVoucher No: IV/843/78\nVoucher Date: 24/05/2025\nVoucher Due Date: 31/05/2025',
-    totalAmount: 8205.120,
-    outstandingAmount: 8205.120,
-    amountToPay: 8205.120,
+    totalAmount: 8205.12,
+    outstandingAmount: 8205.12,
+    amountToPay: 8205.12,
   },
   {
+    id: 3,
     account: 'Muhammad Yaqoob',
     description: 'Sales\nVoucher No: IV/843/74\nVoucher Date: 20/07/2025\nVoucher Due Date: 27/07/2025',
-    totalAmount: 1965.960,
-    outstandingAmount: 1965.960,
-    amountToPay: 1965.960,
+    totalAmount: 1965.96,
+    outstandingAmount: 1965.96,
+    amountToPay: 1965.96,
   },
   {
+    id: 4,
     account: 'Muhammad Yaqoob',
     description: 'Sales\nVoucher No: IV/843/74\nVoucher Date: 21/07/2025\nVoucher Due Date: 30/07/2025',
-    totalAmount: 318.800,
-    outstandingAmount: 318.800,
-    amountToPay: 318.800,
+    totalAmount: 318.8,
+    outstandingAmount: 318.8,
+    amountToPay: 318.8,
   },
 ];
 
@@ -52,8 +65,131 @@ const discountOptions = [
   "Special Allowance - SA"
 ];
 
+const ReceiptModal = ({ show, onHide, onSave, receipt }) => {
+  const [formData, setFormData] = useState({
+    account: '',
+    description: '',
+    totalAmount: '',
+    outstandingAmount: '',
+    amountToPay: '',
+  });
+
+  useEffect(() => {
+    if (receipt) {
+      setFormData({
+        account: receipt.account || '',
+        description: receipt.description || '',
+        totalAmount: receipt.totalAmount || '',
+        outstandingAmount: receipt.outstandingAmount || '',
+        amountToPay: receipt.amountToPay || '',
+      });
+    } else {
+      setFormData({
+        account: '',
+        description: '',
+        totalAmount: '',
+        outstandingAmount: '',
+        amountToPay: '',
+      });
+    }
+  }, [receipt]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = () => {
+    const numericFields = ['totalAmount', 'outstandingAmount', 'amountToPay'];
+    const parsedData = { ...formData };
+    numericFields.forEach((field) => {
+      parsedData[field] = parseFloat(formData[field]) || 0;
+    });
+    onSave(parsedData);
+    onHide();
+  };
+
+  return (
+    <Modal show={show} onHide={onHide} centered size="lg">
+      <Modal.Header closeButton>
+        <Modal.Title>{receipt ? 'Edit Receipt' : 'Add New Receipt'}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Row className="g-3">
+          <Col md={6}>
+            <Form.Group>
+              <Form.Label>Account</Form.Label>
+              <Form.Control
+                name="account"
+                value={formData.account}
+                onChange={handleChange}
+              />
+            </Form.Group>
+          </Col>
+          <Col md={6}>
+            <Form.Group>
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+              />
+            </Form.Group>
+          </Col>
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label>Total Amount</Form.Label>
+              <Form.Control
+                type="number"
+                step="0.001"
+                name="totalAmount"
+                value={formData.totalAmount}
+                onChange={handleChange}
+              />
+            </Form.Group>
+          </Col>
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label>Outstanding Amount</Form.Label>
+              <Form.Control
+                type="number"
+                step="0.001"
+                name="outstandingAmount"
+                value={formData.outstandingAmount}
+                onChange={handleChange}
+              />
+            </Form.Group>
+          </Col>
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label>Amount to Pay</Form.Label>
+              <Form.Control
+                type="number"
+                step="0.001"
+                name="amountToPay"
+                value={formData.amountToPay}
+                onChange={handleChange}
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSubmit}>
+          Save
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
 const ReceivedCustomer = () => {
-  const [showReceiptTable, setShowReceiptTable] = useState(false);
+  const [showReceiptTable, setShowReceiptTable] = useState(true); // Enable by default
   const [showDiscountFields, setShowDiscountFields] = useState(false);
   const [taxDeducted, setTaxDeducted] = useState(false);
   const [showNarration, setShowNarration] = useState(true);
@@ -72,6 +208,11 @@ const ReceivedCustomer = () => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const companyId = GetCompanyId();
 
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [editingReceipt, setEditingReceipt] = useState(null);
+  const [receipts, setReceipts] = useState(initialReceipts);
+
   const receivedFromRef = useRef(null);
   const receivedIntoRef = useRef(null);
 
@@ -85,12 +226,11 @@ const ReceivedCustomer = () => {
   const [receivedFromOptions, setReceivedFromOptions] = useState([]);
   const [filteredReceivedFrom, setFilteredReceivedFrom] = useState([]);
 
-  // 🔥 Fetch Accounts (Received Into) — FIXED
+  // Fetch Accounts
   useEffect(() => {
     if (companyId) {
       axiosInstance.get(`account/getAccountByCompany/${companyId}`)
         .then((res) => {
-          // ✅ Fix: Use res.data.data (not res.data)
           const accounts = res.data.data || [];
           const options = accounts.map((item) => item.account_name || item.name || '').filter(name => name.trim() !== '');
           setReceivedIntoOptions(options);
@@ -104,12 +244,11 @@ const ReceivedCustomer = () => {
     }
   }, [companyId]);
 
-  // 🔥 Fetch Customers (Received From) — FIXED
+  // Fetch Customers
   useEffect(() => {
     if (companyId) {
       axiosInstance.get(`customers/getCustomersByCompany/${companyId}`)
         .then((res) => {
-          // ✅ Fix: Use res.data.data and item.name_english
           const customers = res.data.data || [];
           const options = customers
             .map((item) => item.name_english || '')
@@ -125,7 +264,7 @@ const ReceivedCustomer = () => {
     }
   }, [companyId]);
 
-  // Filter Received Into
+  // Filter logic
   useEffect(() => {
     if (receivedIntoSearch) {
       setFilteredReceivedInto(
@@ -138,7 +277,6 @@ const ReceivedCustomer = () => {
     }
   }, [receivedIntoSearch, receivedIntoOptions]);
 
-  // Filter Received From
   useEffect(() => {
     if (receivedFromSearch) {
       setFilteredReceivedFrom(
@@ -158,7 +296,7 @@ const ReceivedCustomer = () => {
     setAutoReceiptNo(`AUTO-RCV-${timestamp}-${randomNum}`);
   }, []);
 
-  // Close dropdowns on outside click
+  // Close dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (receivedFromRef.current && !receivedFromRef.current.contains(event.target)) {
@@ -191,6 +329,32 @@ const ReceivedCustomer = () => {
     const file = e.target.files[0];
     if (file) {
       setUploadedFile(file);
+    }
+  };
+
+  // Modal handlers
+  const handleAddReceipt = () => {
+    setEditingReceipt(null);
+    setShowModal(true);
+  };
+
+  const handleEditReceipt = (receipt) => {
+    setEditingReceipt(receipt);
+    setShowModal(true);
+  };
+
+  const handleSaveReceipt = (data) => {
+    if (editingReceipt) {
+      setReceipts(receipts.map(r => r.id === editingReceipt.id ? { ...data, id: editingReceipt.id } : r));
+    } else {
+      const newId = receipts.length > 0 ? Math.max(...receipts.map(r => r.id)) + 1 : 1;
+      setReceipts([...receipts, { ...data, id: newId }]);
+    }
+  };
+
+  const handleDeleteReceipt = (id) => {
+    if (window.confirm("Are you sure you want to delete this receipt?")) {
+      setReceipts(receipts.filter(r => r.id !== id));
     }
   };
 
@@ -366,7 +530,12 @@ const ReceivedCustomer = () => {
         {/* Payment Table */}
         {showReceiptTable && (
           <div className="mb-4">
-            <h6 className="fw-bold text-dark border-bottom pb-2 mb-3">Invoice Payments</h6>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h6 className="fw-bold text-dark">Invoice Payments</h6>
+              <Button variant="primary" size="sm" onClick={handleAddReceipt}>
+                + Add Receipt
+              </Button>
+            </div>
             <Table bordered hover responsive className="bg-white rounded-2 overflow-hidden">
               <thead className="bg-light text-dark">
                 <tr>
@@ -375,12 +544,12 @@ const ReceivedCustomer = () => {
                   <th>Total</th>
                   <th>Outstanding</th>
                   <th>Pay</th>
-                  <th>Select</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {paymentData.map((row, idx) => (
-                  <tr key={idx}>
+                {receipts.map((row) => (
+                  <tr key={row.id}>
                     <td className="align-middle">{row.account}</td>
                     <td>
                       {row.description.split('\n').map((line, i) => (
@@ -389,46 +558,28 @@ const ReceivedCustomer = () => {
                     </td>
                     <td className="text-end fw-bold">{row.totalAmount.toFixed(3)}</td>
                     <td className="text-end">{row.outstandingAmount.toFixed(3)}</td>
-                    <td>
-                      <Form.Control
-                        type="number"
-                        defaultValue={row.amountToPay}
-                        min="0"
-                        step="0.001"
-                        size="sm"
-                        className="text-end"
-                      />
-                    </td>
+                    <td className="text-end">{row.amountToPay.toFixed(3)}</td>
                     <td className="text-center">
-                      <Form.Check type="checkbox" className="m-1" />
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="me-2"
+                        onClick={() => handleEditReceipt(row)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => handleDeleteReceipt(row.id)}
+                      >
+                        Delete
+                      </Button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </Table>
-
-            {/* Advance & Final Payment Controls */}
-            <div className="d-flex justify-content-center align-items-center flex-wrap gap-4 mt-4">
-              <div className="text-center">
-                <span className="d-block text-secondary fw-medium mb-1">Advance Payment</span>
-                <Form.Control
-                  type="number"
-                  placeholder="0.00"
-                  style={{ width: '150px', display: 'inline-block' }}
-                />
-              </div>
-              <div className="text-center">
-                <span className="d-block text-secondary fw-medium mb-1">Final Amount</span>
-                <Form.Control
-                  type="number"
-                  placeholder="0.00"
-                  style={{ width: '150px', display: 'inline-block' }}
-                />
-                <Button variant="success" className="ms-2 px-4 fw-bold">
-                  Save
-                </Button>
-              </div>
-            </div>
           </div>
         )}
 
@@ -540,7 +691,22 @@ const ReceivedCustomer = () => {
             </div>
           </Col>
         </Row>
+
+        {/* Final Save Button */}
+        <div className="text-end mt-4">
+          <Button variant="success" size="lg" className="px-5 fw-bold">
+            Save Receipt
+          </Button>
+        </div>
       </Container>
+
+      {/* Modal for Add/Edit */}
+      <ReceiptModal
+        show={showModal}
+        onHide={() => setShowModal(false)}
+        onSave={handleSaveReceipt}
+        receipt={editingReceipt}
+      />
     </div>
   );
 };
