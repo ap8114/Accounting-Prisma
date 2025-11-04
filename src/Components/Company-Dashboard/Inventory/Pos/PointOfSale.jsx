@@ -18,11 +18,12 @@ import CustomerList from "./CustomerList";
 import AddProductModal from "../AddProductModal";
 import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
-
+import { CurrencyContext } from "../../../../hooks/CurrencyContext";
+import React, { useContext } from "react";
 const PointOfSale = () => {
   const companyId = GetCompanyId();
   const navigate = useNavigate();
-  
+    const { convertPrice, symbol, currency } = useContext(CurrencyContext);
   // State declarations
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -106,7 +107,7 @@ const PointOfSale = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setNewItem((prev) => ({ ...prev, [name]: value }));
-  };
+  };      
 
   const handleAddItem = () => {
     setShowAdd(false);
@@ -137,7 +138,7 @@ const PointOfSale = () => {
         payment_status: paymentStatus === "3" ? "cash" : 
                          paymentStatus === "2" ? "paid" : 
                          paymentStatus === "1" ? "partial" : "due"
-      };
+               };
 
       // Send data to backend
       const response = await axiosInstance.post('/invoices', invoiceData);
@@ -374,7 +375,7 @@ const PointOfSale = () => {
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
-        <p className="mt-2">Loading products and tax classes...</p>
+        <p className="mt-2">Loading products ...</p>
       </Container>
     );
   }
@@ -421,7 +422,7 @@ const PointOfSale = () => {
                 Add Product
               </button>
             </div>
-            {products.length === 0 ? (
+            {products?.length === 0 ? (
               <Alert variant="warning">
                 <div className="d-flex align-items-center">
                   <i className="bi bi-exclamation-triangle me-2"></i>
@@ -468,7 +469,7 @@ const PointOfSale = () => {
                           </div>
                         </td>
                         <td>{product.item_name}</td>
-                        <td>A${parseFloat(product.initial_cost).toFixed(2)}</td>
+                        <td>  {symbol} {convertPrice(product.initial_cost)} ({currency})</td>
                         <td>{product.warehouse?.warehouse_name || "N/A"}</td>
                         <td>{stock} units</td>
                         <td>
