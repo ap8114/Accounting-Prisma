@@ -137,6 +137,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import PasswordRequests from "./Components/Company-Dashboard/Settings/PasswordRequests/PasswordRequests";
 import SuperAdminPasswordRequests from "./Components/Dashboard/Managepassword/Managepassword";
 import AddEditCustomerModal from "./Components/Company-Dashboard/Accounts/CustomersDebtors/AddEditCustomerModal";
+import { CurrencyProvider } from "./hooks/CurrencyContext";
 
 // ✅ Helper Component: Layout Logic
 function AppContent() {
@@ -331,9 +332,11 @@ function AppContent() {
 // ✅ Main App
 export default function App() {
   return (
+     <CurrencyProvider> 
     <Router>
       <ScrollToTop />
       <AppContent />
     </Router>
+       </CurrencyProvider>
   );
 }

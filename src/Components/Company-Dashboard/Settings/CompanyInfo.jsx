@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Button, Container, Image, Nav, Tab } from 'react-bootstrap';
 import { FaBuilding, FaImage, FaMapMarkerAlt, FaGlobe, FaFileInvoice } from 'react-icons/fa';
+import { CurrencySetting } from './CurrencySetting';
 
 const CompanyInfo = () => {
   const [printLanguage, setPrintLanguage] = useState('en');
@@ -292,6 +293,7 @@ receipts: "الإيصالات",
         fontFamily: printLanguage === 'ar' ? '"Segoe UI", Tahoma, sans-serif' : 'system-ui'
       }}
     >
+      <CurrencySetting/>
       <Container className="p-4" style={{ maxWidth: '100%' }}>
         {/* Language Toggle Buttons */}
         <div className="d-flex justify-content-end mb-3 flex-wrap gap-2">
