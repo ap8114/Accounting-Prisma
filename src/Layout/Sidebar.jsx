@@ -270,16 +270,16 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
             label: "Expenses",
           },
           { to: "/company/income", icon: "fas fa-wallet", label: "Income" },
-          {
-            to: "/company/receivedcustomer",
-            icon: "fas fa-arrow-down",
-            label: "Receipt From Customer",
-          },
-          {
-            to: "/company/paymnetsupplier",
-            icon: "fas fa-arrow-up",
-            label: "Payment To Vendor",
-          },
+          // {
+          //   to: "/company/receivedcustomer",
+          //   icon: "fas fa-arrow-down",
+          //   label: "Receipt From Customer",
+          // },
+          // {
+          //   to: "/company/paymnetsupplier",
+          //   icon: "fas fa-arrow-up",
+          //   label: "Payment To Vendor",
+          // },
           {
             to: "/company/contravoucher",
             icon: "fas fa-exchange-alt",
