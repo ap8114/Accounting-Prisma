@@ -133,7 +133,7 @@ const RolesPermissions = () => {
       }
     } catch (err) {
       console.error("Error fetching roles:", err);
-      setError("Unable to fetch roles. Please try again.");
+      setError("Server error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -242,7 +242,7 @@ const RolesPermissions = () => {
       setToastVariant("danger");
       setShowToast(true);
     }
-  };
+    };
 
   const handleEdit = (role) => {
     setSelected(role);
