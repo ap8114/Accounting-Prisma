@@ -1262,8 +1262,6 @@ const CustomersDebtors = () => {
         </Modal.Footer>
       </Modal>
 
-
-
       {/* View Modal */}
       <Modal
         show={showViewModal}
@@ -1378,10 +1376,6 @@ const CustomersDebtors = () => {
           </ul>
         </Card.Body>
       </Card>
-
-
-
-
     </div>
   );
 };
