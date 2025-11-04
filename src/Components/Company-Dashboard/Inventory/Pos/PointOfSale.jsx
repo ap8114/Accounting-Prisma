@@ -70,7 +70,7 @@ const PointOfSale = () => {
           setProducts([]);
         }
         
-        // Fetch taxes
+        // Fetch taxes 
         const taxResponse = await axiosInstance.get(`/taxclasses/company/${companyId}`);
         console.log("Tax API Response:", taxResponse.data);
         
