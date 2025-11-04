@@ -12,6 +12,7 @@ import {
   FaHashtag,
   FaFileInvoice,
   FaWallet,
+  FaGlobe
 } from "react-icons/fa";
 import { Button, Card, Row, Col, Form, InputGroup, Table, Badge } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -523,6 +524,23 @@ const Ledgercustomer = () => {
                       <FaEnvelope className="me-2" style={{ color: "#53b2a5" }} />
                       <span><strong>Email:</strong> {customer.email}</span>
                     </p>
+
+                    <p className="mb-0 d-flex align-items-center">
+  <FaGlobe className="me-2" style={{ color: "#53b2a5" }} />
+  <span>
+    <strong>Location:</strong>{" "}
+    <a
+      href={customer.companyLocation}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ color: "#007bff", textDecoration: "none" }}
+    >
+      Click Location
+    </a>
+  </span>
+</p>
+
+
                   </div>
                 </Col>
 

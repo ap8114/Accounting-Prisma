@@ -214,8 +214,8 @@ const VendorsCustomers = () => {
       formData.append("account_balance", parseFloat(vendorFormData.accountBalance) || 0);
 
       // Format creation date properly
-      formData.append("creation_date", vendorFormData.creationDate 
-        ? new Date(vendorFormData.creationDate).toISOString() 
+      formData.append("creation_date", vendorFormData.creationDate
+        ? new Date(vendorFormData.creationDate).toISOString()
         : new Date().toISOString());
 
       formData.append("bank_account_number", vendorFormData.bankAccountNumber?.trim() || "");
@@ -320,7 +320,7 @@ const VendorsCustomers = () => {
     setError(null); // Clear previous errors
     try {
       const response = await axiosInstance.delete(`/vendorCustomer/${selectedVendor.id}`);
-      
+
       // Check if response is successful (status 200-299)
       if (response.status >= 200 && response.status < 300) {
         toast.success(`${vendorType === 'vender' ? 'Vendor' : 'Customer'} deleted successfully!`);
@@ -731,19 +731,40 @@ const VendorsCustomers = () => {
         <Modal.Body>
           {selectedVendor && (
             <>
+              {/* Profile Image and Name Section */}
+              <div className="text-center mb-4">
+                {selectedVendor.idCardImage ? (
+                  <Image
+                    src={selectedVendor.idCardImage}
+                    roundedCircle
+                    style={{ width: '100px', height: '100px', objectFit: 'cover', border: '2px solid #dee2e6' }}
+                  />
+                ) : (
+                  <div
+                    className="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted"
+                    style={{ width: '100px', height: '100px', fontSize: '36px', fontWeight: 'bold' }}
+                  >
+                    {selectedVendor.name?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <h4 className="mt-3 text-start" style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>
+                  {selectedVendor.name || 'N/A'}
+                </h4>
+              </div>
+
               <div className="border rounded p-3 mb-4">
                 <h6 className="fw-semibold mb-3">Basic Information</h6>
                 <Row>
-                  <Col md={6}><p><strong>Name:</strong> {selectedVendor.name}</p></Col>
                   <Col md={6}><p><strong>Phone:</strong> {selectedVendor.phone}</p></Col>
                   <Col md={6}><p><strong>Email:</strong> {selectedVendor.email}</p></Col>
                   <Col md={6}><p><strong>Account Type:</strong> {selectedVendor.accountType}</p></Col>
                   <Col md={6}><p><strong>Account Name:</strong> {selectedVendor.accountName}</p></Col>
-                  <Col md={6}><p><strong>Balance:</strong> ${selectedVendor.payable.toFixed(2)}</p></Col>
+                  <Col md={6}><p><strong>Balance:</strong> ${selectedVendor.payable?.toFixed(2) || '0.00'}</p></Col>
                   <Col md={6}><p><strong>Credit Period:</strong> {selectedVendor.creditPeriod || "N/A"} days</p></Col>
                   <Col md={6}><p><strong>Creation Date:</strong> {selectedVendor.creationDate || "N/A"}</p></Col>
                 </Row>
               </div>
+
               <div className="border rounded p-3 mb-4">
                 <h6 className="fw-semibold mb-3">Billing Information</h6>
                 <Row>
@@ -754,14 +775,16 @@ const VendorsCustomers = () => {
                   <Col md={6}><p><strong>State Code:</strong> {selectedVendor.stateCode || "N/A"}</p></Col>
                 </Row>
               </div>
+
               {selectedVendor.shippingAddress && (
                 <div className="border rounded p-3 mb-4">
                   <h6 className="fw-semibold mb-3">Shipping Information</h6>
                   <Row>
-                    <Col md={12}><p><strong>Shipping Address:</strong> {selectedVendor.shippingAddress || "N/A"}</p></Col>
+                    <Col md={12}><p><strong>Shipping Address:</strong> {selectedVendor.shippingAddress}</p></Col>
                   </Row>
                 </div>
               )}
+
               {selectedVendor.bankAccountNumber && (
                 <div className="border rounded p-3 mb-4">
                   <h6 className="fw-semibold mb-3">Bank Details</h6>
@@ -772,19 +795,38 @@ const VendorsCustomers = () => {
                   </Row>
                 </div>
               )}
+
               {(selectedVendor.companyName || selectedVendor.companyLocation) && (
                 <div className="border rounded p-3 mb-4">
                   <h6 className="fw-semibold mb-3">Company Information</h6>
                   <Row>
                     {selectedVendor.companyName && (
-                      <Col md={6}><p><strong>Company Name:</strong> {selectedVendor.companyName}</p></Col>
+                      <Col md={6}>
+                        <p>
+                          <strong>Company Name:</strong> {selectedVendor.companyName}
+                        </p>
+                      </Col>
                     )}
+
                     {selectedVendor.companyLocation && (
-                      <Col md={6}><p><strong>Google Location:</strong> {selectedVendor.companyLocation}</p></Col>
+                      <Col md={6}>
+                        <p>
+                          <strong>Google Location:</strong>{" "}
+                          <a
+                            href={selectedVendor.companyLocation}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Click Location
+                          </a>
+                        </p>
+                      </Col>
                     )}
                   </Row>
                 </div>
+
               )}
+
               <div className="border rounded p-3 mb-4">
                 <h6 className="fw-semibold mb-3">Tax Information</h6>
                 <Row>
@@ -794,43 +836,19 @@ const VendorsCustomers = () => {
                   )}
                 </Row>
               </div>
-              
+
               {/* File Display Section */}
               {(selectedVendor.idCardImage || selectedVendor.extraFile) && (
                 <div className="border rounded p-3 mb-4">
                   <h6 className="fw-semibold mb-3">Documents</h6>
                   <Row>
-                    {selectedVendor.idCardImage && (
-                      <Col md={6} className="mb-3">
-                        <p><strong>ID Card Image:</strong></p>
-                        <div className="text-center">
-                          {selectedVendor.idCardImage.endsWith('.pdf') ? (
-                            <a 
-                              href={selectedVendor.idCardImage} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="btn btn-sm btn-primary"
-                            >
-                              <FaFile className="me-1" /> View PDF
-                            </a>
-                          ) : (
-                            <Image 
-                              src={selectedVendor.idCardImage} 
-                              alt="ID Card" 
-                              thumbnail 
-                              style={{ maxHeight: '150px' }}
-                            />
-                          )}
-                        </div>
-                      </Col>
-                    )}
                     {selectedVendor.extraFile && (
                       <Col md={6} className="mb-3">
                         <p><strong>Additional File:</strong></p>
                         <div className="text-center">
-                          <a 
-                            href={selectedVendor.extraFile} 
-                            target="_blank" 
+                          <a
+                            href={selectedVendor.extraFile}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="btn btn-sm btn-primary"
                           >
@@ -931,7 +949,7 @@ const VendorsCustomers = () => {
               </Col>
               <Col md={3}>
                 <Form.Group>
-                  <Form.Label>ID Card Image</Form.Label>
+                  <Form.Label>Profile Image</Form.Label>
                   <Form.Control
                     type="file"
                     accept="image/*,.pdf"
