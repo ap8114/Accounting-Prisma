@@ -573,7 +573,9 @@ const Users = () => {
       </div>
 
       {/* Add/Edit Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg"   backdrop="static"
+        keyboard={false}
+>
         <Modal.Header closeButton>
           <Modal.Title>{modalType === "add" ? "Add User" : "Edit User"}</Modal.Title>
         </Modal.Header>

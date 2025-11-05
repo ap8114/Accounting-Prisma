@@ -1263,89 +1263,111 @@ const CustomersDebtors = () => {
       </Modal>
 
       {/* View Modal */}
-      <Modal
-        show={showViewModal}
-        onHide={() => setShowViewModal(false)}
-        size="lg"
-        centered
-      >
-        <Modal.Header closeButton className="bg-info text-white">
-          <Modal.Title>Customer Details</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Card className="mb-3">
-            <Card.Header className="bg-light">
-              <h5 className="mb-0">Basic Information</h5>
-            </Card.Header>
-            <Card.Body>
+      <Modal.Body>
+        {/* Circular Profile Image + Name (Centered) */}
+        <div className="text-center mb-4">
+          {/* Circular ID Card Image */}
+          {currentCustomer.idCardImage && (
+            <div className="mb-3">
+              {typeof currentCustomer.idCardImage === 'string' ? (
+                <img
+                  src={currentCustomer.idCardImage}
+                  alt="ID Card"
+                  className="rounded-circle border"
+                  style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                />
+              ) : currentCustomer.idCardImage instanceof File ? (
+                <img
+                  src={URL.createObjectURL(currentCustomer.idCardImage)}
+                  alt="ID Card"
+                  className="rounded-circle border"
+                  style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                  onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)}
+                />
+              ) : null}
+            </div>
+          )}
 
-              <Row>
-                <Col md={6}>
-                  <p><strong>Name:</strong> {currentCustomer.name}</p>
+          {/* Large Name */}
+          <h2 className="text-primary">{currentCustomer.name || "N/A"}</h2>
 
-                  <p><strong>Contact:</strong> {currentCustomer.contact}</p>
-                  <p><strong>Name (Arabic):</strong> {currentCustomer?.nameArabic || "N/A"}</p>
-                  <p><strong>Email:</strong> {currentCustomer.email}</p>
-                  <p><strong>Account Type:</strong> {currentCustomer.accountType || "Sundry Debtors"}</p>
-                </Col>
+          {/* Arabic Name (optional, smaller) */}
+          {currentCustomer.nameArabic && (
+            <h5
+              dir="rtl"
+              style={{
+                fontFamily: 'Arial, sans-serif',
+                color: '#555',
+                marginTop: '0.25rem',
+              }}
+            >
+              {currentCustomer.nameArabic}
+            </h5>
+          )}
+        </div>
 
+        {/* Remaining Details */}
+        <Card className="mb-3">
+          <Card.Header className="bg-light">
+            <h5 className="mb-0">Basic Information</h5>
+          </Card.Header>
+          <Card.Body>
+            <Row>
+              <Col md={6}>
+                <p><strong>Contact:</strong> {currentCustomer.contact}</p>
+                <p><strong>Email:</strong> {currentCustomer.email}</p>
+                <p><strong>Account Type:</strong> {currentCustomer.accountType || "Sundry Debtors"}</p>
+              </Col>
+              <Col md={6}>
+                <p><strong>Alternate Mobile:</strong> {currentCustomer.altMobile || "-"}</p>
+                <p><strong>Tax Number:</strong> {currentCustomer.taxNumber || "-"}</p>
+                <p>
+                  <strong>Tax Enabled:</strong>{" "}
+                  <Badge bg={currentCustomer.taxEnabled ? "success" : "secondary"} className="ms-2">
+                    {currentCustomer.taxEnabled ? "ON" : "OFF"}
+                  </Badge>
+                </p>
+                <p><strong>Account Name:</strong> {currentCustomer.accountName || "Accounts Receivable"}</p>
+                <p><strong>Balance:</strong> ${parseFloat(currentCustomer.balance || 0).toFixed(2)}</p>
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
 
-                <Col md={6}>
-                  <p><strong>Alternate Mobile:</strong> {currentCustomer.altMobile || "-"}</p>
-                  <p><strong>Tax Number:</strong> {currentCustomer.taxNumber || "-"}</p>
-                  <p>
-                    <strong>Tax Enabled:</strong>{" "}
-                    <Badge bg={currentCustomer.taxEnabled ? "success" : "secondary"} className="ms-2">
-                      {currentCustomer.taxEnabled ? "ON" : "OFF"}
-                    </Badge>
+        <Card className="mb-3">
+          <Card.Header className="bg-light">
+            <h5 className="mb-0">Billing Address</h5>
+          </Card.Header>
+          <Card.Body>
+            <Row>
+              {Object.entries(currentCustomer.billing || {}).map(([key, value], i) => (
+                <Col md={6} key={i}>
+                  <p className="mb-2">
+                    <strong className="text-capitalize">{key}:</strong> {value || "-"}
                   </p>
-                  <p><strong>Account Name:</strong> {currentCustomer.accountName || "Accounts Receivable"}</p>
-                  <p><strong>Balance:</strong> ${parseFloat(currentCustomer.balance || 0).toFixed(2)}</p>
                 </Col>
-              </Row>
-            </Card.Body>
-          </Card>
+              ))}
+            </Row>
+          </Card.Body>
+        </Card>
 
-          <Card className="mb-3">
-            <Card.Header className="bg-light">
-              <h5 className="mb-0">Billing Address</h5>
-            </Card.Header>
-            <Card.Body>
-              <Row>
-                {Object.entries(currentCustomer.billing).map(([key, value], i) => (
-                  <Col md={6} key={i}>
-                    <p className="mb-2">
-                      <strong className="text-capitalize">{key}:</strong> {value || "-"}
-                    </p>
-                  </Col>
-                ))}
-              </Row>
-            </Card.Body>
-          </Card>
-
-          <Card>
-            <Card.Header className="bg-light">
-              <h5 className="mb-0">Shipping Address</h5>
-            </Card.Header>
-            <Card.Body>
-              <Row>
-                {Object.entries(currentCustomer.shipping).map(([key, value], i) => (
-                  <Col md={6} key={i}>
-                    <p className="mb-2">
-                      <strong className="text-capitalize">{key}:</strong> {value || "-"}
-                    </p>
-                  </Col>
-                ))}
-              </Row>
-            </Card.Body>
-          </Card>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowViewModal(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <Card>
+          <Card.Header className="bg-light">
+            <h5 className="mb-0">Shipping Address</h5>
+          </Card.Header>
+          <Card.Body>
+            <Row>
+              {Object.entries(currentCustomer.shipping || {}).map(([key, value], i) => (
+                <Col md={6} key={i}>
+                  <p className="mb-2">
+                    <strong className="text-capitalize">{key}:</strong> {value || "-"}
+                  </p>
+                </Col>
+              ))}
+            </Row>
+          </Card.Body>
+        </Card>
+      </Modal.Body>
 
       {/* Delete Confirmation Modal */}
       <Modal show={showConfirmDelete} onHide={() => setShowConfirmDelete(false)} centered>
