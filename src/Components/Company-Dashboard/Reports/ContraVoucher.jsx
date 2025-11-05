@@ -19,7 +19,12 @@ const ContraVoucher = () => {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentVoucherId, setCurrentVoucherId] = useState(null);
-
+  // Filter state
+  const [filters, setFilters] = useState({
+    voucherNo: '',
+    fromDate: '',
+    toDate: '',
+  });
   // Form state
   const [autoVoucherNo, setAutoVoucherNo] = useState('');
   const [manualVoucherNo, setManualVoucherNo] = useState('');
@@ -52,6 +57,24 @@ const ContraVoucher = () => {
     const randomNum = Math.floor(Math.random() * 1000);
     return `CON-${timestamp}-${randomNum}`;
   };
+
+  // Apply filters
+  const filteredVouchers = contraVouchers.filter((voucher) => {
+    const matchesVoucherNo =
+      !filters.voucherNo ||
+      (voucher.voucher_number || '').toLowerCase().includes(filters.voucherNo.toLowerCase()) ||
+      (voucher.voucher_no_auto || '').toLowerCase().includes(filters.voucherNo.toLowerCase());
+
+    const voucherDateObj = new Date(voucher.voucher_date);
+    const fromDateObj = filters.fromDate ? new Date(filters.fromDate) : null;
+    const toDateObj = filters.toDate ? new Date(filters.toDate) : null;
+
+    const matchesDate =
+      (!fromDateObj || voucherDateObj >= fromDateObj) &&
+      (!toDateObj || voucherDateObj <= toDateObj);
+
+    return matchesVoucherNo && matchesDate;
+  });
 
   const formatAccountName = (acc) => {
     const parent = acc.parent_account?.subgroup_name || 'Unknown';
@@ -345,16 +368,53 @@ const ContraVoucher = () => {
         </div>
 
         {fetchError && <Alert variant="warning">{fetchError}</Alert>}
+        {/* Filter Section */}
+        <div className="card p-3 mb-4">
+          <h5>Filters</h5>
+          <Row>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Voucher No</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Search voucher number..."
+                  value={filters.voucherNo}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, voucherNo: e.target.value }))}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>From Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={filters.fromDate}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, fromDate: e.target.value }))}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>To Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={filters.toDate}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, toDate: e.target.value }))}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+        </div>
 
-        {/* Vouchers Table */}
+        {/* Vouchers Table - Using filteredVouchers now! */}
         <div className="card p-3">
           <h5>Existing Contra Vouchers</h5>
           {tableLoading ? (
             <div className="text-center my-3">
               <Spinner animation="border" size="sm" /> Loading...
             </div>
-          ) : contraVouchers.length === 0 ? (
-            <Alert variant="info">No contra vouchers found.</Alert>
+          ) : filteredVouchers.length === 0 ? (
+            <Alert variant="info">No contra vouchers found matching the filters.</Alert>
           ) : (
             <div className='' style={{ maxHeight: '400px', overflowY: 'auto' }}>
               <Table striped bordered hover size="sm">
@@ -371,14 +431,10 @@ const ContraVoucher = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {contraVouchers.map((voucher) => (
+                  {filteredVouchers.map((voucher) => (
                     <tr key={voucher.id}>
-
-                      {/* voucher_no_auto */}
-                      <td>{voucher.voucher_no_auto || '—'}</td>
-
-                      {/* <td>{voucher.voucher_number || '—'}</td> */}
-                      
+                      {/* Display the auto-generated voucher no by default, manual if available */}
+                      <td>{voucher.voucher_no_auto || voucher.voucher_number || '—'}</td>
                       <td>{voucher.voucher_date ? voucher.voucher_date.split('T')[0] : '—'}</td>
                       <td>{getAccountDisplayName(voucher.account_from_id)}</td>
                       <td>{getAccountDisplayName(voucher.account_to_id)}</td>

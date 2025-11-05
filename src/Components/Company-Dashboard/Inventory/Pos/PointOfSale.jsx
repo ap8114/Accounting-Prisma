@@ -20,10 +20,12 @@ import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
 import { CurrencyContext } from "../../../../hooks/CurrencyContext";
 import React, { useContext } from "react";
+
 const PointOfSale = () => {
   const companyId = GetCompanyId();
   const navigate = useNavigate();
-    const { convertPrice, symbol, currency } = useContext(CurrencyContext);
+  const { convertPrice, symbol, currency } = useContext(CurrencyContext);
+  
   // State declarations
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -48,7 +50,8 @@ const PointOfSale = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showPaymentCompletedModal, setShowPaymentCompletedModal] = useState(false);
+  const [validationError, setValidationError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Modals
   const [showAddTaxModal, setShowAddTaxModal] = useState(false);
@@ -121,11 +124,28 @@ const PointOfSale = () => {
     setShowAddCategoryModal(false);
   };
 
-  // --- Payment Completed Modal ---
+  // --- Create Invoice ---
   const handleCreateInvoice = async () => {
+    // Validation checks
+    if (!selectedCustomer) {
+      setValidationError("Please select a customer before creating an invoice");
+      return;
+    }
+    
+    if (selectedProducts.length === 0) {
+      setValidationError("Please add at least one product to the invoice");
+      return;
+    }
+    
+    if (!selectedTax) {
+      setValidationError("Please select a tax rate");
+      return;
+    }
+    
     try {
       // Prepare invoice data
       const invoiceData = {
+        company_id: companyId,
         customer_id: selectedCustomer.id,
         products: selectedProducts.map(product => ({
           product_id: product.id,
@@ -137,42 +157,52 @@ const PointOfSale = () => {
         tax_id: selectedTax.id,
         payment_status: paymentStatus === "3" ? "cash" : 
                          paymentStatus === "2" ? "paid" : 
-                         paymentStatus === "1" ? "partial" : "due"
-               };
+                         paymentStatus === "1" ? "partial" : "due",
+        // Add currency information
+        symbol: symbol,
+        currency: currency
+      };
 
       // Send data to backend
-      const response = await axiosInstance.post('/invoices', invoiceData);
+      const response = await axiosInstance.post('/posinvoice', invoiceData);
       
       if (response.data.success) {
         // Update warehouse stock
         updateWarehouseStock();
         
-        // Show success modal
-        setShowPaymentCompletedModal(true);
+        // Show success message
+        setSuccessMessage("Invoice created successfully!");
+        
+        // Extract invoice ID from response
+        const invoiceId = response.data.data.id;
+        
+        // Navigate to invoice summary directly after a short delay
+        setTimeout(() => {
+          navigate("/company/invoice-summary", {
+            state: {
+              invoiceId: invoiceId, // Pass the invoice ID
+              selectedCustomer,
+              selectedProducts,
+              quantity,
+              priceMap,
+              amountPaid,
+              amountDue,
+              total: calculateTotal(),
+              subTotal: calculateSubTotal(),
+              tax: selectedTax,
+              // Pass currency context for display
+              symbol,
+              currency
+            },
+          });
+        }, 1500); // 1.5 second delay to show success message
       } else {
         alert("Failed to create invoice: " + response.data.message);
-      }
+      }  
     } catch (err) {
       console.error("Error creating invoice:", err);
       alert("Failed to create invoice. Please try again.");
     }
-  };
-
-  const handlePrintReceipt = () => {
-    setShowPaymentCompletedModal(false);
-    navigate("/company/invoice-summary", {
-      state: {
-        selectedCustomer,
-        selectedProducts,
-        quantity,
-        priceMap,
-        amountPaid,
-        amountDue,
-        total: calculateTotal(),
-        subTotal: calculateSubTotal(),
-        tax: selectedTax,
-      },
-    });
   };
 
   // --- Clear All Data ---
@@ -183,6 +213,8 @@ const PointOfSale = () => {
     setPaymentStatus("3");
     setAmountPaid(0);
     setAmountDue(0);
+    setValidationError("");
+    setSuccessMessage("");
   };
 
   // --- Update Warehouse Stock ---
@@ -419,7 +451,7 @@ const PointOfSale = () => {
                   borderRadius: "4px",
                   fontSize: "13px",
                 }}>
-                Add Product
+                Add Product  
               </button>
             </div>
             {products?.length === 0 ? (
@@ -528,7 +560,7 @@ const PointOfSale = () => {
                                 <br />
                                 Stock: {stock} units
                                 <br />
-                                {qty} x A${unitPrice.toFixed(2)} = A${total.toFixed(2)}
+                                {qty} x {symbol}{convertPrice(unitPrice)} = {symbol}{convertPrice(total)}
                               </Card.Text>
                               <Button
                                 variant="danger"
@@ -600,7 +632,7 @@ const PointOfSale = () => {
           <div className="border p-3 rounded bg-white">
             <div className="d-flex justify-content-between mb-3">
               <strong>Subtotal:</strong>
-              <span>A${calculateSubTotal()}</span>
+              <span>{symbol}{convertPrice(calculateSubTotal())}</span>
             </div>
             <div className="d-flex mb-2 border-bottom pb-2">
               <strong>GST:</strong>
@@ -615,33 +647,55 @@ const PointOfSale = () => {
               <>
                 <div className="d-flex justify-content-between mb-2">
                   <strong>Amount Paid:</strong>
-                  <span>A${amountPaid.toFixed(2)}</span>
+                  <span>{symbol}{convertPrice(amountPaid)}</span>
                 </div>
                 <div className="d-flex justify-content-between mb-2 border-bottom pb-2">
                   <strong>Amount Due:</strong>
-                  <span>A${amountDue.toFixed(2)}</span>
+                  <span>{symbol}{convertPrice(amountDue)}</span>
                 </div>
               </>
             )}
             {paymentStatus === "3" && amountPaid > calculateTotal() && (
               <div className="d-flex justify-content-between mb-2 border-bottom pb-2">
                 <strong>Change:</strong>
-                <span>A${(amountPaid - calculateTotal()).toFixed(2)}</span>
+                <span>{symbol}{convertPrice(amountPaid - calculateTotal())}</span>
               </div>
             )}
             <div className="d-flex justify-content-between mb-2 border-bottom pb-2">
               <h5>Total:</h5>
-              <h5>A${calculateTotal()}</h5>
+              <h5>{symbol}{convertPrice(calculateTotal())}</h5>
             </div>
           </div>
         </Col>
 
+        {/* Success Message */}
+        {successMessage && (
+          <Alert variant="success" className="mt-3">
+            {successMessage}
+          </Alert>
+        )}
+
+        {/* Validation Error */}
+        {validationError && (
+          <Alert variant="danger" className="mt-3">
+            {validationError}
+          </Alert>
+        )}
+
         {/* Buttons */}
         <div className="mt-3 d-flex gap-2 flex-column flex-sm-row-reverse">
-          <Button variant="primary" onClick={handleCreateInvoice} disabled={selectedProducts.length === 0}>
+          <Button 
+            variant="primary" 
+            onClick={handleCreateInvoice} 
+            disabled={selectedProducts.length === 0}
+          >
             Generate Invoice 🗋️
           </Button>
-          <Button variant="danger" onClick={handleClear} disabled={selectedProducts.length === 0}>
+          <Button 
+            variant="danger" 
+            onClick={handleClear} 
+            disabled={selectedProducts.length === 0}
+          >
             Clear Selection ❌
           </Button>
         </div>
@@ -669,13 +723,13 @@ const PointOfSale = () => {
             />
           </Form.Group>
           <Form.Group>
-            <Form.Label>Price per unit (A$)</Form.Label>
+            <Form.Label>Price per unit ({symbol})</Form.Label>
             <Form.Control type="number" value={price} onChange={handlePriceChange} />
           </Form.Group>
           <p className="mt-3">
-            <strong>Total Price:</strong> A$  {isNaN(price * (quantity[currentProduct?.id] || 1))
+            <strong>Total Price:</strong> {symbol} {isNaN(price * (quantity[currentProduct?.id] || 1))
               ? "0.00"
-              : (price * (quantity[currentProduct?.id] || 1)).toFixed(2)}
+              : convertPrice(price * (quantity[currentProduct?.id] || 1))}
           </p>
           {quantityError && <Alert variant="danger" className="mt-2">{quantityError}</Alert>}
         </Modal.Body>
@@ -722,42 +776,6 @@ const PointOfSale = () => {
               </Button>
             </div>
           </Form>
-        </Modal.Body>
-      </Modal>
-
-      {/* ✅ PAYMENT COMPLETED MODAL */}
-      <Modal
-        show={showPaymentCompletedModal}
-        onHide={() => { }}
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Payment Completed</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="text-center">
-          <div
-            className="d-flex justify-content-center align-items-center mx-auto mb-3"
-            style={{
-              width: "64px",
-              height: "64px",
-              borderRadius: "50%",
-              backgroundColor: "#27b2b6",
-              color: "white",
-              fontSize: "32px",
-              fontWeight: "bold",
-              lineHeight: "1",
-              textAlign: "center",
-            }}
-          >
-            ✓
-          </div>
-          <h4>Payment Completed</h4>
-          <p className="mt-2">Do you want to Print Receipt for the Completed Order?</p>
-          <div className="d-flex justify-content-center gap-2 mt-4">
-            <Button variant="dark" onClick={handlePrintReceipt}>
-              Print Receipt
-            </Button>
-          </div>
         </Modal.Body>
       </Modal>
 

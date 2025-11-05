@@ -14,8 +14,11 @@ import {
   Form,
 } from "react-bootstrap";
 const Salesreport = () => {
-  const [customerSearch, setCustomerSearch] = useState("");
-  const [productSearch, setProductSearch] = useState("");
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [category, setCategory] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
   const [tableData, setTableData] = useState([
     {
       sku: "PT001",
@@ -53,7 +56,7 @@ const Salesreport = () => {
   ]);
   // Filtered data based on search inputs
   const filteredData = tableData.filter((row) =>
-    row.customerName.toLowerCase().includes(customerSearch.toLowerCase()) &&
+    row.customerName.toLowerCase().includes(customerSearch.toLowerCase()) && 
     row.productName.toLowerCase().includes(productSearch.toLowerCase())
   );
 
@@ -64,9 +67,9 @@ const Salesreport = () => {
       prev.map((row, i) =>
         i === index
           ? {
-              ...row,
-              status: statuses[(statuses.indexOf(row.status) + 1) % statuses.length],
-            }
+            ...row,
+            status: statuses[(statuses.indexOf(row.status) + 1) % statuses.length],
+          }
           : row
       )
     );
@@ -123,20 +126,40 @@ const Salesreport = () => {
 
       {/* Filters */}
       <div className="bg-white p-3 rounded mb-3 shadow-sm row g-3">
+        {/* Start Date */}
         <div className="col-12 col-md-3">
-          <label className="form-label">Choose Date</label>
-          <input type="date" className="form-control" />
+          <label className="form-label">Start Date</label>
+          <input
+            type="date"
+            className="form-control"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+          />
         </div>
 
+        {/* End Date */}
+        <div className="col-12 col-md-3">
+          <label className="form-label">End Date</label>
+          <input
+            type="date"
+            className="form-control"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+          />
+        </div>
+
+        {/* Category */}
         <div className="col-12 col-md-3">
           <label className="form-label">Category</label>
-          <select className="form-select">
-            <option>All</option>
-            <option>Computers</option>
-            <option>Electronics</option>
-            <option>Shoe</option>
+          <select className="form-select" value={category} onChange={e => setCategory(e.target.value)}>
+            <option value="">All</option>
+            <option value="Computers">Computers</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Shoe">Shoe</option>
           </select>
         </div>
+
+        {/* Customer Search */}
         <div className="col-12 col-md-3">
           <label className="form-label">Search Customer Name</label>
           <input
@@ -147,6 +170,8 @@ const Salesreport = () => {
             onChange={e => setCustomerSearch(e.target.value)}
           />
         </div>
+
+        {/* Product Search */}
         <div className="col-12 col-md-3">
           <label className="form-label">Search Product Name</label>
           <input
@@ -157,9 +182,16 @@ const Salesreport = () => {
             onChange={e => setProductSearch(e.target.value)}
           />
         </div>
+
+        {/* Generate Button */}
         <div className="col-12 col-md-3 d-flex align-items-end">
-          <button className="btn w-100" style={{ backgroundColor: '#3daaaaff', color: '#fff' }}>Generate Report</button>
-        </div> 
+          <button
+            className="btn w-100"
+            style={{ backgroundColor: '#3daaaaff', color: '#fff' }}
+          >
+            Generate Report
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -195,79 +227,78 @@ const Salesreport = () => {
               </tr>
             </thead>
             <tbody>
-                {filteredData.length > 0 ? (
-                  filteredData.map((row, i) => (
-                    <tr key={i}> 
-                      <td>{row.sku}</td>
-                      <td>{row.customerName}</td>
-                      <td className="text-end" style={{ fontFamily: 'Arial, sans-serif' }}>
-        {row.customerNameArabic}
-      </td> 
-                      <td>{row.productName}</td>
-                      <td>{row.category}</td>
-                      <td>{row.soldQty}</td>
-                      <td>{row.soldAmount}</td>
-                      <td>{row.instockQty}</td>
-                      <td>
+              {filteredData.length > 0 ? (
+                filteredData.map((row, i) => (
+                  <tr key={i}>
+                    <td>{row.sku}</td>
+                    <td>{row.customerName}</td>
+                    <td className="text-end" style={{ fontFamily: 'Arial, sans-serif' }}>
+                      {row.customerNameArabic}
+                    </td>
+                    <td>{row.productName}</td>
+                    <td>{row.category}</td>
+                    <td>{row.soldQty}</td>
+                    <td>{row.soldAmount}</td>
+                    <td>{row.instockQty}</td>
+                    <td>
                       <span
                         role="button"
                         onClick={() => cycleStatus(i)}
-                        className={`badge ${
-                          row.status === "Paid"
+                        className={`badge ${row.status === "Paid"
                             ? "bg-success"
                             : row.status === "Pending"
-                            ? "bg-warning"
-                            : "bg-danger"
-                        }`}
+                              ? "bg-warning"
+                              : "bg-danger"
+                          }`}
                         style={{ cursor: "pointer" }}
                       >
                         {row.status}
                       </span>
                     </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7" className="text-center text-muted">
-                      No data available
-                    </td>
                   </tr>
-                )}
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="text-center text-muted">
+                    No data available
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
           {/* Pagination */}
-<div className="d-flex justify-content-between align-items-center mt-3 px-3">
-  <span className="small text-muted">
-    Showing 1 to 3 of 3 results
-  </span>
+          <div className="d-flex justify-content-between align-items-center mt-3 px-3">
+            <span className="small text-muted">
+              Showing 1 to 3 of 3 results
+            </span>
 
-  <nav>
-    <ul className="pagination pagination-sm mb-0">
-      <li className="page-item disabled">
-        <button className="page-link rounded-start">&laquo;</button>
-      </li>
-      <li className="page-item active">
-        <button
-          className="page-link"
-          style={{ backgroundColor: '#3daaaaff', borderColor: '#3daaaaff' }}
-        >
-          1
-        </button>
-      </li>
-      <li className="page-item">
-        <button className="page-link">2</button>
-      </li>
-      <li className="page-item">
-        <button className="page-link rounded-end">&raquo;</button>
-      </li>
-    </ul>
-  </nav>
-</div>
+            <nav>
+              <ul className="pagination pagination-sm mb-0">
+                <li className="page-item disabled">
+                  <button className="page-link rounded-start">&laquo;</button>
+                </li>
+                <li className="page-item active">
+                  <button
+                    className="page-link"
+                    style={{ backgroundColor: '#3daaaaff', borderColor: '#3daaaaff' }}
+                  >
+                    1
+                  </button>
+                </li>
+                <li className="page-item">
+                  <button className="page-link">2</button>
+                </li>
+                <li className="page-item">
+                  <button className="page-link rounded-end">&raquo;</button>
+                </li>
+              </ul>
+            </nav>
+          </div>
 
         </div>
       </div>
-            {/* Page Description */}
-            <Card className="mb-4 p-3 shadow rounded-4 mt-2">
+      {/* Page Description */}
+      <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
           <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
           <ul className="text-muted fs-6 mb-0" style={{ listStyleType: 'disc', paddingLeft: '1.5rem' }}>
