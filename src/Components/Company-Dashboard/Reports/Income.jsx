@@ -13,7 +13,6 @@ import Swal from "sweetalert2";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min";
 import GetCompanyId from "../../../Api/GetCompanyId";
-import axios from "axios";
 
 const Income = () => {
   const companyId = GetCompanyId();
@@ -43,6 +42,10 @@ const Income = () => {
   const [customers, setCustomers] = useState([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // ✅ NEW: State for accounts
+  const [accounts, setAccounts] = useState([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -125,6 +128,52 @@ const Income = () => {
     }
   };
 
+  // ✅ NEW: Fetch accounts by company ID from API
+  const fetchAccountsByCompany = async () => {
+    if (!companyId) return;
+    
+    try {
+      setAccountsLoading(true);
+      setError(null);
+
+      const response = await axiosInstance.get(
+        `account/company/${companyId}`
+      );
+
+      console.log("Accounts API response:", response.data);
+
+      if (response?.data?.success) {
+        // Transform API response to match our component structure
+        const transformedAccounts = response.data.data.map((apiAccount) => {
+          // Map API fields to component fields
+          return {
+            id: apiAccount.id,
+            account_number: apiAccount.account_number,
+            ifsc_code: apiAccount.ifsc_code,
+            bank_name_branch: apiAccount.bank_name_branch,
+            accountBalance: apiAccount.accountBalance?.toString() || "0.00",
+            parent_account: apiAccount.parent_account,
+            sub_of_subgroup: apiAccount.sub_of_subgroup,
+            // Create a display name that combines the subgroup name and bank name
+            display_name: `${apiAccount.parent_account?.subgroup_name || ""} - ${apiAccount.bank_name_branch || ""}`
+          };
+        });
+
+        setAccounts(transformedAccounts);
+        console.log("Transformed accounts:", transformedAccounts);
+      } else {
+        console.warn("API response not successful:", response.data);
+        setAccounts([]);
+      }
+    } catch (err) {
+      console.error("Error fetching accounts:", err);
+      setError(err.message || "Failed to fetch accounts");
+      setAccounts([]);
+    } finally {
+      setAccountsLoading(false);
+    }
+  };
+
   // Fetch income vouchers
   const fetchIncomeVouchers = async () => {
     if (!companyId) return;
@@ -186,6 +235,7 @@ const Income = () => {
     console.log("Component mounted with companyId:", companyId);
     setAutoReceiptNo(generateAutoReceiptNo());
     fetchCustomersByCompany();
+    fetchAccountsByCompany(); // ✅ NEW: Fetch accounts
     fetchIncomeVouchers();
   }, [companyId]);
 
@@ -195,6 +245,13 @@ const Income = () => {
       fetchCustomersByCompany();
     }
   }, [showCreateModal, companyId, customers.length]);
+
+  // ✅ NEW: Fetch accounts when create modal is opened if not already loaded
+  useEffect(() => {
+    if (showCreateModal && companyId && accounts.length === 0) {
+      fetchAccountsByCompany();
+    }
+  }, [showCreateModal, companyId, accounts.length]);
 
   // Reset form when Create modal closes
   useEffect(() => {
@@ -431,8 +488,17 @@ const Income = () => {
     return cust ? cust.name_english || cust.account_name : `ID: ${customerId}`;
   };
 
-  // Helper: Get account display name (now also uses customers)
+  // ✅ NEW: Helper: Get account display name
   const getAccountName = (accountId) => {
+    if (!accountId) return "N/A";
+    const account = accounts.find((a) => a.id == accountId);
+    return account 
+      ? account.display_name || account.bank_name_branch || `ID: ${accountId}`
+      : `ID: ${accountId}`;
+  };
+
+  // Helper: Get account display name (now also uses customers)
+  const getIncomeAccountName = (accountId) => {
     if (!accountId) return "N/A";
     const account = customers.find((a) => a.id == accountId);
     return account
@@ -464,6 +530,12 @@ const Income = () => {
   const refreshCustomers = () => {
     console.log("Manually refreshing customers...");
     fetchCustomersByCompany();
+  };
+
+  // ✅ NEW: Function to manually refresh accounts
+  const refreshAccounts = () => {
+    console.log("Manually refreshing accounts...");
+    fetchAccountsByCompany();
   };
 
   return (
@@ -521,7 +593,7 @@ const Income = () => {
           </div>
           <div className="col-md-4">
             <label className="form-label fw-semibold">Deposited To</label>
-            {customersLoading ? (
+            {accountsLoading ? ( // ✅ Changed from customersLoading to accountsLoading
               <div className="d-flex align-items-center">
                 <div className="spinner-border spinner-border-sm me-2" role="status">
                   <span className="visually-hidden">Loading...</span>
@@ -537,11 +609,9 @@ const Income = () => {
                 }
               >
                 <option value="">All</option>
-                {customers.map((cust) => (
-                  <option key={cust.id} value={cust.id}>
-                    {cust.name_english ||
-                      cust.account_name ||
-                      cust.bank_name_branch}
+                {accounts.map((acc) => ( // ✅ Changed from customers to accounts
+                  <option key={acc.id} value={acc.id}>
+                    {acc.display_name || acc.bank_name_branch}
                   </option>
                 ))}
               </select>
@@ -592,7 +662,7 @@ const Income = () => {
                           <td>{voucher.date}</td>
                           <td>{voucher.autoReceiptNo}</td>
                           <td>{voucher.manualReceiptNo}</td>
-                          <td>{getAccountName(voucher.depositedTo)}</td>
+                          <td>{getAccountName(voucher.depositedTo)}</td> {/* ✅ Changed to getAccountName */}
                           <td>{getCustomerName(voucher.receivedFromId)}</td>
                           <td>{voucher.totalAmount}</td>
                           <td>{voucher.narration}</td>
@@ -723,7 +793,7 @@ const Income = () => {
                     <label className="form-label fw-semibold">
                       Deposited To
                     </label>
-                    {customersLoading ? (
+                    {accountsLoading ? ( // ✅ Changed from customersLoading to accountsLoading
                       <div className="d-flex align-items-center">
                         <div className="spinner-border spinner-border-sm me-2" role="status">
                           <span className="visually-hidden">Loading...</span>
@@ -731,16 +801,32 @@ const Income = () => {
                         <span>Loading accounts...</span>
                       </div>
                     ) : (
-                      <select className="form-select" name="depositedTo" required>
-                        <option value="">Select Account</option>
-                        {customers.map((cust) => (
-                          <option key={cust.id} value={cust.id}>
-                            {cust.name_english ||
-                              cust.account_name ||
-                              cust.bank_name_branch}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="input-group">
+                        <select className="form-select" name="depositedTo" required>
+                          <option value="">Select Account</option>
+                          {accounts.map((acc) => ( // ✅ Changed from customers to accounts
+                            <option key={acc.id} value={acc.id}>
+                              {acc.display_name || acc.bank_name_branch}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="btn btn-outline-secondary"
+                          type="button"
+                          onClick={refreshAccounts} // ✅ Changed from refreshCustomers to refreshAccounts
+                          disabled={accountsLoading} // ✅ Changed from customersLoading to accountsLoading
+                        >
+                          {accountsLoading ? ( // ✅ Changed from customersLoading to accountsLoading
+                            <span
+                              className="spinner-border spinner-border-sm"
+                              role="status"
+                              aria-hidden="true"
+                            ></span>
+                          ) : (
+                            "Refresh"
+                          )}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -983,7 +1069,7 @@ const Income = () => {
                         <td>
                           <strong>Deposited To</strong>
                         </td>
-                        <td>{getAccountName(selectedVoucher.depositedTo)}</td>
+                        <td>{getAccountName(selectedVoucher.depositedTo)}</td> {/* ✅ Changed to getAccountName */}
                       </tr>
                       <tr>
                         <td>
@@ -1031,7 +1117,7 @@ const Income = () => {
                     <tbody>
                       {selectedVoucher.items.map((item, index) => (
                         <tr key={index}>
-                          <td>{item.account}</td>
+                          <td>{getIncomeAccountName(item.account)}</td>
                           <td>{item.amount}</td>
                           <td>{item.narration || ""}</td>
                         </tr>
@@ -1102,11 +1188,9 @@ const Income = () => {
                         name="depositedTo"
                         defaultValue={editVoucher.depositedTo}
                       >
-                        {customers.map((cust) => (
-                          <option key={cust.id} value={cust.id}>
-                            {cust.name_english ||
-                              cust.account_name ||
-                              cust.bank_name_branch}
+                        {accounts.map((acc) => ( // ✅ Changed from customers to accounts
+                          <option key={acc.id} value={acc.id}>
+                            {acc.display_name || acc.bank_name_branch}
                           </option>
                         ))}
                       </select>
