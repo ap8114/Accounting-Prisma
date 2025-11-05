@@ -12,7 +12,8 @@ import {
   Image,  
   Table,
   ListGroup,
-  Badge
+  Badge,
+  Dropdown
 } from "react-bootstrap";
 import CustomerList from "./CustomerList";
 import AddProductModal from "../AddProductModal";
@@ -20,6 +21,7 @@ import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
 import { CurrencyContext } from "../../../../hooks/CurrencyContext";
 import React, { useContext } from "react";
+import { FaTrash } from "react-icons/fa";
 
 const PointOfSale = () => {
   const companyId = GetCompanyId();
@@ -33,8 +35,8 @@ const PointOfSale = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
   const [quantityError, setQuantityError] = useState("");
-  const [taxes, setTaxes] = useState([{ id: 1, tax_class: "GST", tax_value: 10, company_id: companyId }]); // Default tax
-  const [selectedTax, setSelectedTax] = useState({ id: 1, tax_class: "GST", tax_value: 10, company_id: companyId });
+  const [taxes, setTaxes] = useState([{ id: 4, tax_class: "GST", tax_value: 10, company_id: companyId }]); // Default tax
+  const [selectedTax, setSelectedTax] = useState({ id: 4, tax_class: "GST", tax_value: 10, company_id: companyId });
   const [paymentStatus, setPaymentStatus] = useState("3"); // Cash
   const [amountPaid, setAmountPaid] = useState(0);
   const [amountDue, setAmountDue] = useState(0);
@@ -259,10 +261,8 @@ const PointOfSale = () => {
     }
   };
 
-  const handleTaxSelect = (e) => {
-    const value = e.target.value;
-    const tax = taxes.find((tax) => tax.id === parseInt(value));
-    setSelectedTax(tax || taxes[0]);
+  const handleTaxSelect = (tax) => {
+    setSelectedTax(tax);
   };
 
   const handleDeleteTax = async (taxId) => {
@@ -315,6 +315,13 @@ const PointOfSale = () => {
       return sum + productPrice * qty;
     }, 0);
     return parseFloat(total.toFixed(2));
+  };
+
+  // Calculate tax amount dynamically based on selected tax
+  const calculateTaxAmount = () => {
+    const subtotal = calculateSubTotal();
+    const taxRate = selectedTax?.tax_value || 0;
+    return parseFloat((subtotal * taxRate / 100).toFixed(2));
   };
 
   const handleQuantityChange = (productId, quantityValue) => {
@@ -424,6 +431,53 @@ const PointOfSale = () => {
       </Container>
     );
   }
+
+  // Custom Dropdown component for tax selection with delete buttons
+  const CustomTaxDropdown = () => (
+    <Dropdown>
+      <Dropdown.Toggle variant="success" id="tax-dropdown">
+        {selectedTax?.tax_class || "GST"} - {selectedTax?.tax_value || 0}%
+      </Dropdown.Toggle>
+
+      <Dropdown.Menu>
+        {taxes.map((tax) => (
+          <Dropdown.Item key={tax.id} as="div">
+            <div className="d-flex justify-content-between align-items-center">
+              <div 
+                className="flex-grow-1"
+                onClick={() => handleTaxSelect(tax)}
+                style={{ cursor: 'pointer' }}
+              >
+                {tax.tax_class} - {tax.tax_value}%
+              </div>
+              {tax.id !== 4 && (
+                <Button 
+                  variant="outline-danger" 
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteTax(tax.id);
+                  }}
+                >
+                     <FaTrash />
+                </Button>
+              )}
+            </div>
+          </Dropdown.Item>
+        ))}
+        <Dropdown.Divider />
+        <Dropdown.Item as="div">
+          <Button 
+            variant="primary" 
+            className="w-100"
+            onClick={() => setShowAddTaxModal(true)}
+          >
+            Add New Tax
+          </Button>
+        </Dropdown.Item>
+      </Dropdown.Menu>
+    </Dropdown>
+  );
 
   return (
     <Container fluid className="mt-4 p-3 rounded-4 bg-white">
@@ -586,22 +640,7 @@ const PointOfSale = () => {
           <Row className="mb-3">
             <Col>
               <Form.Label>Tax</Form.Label>
-              <div className="d-flex">
-                <Form.Select value={selectedTax?.id || ""} onChange={handleTaxSelect}>
-                  {taxes.map((tax) => (
-                    <option key={tax.id} value={tax.id}>
-                      {tax.tax_class} - {tax.tax_value}%
-                    </option>
-                  ))}
-                </Form.Select>
-                <Button
-                  variant="success"
-                  className="ms-2"
-                  onClick={() => setShowAddTaxModal(true)}
-                >
-                  ➕
-                </Button> 
-              </div>
+              <CustomTaxDropdown />
             </Col>
             <Col>
               <Form.Label>Payment Status</Form.Label>
@@ -634,14 +673,9 @@ const PointOfSale = () => {
               <strong>Subtotal:</strong>
               <span>{symbol}{convertPrice(calculateSubTotal())}</span>
             </div>
-            <div className="d-flex mb-2 border-bottom pb-2">
-              <strong>GST:</strong>
-              <input
-                type="text"
-                value={`${selectedTax?.tax_value || 0}%`}
-                readOnly
-                className="form-control-plaintext ms-auto text-end"
-              />
+            <div className="d-flex justify-content-between mb-2 border-bottom pb-2">
+              <strong>{selectedTax?.tax_class || "GST"} ({selectedTax?.tax_value || 0}%):</strong>
+              <span>{symbol}{convertPrice(calculateTaxAmount())}</span>
             </div>
             {(paymentStatus === "1" || paymentStatus === "3") && (
               <>

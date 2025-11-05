@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Table, Button, Badge, Alert, Spinner } from 'react-bootstrap';
+import { Row, Col, Table, Button, Badge, Alert, Spinner, Card, Form, InputGroup } from 'react-bootstrap';
 import {
   FaEdit, FaPrint, FaMoneyBill, FaPaperPlane, FaEye,
-  FaGlobe, FaExchangeAlt, FaTimes, FaCaretUp, FaArrowLeft
+  FaGlobe, FaExchangeAlt, FaTimes, FaCaretUp, FaArrowLeft, FaSave, FaTimesCircle
 } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axiosInstance from '../../../../Api/axiosInstance';
@@ -10,10 +10,12 @@ import { CurrencyContext } from "../../../../hooks/CurrencyContext";
 import { useContext } from "react";
 
 const InvoiceSummary = () => {
-  const [languageMode, setLanguageMode] = useState("en"); // "en" | "ar" | "both"
   const [invoiceData, setInvoiceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableProducts, setEditableProducts] = useState([]);
+  const [editLoading, setEditLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { convertPrice } = useContext(CurrencyContext);
@@ -50,18 +52,6 @@ const InvoiceSummary = () => {
     fetchInvoiceData();
   }, [invoiceId]);
 
-  const t = (en, ar) => {
-    if (languageMode === "both") {
-      return (
-        <div>
-          <div>{en}</div>
-          <div className="text-muted small">{ar}</div>
-        </div>
-      );
-    }
-    return languageMode === "ar" ? ar : en;
-  };
-
   // Format date function
   const formatDate = (dateString) => {
     if (!dateString) return "";
@@ -73,10 +63,155 @@ const InvoiceSummary = () => {
     });
   };
 
-  // Calculate tax amount
-  const calculateTax = () => {
+  // Generate invoice number
+  const generateInvoiceNumber = (id) => {
+    return `INV${String(id).padStart(3, '0')}`;
+  };
+
+  // Calculate tax amount for a product
+  const calculateProductTax = (price, quantity) => {
+    if (!invoiceData?.tax) return 0;
+    const taxRate = parseFloat(invoiceData.tax.tax_value) / 100;
+    return parseFloat(price) * quantity * taxRate;
+  };
+
+  // Calculate total tax amount
+  const calculateTotalTax = () => {
     if (!invoiceData) return 0;
     return parseFloat(invoiceData.total) - parseFloat(invoiceData.subtotal);
+  };
+
+  // Calculate subtotal from editable products
+  const calculateSubtotal = () => {
+    return editableProducts.reduce((total, product) => {
+      return total + (parseFloat(product.price) * product.quantity);
+    }, 0);
+  };
+
+  // Calculate total from editable products
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal();
+    if (!invoiceData?.tax) return subtotal;
+    const taxRate = parseFloat(invoiceData.tax.tax_value) / 100;
+    return subtotal * (1 + taxRate);
+  };
+
+  // Handle edit button click
+  const handleEditClick = () => {
+    if (invoiceData && invoiceData.products) {
+      // Create a deep copy of products for editing
+      const productsCopy = invoiceData.products.map(product => ({
+        ...product,
+        price: parseFloat(product.price),
+        quantity: parseInt(product.quantity)
+      }));
+      setEditableProducts(productsCopy);
+      setIsEditing(true);
+    }
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditableProducts([]);
+  };
+
+  // Handle input change for editable products
+  const handleProductChange = (index, field, value) => {
+    const updatedProducts = [...editableProducts];
+    if (field === 'price') {
+      updatedProducts[index][field] = parseFloat(value) || 0;
+    } else if (field === 'quantity') {
+      updatedProducts[index][field] = parseInt(value) || 1;
+    }
+    setEditableProducts(updatedProducts);
+  };
+
+  // Handle save edit
+  const handleSaveEdit = async () => {
+    if (!invoiceData) return;
+    
+    setEditLoading(true);
+    
+    try {
+      // Prepare data for API
+      const updatedData = {
+        products: editableProducts.map(product => ({
+          product_id: product.product_id,
+          quantity: product.quantity,
+          price: product.price
+        })),
+        subtotal: calculateSubtotal(),
+        total: calculateTotal()
+      };
+      
+      // Send update request
+      const response = await axiosInstance.put(`/posinvoice/${invoiceId}`, updatedData);
+      
+      if (response.data && response.data.success) {
+        // Refresh invoice data
+        const updatedResponse = await axiosInstance.get(`/posinvoice/${invoiceId}`);
+        if (updatedResponse.data && updatedResponse.data.success) {
+          setInvoiceData(updatedResponse.data.data);
+        }
+        setIsEditing(false);
+        setEditableProducts([]);
+      } else {
+        setError("Failed to update invoice");
+      }
+    } catch (err) {
+      console.error("Error updating invoice:", err);
+      setError("Failed to update invoice. Please try again.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+
+
+  // Handle print preview
+  const handlePrintPreview = () => {
+    const printContent = document.getElementById('invoice-content').innerHTML;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Invoice Preview - ${generateInvoiceNumber(invoiceData?.id)}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .card { border: 1px solid #ddd; border-radius: 5px; padding: 20px; margin-bottom: 20px; }
+            .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            .table th { background-color: #f2f2f2; }
+            .text-end { text-align: right; }
+            .fw-bold { font-weight: bold; }
+            .mb-2 { margin-bottom: 10px; }
+            .mb-3 { margin-bottom: 15px; }
+            .mb-4 { margin-bottom: 20px; }
+            .d-flex { display: flex; }
+            .gap-2 { gap: 8px; }
+            .align-items-center { align-items: center; }
+            .badge { display: inline-block; padding: 3px 7px; font-size: 12px; font-weight: bold; border-radius: 4px; }
+            .bg-success { background-color: #28a745; color: white; }
+            .bg-warning { background-color: #ffc107; color: black; }
+            .border-top { border-top: 1px solid #ddd; }
+            @media print {
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent}
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   // Loading state
@@ -101,7 +236,7 @@ const InvoiceSummary = () => {
           onClick={() => navigate('/company/ponitofsale')}
           className="mt-3"
         >
-          <FaArrowLeft /> {t("Back to POS", "العودة إلى نقطة البيع")}
+          <FaArrowLeft /> Back to POS
         </Button>
       </div>
     );
@@ -110,219 +245,186 @@ const InvoiceSummary = () => {
   // Get currency symbol from response or context
   const currencySymbol = invoiceData?.symbol || '$';
 
+  // Determine which products to display
+  const productsToDisplay = isEditing ? editableProducts : invoiceData?.products;
+
   return (  
-    <>
-      <div className={`p-4 mt-2 ${languageMode === 'ar' ? 'arabic-mode' : ''}`}>
-        <Button 
-          variant="outline-secondary" 
-          onClick={() => navigate('/company/ponitofsale')}
-          className="mb-3 d-flex align-items-center gap-1">
-          <FaArrowLeft /> {t("Back", "رجوع")}
-        </Button>
-        
-        {/* Action Bar */}
-        <Row className="mb-4 align-items-start">
-          <Col md={8}>
-            <div className="d-flex flex-wrap gap-2">
-              {/* Language Toggle Buttons */}
-              <Button
-                variant={languageMode === "en" ? "dark" : "outline-dark"}
-                onClick={() => setLanguageMode("en")}
-              >
-                🌐 English
-              </Button>
-              <Button
-                variant={languageMode === "ar" ? "dark" : "outline-dark"}
-                onClick={() => setLanguageMode("ar")}
-              >
-                🇴🇲 Arabic
-              </Button>
-              <Button
-                variant={languageMode === "both" ? "dark" : "outline-dark"}
-                onClick={() => setLanguageMode("both")}
-              >
-                🌍 English & Arabic
-              </Button>
+    <div className="p-2 mt-2">
+      {/* Main Invoice Card */}
+      <Card className="shadow-sm" id="invoice-content">
+        <Card.Body>
 
-              <Button variant="warning" className="d-flex align-items-center gap-1">
-                <FaEdit /> <span>{t("Edit Invoice", "تعديل الفاتورة")}</span>
-              </Button>
-              <Button variant="success" className="d-flex align-items-center gap-1">
-                <FaMoneyBill /> <span>{t("Receive Payment", "استلام الدفع")}</span>
-              </Button>
-              <Button variant="primary" className="d-flex align-items-center gap-1">
-                <FaPaperPlane /> <span>{t("Send", "إرسال")}</span>
-              </Button>
-              <Button variant="success" className="d-flex align-items-center gap-1">
-                <FaPrint /> <span>{t("Print Invoice", "طباعة الفاتورة")}</span>
-              </Button>
-              <Button variant="info" className="d-flex align-items-center gap-1">
-                <FaGlobe /> <span>{t("Print Preview", "طباعة العامة")}</span>
-              </Button>
-              <Button variant="secondary" className="d-flex align-items-center gap-1">
-                <FaExchangeAlt /> <span>{t("Change Status", "تغيير الحالة")}</span>
-              </Button>
-              <Button variant="danger" className="d-flex align-items-center gap-1">
-                <FaTimes /> <span>{t("Cancel", "إلغاء")}</span>
-              </Button>
-              <Button variant="success" className="d-flex align-items-center gap-1">
-                <FaEdit /> <span>{t("Delivery Note", "مذكرة التسليم")}</span>
-              </Button>
-              <Button variant="info" className="d-flex align-items-center gap-1">
-                <FaEye /> <span>{t("Proforma Invoice", "الفاتورة الأولية")}</span>
-              </Button>
-              <Button variant="secondary" className="d-flex align-items-center gap-1">
-                <FaCaretUp /> <span>{t("Copy Invoice", "نسخ الفاتورة")}</span>
-              </Button>
-            </div>
-          </Col>
+          {/* Action Buttons */}
+          <div className="d-flex flex-wrap gap-2 mb-3 no-print">
+            {isEditing ? (
+              <>
+                <Button variant="success" className="d-flex align-items-center gap-1" onClick={handleSaveEdit} disabled={editLoading}>
+                  {editLoading ? <Spinner as="span" animation="border" size="sm" /> : <FaSave />} <span>Save</span>
+                </Button>
+                <Button variant="danger" className="d-flex align-items-center gap-1" onClick={handleCancelEdit}>
+                  <FaTimesCircle /> <span>Cancel</span>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="warning" className="d-flex align-items-center gap-1" onClick={handleEditClick}>
+                  <FaEdit /> <span>Edit Invoice</span>
+                </Button>
+                <Button variant="success" className="d-flex align-items-center gap-1">
+                  <FaMoneyBill /> <span>Receive Payment</span>
+                </Button>
+                <Button variant="primary" className="d-flex align-items-center gap-1">
+                  <FaPaperPlane /> <span>Send</span>
+                </Button>
+              
+                <Button variant="info" className="d-flex align-items-center gap-1" onClick={handlePrintPreview}>
+                  <FaGlobe /> <span>Print Preview</span>
+                </Button>
+                <Button variant="secondary" className="d-flex align-items-center gap-1">
+                  <FaExchangeAlt /> <span>Change Status</span>
+                </Button>
+                <Button variant="danger" className="d-flex align-items-center gap-1">
+                  <FaTimes /> <span>Cancel</span>
+                </Button>
+                <Button variant="success" className="d-flex align-items-center gap-1">
+                  <FaEdit /> <span>Delivery Note</span>
+                </Button>
+                <Button variant="info" className="d-flex align-items-center gap-1">
+                  <FaEye /> <span>Proforma Invoice</span>
+                </Button>
+                <Button variant="secondary" className="d-flex align-items-center gap-1">
+                  <FaCaretUp /> <span>Copy Invoice</span>
+                </Button>
+                <Button 
+                  variant="outline-secondary" 
+                  onClick={() => navigate('/company/ponitofsale')}
+                  className="d-flex align-items-center gap-1"
+                >
+                  <FaArrowLeft /> Back
+                </Button>
+              </>
+            )}
+          </div>
 
-          <Col md={4} className="text-md-end mt-3 mt-md-0">
-            <h5 className="fw-bold mb-1">{t("Sales Invoice", "فاتورة المبيعات")}</h5>
-            <div>{t("Invoice#", "رقم الفاتورة")} SI-{invoiceData?.id || 'N/A'}</div>
-            <div>{t("Reference:", "المرجع:")}</div>
-            <div className="fw-bold mt-2">{t("Gross Amount:", "المبلغ الإجمالي:")} <span className="text-success">{currencySymbol} {convertPrice(invoiceData?.total || 0)}</span></div>
-          </Col>
-        </Row>
+          {/* Invoice Header */}
+          <Row className="align-items-center mb-4">
+            <Col md={8}>
+              <h4 className="fw-bold mb-1 text-center mt-3">Invoice Summary </h4>
+              <div className="mb-2">
+                <strong>Invoice #:</strong> {generateInvoiceNumber(invoiceData?.id)}
+              </div>
+              <div className="mb-2">
+                <strong>Date:</strong> {formatDate(invoiceData?.created_at)}
+              </div>
+              <div className="mb-2">
+                <strong>Payment Status:</strong> 
+                <Badge bg={invoiceData?.payment_status === 'paid' || invoiceData?.payment_status === 'cash' ? 'success' : 'warning'} className="ms-2">
+                  {invoiceData?.payment_status?.toUpperCase() || 'N/A'}
+                </Badge>
+              </div>
+            </Col>
+          </Row>
 
-        {/* Customer Info */}
-        <Row className="mb-4">
-          <Col md={6}>
-            <strong className="d-block mb-2">{t("Bill To", "إلى الفاتورة")}</strong>
-            <div><strong className="text-primary">{invoiceData?.customer?.name_english || 'N/A'}</strong></div>
-            <div>{t("Address:", "العنوان:")} N/A</div>
-            <div>{t("City:", "المدينة:")} N/A</div>
-            <div>{t("Phone:", "الهاتف:")} {invoiceData?.customer?.phone || 'N/A'}</div>
-            <div>{t("Email:", "البريد الإلكتروني:")} {invoiceData?.customer?.email || 'N/A'}</div>
-          </Col>
+          {/* Customer and Payment Details */}
+          <Row className="mb-4">
+            <Col md={6}>
+              <h5 className="fw-bold mb-3">BILL TO</h5>
+              <div className="mb-2"><strong>{invoiceData?.customer?.name_english || 'N/A'}</strong></div>
+              <div className="mb-2">{invoiceData?.customer?.address || 'N/A'}</div>
+              <div className="mb-2">Phone: {invoiceData?.customer?.phone || 'N/A'}</div>
+              <div>Email: {invoiceData?.customer?.email || 'N/A'}</div>
+            </Col>
+          </Row>
 
-          <Col md={6} className="text-md-end mt-4 mt-md-0">
-            <div><strong>{t("Invoice Date:", "تاريخ الفاتورة:")}</strong> {formatDate(invoiceData?.created_at)}</div>
-            <div><strong>{t("Due Date:", "تاريخ الاستحقاق:")}</strong> {formatDate(invoiceData?.created_at)}</div>
-            <div><strong>{t("Terms:", "الشروط:")}</strong> {t("Payment Due On Receipt", "الدفع عند الاستلام")}</div>
-          </Col>
-        </Row>
-
-        {/* Item Table */}
-        <div className="table-responsive mb-4">
-          <Table bordered className="align-middle">
-            <thead className="table-light">
-              <tr>
-                <th>#</th>
-                <th>{t("Description", "الوصف")}</th>
-                <th>{t("Rate", "السعر")}</th>
-                <th>{t("Qty", "الكمية")}</th>
-                <th>{t("Tax", "الضريبة")}</th>
-                <th>{t("Discount", "الخصم")}</th>
-                <th>{t("Amount", "المبلغ")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoiceData?.products?.map((product, index) => (
-                <tr key={product.id}>
-                  <td>{index + 1}</td>
-                  <td>{product.item_name}</td>
-                  <td>{currencySymbol} {convertPrice(product.price)}</td>
-                  <td>{product.quantity}</td>
-                  <td>{currencySymbol} {convertPrice(0)}</td>
-                  <td>{currencySymbol} {convertPrice(0)}</td>
-                  <td>{currencySymbol} {convertPrice(parseFloat(product.price) * product.quantity)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
-
-        {/* Payment Summary */}
-        <Row className="mb-4">
-          <Col md={6}>
-            <p><strong>{t("Payment Status:", "حالة الدفع:")}</strong> 
-              <Badge bg={invoiceData?.payment_status === 'paid' ? 'success' : 'warning'}>
-                {t(invoiceData?.payment_status || 'N/A', invoiceData?.payment_status || 'N/A')}
-              </Badge>
-            </p>
-            <p><strong>{t("Payment Method:", "طريقة الدفع:")}</strong> 
-              <u>{t(invoiceData?.payment_status || 'N/A', invoiceData?.payment_status || 'N/A')}</u>
-            </p>
-            <p><strong>{t("Note:", "ملاحظة:")}</strong></p>
-          </Col>
-          <Col md={6}>
+          {/* Item Table */}
+          <div className="mb-4">
+            <h5 className="fw-bold mb-3">INVOICE ITEMS</h5>
             <div className="table-responsive">
-              <Table borderless className="text-end">
+              <Table bordered hover className="align-middle">
+                <thead className="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>Description</th>
+                    <th>Rate</th>
+                    <th>Qty</th>
+                    <th>Tax</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  <tr><td>{t("Sub Total", "المجموع الفرعي")}</td><td>{currencySymbol} {convertPrice(invoiceData?.subtotal || 0)}</td></tr>
-                  <tr><td>{t("TAX", "الضريبة")}</td><td>{currencySymbol} {convertPrice(calculateTax())}</td></tr>
-                  <tr><td>{t("Shipping", "الشحن")}</td><td>{currencySymbol} {convertPrice(0)}</td></tr>
-                  <tr className="fw-bold border-top"><td>{t("Total", "الإجمالي")}</td><td>{currencySymbol} {convertPrice(invoiceData?.total || 0)}</td></tr>
-                  <tr className="text-danger"><td>{t("Payment Received", "المبلغ المدفوع")}</td><td>(-) {currencySymbol} {convertPrice(0)}</td></tr>
-                  <tr className="fw-bold border-top"><td>{t("Balance Due", "الرصيد المستحق")}</td><td>{currencySymbol} {convertPrice(invoiceData?.total || 0)}</td></tr>
+                  {productsToDisplay?.map((product, index) => {
+                    const productTax = calculateProductTax(product.price, product.quantity);
+                    const productTotal = parseFloat(product.price) * product.quantity;
+                    return (
+                      <tr key={product.id}>
+                        <td>{index + 1}</td>
+                        <td>{product.item_name}</td>
+                        <td>
+                          {isEditing ? (
+                            <InputGroup size="sm" className="no-print">
+                              <InputGroup.Text>{currencySymbol}</InputGroup.Text>
+                              <Form.Control
+                                type="number"
+                                value={product.price}
+                                onChange={(e) => handleProductChange(index, 'price', e.target.value)}
+                                min="0"
+                                step="0.01"
+                              />
+                            </InputGroup>
+                          ) : (
+                            `${currencySymbol} ${convertPrice(product.price)}`
+                          )}
+                        </td>
+                        <td>
+                          {isEditing ? (
+                            <Form.Control
+                              type="number"
+                              value={product.quantity}
+                              onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
+                              min="1"
+                              size="sm"
+                              className="no-print"
+                            />
+                          ) : (
+                            product.quantity
+                          )}
+                        </td>
+                        <td>{currencySymbol} {convertPrice(productTax)} ({invoiceData?.tax?.tax_value || 0}%)</td>
+                        <td>{currencySymbol} {convertPrice(productTotal)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </Table>
             </div>
-          </Col>
-        </Row>
-
-        {/* Signature */}
-        <div className="text-end mt-5 mb-5">
-          <div>(John Doe)</div>
-          <small>{t("Business Owner", "صاحب العمل")}</small>
-        </div>
-
-        {/* Credit Transactions */}
-        <h6 className="mb-3">{t("Credit Transactions:", "المعاملات الائتمانية:")}</h6>
-        <div className="table-responsive mb-5">
-          <Table bordered>
-            <thead className="table-light">
-              <tr>
-                <th>{t("Date", "التاريخ")}</th>
-                <th>{t("Method", "الطريقة")}</th>
-                <th>{t("Amount", "المبلغ")}</th>
-                <th>{t("Note", "ملاحظة")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td colSpan={4} className="text-center">{t("No transactions", "لا توجد معاملات")}</td></tr>
-            </tbody>
-          </Table>
-        </div>
-
-        {/* Terms */}
-        <h6>{t("Terms & Conditions", "الشروط والأحكام")}</h6>
-        <p className="mb-1 fw-bold">{t("Payment Due On Receipt", "الدفع عند الاستلام")}</p>
-        <p className="mb-3">
-          1. <strong>{t("Prices And Payment:", "الأسعار والدفع:")}</strong><br />
-          {t("Payments are to be made in U.S. funds. Unless otherwise specified, all invoices are due net 30 days from shipment date.",
-            "يجب أن تتم المدفوعات بالدولار الأمريكي. ما لم يُذكر خلاف ذلك، تستحق جميع الفواتير خلال 30 يومًا من تاريخ الشحن.")}
-        </p>
-
-        {/* Public Access */}
-        <p className="text-muted small mb-4">
-          {t("Public Access URL:", "رابط الوصول العام:")}<br />
-          https://billing.ultimatekode.com/neo/billing/sales?id={invoiceData?.id || 'N/A'}&token=XXXXXXX
-        </p>
-
-        {/* File Upload */}
-        <div className="mt-4 mb-5">
-          <label className="fw-bold d-block mb-2">{t("Attachments", "المرفقات")}</label>
-          <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2">
-            <Button variant="success" size="sm">{t("Select files...", "اختر الملفات...")}</Button>
-            <input type="file" />
           </div>
-          <small className="text-muted">{t("Allowed: gif, jpeg, png, docx, docs, txt, pdf, xls", "الملفات المسموح بها: gif، jpeg، png، docx، docs، txt، pdf، xls")}</small>
-        </div>
-      </div>
 
-      {/* 👇 Inline CSS for Arabic */}
-      <style>{`
-        .arabic-mode {
-          font-family: 'Cairo', sans-serif;
-        }
-        .arabic-mode * {
-          direction: ltr !important;
-          text-align: left !important;
-        }
-      `}</style>
-    </>
+          {/* Payment Summary */}
+          <Row className="mb-4">
+            <Col md={6}>
+              <h5 className="fw-bold mb-3">PAYMENT SUMMARY</h5>
+              <p><strong>Payment Status:</strong> 
+                <Badge bg={invoiceData?.payment_status === 'paid' || invoiceData?.payment_status === 'cash' ? 'success' : 'warning'} className="ms-2">
+                  {invoiceData?.payment_status?.toUpperCase() || 'N/A'}
+                </Badge>
+              </p>
+              <p><strong>Payment Method:</strong> {invoiceData?.payment_status?.toUpperCase() || 'N/A'}</p>
+            </Col>
+            <Col md={6}>
+              <div className="table-responsive">
+                <Table borderless className="text-end">
+                  <tbody>
+                    <tr><td>Sub Total</td><td>{currencySymbol} {convertPrice(isEditing ? calculateSubtotal() : invoiceData?.subtotal || 0)}</td></tr>
+                    <tr><td>TAX ({invoiceData?.tax?.tax_class || 'N/A'} {invoiceData?.tax?.tax_value || 0}%)</td><td>{currencySymbol} {convertPrice(isEditing ? calculateTotal() - calculateSubtotal() : calculateTotalTax())}</td></tr>
+                    <tr className="fw-bold border-top"><td>Total</td><td>{currencySymbol} {convertPrice(isEditing ? calculateTotal() : invoiceData?.total || 0)}</td></tr>
+                  </tbody>
+                </Table>
+              </div>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+    </div>
   );
 };
 
