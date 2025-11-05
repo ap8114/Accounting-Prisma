@@ -873,6 +873,7 @@ const CustomersDebtors = () => {
         size="xl"
         centered
         backdrop="static"
+        keyboard={false}
       >
         <Modal.Header closeButton className="bg-light">
           <Modal.Title>{editMode ? "Edit Customer" : "Add Customer"}</Modal.Title>

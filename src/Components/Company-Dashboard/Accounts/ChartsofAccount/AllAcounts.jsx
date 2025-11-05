@@ -717,6 +717,7 @@ const AllAccounts = () => {
         onSave={handleSaveCustomer}
         customerFormData={customerFormData}
         setCustomerFormData={setCustomerFormData}
+        keyboard={false}
       />
 
       <AddVendorModal
