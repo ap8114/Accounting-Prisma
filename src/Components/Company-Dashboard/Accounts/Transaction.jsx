@@ -8,10 +8,11 @@ import {
   Table,
   Card,
   Alert,
-  Spinner
+  Spinner,
+  InputGroup
 } from 'react-bootstrap';
 import {
-  FaPlus, FaEdit, FaTrash, FaEye, FaFileImport, FaFileExport, FaDownload, FaBook
+  FaPlus, FaEdit, FaTrash, FaEye, FaFileImport, FaFileExport, FaDownload, FaBook, FaSearch
 } from 'react-icons/fa';
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
@@ -47,9 +48,81 @@ const Transaction = () => {
   const [customerError, setCustomerError] = useState(null);
    const { convertPrice, symbol, currency } = useContext(CurrencyContext);
 
-  // ✅ Fetch customers & vendors from API
-  // ✅ REPLACE your current `fetchCustomersAndVendors` with this:
+  // ✅ New state for search functionality
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
+  // ✅ MOVED UP HERE - Initialize fromToType before any useEffect hooks
+  const [fromToType, setFromToType] = useState('customer');
+
+  const accountTypes = [
+    "Cash-in-hand",
+    "Bank A/Cs",
+    "Sundry Debtors",
+    "Sundry Creditors",
+    "Purchases A/C",
+    "Purchases Return",
+    "Sales A/C",
+    "Sales Return",
+    "Capital A/C",
+    "Direct Expenses",
+    "Indirect Expenses",
+    "Current Assets",
+    "Current Liabilities",
+    "Misc. Expenses",
+    "Misc. Income",
+    "Loans (Liability)",
+    "Loans & Advances",
+    "Fixed Assets",
+    "Investments",
+    "Bank OD A/C",
+    "Deposits (Assets)",
+    "Provisions"
+  ];
+
+  const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+
+  const voucherTypes = [
+    "Receipt",
+    "Payment",
+    "Expense",
+    "Contra",
+    "Journal",
+    "Credit Note",
+    "Debit Note",
+    "Opening Balance"
+  ];
+
+  const emptyForm = {
+    transactionId: '',
+    date: '',
+    balanceType: 'Receive',
+    voucherType: '',
+    amount: '',
+    fromTo: '',
+    accountType: '',
+    voucherNo: '',
+    note: ''
+  };
+
+  const [form, setForm] = useState({ ...emptyForm });
+  const [modalError, setModalError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const customBtn = {
+    backgroundColor: '#27b2b6',
+    border: 'none',
+    borderRadius: '50px',
+    padding: '6px 16px',
+    color: '#fff'
+  };
+
+  const fileInputRef = React.useRef();
+
+  // ✅ Fetch customers & vendors from API
   const fetchCustomersAndVendors = async () => {
     if (!CompanyId) {
       setCustomerError('Company ID not found.');
@@ -158,78 +231,65 @@ const Transaction = () => {
     }
   }, [CompanyId]);
 
-  const accountTypes = [
-    "Cash-in-hand",
-    "Bank A/Cs",
-    "Sundry Debtors",
-    "Sundry Creditors",
-    "Purchases A/C",
-    "Purchases Return",
-    "Sales A/C",
-    "Sales Return",
-    "Capital A/C",
-    "Direct Expenses",
-    "Indirect Expenses",
-    "Current Assets",
-    "Current Liabilities",
-    "Misc. Expenses",
-    "Misc. Income",
-    "Loans (Liability)",
-    "Loans & Advances",
-    "Fixed Assets",
-    "Investments",
-    "Bank OD A/C",
-    "Deposits (Assets)",
-    "Provisions"
-  ];
+  // Handle search for customers/vendors
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      // If search term is empty, show all customers or vendors
+      const selectedList = fromToType === 'customer' ? customers : vendors;
+      setSearchResults(selectedList);
+      return;
+    }
 
-  const [showModal, setShowModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const selectedList = fromToType === 'customer' ? customers : vendors;
+    console.log("Selected list for search:", selectedList);
+    console.log("Search term:", searchTerm);
+    
+    // ✅ Fixed search logic to handle different possible name fields
+    const results = selectedList.filter(item => {
+      // Check various possible name fields
+      const nameFields = [
+        item.name_english,
+        item.name,
+        item.company_name,
+        item.customer_name,
+        item.vendor_name,
+        item.display_name
+      ];
+      
+      // Find the first non-empty name field
+      const itemName = nameFields.find(name => name && name.trim() !== '') || '';
+      
+      return itemName.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+    
+    console.log("Search results:", results);
+    setSearchResults(results);
+  }, [searchTerm, fromToType, customers, vendors]);
 
-  const voucherTypes = [
-    "Receipt",
-    "Payment",
-    "Expense",
-    "Contra",
-    "Journal",
-    "Credit Note",
-    "Debit Note",
-    "Opening Balance"
-  ];
-
-  const emptyForm = {
-    transactionId: '',
-    date: '',
-    balanceType: 'Receive',
-    voucherType: '',
-    amount: '',
-    fromTo: '',
-    accountType: '',
-    voucherNo: '',
-    note: ''
-  };
-
-  const [form, setForm] = useState({ ...emptyForm });
-  const [modalError, setModalError] = useState(null);
-  const [saving, setSaving] = useState(false);
-
-  // ✅ Use lowercase consistently
-  const [fromToType, setFromToType] = useState('customer');
-
-  const customBtn = {
-    backgroundColor: '#27b2b6',
-    border: 'none',
-    borderRadius: '50px',
-    padding: '6px 16px',
-    color: '#fff'
-  };
-
-  const fileInputRef = React.useRef();
-
-  // ✅ Helper to display name
+  // ✅ Fixed helper to display name - check multiple possible fields
   const getDisplayName = (item) => {
-    return item.name_english || item.company_name || `ID: ${item.id}`;
+    // Check various possible name fields in order of preference
+    const nameFields = [
+      item.name_english,
+      item.name,
+      item.company_name,
+      item.customer_name,
+      item.vendor_name,
+      item.display_name
+    ];
+    
+    // Return the first non-empty name field
+    const name = nameFields.find(name => name && name.trim() !== '');
+    
+    return name || `ID: ${item.id}`;
+  };
+
+  // Handle selecting a customer/vendor from search results
+  const handleSelectFromSearch = (item) => {
+    const displayName = getDisplayName(item);
+    setForm({ ...form, fromTo: displayName });
+    setSearchTerm(displayName);
+    setShowSearchResults(false);
   };
 
   // ... (handleImport, handleExport, handleDownloadBlank remain unchanged)
@@ -240,7 +300,8 @@ const Transaction = () => {
 
     try {
       const selectedList = fromToType === 'customer' ? customers : vendors;
-      const selectedItem = selectedList.find(item => item.name_english === form.fromTo);
+      // ✅ Fixed: Use getDisplayName to find the selected item
+      const selectedItem = selectedList.find(item => getDisplayName(item) === form.fromTo);
 
       if (!selectedItem) {
         throw new Error(`Please select a valid ${fromToType === 'customer' ? 'Customer' : 'Vendor'}`);
@@ -267,6 +328,7 @@ const Transaction = () => {
         setShowModal(false);
         setForm({ ...emptyForm });
         setFromToType('customer');
+        setSearchTerm('');
       } else {
         throw new Error(response.data.message || 'Failed to save transaction');
       }
@@ -296,6 +358,7 @@ const Transaction = () => {
     // Map 'Customer' → 'customer', 'Vendor' → 'vendor'
     const typeLower = txn.fromType?.toLowerCase() === 'vendor' ? 'vendor' : 'customer';
     setFromToType(typeLower);
+    setSearchTerm(txn.fromTo);
     setShowModal(true);
   };
 
@@ -305,7 +368,8 @@ const Transaction = () => {
 
     try {
       const selectedList = fromToType === 'customer' ? customers : vendors;
-      const selectedItem = selectedList.find(item => item.name_english === form.fromTo);
+      // ✅ Fixed: Use getDisplayName to find the selected item
+      const selectedItem = selectedList.find(item => getDisplayName(item) === form.fromTo);
 
       if (!selectedItem) {
         throw new Error(`Please select a valid ${fromToType === 'customer' ? 'Customer' : 'Vendor'}`);
@@ -335,6 +399,7 @@ const Transaction = () => {
         setShowModal(false);
         setForm({ ...emptyForm });
         setFromToType('customer');
+        setSearchTerm('');
         setSelectedTransaction(null);
       } else {
         throw new Error(response.data.message || 'Failed to update transaction');
@@ -537,6 +602,7 @@ const Transaction = () => {
               setSelectedTransaction(null);
               setForm({ ...emptyForm });
               setFromToType("customer");
+              setSearchTerm('');
               setShowModal(true);
             }}>
               Add Transaction
@@ -698,6 +764,7 @@ const Transaction = () => {
                     onChange={(e) => {
                       setFromToType(e.target.value);
                       setForm({ ...form, fromTo: '' });
+                      setSearchTerm('');
                     }}
                   >
                     <option value="customer">Customer</option>
@@ -705,22 +772,46 @@ const Transaction = () => {
                   </Form.Select>
                 </Col>
                 <Col>
-                  {loadingCustomers ? (
-                    <Form.Control as="select" disabled><option>Loading...</option></Form.Control>
-                  ) : (
-                    <Form.Select
-                      value={form.fromTo}
-                      onChange={(e) => setForm({ ...form, fromTo: e.target.value })}
-                      required
-                    >
-                      <option value="">Select {fromToType === 'customer' ? 'Customer' : 'Vendor'}</option>
-                      {(fromToType === 'customer' ? customers : vendors).map(item => (
-                        <option key={item.id} value={item.name_english}>
-                          {getDisplayName(item)}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  )}
+                  <div className="position-relative">
+                    <InputGroup>
+                      <Form.Control
+                        type="text"
+                        placeholder={`Search ${fromToType === 'customer' ? 'Customer' : 'Vendor'}`}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onFocus={() => {
+                          setShowSearchResults(true);
+                          // If search term is empty, show all customers/vendors
+                          if (searchTerm.trim() === '') {
+                            const selectedList = fromToType === 'customer' ? customers : vendors;
+                            setSearchResults(selectedList);
+                          }
+                        }}
+                        required
+                      />
+                      <InputGroup.Text>
+                        <FaSearch />
+                      </InputGroup.Text>
+                    </InputGroup>
+                    
+                    {showSearchResults && (
+                      <div className="position-absolute w-100 bg-white border rounded shadow-sm mt-1 z-index-1000" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {searchResults.length > 0 ? (
+                          searchResults.map(item => (
+                            <div 
+                              key={item.id} 
+                              className="p-2 hover:bg-light cursor-pointer"
+                              onClick={() => handleSelectFromSearch(item)}
+                            >
+                              {getDisplayName(item)}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-2 text-muted">No {fromToType === 'customer' ? 'customers' : 'vendors'} found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </Col>
               </Row>
             </Form.Group>
