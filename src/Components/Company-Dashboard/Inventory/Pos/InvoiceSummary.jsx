@@ -1,13 +1,55 @@
-import React, { useState } from 'react';
-import { Row, Col, Table, Button, Badge } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Row, Col, Table, Button, Badge, Alert, Spinner } from 'react-bootstrap';
 import {
   FaEdit, FaPrint, FaMoneyBill, FaPaperPlane, FaEye,
-  FaGlobe, FaExchangeAlt, FaTimes, FaCaretUp,FaArrowLeft
+  FaGlobe, FaExchangeAlt, FaTimes, FaCaretUp, FaArrowLeft
 } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import axiosInstance from '../../../../Api/axiosInstance';
+import { CurrencyContext } from "../../../../hooks/CurrencyContext";
+import { useContext } from "react";
+
 const InvoiceSummary = () => {
   const [languageMode, setLanguageMode] = useState("en"); // "en" | "ar" | "both"
+  const [invoiceData, setInvoiceData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { convertPrice } = useContext(CurrencyContext);
+
+  // Get invoice ID from location state
+  const invoiceId = location.state?.invoiceId;
+
+  // Fetch invoice data
+  useEffect(() => {
+    const fetchInvoiceData = async () => {
+      if (!invoiceId) {
+        setError("Invoice ID not found");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await axiosInstance.get(`/posinvoice/${invoiceId}`);
+        
+        if (response.data && response.data.success) {
+          setInvoiceData(response.data.data);
+        } else {
+          setError("Failed to fetch invoice data");
+        }
+      } catch (err) {
+        console.error("Error fetching invoice data:", err);
+        setError("Failed to fetch invoice data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvoiceData();
+  }, [invoiceId]);
+
   const t = (en, ar) => {
     if (languageMode === "both") {
       return (
@@ -20,16 +62,64 @@ const InvoiceSummary = () => {
     return languageMode === "ar" ? ar : en;
   };
 
-  return (
-    <>
-      <div className={`p-4 mt-2 ${languageMode === "ar" ? 'arabic-mode' : ''}`}>
-      <Button 
+  // Format date function
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  // Calculate tax amount
+  const calculateTax = () => {
+    if (!invoiceData) return 0;
+    return parseFloat(invoiceData.total) - parseFloat(invoiceData.subtotal);
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="p-4 mt-2 text-center">
+        <Spinner animation="border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </Spinner>
+        <p className="mt-2">Loading invoice data...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="p-4 mt-2">
+        <Alert variant="danger">{error}</Alert>
+        <Button 
           variant="outline-secondary" 
           onClick={() => navigate('/company/ponitofsale')}
-          className="mb-3 d-flex align-items-center gap-1"
+          className="mt-3"
         >
+          <FaArrowLeft /> {t("Back to POS", "العودة إلى نقطة البيع")}
+        </Button>
+      </div>
+    );
+  }
+
+  // Get currency symbol from response or context
+  const currencySymbol = invoiceData?.symbol || '$';
+
+  return (  
+    <>
+      <div className={`p-4 mt-2 ${languageMode === 'ar' ? 'arabic-mode' : ''}`}>
+        <Button 
+          variant="outline-secondary" 
+          onClick={() => navigate('/company/ponitofsale')}
+          className="mb-3 d-flex align-items-center gap-1">
           <FaArrowLeft /> {t("Back", "رجوع")}
         </Button>
+        
         {/* Action Bar */}
         <Row className="mb-4 align-items-start">
           <Col md={8}>
@@ -67,7 +157,7 @@ const InvoiceSummary = () => {
                 <FaPrint /> <span>{t("Print Invoice", "طباعة الفاتورة")}</span>
               </Button>
               <Button variant="info" className="d-flex align-items-center gap-1">
-                <FaGlobe /> <span>{t("Print  Preview", "طباعة العامة")}</span>
+                <FaGlobe /> <span>{t("Print Preview", "طباعة العامة")}</span>
               </Button>
               <Button variant="secondary" className="d-flex align-items-center gap-1">
                 <FaExchangeAlt /> <span>{t("Change Status", "تغيير الحالة")}</span>
@@ -89,26 +179,26 @@ const InvoiceSummary = () => {
 
           <Col md={4} className="text-md-end mt-3 mt-md-0">
             <h5 className="fw-bold mb-1">{t("Sales Invoice", "فاتورة المبيعات")}</h5>
-            <div>{t("Invoice#", "رقم الفاتورة")} SI-1045</div>
+            <div>{t("Invoice#", "رقم الفاتورة")} SI-{invoiceData?.id || 'N/A'}</div>
             <div>{t("Reference:", "المرجع:")}</div>
-            <div className="fw-bold mt-2">{t("Gross Amount:", "المبلغ الإجمالي:")} <span className="text-success">$ 10.90</span></div>
+            <div className="fw-bold mt-2">{t("Gross Amount:", "المبلغ الإجمالي:")} <span className="text-success">{currencySymbol} {convertPrice(invoiceData?.total || 0)}</span></div>
           </Col>
         </Row>
 
         {/* Customer Info */}
         <Row className="mb-4">
-        <Col md={6}>
-  <strong className="d-block mb-2">{t("Bill To", "إلى الفاتورة")}</strong>
-  <div><strong className="text-primary">{t("Haroun Spiers", "هارون سبيرز")}</strong></div>
-  <div>{t("4 Kings Park", "4 كينجز بارك")}</div>
-  <div>{t("Zouparia do Monte, Portugal", "زوباريا دو مونتي، البرتغال")}</div>
-  <div>{t("Phone:", "الهاتف:")} 489-737-5435</div>
-  <div>{t("Email:", "البريد الإلكتروني:")} hspiers2g@redcross.org</div>
-</Col>
+          <Col md={6}>
+            <strong className="d-block mb-2">{t("Bill To", "إلى الفاتورة")}</strong>
+            <div><strong className="text-primary">{invoiceData?.customer?.name_english || 'N/A'}</strong></div>
+            <div>{t("Address:", "العنوان:")} N/A</div>
+            <div>{t("City:", "المدينة:")} N/A</div>
+            <div>{t("Phone:", "الهاتف:")} {invoiceData?.customer?.phone || 'N/A'}</div>
+            <div>{t("Email:", "البريد الإلكتروني:")} {invoiceData?.customer?.email || 'N/A'}</div>
+          </Col>
 
           <Col md={6} className="text-md-end mt-4 mt-md-0">
-            <div><strong>{t("Invoice Date:", "تاريخ الفاتورة:")}</strong> 15-07-2025</div>
-            <div><strong>{t("Due Date:", "تاريخ الاستحقاق:")}</strong> 15-07-2025</div>
+            <div><strong>{t("Invoice Date:", "تاريخ الفاتورة:")}</strong> {formatDate(invoiceData?.created_at)}</div>
+            <div><strong>{t("Due Date:", "تاريخ الاستحقاق:")}</strong> {formatDate(invoiceData?.created_at)}</div>
             <div><strong>{t("Terms:", "الشروط:")}</strong> {t("Payment Due On Receipt", "الدفع عند الاستلام")}</div>
           </Col>
         </Row>
@@ -128,15 +218,17 @@ const InvoiceSummary = () => {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>1</td>
-                <td>{t("Sample Product", "منتج تجريبي")}</td>
-                <td>$ 10.00</td>
-                <td>1</td>
-                <td>$ 1.90 (19.00%)</td>
-                <td>$ 1.00 (1.00 flat)</td>
-                <td>$ 10.90</td>
-              </tr>
+              {invoiceData?.products?.map((product, index) => (
+                <tr key={product.id}>
+                  <td>{index + 1}</td>
+                  <td>{product.item_name}</td>
+                  <td>{currencySymbol} {convertPrice(product.price)}</td>
+                  <td>{product.quantity}</td>
+                  <td>{currencySymbol} {convertPrice(0)}</td>
+                  <td>{currencySymbol} {convertPrice(0)}</td>
+                  <td>{currencySymbol} {convertPrice(parseFloat(product.price) * product.quantity)}</td>
+                </tr>
+              ))}
             </tbody>
           </Table>
         </div>
@@ -144,20 +236,26 @@ const InvoiceSummary = () => {
         {/* Payment Summary */}
         <Row className="mb-4">
           <Col md={6}>
-            <p><strong>{t("Payment Status:", "حالة الدفع:")}</strong> <Badge bg="success">{t("Paid", "مدفوع")}</Badge></p>
-            <p><strong>{t("Payment Method:", "طريقة الدفع:")}</strong> <u>{t("Cash", "نقداً")}</u></p>
+            <p><strong>{t("Payment Status:", "حالة الدفع:")}</strong> 
+              <Badge bg={invoiceData?.payment_status === 'paid' ? 'success' : 'warning'}>
+                {t(invoiceData?.payment_status || 'N/A', invoiceData?.payment_status || 'N/A')}
+              </Badge>
+            </p>
+            <p><strong>{t("Payment Method:", "طريقة الدفع:")}</strong> 
+              <u>{t(invoiceData?.payment_status || 'N/A', invoiceData?.payment_status || 'N/A')}</u>
+            </p>
             <p><strong>{t("Note:", "ملاحظة:")}</strong></p>
           </Col>
           <Col md={6}>
             <div className="table-responsive">
               <Table borderless className="text-end">
                 <tbody>
-                  <tr><td>{t("Sub Total", "المجموع الفرعي")}</td><td>$ 10.00</td></tr>
-                  <tr><td>{t("TAX", "الضريبة")}</td><td>$ 1.90</td></tr>
-                  <tr><td>{t("Shipping", "الشحن")}</td><td>$ 0.00</td></tr>
-                  <tr className="fw-bold border-top"><td>{t("Total", "الإجمالي")}</td><td>$ 10.90</td></tr>
-                  <tr className="text-danger"><td>{t("Payment Received", "المبلغ المدفوع")}</td><td>(-) $ 10.90</td></tr>
-                  <tr className="fw-bold border-top"><td>{t("Balance Due", "الرصيد المستحق")}</td><td>$ 0.00</td></tr>
+                  <tr><td>{t("Sub Total", "المجموع الفرعي")}</td><td>{currencySymbol} {convertPrice(invoiceData?.subtotal || 0)}</td></tr>
+                  <tr><td>{t("TAX", "الضريبة")}</td><td>{currencySymbol} {convertPrice(calculateTax())}</td></tr>
+                  <tr><td>{t("Shipping", "الشحن")}</td><td>{currencySymbol} {convertPrice(0)}</td></tr>
+                  <tr className="fw-bold border-top"><td>{t("Total", "الإجمالي")}</td><td>{currencySymbol} {convertPrice(invoiceData?.total || 0)}</td></tr>
+                  <tr className="text-danger"><td>{t("Payment Received", "المبلغ المدفوع")}</td><td>(-) {currencySymbol} {convertPrice(0)}</td></tr>
+                  <tr className="fw-bold border-top"><td>{t("Balance Due", "الرصيد المستحق")}</td><td>{currencySymbol} {convertPrice(invoiceData?.total || 0)}</td></tr>
                 </tbody>
               </Table>
             </div>
@@ -200,7 +298,7 @@ const InvoiceSummary = () => {
         {/* Public Access */}
         <p className="text-muted small mb-4">
           {t("Public Access URL:", "رابط الوصول العام:")}<br />
-          https://billing.ultimatekode.com/neo/billing/sales?id=1045&token=XXXXXXX
+          https://billing.ultimatekode.com/neo/billing/sales?id={invoiceData?.id || 'N/A'}&token=XXXXXXX
         </p>
 
         {/* File Upload */}
