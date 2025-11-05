@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect , useContext } from 'react';
 import {
   Button,
   Form,
@@ -22,6 +22,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
+import { CurrencyContext } from '../../../hooks/CurrencyContext';
 
 const Transaction = () => {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ const Transaction = () => {
   const [vendors, setVendors] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [customerError, setCustomerError] = useState(null);
+   const { convertPrice, symbol, currency } = useContext(CurrencyContext);
 
   // ✅ Fetch customers & vendors from API
   // ✅ REPLACE your current `fetchCustomersAndVendors` with this:
@@ -626,7 +628,7 @@ const Transaction = () => {
                   <td>{txn.balanceType}</td>
                   <td>{txn.voucherType}</td>
                   <td>{txn.voucherNo}</td>
-                  <td>{txn.amount}</td>
+                  <td>{symbol}{convertPrice(txn.amount)}</td>
                   <td>{txn.fromTo}</td>
                   <td>{txn.accountType}</td>
                   <td>{txn.note}</td>
