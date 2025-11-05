@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef,useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Table,
@@ -22,6 +22,7 @@ import {
   FaDownload,
 } from "react-icons/fa";
 import * as XLSX from "xlsx";
+import { CurrencyContext } from "../../../hooks/CurrencyContext";
 
 const emptyCustomer = {
   name: "",
@@ -292,6 +293,7 @@ const CustomersDebtors = () => {
   const passedVendor = location.state?.vendor;
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
+  const { symbol, convertPrice } = useContext(CurrencyContext);
 
   // Excel import
   const fileInputRef = useRef();
@@ -742,7 +744,7 @@ const CustomersDebtors = () => {
                   </td>
                   <td>{cust.accountName || "Accounts Receivable"}</td>
 
-                  <td>${parseFloat(cust.balance || 0).toFixed(2)}</td>
+                  <td>{symbol}{convertPrice(cust.balance)}</td>
                   <td>
                     <div className="d-flex gap-2 justify-content-center">
                       <Button
@@ -873,6 +875,7 @@ const CustomersDebtors = () => {
         size="xl"
         centered
         backdrop="static"
+        keyboard={false}
       >
         <Modal.Header closeButton className="bg-light">
           <Modal.Title>{editMode ? "Edit Customer" : "Add Customer"}</Modal.Title>

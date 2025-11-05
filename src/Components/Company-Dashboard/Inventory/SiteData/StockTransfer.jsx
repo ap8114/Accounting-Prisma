@@ -121,77 +121,76 @@ function StockTransfer() {
     }
   };
 
-  // ✅ Fetch stock transfers (FIXED: no 'items' in API response)
-// ✅ Fetch stock transfers (FIXED: now properly handles 'transfer_items' in API response)
-const fetchStockTransfers = async () => {
-  if (!companyId) return;
-  setDataLoading(true);
-  try {
-    const response = await axios.get(`${BaseUrl}stocktransfers/company/${companyId}`);
-    console.log("All stock transfers:", response.data);
+  // ✅ Fetch stock transfers (FIXED: now properly handles 'transfer_items' in API response)
+  const fetchStockTransfers = async () => {
+    if (!companyId) return;
+    setDataLoading(true);
+    try {
+      const response = await axios.get(`${BaseUrl}stocktransfers/company/${companyId}`);
+      console.log("All stock transfers:", response.data);
 
-    const isSuccess = response.data?.success || response.data?.status;
-    const transfersData = Array.isArray(response.data?.data) ? response.data.data : [];
+      const isSuccess = response.data?.success || response.data?.status;
+      const transfersData = Array.isArray(response.data?.data) ? response.data.data : [];
 
-    if (isSuccess && transfersData.length > 0) {
-      const transformed = transfersData.map(transfer => {
-        // Process transfer items
-        const transferItems = Array.isArray(transfer.transfer_items) ? transfer.transfer_items : [];
-        const items = transferItems.map(item => ({
-          id: item.id,
-          productId: item.product_id,
-          itemName: item.products?.item_name || "",
-          sourceWarehouseId: item.source_warehouse_id,
-          sourceWarehouse: item.warehouses?.warehouse_name || `WH ID: ${item.source_warehouse_id}`,
-          quantity: item.qty || "0",
-          rate: item.rate || "0",
-          amount: (parseFloat(item.qty || 0) * parseFloat(item.rate || 0)).toFixed(2),
-          narration: item.narration || "",
-        }));
+      if (isSuccess && transfersData.length > 0) {
+        const transformed = transfersData.map(transfer => {
+          // Process transfer items
+          const transferItems = Array.isArray(transfer.transfer_items) ? transfer.transfer_items : [];
+          const items = transferItems.map(item => ({
+            id: item.id,
+            productId: item.product_id,
+            itemName: item.products?.item_name || "",
+            sourceWarehouseId: item.source_warehouse_id,
+            sourceWarehouse: item.warehouses?.warehouse_name || `WH ID: ${item.source_warehouse_id}`,
+            quantity: item.qty || "0",
+            rate: item.rate || "0",
+            amount: (parseFloat(item.qty || 0) * parseFloat(item.rate || 0)).toFixed(2),
+            narration: item.narration || "",
+          }));
 
-        // Calculate total amount
-        const totalAmount = items.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+          // Calculate total amount
+          const totalAmount = items.reduce((sum, item) => sum + parseFloat(item.amount), 0);
 
-        // Get unique source warehouses
-        const sourceWarehouses = [...new Set(items.map(item => item.sourceWarehouse))];
+          // Get unique source warehouses
+          const sourceWarehouses = [...new Set(items.map(item => item.sourceWarehouse))];
 
-        return {
-          id: transfer.id,
-          voucherNo: transfer.voucher_no || "",
-          manualVoucherNo: transfer.manual_voucher_no || "",
-          voucherDate: transfer.transfer_date
-            ? new Date(transfer.transfer_date).toISOString().slice(0, 10)
-            : "",
-          destinationWarehouseId: transfer.destination_warehouse_id || null,
-          destinationWarehouse: "", // will resolve using warehouse list
-          sourceWarehouses: sourceWarehouses,
-          items: items,
-          note: transfer.notes || "",
-          totalAmount: totalAmount.toFixed(2),
-        };
-      });
+          return {
+            id: transfer.id,
+            voucherNo: transfer.voucher_no || "",
+            manualVoucherNo: transfer.manual_voucher_no || "",
+            voucherDate: transfer.transfer_date
+              ? new Date(transfer.transfer_date).toISOString().slice(0, 10)
+              : "",
+            destinationWarehouseId: transfer.destination_warehouse_id || null,
+            destinationWarehouse: "", // will resolve using warehouse list
+            sourceWarehouses: sourceWarehouses,
+            items: items,
+            note: transfer.notes || "",
+            totalAmount: totalAmount.toFixed(2),
+          };
+        });
 
-      // Resolve destination warehouse names
-      const transfersWithNames = transformed.map(t => {
-        const destWh = warehouses.find(w => w.id === t.destinationWarehouseId);
-        return {
-          ...t,
-          destinationWarehouse: destWh ? destWh.name : `WH ID: ${t.destinationWarehouseId}`,
-        };
-      });
+        // Resolve destination warehouse names
+        const transfersWithNames = transformed.map(t => {
+          const destWh = warehouses.find(w => w.id === t.destinationWarehouseId);
+          return {
+            ...t,
+            destinationWarehouse: destWh ? destWh.name : `WH ID: ${t.destinationWarehouseId}`,
+          };
+        });
 
-      setTransfers(transfersWithNames);
-    } else {
+        setTransfers(transfersWithNames);
+      } else {
+        setTransfers([]);
+      }
+    } catch (err) {
+      console.error("Error fetching transfers:", err);
+      setError("Failed to load stock transfers");
       setTransfers([]);
+    } finally {
+      setDataLoading(false);
     }
-  } catch (err) {
-    console.error("Error fetching transfers:", err);
-    setError("Failed to load stock transfers");
-    setTransfers([]);
-  } finally {
-    setDataLoading(false);
-  }
-};
+  };
 
   // Initial data load
   useEffect(() => {
@@ -347,6 +346,11 @@ const fetchStockTransfers = async () => {
     }
   };
 
+  // ✅ NEW: Handle edit transfer
+  const handleEditTransfer = (transfer) => {
+    setEditTransfer(transfer);
+  };
+
   const printTransfer = () => {
     const content = document.getElementById("print-transfer")?.innerHTML;
     if (!content) return;
@@ -449,9 +453,18 @@ const fetchStockTransfers = async () => {
                       <td>{t.destinationWarehouse}</td>
                       <td>{t.items.length > 0 ? t.items.length : "—"}</td>
                       <td>₹{t.totalAmount > 0 ? parseFloat(t.totalAmount).toFixed(2) : "—"}</td>
-                      <td>
-                        <button className="btn btn-sm btn-success" onClick={() => setViewTransfer(t)}>
+                      <td className="d-flex">
+                        <button className="btn btn-sm btn-success me-1" onClick={() => setViewTransfer(t)}>
                           <FontAwesomeIcon icon={faEye} />
+                        </button>
+                        {/* ✅ NEW: Edit button */}
+                        <button 
+                          className="btn btn-sm p-2 me-1" 
+                          style={{ backgroundColor: "#ffc107", borderColor: "#ffc107", color: "white", width: "36px", height: "36px", padding: "0", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px" }} 
+                          onClick={() => handleEditTransfer(t)} 
+                          title="Edit Adjustment"
+                        >
+                          <FontAwesomeIcon icon={faEdit} />
                         </button>
                       </td>
                     </tr>
@@ -609,7 +622,14 @@ const fetchStockTransfers = async () => {
                               >
                                 <option value="">-- Select --</option>
                                 {warehouses.map(w => (
-                                  <option key={w.id} value={w.name}>{w.name} {w.location && `(${w.location})`}</option>
+                                  // ✅ FIXED: Disable the destination warehouse in the source dropdown
+                                  <option 
+                                    key={w.id} 
+                                    value={w.name}
+                                    disabled={w.name === destinationWarehouse}
+                                  >
+                                    {w.name} {w.location && `(${w.location})`}
+                                  </option>
                                 ))}
                               </select>
                             </td>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback,useContext } from "react";
 import { Table, Container, Card, Button, Row,  Col,  Form,} from "react-bootstrap";
 import { FaUserPlus, FaUserFriends } from "react-icons/fa";
 import { FaEye, FaEdit, FaTrash } from "react-icons/fa";
@@ -10,6 +10,9 @@ import AccountActionModal from "./AccountActionModal";
 import BaseUrl from "../../../../Api/BaseUrl";
 import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
+import { CurrencyContext } from "../../../../hooks/CurrencyContext";
+
+
 
 const companyId = GetCompanyId();
 
@@ -30,6 +33,8 @@ const AllAccounts = () => {
   const [refreshData, setRefreshData] = useState(0); // Changed to counter
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+    const { convertPrice, symbol, currency } = useContext(CurrencyContext);
   
   // Refs to prevent multiple API calls
   const isEditingRef = useRef(false);
@@ -633,7 +638,7 @@ const AllAccounts = () => {
                             <td className="text-start">
                               {row?.name || ''}
                             </td>
-                            <td>{parseFloat(row.bal).toFixed(2)}</td>
+                            <td>{symbol} {convertPrice(row.bal)}</td>
                             {/* Actions Column */}
                             <td>
                               <div className="d-flex justify-content-center gap-2">
@@ -687,11 +692,12 @@ const AllAccounts = () => {
                           <td colSpan="2" className="text-end">
                             Total Balance
                           </td>
-                          <td className="text-end">
-                            {totalBalance >= 0
-                              ? totalBalance.toFixed(2)
-                              : `(${Math.abs(totalBalance).toFixed(2)})`}
-                          </td>
+                         <td className="text-end">
+  {totalBalance >= 0
+    ? `${symbol} ${convertPrice(totalBalance)}`
+    : `(${symbol} ${convertPrice(Math.abs(totalBalance))})`}
+</td>
+
                           <td></td> {/* Empty cell for Actions column */}
                         </tr>
                       )}
@@ -717,6 +723,7 @@ const AllAccounts = () => {
         onSave={handleSaveCustomer}
         customerFormData={customerFormData}
         setCustomerFormData={setCustomerFormData}
+        keyboard={false}
       />
 
       <AddVendorModal

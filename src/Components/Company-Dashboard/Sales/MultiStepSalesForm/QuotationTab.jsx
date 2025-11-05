@@ -576,6 +576,7 @@ const QuotationTab = ({
         setCustomerFormData={() => { }} // Will be initialized inside modal
         onSave={handleSave}
         customerId={null}
+        keyboard={false}
       />
     </>
   );

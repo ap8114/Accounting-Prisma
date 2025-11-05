@@ -73,15 +73,18 @@ function Service() {
     }
   };
 
+  // ✅ UPDATED: Fetch unit options using the new API endpoint
   const fetchUnitOptions = async () => {
     try {
       setUnitsLoading(true);
-      const response = await axiosInstance.get(`${BaseUrl}uoms`);
+      // ✅ Updated endpoint to fetch unit details by company ID
+      const response = await axiosInstance.get(`${BaseUrl}unit-details/getUnitDetailsByCompanyId/${companyId}`);
       
-      console.log("UOMs API Response:", response.data); // Debug log
+      console.log("Unit Details API Response:", response.data); // Debug log
       
       if (response.data.success && response.data.data) {
-        const unitNames = response.data.data.map(uom => uom.unit_name);
+        // Extract uom_name from each unit object
+        const unitNames = response.data.data.map(unit => unit.uom_name);
         setUnitOptions(unitNames);
       }
     } catch (error) {

@@ -325,6 +325,8 @@ const AddNewAccountModal = ({
         backdrop="static"
         size="xl"
         dialogClassName="w-100"
+         
+        keyboard={false}
       >
         <div>
           <Modal.Header

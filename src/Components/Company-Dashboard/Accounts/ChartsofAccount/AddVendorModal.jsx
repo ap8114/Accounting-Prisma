@@ -106,6 +106,7 @@ const AddVendorModal = ({ show, onHide, onSave, vendorFormData, setVendorFormDat
       size="xl"
       centered
       backdrop="static"
+       keyboard={false}
     >
       <Modal.Header closeButton className="bg-light">
         <Modal.Title>Add Vendor</Modal.Title>

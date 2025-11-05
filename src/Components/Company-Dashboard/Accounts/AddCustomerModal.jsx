@@ -38,7 +38,7 @@ const AddCustomerModal = ({
   title = "Add Customer",
 }) => {
   return (
-    <Modal show={show} onHide={onHide} size="xl" centered backdrop="static">
+    <Modal show={show} onHide={onHide} size="xl" centered backdrop="static" keyboard={false}>
       <Modal.Header closeButton className="bg-light">
         <Modal.Title>{title}</Modal.Title>
       </Modal.Header>
