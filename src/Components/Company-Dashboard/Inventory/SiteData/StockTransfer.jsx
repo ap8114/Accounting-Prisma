@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState , useContext } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -13,6 +13,7 @@ import axios from "axios";
 import BaseUrl from "../../../../Api/BaseUrl";
 import GetCompanyId from "../../../../Api/GetCompanyId";
 import axiosInstance from "../../../../Api/axiosInstance";
+import { CurrencyContext } from "../../../../hooks/CurrencyContext";
 
 function StockTransfer() {
   // All transfers list
@@ -31,6 +32,7 @@ function StockTransfer() {
   const [note, setNote] = useState("");
   const [showWarehouseList, setShowWarehouseList] = useState(false);
   const [showItemList, setShowItemList] = useState(false);
+   const { convertPrice, symbol, currency } = useContext(CurrencyContext);
 
   const [filters, setFilters] = useState({
     fromDate: "",
@@ -452,7 +454,7 @@ function StockTransfer() {
                       <td>{t.sourceWarehouses.length > 0 ? t.sourceWarehouses.join(", ") : "—"}</td>
                       <td>{t.destinationWarehouse}</td>
                       <td>{t.items.length > 0 ? t.items.length : "—"}</td>
-                      <td>₹{t.totalAmount > 0 ? parseFloat(t.totalAmount).toFixed(2) : "—"}</td>
+                      <td>{symbol}{convertPrice(t.totalAmount)}</td>
                       <td className="d-flex">
                         <button className="btn btn-sm btn-success me-1" onClick={() => setViewTransfer(t)}>
                           <FontAwesomeIcon icon={faEye} />

@@ -744,7 +744,7 @@ const CustomersDebtors = () => {
                   </td>
                   <td>{cust.accountName || "Accounts Receivable"}</td>
 
-                  <td>{symbol}{convertPrice(cust.balance)}</td>
+                  <td>{symbol}{convertPrice(cust.balance || "-")}</td>
                   <td>
                     <div className="d-flex gap-2 justify-content-center">
                       <Button
@@ -869,401 +869,450 @@ const CustomersDebtors = () => {
       </Card>
 
       {/* Add/Edit Modal */}
-      <Modal
-        show={showAddEditModal}
-        onHide={() => setShowAddEditModal(false)}
-        size="xl"
-        centered
-        backdrop="static"
-        keyboard={false}
-      >
-        <Modal.Header closeButton className="bg-light">
-          <Modal.Title>{editMode ? "Edit Customer" : "Add Customer"}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Row className="mb-3">
-              <Col md={4}>
-                <Form.Group>
-                  <Form.Label>Name (English)</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.name}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setCustomerFormData({
-                        ...customerFormData,
-                        name: value,
+    <Modal
+  show={showAddEditModal}
+  onHide={() => setShowAddEditModal(false)}
+  size="xl"
+  centered
+  backdrop="static"
+  keyboard={false}
+>
+  <Modal.Header closeButton className="bg-light">
+    <Modal.Title>{editMode ? "Edit Customer" : "Add Customer"}</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <Form>
+      <Row className="mb-3">
+        <Col md={4}>
+          <Form.Group>
+            <Form.Label>Name (English)</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.name || ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setCustomerFormData({
+                  ...customerFormData,
+                  name: value,
+                  accountName:
+                    customerFormData.name === customerFormData.accountName
+                      ? value
+                      : customerFormData.accountName,
+                });
+              }}
+            />
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group>
+            <Form.Label>Name (Arabic)</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.nameArabic || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  nameArabic: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group>
+            <Form.Label>Company Name</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.companyName || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  companyName: e.target.value,
+                })
+              }
+              placeholder="Enter company name"
+            />
+          </Form.Group>
+        </Col>
+      </Row>
 
-                        accountName: customerFormData.name === customerFormData.accountName
-                          ? value
-                          : customerFormData.accountName,
-                      });
-                    }}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group>
-                  <Form.Label>Name (Arabic)</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.nameArabic}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, nameArabic: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group>
-                  <Form.Label>Company Name</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.companyName}
-                    onChange={(e) =>
-                      setCustomerFormData({
-                        ...customerFormData,
-                        companyName: e.target.value,
-                      })
-                    }
-                    placeholder="Enter company name"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Company Google Location</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.companyLocation || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  companyLocation: e.target.value,
+                })
+              }
+              placeholder="Enter Google Maps link"
+            />
+          </Form.Group>
+        </Col>
+        <Col md={3}>
+          <Form.Group>
+            <Form.Label>ID Card Image</Form.Label>
+            <Form.Control
+              type="file"
+              accept="image/*"
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  idCardImage: e.target.files[0] || null,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+        <Col md={3}>
+          <Form.Group>
+            <Form.Label>Any File</Form.Label>
+            <Form.Control
+              type="file"
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  extraFile: e.target.files[0] || null,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+      </Row>
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Company Google Location</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.companyLocation}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, companyLocation: e.target.value })
-                    }
-                    placeholder="Enter Google Maps link"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>ID Card Image</Form.Label>
-                  <Form.Control
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, idCardImage: e.target.files[0] })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Any File</Form.Label>
-                  <Form.Control
-                    type="file"
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, extraFile: e.target.files[0] })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Account Type</Form.Label>
+            <Form.Control
+              type="text"
+              value="Sundry Debtors"
+              readOnly
+              disabled
+              style={{ backgroundColor: "#fff" }}
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Balance Type</Form.Label>
+            <Form.Control
+              type="text"
+              value="Debit"
+              readOnly
+              disabled
+              style={{ backgroundColor: "#fff" }}
+            />
+          </Form.Group>
+        </Col>
+      </Row>
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Account Type</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value="Sundry Debtors"
-                    readOnly
-                    disabled
-                    style={{ backgroundColor: "#fff" }}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Balance Type</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value="Debit"
-                    readOnly
-                    disabled
-                    style={{ backgroundColor: "#fff" }}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Account Name</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.accountName || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  accountName: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Account Balance</Form.Label>
+            <Form.Control
+              type="number"
+              step="0.01"
+              value={customerFormData.accountBalance || ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setCustomerFormData({
+                  ...customerFormData,
+                  accountBalance: value || "0.00",
+                });
+              }}
+              placeholder="Enter account balance"
+            />
+          </Form.Group>
+        </Col>
+      </Row>
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Account Name</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.accountName}
-                    onChange={(e) =>
-                      setCustomerFormData({
-                        ...customerFormData,
-                        accountName: e.target.value,
-                      })
-                    }
-                    placeholder=""
-                  />
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Creation Date</Form.Label>
+            <Form.Control
+              type="date"
+              value={customerFormData.creationDate || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  creationDate: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Bank Account Number</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.bankAccountNumber || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  bankAccountNumber: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+      </Row>
 
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Bank IFSC</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.bankIFSC || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  bankIFSC: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Bank Name & Branch</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.bankName || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  bankName: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+      </Row>
 
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Account Balance</Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    value={customerFormData.accountBalance}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setCustomerFormData({
-                        ...customerFormData,
-                        accountBalance: value || "0.00",
-                      });
-                    }}
-                    placeholder="Enter account balance"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Country</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.country || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  country: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>State</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.state || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  state: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+      </Row>
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Creation Date</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={customerFormData.creationDate}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, creationDate: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Bank Account Number</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.bankAccountNumber}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, bankAccountNumber: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Pincode</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.pincode || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  pincode: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Address</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.address || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  address: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+      </Row>
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Bank IFSC</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.bankIFSC}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, bankIFSC: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Bank Name & Branch</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.bankName}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, bankName: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>State Code</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.stateCode || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  stateCode: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Shipping Address</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.shippingAddress || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  shippingAddress: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+      </Row>
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Country</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.country}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, country: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>State</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.state}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, state: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Phone</Form.Label>
+            <Form.Control
+              type="text"
+              value={customerFormData.phone || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  phone: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Email</Form.Label>
+            <Form.Control
+              type="email"
+              value={customerFormData.email || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  email: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+      </Row>
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Pincode</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.pincode}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, pincode: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Address</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.address}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, address: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Credit Period (days)</Form.Label>
+            <Form.Control
+              type="number"
+              value={customerFormData.creditPeriod || ""}
+              onChange={(e) =>
+                setCustomerFormData({
+                  ...customerFormData,
+                  creditPeriod: e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>State Code</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.stateCode}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, stateCode: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Shipping Address</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.shippingAddress}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, shippingAddress: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+        <Col md={6}>
+          <Form.Group className="d-flex align-items-center">
+            {customerFormData.gstEnabled && (
+              <div className="flex-grow-1 me-3">
+                <Form.Label>GSTIN</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={customerFormData.gstin || ""}
+                  onChange={(e) =>
+                    setCustomerFormData({
+                      ...customerFormData,
+                      gstin: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            )}
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Phone</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={customerFormData.phone}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, phone: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    value={customerFormData.email}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, email: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+            <div>
+              <Form.Label className="me-2">Enable</Form.Label>
+              <Form.Check
+                type="switch"
+                id="gstin-toggle"
+                checked={customerFormData.gstEnabled || false}
+                onChange={(e) =>
+                  setCustomerFormData({
+                    ...customerFormData,
+                    gstEnabled: e.target.checked,
+                    gstin: e.target.checked ? customerFormData.gstin : "",
+                  })
+                }
+              />
+            </div>
+          </Form.Group>
+        </Col>
+      </Row>
+    </Form>
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowAddEditModal(false)}>
+      Cancel
+    </Button>
+    <Button
+      style={{ backgroundColor: "#53b2a5", border: "none" }}
+      onClick={handleSave}
+    >
+      {editMode ? "Update Customer" : "Save Customer"}
+    </Button>
+  </Modal.Footer>
+</Modal>
 
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Credit Period (days)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    value={customerFormData.creditPeriod}
-                    onChange={(e) =>
-                      setCustomerFormData({ ...customerFormData, creditPeriod: e.target.value })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-
-              <Col md={6}>
-                <Form.Group className="d-flex align-items-center">
-                  {/* GSTIN field only when enabled */}
-                  {customerFormData.gstEnabled && (
-                    <div className="flex-grow-1 me-3">
-                      <Form.Label>GSTIN</Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={customerFormData.gstin}
-                        onChange={(e) =>
-                          setCustomerFormData({ ...customerFormData, gstin: e.target.value })
-                        }
-                      />
-                    </div>
-                  )}
-
-                  {/* On/Off Toggle */}
-                  <div>
-                    <Form.Label className="me-2">Enable</Form.Label>
-                    <Form.Check
-                      type="switch"
-                      id="gstin-toggle"
-                      checked={customerFormData.gstEnabled}
-                      onChange={(e) =>
-                        setCustomerFormData({
-                          ...customerFormData,
-                          gstEnabled: e.target.checked,
-                          gstin: e.target.checked ? customerFormData.gstin : "", // optional: off karte hi clear
-                        })
-                      }
-                    />
-                  </div>
-                </Form.Group>
-              </Col>
-
-            </Row>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAddEditModal(false)}>
-            Cancel
-          </Button>
-          <Button
-            style={{ backgroundColor: "#53b2a5", border: "none" }}
-            onClick={handleSave}
-          >
-            {editMode ? "Update Customer" : "Save Customer"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
 
       {/* View Modal */}
       <Modal.Body>
