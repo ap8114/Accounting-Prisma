@@ -469,7 +469,7 @@ const PointOfSale = () => {
                           </div>
                         </td>
                         <td>{product.item_name}</td>
-                        <td>  {symbol} {convertPrice(product.initial_cost)} ({currency})</td>
+                        <td>  {symbol} {convertPrice(product.initial_cost)} </td>
                         <td>{product.warehouse?.warehouse_name || "N/A"}</td>
                         <td>{stock} units</td>
                         <td>

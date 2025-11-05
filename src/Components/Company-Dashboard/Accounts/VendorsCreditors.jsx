@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect , useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, Button, Form, Row, Col, Card, Alert, Image } from 'react-bootstrap';
 import { FaEye, FaEdit, FaTrash, FaPlus, FaBook, FaFile } from 'react-icons/fa';
@@ -10,6 +10,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { CurrencyContext } from '../../../hooks/CurrencyContext';
 
 const VendorsCustomers = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ const VendorsCustomers = () => {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [vendorType, setVendorType] = useState("vender");
+  const { symbol, convertPrice: convertrice } = useContext(CurrencyContext);
 
   const getAccountType = (type) => type === "vender" ? "Sundry Creditors" : "Sundry Debtors";
 
@@ -644,7 +646,7 @@ const VendorsCustomers = () => {
                         </span>
                       </td>
                       <td>{vendor.accountName}</td>
-                      <td>${vendor.payable.toFixed(2)}</td>
+                      <td>{symbol}{convertrice(vendor.payable)}</td>
                       <td>
                         <div
                           className="d-flex align-items-center gap-2"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Row, Col, Table, Button, Badge } from 'react-bootstrap';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Row, Col, Table, Button, Badge } from "react-bootstrap";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const InventoryDetails = () => {
   const location = useLocation();
@@ -23,7 +23,7 @@ const InventoryDetails = () => {
       closingQty: "500.00 yds",
       description: "10 CTN",
       narration: "Bulk purchase",
-      transactionType: "purchase"
+      transactionType: "purchase",
     },
     {
       date: "15/03/2025",
@@ -39,7 +39,7 @@ const InventoryDetails = () => {
       closingQty: "350.00 yds",
       description: "1 CTN",
       narration: "",
-      transactionType: "sale"
+      transactionType: "sale",
     },
     {
       date: "20/04/2025",
@@ -55,7 +55,7 @@ const InventoryDetails = () => {
       closingQty: "300.00 yds",
       description: "1 CTN",
       narration: "Damaged goods return",
-      transactionType: "return"
+      transactionType: "return",
     },
     {
       date: "05/05/2025",
@@ -71,7 +71,7 @@ const InventoryDetails = () => {
       closingQty: "100.00 yds",
       description: "2 CTN",
       narration: "Bulk order",
-      transactionType: "sale"
+      transactionType: "sale",
     },
     {
       date: "10/06/2025",
@@ -87,24 +87,39 @@ const InventoryDetails = () => {
       closingQty: "130.00 yds",
       description: "1 CTN",
       narration: "Defective items returned",
-      transactionType: "return"
-    }
+      transactionType: "return",
+    },
+  ];
+
+  const voucherTypes = [
+    "Expense",
+    "Income",
+    "Contra",
+    "Journal",
+    "Credit Note",
+    "Debit Note",
+    "Opening Balance",
+    "Current Balance",
+    "Closing Balance",
+    "Sales",
+    "Purchase",
+    "Delivery Challans",
   ];
 
   // Auto-generate VCH001, VCH002, etc.
   const [data] = useState(() => {
     const usedNumbers = rawData
-      .map(item => {
+      .map((item) => {
         const match = item.vchNo?.match(/VCH(\d+)/i);
         return match ? parseInt(match[1], 10) : 0;
       })
-      .filter(num => num > 0);
+      .filter((num) => num > 0);
 
     const maxUsed = usedNumbers.length > 0 ? Math.max(...usedNumbers) : 0;
 
     return rawData.map((item, index) => {
       const nextNumber = maxUsed + index + 1;
-      const vchNoAuto = `VCH${nextNumber.toString().padStart(3, '0')}`;
+      const vchNoAuto = `VCH${nextNumber.toString().padStart(3, "0")}`;
       return { ...item, vchNoAuto };
     });
   });
@@ -114,7 +129,7 @@ const InventoryDetails = () => {
     if (location.state && location.state.item) {
       setItem(location.state.item);
     } else {
-      navigate('/company/inventorys');
+      navigate("/company/inventorys");
     }
   }, [location, navigate]);
 
@@ -122,7 +137,7 @@ const InventoryDetails = () => {
   const [filters, setFilters] = useState({
     date: "",
     vchNo: "",
-    vchNoAuto: "", 
+    vchNoAuto: "",
     vchType: "",
     warehouse: "",
     particulars: "",
@@ -131,7 +146,9 @@ const InventoryDetails = () => {
   const handleSendEmail = () => {
     const subject = "Inventory Details";
     const body = `Item: ${item?.itemName}\nCurrent Stock: ${item?.quantity} ${item?.unit}\nValue: ₹${item?.value}\n\nCheck full details in the app.`;
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(body)}`;
   };
 
   // Handle filter change
@@ -143,29 +160,42 @@ const InventoryDetails = () => {
   const filteredData = data.filter((item) => {
     return (
       (filters.date === "" || item.date.includes(filters.date)) &&
-      (filters.vchNo === "" || 
-        item.vchNo.includes(filters.vchNo)
-      ) &&
-      (filters.vchNoAuto === "" || 
-        item.vchNoAuto.includes(filters.vchNoAuto)
-      ) &&
+      (filters.vchNo === "" || item.vchNo.includes(filters.vchNo)) &&
+      (filters.vchNoAuto === "" ||
+        item.vchNoAuto.includes(filters.vchNoAuto)) &&
       (filters.vchType === "" ||
         item.vchType.toLowerCase().includes(filters.vchType.toLowerCase())) &&
       (filters.warehouse === "" ||
-        item.warehouse.toLowerCase().includes(filters.warehouse.toLowerCase())) &&
+        item.warehouse
+          .toLowerCase()
+          .includes(filters.warehouse.toLowerCase())) &&
       (filters.particulars === "" ||
-        item.particulars.toLowerCase().includes(filters.particulars.toLowerCase()))
+        item.particulars
+          .toLowerCase()
+          .includes(filters.particulars.toLowerCase()))
     );
   });
 
   // Separate histories
-  const purchaseHistory = filteredData.filter(item => item.transactionType === "purchase");
-  const salesHistory = filteredData.filter(item => item.transactionType === "sale");
-  const returnHistory = filteredData.filter(item => item.transactionType === "return");
+  const purchaseHistory = filteredData.filter(
+    (item) => item.transactionType === "purchase"
+  );
+  const salesHistory = filteredData.filter(
+    (item) => item.transactionType === "sale"
+  );
+  const returnHistory = filteredData.filter(
+    (item) => item.transactionType === "return"
+  );
 
   // Calculate totals
-  const totalPurchases = purchaseHistory.reduce((sum, item) => sum + parseFloat(item.inwardsValue), 0);
-  const totalSales = salesHistory.reduce((sum, item) => sum + parseFloat(item.outwardsValue), 0);
+  const totalPurchases = purchaseHistory.reduce(
+    (sum, item) => sum + parseFloat(item.inwardsValue),
+    0
+  );
+  const totalSales = salesHistory.reduce(
+    (sum, item) => sum + parseFloat(item.outwardsValue),
+    0
+  );
   const totalReturns = returnHistory.reduce((sum, item) => {
     return sum + Math.abs(parseFloat(item.inwardsValue));
   }, 0);
@@ -188,11 +218,13 @@ const InventoryDetails = () => {
           <div>
             <h3 className="text-lg font-medium">Inventory Item Details</h3>
             <p className="text-sm text-gray-600">01/01/2025 to 21/08/2025</p>
-            <Button onClick={handleSendEmail} className="btn-sm">Send Email</Button>
+            <Button onClick={handleSendEmail} className="btn-sm">
+              Send Email
+            </Button>
           </div>
-          <Button 
-            variant="outline-secondary"                                                                    
-            onClick={() => navigate('/company/inventorys')}
+          <Button
+            variant="outline-secondary"
+            onClick={() => navigate("/company/inventorys")}
             className="flex items-center gap-2"
           >
             <span>&larr;</span> Back to Inventory
@@ -203,15 +235,34 @@ const InventoryDetails = () => {
         <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-100">
           <div className="flex justify-between items-start">
             <div>
-              <h4 className="text-xl font-bold text-blue-800">{item.itemName}</h4>
+              <h4 className="text-xl font-bold text-blue-800">
+                {item.itemName}
+              </h4>
               <div className="grid grid-cols-2 gap-2 mt-2">
-                <p><span className="font-medium">HSN:</span> {item.hsn}</p>
-                <p><span className="font-medium">Barcode:</span> {item.barcode}</p>
-                <p><span className="font-medium">Category:</span> {item.itemCategory}</p>
-                <p><span className="font-medium">Warehouse:</span> {item.warehouse}</p>
-                <p><span className="font-medium">Current Stock:</span> {item.quantity} {item.unit}</p>
-                <p><span className="font-medium">Status:</span> 
-                  <Badge bg={item.status === "In Stock" ? "success" : "danger"} className="ms-2">
+                <p>
+                  <span className="font-medium">HSN:</span> {item.hsn}
+                </p>
+                <p>
+                  <span className="font-medium">Barcode:</span> {item.barcode}
+                </p>
+                <p>
+                  <span className="font-medium">Category:</span>{" "}
+                  {item.itemCategory}
+                </p>
+                <p>
+                  <span className="font-medium">Warehouse:</span>{" "}
+                  {item.warehouse}
+                </p>
+                <p>
+                  <span className="font-medium">Current Stock:</span>{" "}
+                  {item.quantity} {item.unit}
+                </p>
+                <p>
+                  <span className="font-medium">Status:</span>
+                  <Badge
+                    bg={item.status === "In Stock" ? "success" : "danger"}
+                    className="ms-2"
+                  >
                     {item.status}
                   </Badge>
                 </p>
@@ -225,74 +276,96 @@ const InventoryDetails = () => {
           </div>
         </div>
 
-      {/* Filters */}
-<div className="flex flex-wrap gap-4 mb-6">
-  <div className="flex flex-col">
-    <label className="text-sm font-medium mb-1">Date</label>
-    <input
-      type="date"
-      name="date"
-      value={filters.date}
-      onChange={handleFilterChange}
-      className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-    />
-  </div>
+        {/* Filters */}
+        <div className="flex flex-wrap gap-4 mb-6">
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1">From Date</label>
+            <input
+              type="date"
+              name="fromDate"
+              value={filters.fromDate || ""}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, fromDate: e.target.value }))
+              }
+              className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
 
-  <div className="flex flex-col">
-    <label className="text-sm font-medium mb-1">VCH No</label>
-    <input
-      type="text"
-      name="vchNo"
-      placeholder="PO1-02345"
-      value={filters.vchNo}
-      onChange={handleFilterChange}
-      className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-    />
-  </div>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1">To Date</label>
+            <input
+              type="date"
+              name="toDate"
+              value={filters.toDate || ""}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, toDate: e.target.value }))
+              }
+              className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
 
-  {/* New: Auto Voucher No Filter */}
-  <div className="flex flex-col">
-    <label className="text-sm font-medium mb-1">Voucher No (Auto)</label>
-    <input
-      type="text"
-      name="vchNoAuto"
-      placeholder="VCH001"
-      value={filters.vchNoAuto}
-      onChange={handleFilterChange}
-      className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-    />
-  </div>
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1">VCH No</label>
+            <input
+              type="text"
+              name="vchNo"
+              placeholder="PO1-02345"
+              value={filters.vchNo}
+              onChange={handleFilterChange}
+              className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
 
-  <div className="flex flex-col">
-    <label className="text-sm font-medium mb-1">VCH Type</label>
-    <input
-      type="text"
-      name="vchType"
-      placeholder="Enter VCH Type"
-      value={filters.vchType}
-      onChange={handleFilterChange}
-      className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-    />
-  </div>
-  <div className="flex flex-col">
-    <label className="text-sm font-medium mb-1">Warehouse</label>
-    <input
-      type="text"
-      name="warehouse"
-      placeholder="Enter Warehouse"
-      value={filters.warehouse}
-      onChange={handleFilterChange}
-      className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-    />
-  </div>
-</div>
+          {/* New: Auto Voucher No Filter */}
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1">
+              Voucher No (Auto)
+            </label>
+            <input
+              type="text"
+              name="vchNoAuto"
+              placeholder="VCH001"
+              value={filters.vchNoAuto}
+              onChange={handleFilterChange}
+              className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
 
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1">VCH Type</label>
+            <select
+              name="vchType"
+              value={filters.vchType || ""}
+              onChange={handleFilterChange}
+              className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+            >
+              <option value="">Select VCH Type</option>
+              {voucherTypes.map((type, index) => (
+                <option key={index} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </div>
 
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-1">Warehouse</label>
+            <input
+              type="text"
+              name="warehouse"
+              placeholder="Enter Warehouse"
+              value={filters.warehouse}
+              onChange={handleFilterChange}
+              className="border px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+        </div>
 
         {/* Opening Inventory */}
         <div className="p-3 rounded bg-gray-50 text-sm mb-4 border">
           <strong>{item.itemName}</strong> <br />
-          <strong>Opening Inventory:</strong> <span className="font-medium">0.00 yds X 0.000 = 0.000</span>
+          <strong>Opening Inventory:</strong>{" "}
+          <span className="font-medium">0.00 yds X 0.000 = 0.000</span>
         </div>
 
         {/* All Transactions */}
@@ -326,14 +399,17 @@ const InventoryDetails = () => {
                       <td className="border p-2">{row.vchType}</td>
                       <td className="border p-2">{row.particulars}</td>
                       <td className="border p-2">
-                        {row.vchNo}<br />
+                        {row.vchNo}
+                        <br />
                         <small className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-medium">
                           {row.vchNoAuto}
                         </small>
                       </td>
                       <td className="border p-2">
-  <span className="font-medium text-blue-700">{row.vchNoAuto}</span>
-</td>
+                        <span className="font-medium text-blue-700">
+                          {row.vchNoAuto}
+                        </span>
+                      </td>
                       <td className="border p-2">{row.warehouse}</td>
                       <td className="border p-2">{row.rate}</td>
                       <td className="border p-2">{row.inwardsQty}</td>
@@ -360,8 +436,12 @@ const InventoryDetails = () => {
         {/* Purchase History */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-3">
-            <h4 className="text-lg font-medium text-green-700">Purchase History</h4>
-            <Badge bg="success" className="me-2">Total Purchases: ₹{totalPurchases.toFixed(2)}</Badge>
+            <h4 className="text-lg font-medium text-green-700">
+              Purchase History
+            </h4>
+            <Badge bg="success" className="me-2">
+              Total Purchases: ₹{totalPurchases.toFixed(2)}
+            </Badge>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border border-gray-300 text-sm">
@@ -388,14 +468,17 @@ const InventoryDetails = () => {
                       <td className="border p-2">{row.vchType}</td>
                       <td className="border p-2">{row.particulars}</td>
                       <td className="border p-2">
-                        {row.vchNo}<br />
+                        {row.vchNo}
+                        <br />
                         <small className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-medium">
                           {row.vchNoAuto}
                         </small>
                       </td>
                       <td className="border p-2">
-  <span className="font-medium text-blue-700">{row.vchNoAuto}</span>
-</td>
+                        <span className="font-medium text-blue-700">
+                          {row.vchNoAuto}
+                        </span>
+                      </td>
                       <td className="border p-2">{row.warehouse}</td>
                       <td className="border p-2">{row.rate}</td>
                       <td className="border p-2">{row.inwardsQty}</td>
@@ -420,7 +503,9 @@ const InventoryDetails = () => {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-3">
             <h4 className="text-lg font-medium text-red-700">Sales History</h4>
-            <Badge bg="danger" className="me-2">Total Sales: ₹{totalSales.toFixed(2)}</Badge>
+            <Badge bg="danger" className="me-2">
+              Total Sales: ₹{totalSales.toFixed(2)}
+            </Badge>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border border-gray-300 text-sm">
@@ -447,14 +532,17 @@ const InventoryDetails = () => {
                       <td className="border p-2">{row.vchType}</td>
                       <td className="border p-2">{row.particulars}</td>
                       <td className="border p-2">
-                        {row.vchNo}<br />
+                        {row.vchNo}
+                        <br />
                         <small className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-medium">
                           {row.vchNoAuto}
                         </small>
                       </td>
                       <td className="border p-2">
-  <span className="font-medium text-blue-700">{row.vchNoAuto}</span>
-</td>
+                        <span className="font-medium text-blue-700">
+                          {row.vchNoAuto}
+                        </span>
+                      </td>
                       <td className="border p-2">{row.warehouse}</td>
                       <td className="border p-2">{row.rate}</td>
                       <td className="border p-2">{row.outwardsQty}</td>
@@ -478,8 +566,12 @@ const InventoryDetails = () => {
         {/* Return History */}
         <div className="mb-6">
           <div className="flex justify-between items-center mb-3">
-            <h4 className="text-lg font-medium text-purple-700">Return History</h4>
-            <Badge bg="warning" text="dark" className="me-2">Total Returns: ₹{totalReturns.toFixed(2)}</Badge>
+            <h4 className="text-lg font-medium text-purple-700">
+              Return History
+            </h4>
+            <Badge bg="warning" text="dark" className="me-2">
+              Total Returns: ₹{totalReturns.toFixed(2)}
+            </Badge>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border border-gray-300 text-sm">
@@ -506,14 +598,17 @@ const InventoryDetails = () => {
                       <td className="border p-2">{row.vchType}</td>
                       <td className="border p-2">{row.particulars}</td>
                       <td className="border p-2">
-                        {row.vchNo}<br />
+                        {row.vchNo}
+                        <br />
                         <small className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-medium">
                           {row.vchNoAuto}
                         </small>
                       </td>
                       <td className="border p-2">
-  <span className="font-medium text-blue-700">{row.vchNoAuto}</span>
-</td>
+                        <span className="font-medium text-blue-700">
+                          {row.vchNoAuto}
+                        </span>
+                      </td>
                       <td className="border p-2">{row.warehouse}</td>
                       <td className="border p-2">{row.rate}</td>
                       <td className="border p-2">{row.inwardsQty}</td>
@@ -536,7 +631,8 @@ const InventoryDetails = () => {
 
         {/* Closing Inventory */}
         <div className="mt-4 border p-3 rounded bg-gray-100 text-sm">
-          <strong>Closing Inventory:</strong> <span className="font-medium">130.00 yds X 0.360 = 46.800</span>
+          <strong>Closing Inventory:</strong>{" "}
+          <span className="font-medium">130.00 yds X 0.360 = 46.800</span>
         </div>
       </div>
     </div>

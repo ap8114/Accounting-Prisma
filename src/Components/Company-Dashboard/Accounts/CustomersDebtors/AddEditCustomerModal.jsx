@@ -261,8 +261,19 @@ const AddEditCustomerModal = ({
     }
   };
 
+  useEffect(() => {
+  if (!show) {
+    // Remove leftover Bootstrap backdrops if any
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach((el) => el.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+  }
+}, [show]);
+
+
   return (
-    <Modal show={show} onHide={onHide} size="xl" centered backdrop="static">
+    <Modal show={show} onHide={onHide} size="xl" centered backdrop="static" keyboard={false}>
       <Modal.Header closeButton className="bg-light">
         <Modal.Title>{editMode ? "Edit Customer" : "Add Customer"}</Modal.Title>
       </Modal.Header>
@@ -712,9 +723,20 @@ const AddEditCustomerModal = ({
         </Form>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={isLoading}>
-          Cancel
-        </Button>
+      <Button
+  variant="secondary"
+  onClick={() => {
+    onHide();
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach((el) => el.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+  }}
+  disabled={isLoading}
+>
+  Cancel
+</Button>
+
         <Button
           style={{ backgroundColor: "#53b2a5", border: "none" }}
           onClick={handleSaveCustomer}

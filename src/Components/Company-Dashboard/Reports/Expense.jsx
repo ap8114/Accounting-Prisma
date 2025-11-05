@@ -572,7 +572,8 @@ const Expense = () => {
                   {accounts.map((account) => (
 
                     <option key={`paid-from-${account.id}`} value={account.id}>
-                      {account?.parent_account?.subgroup_name || 'N/A'} ({account?.sub_of_subgroup?.name || 'N/A'})
+                      {/* {account?.parent_account?.subgroup_name || 'N/A'} */}
+                      {account?.sub_of_subgroup?.name || 'N/A'}
                     </option>
                   ))}
                 </select>
@@ -587,7 +588,8 @@ const Expense = () => {
                     {accounts.length > 0 ? (
                       accounts.map((account) => (
                         <option key={`acc-${account.id}`} value={account.parent_account.subgroup_name}>
-                          {account?.parent_account?.subgroup_name || 'N/A'} ({account?.sub_of_subgroup?.name || 'N/A'})
+                          {/* {account?.parent_account?.subgroup_name || 'N/A'}  */}
+                          {account?.sub_of_subgroup?.name || 'N/A'}
                         </option>
                       ))
                     ) : accountsLoaded ? (
