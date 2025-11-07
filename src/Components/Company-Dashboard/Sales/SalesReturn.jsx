@@ -18,6 +18,16 @@ const SalesReturn = () => {
   const [customers, setCustomers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
+  
+  // Search states for dropdowns
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [warehouseSearch, setWarehouseSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  
+  // Show dropdown states
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,6 +75,7 @@ const SalesReturn = () => {
       const res = await axiosInstance.get(`/vendorCustomer/company/${companyId}`, { params: { type: 'customer' } });
       const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
       setCustomers(data);
+      console.log("Customers loaded:", data.length); // Debug log
     } catch (err) {
       console.error('Failed to load customers', err);
     }
@@ -75,6 +86,8 @@ const SalesReturn = () => {
       const res = await axiosInstance.get(`/warehouses/company/${companyId}`);
       const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
       setWarehouses(data);
+      console.log("Warehouses loaded:", data.length); // Debug log
+      console.log("First warehouse:", data[0]); // Debug log
     } catch (err) {
       console.error('Failed to load warehouses', err);
     }
@@ -85,6 +98,7 @@ const SalesReturn = () => {
       const res = await axiosInstance.get(`/products/company/${companyId}`);
       const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
       setProducts(data);
+      console.log("Products loaded:", data.length); // Debug log
     } catch (err) {
       console.error('Failed to load products', err);
     }
@@ -95,7 +109,7 @@ const SalesReturn = () => {
     try {
       setLoading(true);
       const response = await axiosInstance.get(`/get-returns`, {
-        params: { company_id: companyId }
+        params: {company_id: companyId}
       });
       const data = response.data;
       const mapped = (data.data || []).map(r => ({
@@ -234,13 +248,19 @@ const SalesReturn = () => {
       amount: 0,
       returnType: 'Sales Return',
       reason: '',
-      warehouseId: warehouses.length > 0 ? warehouses[0]?.id : null,
-      warehouseName: warehouses.length > 0 ? (warehouses[0]?.name || warehouses[0]?.warehouse_name) : '',
+      warehouseId: null,
+      warehouseName: '',
       referenceId: '',
       voucherNo: '',
       narration: '',
       itemsList: []
     });
+    setCustomerSearch('');
+    setWarehouseSearch('');
+    setProductSearch('');
+    setShowCustomerDropdown(false);
+    setShowWarehouseDropdown(false);
+    setShowProductDropdown(false);
     setShowAddModal(true);
   };
 
@@ -390,6 +410,25 @@ const SalesReturn = () => {
     return <Badge bg="light" text="dark">{returnType}</Badge>;
   };
 
+  // Filter customers based on search
+  const filteredCustomers = customers.filter(customer => 
+    customer.name_english.toLowerCase().includes(customerSearch.toLowerCase())
+  );
+
+  // Filter warehouses based on search
+  const filteredWarehouses = warehouses.filter(warehouse => {
+    if (!warehouse) return false;
+    const name = warehouse.warehouse_name || ''; // Changed from warehouse.name to warehouse.warehouse_name
+    return name.toLowerCase().includes(warehouseSearch.toLowerCase());
+  });
+
+  // Filter products based on search
+  const filteredProducts = products.filter(product => {
+    if (!product) return false;
+    const name = product.item_name || '';
+    return name.toLowerCase().includes(productSearch.toLowerCase());
+  });
+
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center vh-50">
@@ -416,7 +455,70 @@ const SalesReturn = () => {
   // Helper: get warehouse display name
   const getWarehouseName = (warehouseId) => {
     const wh = warehouses.find(w => w.id === warehouseId);
-    return wh ? (wh.name || wh.warehouse_name) : '';
+    return wh ? (wh.warehouse_name || '') : ''; // Changed from wh.name to wh.warehouse_name
+  };
+
+  // Custom Search Input Component
+  const SearchInput = ({ 
+    items, 
+    value, 
+    onChange, 
+    placeholder, 
+    searchValue, 
+    onSearchChange,
+    displayField = "name_english",
+    idField = "id",
+    showDropdown,
+    setShowDropdown
+  }) => {
+    console.log("SearchInput rendered with items:", items.length); // Debug log
+    console.log("SearchInput showDropdown:", showDropdown); // Debug log
+    
+    return (
+      <div className="position-relative">
+        <InputGroup>
+          <Form.Control
+            type="text"
+            placeholder={placeholder}
+            value={searchValue}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onFocus={() => setShowDropdown(true)}
+          />
+          <InputGroup.Text><FaSearch /></InputGroup.Text>
+        </InputGroup>
+        
+        {showDropdown && (
+          <div className="border rounded mt-1 position-absolute w-100 bg-white shadow" 
+               style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1000 }}>
+            {items.length > 0 ? (
+              items.map(item => (
+                <div 
+                  key={item[idField]} 
+                  className="p-2 hover:bg-light"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    console.log("Item selected:", item[displayField]); // Debug log
+                    onChange(item[idField], item[displayField]);
+                    onSearchChange('');
+                    setShowDropdown(false);
+                  }}
+                >
+                  {item[displayField]}
+                </div>
+              ))
+            ) : (
+              <div className="p-2 text-muted">No items found</div>
+            )}
+          </div>
+        )}
+        
+        {value && !showDropdown && (
+          <div className="mt-1 p-2 bg-light rounded">
+            Selected: {value}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -502,8 +604,8 @@ const SalesReturn = () => {
             <Form.Select value={warehouseFilter} onChange={(e) => setWarehouseFilter(e.target.value)}>
               <option value="All">All Warehouses</option>
               {warehouses.map((w, idx) => (
-                <option key={w.id || idx} value={w.name || w.warehouse_name}>
-                  {w.name || w.warehouse_name}
+                <option key={w.id || idx} value={w.warehouse_name || w.name}>
+                  {w.warehouse_name || w.name}
                 </option>
               ))}
             </Form.Select>
@@ -759,23 +861,22 @@ const SalesReturn = () => {
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Customer *</Form.Label>
-                <Form.Select
-                  value={editReturn.customerId || ''}
-                  onChange={(e) => {
-                    const id = e.target.value ? parseInt(e.target.value) : null;
-                    const cust = customers.find(c => c.id === id);
+                <SearchInput
+                  items={customers}
+                  value={editReturn.customerName}
+                  onChange={(id, name) => {
                     setEditReturn(prev => ({
                       ...prev,
                       customerId: id,
-                      customerName: cust ? cust.name_english : ''
+                      customerName: name
                     }));
                   }}
-                >
-                  <option value="">Select Customer</option>
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name_english}</option>
-                  ))}
-                </Form.Select>
+                  placeholder="Search customer..."
+                  searchValue={customerSearch}
+                  onSearchChange={setCustomerSearch}
+                  showDropdown={showCustomerDropdown}
+                  setShowDropdown={setShowCustomerDropdown}
+                />
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Date *</Form.Label>
@@ -787,25 +888,23 @@ const SalesReturn = () => {
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Warehouse *</Form.Label>
-                <Form.Select
-                  value={editReturn.warehouseId || ''}
-                  onChange={(e) => {
-                    const id = e.target.value ? parseInt(e.target.value) : null;
-                    const wh = warehouses.find(w => w.id === id);
+                <SearchInput
+                  items={warehouses}
+                  value={editReturn.warehouseName}
+                  onChange={(id, warehouse_name) => {
                     setEditReturn(prev => ({
                       ...prev,
                       warehouseId: id,
-                      warehouseName: wh ? (wh.name || wh.warehouse_name) : ''
+                      warehouseName: warehouse_name
                     }));
                   }}
-                >
-                  <option value="">Select Warehouse</option>
-                  {warehouses.map(w => (
-                    <option key={w.id} value={w.id}>
-                      {w.name || w.warehouse_name}
-                    </option>
-                  ))}
-                </Form.Select>
+                  placeholder="Search warehouse..."
+                  searchValue={warehouseSearch}
+                  onSearchChange={setWarehouseSearch}
+                  displayField="warehouse_name" // Changed from "name" to "warehouse_name"
+                  showDropdown={showWarehouseDropdown}
+                  setShowDropdown={setShowWarehouseDropdown}
+                />
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Return Type</Form.Label>
@@ -852,24 +951,22 @@ const SalesReturn = () => {
                 {editReturn.itemsList.map((item, index) => (
                   <Row key={index} className="mb-2">
                     <Col md={4}>
-                      <Form.Select
-                        value={item.productId || ''}
-                        onChange={(e) => {
-                          const id = e.target.value ? parseInt(e.target.value) : null;
-                          const prod = products.find(p => p.id === id);
+                      <SearchInput
+                        items={products}
+                        value={item.productName}
+                        onChange={(id, name) => {
                           const updated = [...editReturn.itemsList];
                           updated[index].productId = id;
-                          updated[index].productName = prod?.item_name || '';
+                          updated[index].productName = name;
                           setEditReturn({ ...editReturn, itemsList: updated });
                         }}
-                      >
-                        <option value="">Select Product</option>
-                        {products.map(p => (
-                          <option key={p.id} value={p.id}>
-                            {p.item_name}
-                          </option>
-                        ))}
-                      </Form.Select>
+                        placeholder="Search product..."
+                        searchValue={productSearch}
+                        onSearchChange={setProductSearch}
+                        displayField="item_name"
+                        showDropdown={showProductDropdown}
+                        setShowDropdown={setShowProductDropdown}
+                      />
                     </Col>
                     <Col md={2}>
                       <Form.Control
@@ -942,24 +1039,22 @@ const SalesReturn = () => {
               <Col md={4}>
                 <Form.Group>
                   <Form.Label>Customer *</Form.Label>
-                  <Form.Select
-                    value={newReturn.customerId || ''}
-                    onChange={(e) => {
-                      const id = e.target.value ? parseInt(e.target.value) : null;
-                      const cust = customers.find(c => c.id === id);
+                  <SearchInput
+                    items={customers}
+                    value={newReturn.customerName}
+                    onChange={(id, name) => {
                       setNewReturn(prev => ({
                         ...prev,
                         customerId: id,
-                        customerName: cust ? cust.name_english : ''
+                        customerName: name
                       }));
                     }}
-                    required
-                  >
-                    <option value="">Select Customer</option>
-                    {customers.map(c => (
-                      <option key={c.id} value={c.id}>{c.name_english}</option>
-                    ))}
-                  </Form.Select>
+                    placeholder="Search customer..."
+                    searchValue={customerSearch}
+                    onSearchChange={setCustomerSearch}
+                    showDropdown={showCustomerDropdown}
+                    setShowDropdown={setShowCustomerDropdown}
+                  />
                 </Form.Group>
               </Col>
               <Col md={4}>
@@ -1012,26 +1107,23 @@ const SalesReturn = () => {
               <Col md={4}>
                 <Form.Group>
                   <Form.Label>Warehouse *</Form.Label>
-                  <Form.Select
-                    value={newReturn.warehouseId || ''}
-                    onChange={(e) => {
-                      const id = e.target.value ? parseInt(e.target.value) : null;
-                      const wh = warehouses.find(w => w.id === id);
+                  <SearchInput
+                    items={warehouses}
+                    value={newReturn.warehouseName}
+                    onChange={(id, warehouse_name) => {
                       setNewReturn(prev => ({
                         ...prev,
                         warehouseId: id,
-                        warehouseName: wh ? (wh.name || wh.warehouse_name) : ''
+                        warehouseName: warehouse_name
                       }));
                     }}
-                    required
-                  >
-                    <option value="">Select Warehouse</option>
-                    {warehouses.map(w => (
-                      <option key={w.id} value={w.id}>
-                        {w.name || w.warehouse_name}
-                      </option>
-                    ))}
-                  </Form.Select>
+                    placeholder="Search warehouse..."
+                    searchValue={warehouseSearch}
+                    onSearchChange={setWarehouseSearch}
+                    displayField="warehouse_name" // Changed from "name" to "warehouse_name"
+                    showDropdown={showWarehouseDropdown}
+                    setShowDropdown={setShowWarehouseDropdown}
+                  />
                 </Form.Group>
               </Col>
             </Row>
@@ -1041,21 +1133,19 @@ const SalesReturn = () => {
               {newReturn.itemsList.map((item, index) => (
                 <Row key={index} className="mb-2 align-items-end">
                   <Col md={4}>
-                    <Form.Select
-                      value={item.productId || ''}
-                      onChange={(e) => {
-                        const id = e.target.value ? parseInt(e.target.value) : null;
-                        const prod = products.find(p => p.id === id);
-                        handleItemChange(index, 'productName', { id, name: prod?.item_name || '' });
+                    <SearchInput
+                      items={products}
+                      value={item.productName}
+                      onChange={(id, name) => {
+                        handleItemChange(index, 'productName', { id, name });
                       }}
-                    >
-                      <option value="">Select Product</option>
-                      {products.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.item_name}
-                        </option>
-                      ))}
-                    </Form.Select>
+                      placeholder="Search product..."
+                      searchValue={productSearch}
+                      onSearchChange={setProductSearch}
+                      displayField="item_name"
+                      showDropdown={showProductDropdown}
+                      setShowDropdown={setShowProductDropdown}
+                    />
                   </Col>
                   <Col md={2}>
                     <Form.Control
@@ -1137,6 +1227,8 @@ const SalesReturn = () => {
             <li><strong>Reference ID</strong> is now auto-generated for every new return (e.g., REF-1001).</li>
             <li><strong>Narration</strong> field allows adding detailed descriptions about each return.</li>
             <li>Select products from dropdown to automatically add them to your return. Customize quantity, price, and add narration for each item.</li>
+            <li>Now with direct search input fields for customers, warehouses, and products that show all available options on click.</li>
+            <li>Warehouse field is now empty by default, allowing you to select the appropriate warehouse.</li>
           </ul>
         </Card.Body>
       </Card>
