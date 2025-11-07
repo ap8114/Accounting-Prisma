@@ -369,7 +369,7 @@ const WareHouseDetail = () => {
                     onClick={() => handleAddStockModal(warehouse)}
                     style={{ backgroundColor: '#3daaaa', borderColor: '#3daaaa' }}
                 >
-                    Add Stock
+                    Add New Product
                 </Button>
                 <AddProductModal     
                     showAdd={showAdd}
