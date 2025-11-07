@@ -56,7 +56,7 @@ const Salesreport = () => {
   ]);
   // Filtered data based on search inputs
   const filteredData = tableData.filter((row) =>
-    row.customerName.toLowerCase().includes(customerSearch.toLowerCase()) &&
+    row.customerName.toLowerCase().includes(customerSearch.toLowerCase()) && 
     row.productName.toLowerCase().includes(productSearch.toLowerCase())
   );
 

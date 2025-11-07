@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef , useContext } from 'react';
 import axiosInstance from '../../../Api/axiosInstance';
 import GetCompanyId from '../../../Api/GetCompanyId';
+import { CurrencyContext } from '../../../hooks/CurrencyContext';
 
 function InventoryAdjustment() {
   const companyId = GetCompanyId();
 
   // States
-  const [allItems, setAllItems] = useState([]);
+  const [allItems, setAllItems] = useState([]); 
   const [allWarehouses, setAllWarehouses] = useState([]);
   const [adjustments, setAdjustments] = useState([]);
   const [viewAdjustment, setViewAdjustment] = useState(null);
@@ -27,6 +28,7 @@ function InventoryAdjustment() {
   const [itemSearch, setItemSearch] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [showItemDropdown, setShowItemDropdown] = useState(false);
+   const { convertPrice, symbol, currency } = useContext(CurrencyContext);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -491,7 +493,7 @@ function InventoryAdjustment() {
                         <td>{adjustment.adjustmentType}</td>
                         <td>{warehouseText}</td>
                         <td>{adjustment.items.length} item(s)</td>
-                        <td>${adjustment.totalAmount.toFixed(2)}</td>
+                        <td>{symbol}{convertPrice(adjustment.totalAmount)}</td>
                         <td>
                           <div className="d-flex gap-1">
                             <button className="btn btn-sm p-2" style={{ backgroundColor: "#53b2a5", borderColor: "#53b2a5", color: "white", width: "36px", height: "36px", padding: "0", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px" }} onClick={() => setViewAdjustment(adjustment)} title="View Details"><i className="fas fa-eye"></i></button>
