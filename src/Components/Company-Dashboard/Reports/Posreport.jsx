@@ -122,16 +122,16 @@ const PosReport = () => {
               {posData.length > 0 ? (
                 posData.map((item, idx) => (
                   <tr key={idx}>
-                    <td>{item.invoiceNumber}</td>
-                    <td>{item.customer?.name_english || "—"}</td>
-                    <td>{item.customer?.email || "—"}</td>
-                    <td>{item.customer?.phone || "—"}</td>
-                    <td>{item.payment_status || "—"}</td>
+                    <td>{item?.invoiceNumber}</td>
+                    <td>{item?.customer?.name_english || "—"}</td>
+                    <td>{item?.customer?.email || "—"}</td>
+                    <td>{item?.customer?.phone || "—"}</td>
+                    <td>{item?.payment_status || "—"}</td>
                     <td>
-                      {symbol} {convertPrice(item.subtotal || "0.00")}
+                      {symbol} {convertPrice(item?.subtotal || "0.00")}
                     </td>
                     <td>
-                      {symbol} {convertPrice(item.total || "0.00")}
+                      {symbol} {convertPrice(item?.total || "0.00")}
                     </td>
                     <td>
                       {item.created_at
