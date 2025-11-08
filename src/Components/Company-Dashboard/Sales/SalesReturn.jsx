@@ -104,7 +104,7 @@ const SalesReturn = () => {
   // ========= FETCH SALES RETURNS =========
   const fetchReturns = async () => {
     try {
-      const response = await axiosInstance.get(`/sales-return/get-returns`, { 
+      const response = await axiosInstance.get(`/sales-return/get-returns`, {
         params: { company_id: companyId }
       });
       const data = response.data;
@@ -164,6 +164,16 @@ const SalesReturn = () => {
   }, [customers]);
 
   const uniqueReturnTypes = [...new Set(returns.map(r => r.returnType))];
+  // ========= Helper Functions =========
+  const getCustomerName = (customerId) => {
+    const cust = customers.find(c => c.id === customerId);
+    return cust ? (cust.name_english || cust.name || `Customer ${customerId}`) : 'Unknown Customer';
+  };
+
+  const getWarehouseName = (warehouseId) => {
+    const wh = warehouses.find(w => w.id === warehouseId);
+    return wh ? (wh.warehouse_name || wh.name || `Warehouse ${warehouseId}`) : 'Unknown Warehouse';
+  };
 
   const filteredReturns = useMemo(() => {
     return returns.filter(item => {
@@ -199,22 +209,12 @@ const SalesReturn = () => {
     });
   }, [returns, searchTerm, statusFilter, returnTypeFilter, warehouseFilter, customerFilter, dateFrom, dateTo, amountMin, amountMax, customers, warehouses]);
 
-  // ========= Helper Functions =========
-  const getCustomerName = (customerId) => {
-    const cust = customers.find(c => c.id === customerId);
-    return cust ? (cust.name_english || cust.name || `Customer ${customerId}`) : 'Unknown Customer';
-  };
-
-  const getWarehouseName = (warehouseId) => {
-    const wh = warehouses.find(w => w.id === warehouseId);
-    return wh ? (wh.warehouse_name || wh.name || `Warehouse ${warehouseId}`) : 'Unknown Warehouse';
-  };
 
   // ========= Other handlers (delete, export, etc.) remain unchanged =========
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this sales return?")) return;
     try {
-      await axiosInstance.delete(`/delete-sale/${id}`);
+      await axiosInstance.delete(`/sales-return/delete-sale/${id}`);
       setReturns(prev => prev.filter(r => r.id !== id));
       alert("Sales return deleted successfully!");
     } catch (err) {
@@ -350,7 +350,7 @@ const SalesReturn = () => {
       }))
     };
     try {
-      const response = await axiosInstance.post('/create-sales-return', payload);
+      const response = await axiosInstance.post('/sales-return/create-sales-return', payload);
       if (response.data.success) {
         alert("Sales return created successfully!");
         setShowAddModal(false);
@@ -392,7 +392,7 @@ const SalesReturn = () => {
       }))
     };
     try {
-      const response = await axiosInstance.put(`/update-sale/${editReturn.id}`, payload);
+      const response = await axiosInstance.put(`/sales-return/update-sale/${editReturn.id}`, payload);
       if (response.data.success) {
         alert("Sales return updated successfully!");
         setShowEditModal(false);
@@ -738,7 +738,7 @@ const SalesReturn = () => {
 
       {/* Modals (View, Edit, Add) – unchanged from your original logic */}
       {/* ... (Keep your existing modal code as-is since it already uses helpers correctly) ... */}
-      
+
       {/* View Modal */}
       <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg">
         <Modal.Header closeButton>
@@ -790,7 +790,7 @@ const SalesReturn = () => {
                           <td>{item.qty}</td>
                           <td>₹{item.price.toLocaleString()}</td>
                           <td>₹{item.total.toLocaleString()}</td>
-                          <td>{item.narration || '-'}</td>
+                          <td>{item.notes || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
