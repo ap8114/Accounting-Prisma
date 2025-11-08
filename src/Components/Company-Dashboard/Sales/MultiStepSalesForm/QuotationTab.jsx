@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Form, Row, Col, Button, Table } from 'react-bootstrap';
+import React, { useState, useEffect, useRef } from 'react';
+import { Form, Row, Col, Button, Table, Dropdown } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUpload, faUserPlus } from '@fortawesome/free-solid-svg-icons';
+import { faUpload, faUserPlus, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import AddProductModal from '../../Inventory/AddProductModal';
 import axiosInstance from '../../../../Api/axiosInstance';
 import GetCompanyId from '../../../../Api/GetCompanyId';
 import toast from 'react-hot-toast'; // Optional: for user feedback
 import AddEditCustomerModal from '../../Accounts/CustomersDebtors/AddEditCustomerModal';
+import BaseUrl from '../../../../Api/BaseUrl';
 
 const QuotationTab = ({
   formData,
@@ -40,13 +41,13 @@ const QuotationTab = ({
   const navigate = useNavigate();
   const company_id = GetCompanyId();
   const [showModal, setShowModal] = useState(false);
-
-  // Optional: Handle save callback
-  const handleSave = (customerData, mode) => {
-    console.log(`${mode === 'edit' ? 'Updated' : 'Added'} customer:`, customerData);
-    // You can refresh the customer list here if needed
-  };
   const [customerList, setCustomerList] = useState([]);
+  const [filteredCustomerList, setFilteredCustomerList] = useState([]);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const searchRef = useRef(null);
+  const dropdownRef = useRef(null);
   const [companyInfo, setCompanyInfo] = useState({
     name: '',
     email: '',
@@ -59,20 +60,118 @@ const QuotationTab = ({
 
     const fetchCustomers = async () => {
       try {
-        const response = await axiosInstance.get(`/customers/getCustomersByCompany/${company_id}`);
-        if (response.data?.status && Array.isArray(response.data.data)) {
+        const response = await axiosInstance.get(`${BaseUrl}vendorCustomer/company/${company_id}?type=customer`);
+        if (response.data.success) {
           setCustomerList(response.data.data);
+          setFilteredCustomerList(response.data.data);
         } else {
-          setCustomerList([]);
+          toast.error('Failed to fetch customers');
         }
-      } catch (error) {
-        console.error("Failed to fetch customers:", error);
-        setCustomerList([]);
+      } catch (err) {
+        console.error('Failed to fetch customers:', err);
+        toast.error('Error fetching customers');
+      }
+    };
+
+    const fetchCompanies = async () => {
+      try {
+        const res = await axiosInstance.get(`${BaseUrl}auth/Company`);
+        const companies = res?.data?.data || [];
+
+        // Try to find company by id from local storage; fall back to first company
+        let selected = companies.find(c => String(c.id) === String(company_id));
+        if (!selected && companies.length) selected = companies[0];
+
+        if (selected) {
+          setCompanyInfo({
+            name: selected.name || '',
+            email: selected.email || '',
+            logo_url: selected.profile || '',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch companies:', err);
       }
     };
 
     fetchCustomers();
+    fetchCompanies();
   }, [company_id]);
+
+  // Filter customers based on search term
+  useEffect(() => {
+    const term = (customerSearchTerm || '').trim();
+    if (!term) {
+      setFilteredCustomerList([]);
+      return;
+    }
+
+    const lower = term.toLowerCase();
+    const digits = term.replace(/\D/g, ''); // digits-only for phone matching
+
+    const filtered = customerList.filter(customer => {
+      const nameMatch = (customer?.name_english || '').toString().toLowerCase().includes(lower);
+      const companyMatch = (customer?.company_name || '').toString().toLowerCase().includes(lower);
+      const emailMatch = (customer?.email || '').toString().toLowerCase().includes(lower);
+
+      // Check phone-like fields by comparing digit sequences
+      const phoneFields = [customer?.phone, customer?.mobile, customer?.contact, customer?.phone_no, customer?.mobile_no];
+      const phoneDigits = phoneFields
+        .filter(Boolean)
+        .map(p => p.toString().replace(/\D/g, ''))
+        .join('|');
+
+      const phoneMatch = digits ? phoneFields.some(p => p && p.toString().replace(/\D/g, '').includes(digits)) : false;
+
+      return !!(nameMatch || companyMatch || emailMatch || phoneMatch);
+    });
+
+    setFilteredCustomerList(filtered);
+  }, [customerSearchTerm, customerList]);
+
+  // Handle clicks outside the dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) && 
+          searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowCustomerDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Optional: Handle save callback
+  const handleSave = (customerData, mode) => {
+    console.log(`${mode === 'edit' ? 'Updated' : 'Added'} customer:`, customerData);
+    // Refresh customer list after adding/editing
+    const fetchCustomers = async () => {
+      try {
+        const response = await axiosInstance.get(`${BaseUrl}vendorCustomer/company/${company_id}?type=customer`);
+        if (response.data.success) {
+          setCustomerList(response.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to refresh customers:', err);
+      }
+    };
+    fetchCustomers();
+  };
+
+  // Handle customer selection
+  const handleCustomerSelect = (customer) => {
+    setSelectedCustomer(customer);
+    handleChange("quotation", "billToName", customer.name_english || '');
+    handleChange("quotation", "billToAddress", customer.address || '');
+    handleChange("quotation", "billToEmail", customer.email || '');
+    handleChange("quotation", "billToPhone", customer.phone || '');
+    handleChange("quotation", "customerId", customer.id);
+    setCustomerSearchTerm(customer.name_english);
+    setShowCustomerDropdown(false);
+  };
 
   // 🚀 POST API Function - Save Quotation
   const saveQuotation = async (status) => {
@@ -188,7 +287,6 @@ const QuotationTab = ({
 
   return (
     <>
-
       <Form>
         {/* Header: Logo + Company Info + Title */}
         <Row className="mb-4 mt-3">
@@ -285,35 +383,60 @@ const QuotationTab = ({
         <Row className="mb-4 d-flex justify-content-between">
           <Col md={8}>
             <h5>Quotation To</h5>
-            <Form.Group className="mb-2">
-              <Form.Select
-                value={formData.quotation.customerId || ''}
-                onChange={(e) => {
-                  const customerId = e.target.value;
-                  const selectedCustomer = customerList.find(cust => cust.id == customerId);
-                  if (selectedCustomer) {
-                    handleChange("quotation", "billToName", selectedCustomer.name_english || '');
-                    handleChange("quotation", "billToAddress", selectedCustomer.address || '');
-                    handleChange("quotation", "billToEmail", selectedCustomer.email || '');
-                    handleChange("quotation", "billToPhone", selectedCustomer.phone || '');
-                    handleChange("quotation", "customerId", customerId);
-                  } else {
-                    handleChange("quotation", "billToName", '');
-                    handleChange("quotation", "billToAddress", '');
-                    handleChange("quotation", "billToEmail", '');
-                    handleChange("quotation", "billToPhone", '');
-                    handleChange("quotation", "customerId", '');
-                  }
-                }}
-                className="form-select-no-border"
-              >
-                <option value="">Select Customer...</option>
-                {customerList.map(customer => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.name_english}
-                  </option>
-                ))}
-              </Form.Select>
+            <Form.Group className="mb-2 position-relative">
+              <div className="position-relative" ref={searchRef}>
+                <Form.Control
+                  type="text"
+                  placeholder="Search Customer..."
+                  value={customerSearchTerm}
+                  onChange={(e) => {
+                    setCustomerSearchTerm(e.target.value);
+                    setShowCustomerDropdown(true);
+                  }}
+                  onFocus={() => {
+                    if (customerSearchTerm) {
+                      setShowCustomerDropdown(true);
+                    }
+                  }}
+                />
+                <FontAwesomeIcon 
+                  icon={faChevronDown} 
+                  className="position-absolute end-0 top-50 translate-middle-y me-2 text-muted" 
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setShowCustomerDropdown(!showCustomerDropdown)}
+                />
+              </div>
+              
+              {showCustomerDropdown && filteredCustomerList.length > 0 && (
+                <div 
+                  ref={dropdownRef}
+                  className="position-absolute w-100 bg-white border rounded mt-1 shadow-sm z-index-10"
+                  style={{ maxHeight: '200px', overflowY: 'auto' }}
+                >
+                  {filteredCustomerList.map(customer => (
+                    <div 
+                      key={customer.id}
+                      className="p-2 hover:bg-light cursor-pointer"
+                      onClick={() => handleCustomerSelect(customer)}
+                    >
+                      <div className="fw-bold">{customer.name_english}</div>
+                      {customer.company_name && (
+                        <div className="text-muted small">{customer.company_name}</div>
+                      )}
+                      <div className="text-muted small">{customer.email}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {showCustomerDropdown && filteredCustomerList.length === 0 && customerSearchTerm && (
+                <div 
+                  ref={dropdownRef}
+                  className="position-absolute w-100 bg-white border rounded mt-1 shadow-sm z-index-10 p-2 text-muted"
+                >
+                  No customers found
+                </div>
+              )}
             </Form.Group>
 
             <Form.Group className="mb-2">

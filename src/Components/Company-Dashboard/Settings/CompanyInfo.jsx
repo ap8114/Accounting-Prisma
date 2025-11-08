@@ -34,7 +34,12 @@ const CompanyInfo = () => {
     headerLabel: 'Invoice No.',
     footerTerms: '',
     footerNote: '',
-    footerBankDetails: '',
+  footerBankDetails: '',
+  // Dedicated bank fields (used instead of free-text footerBankDetails)
+  bank_name: '',
+  account_no: '',
+  account_holder: '',
+  ifsc_code: '',
 
 
     purchaseLogo: null,
@@ -690,14 +695,45 @@ receipts: "الإيصالات",
         placeholder={t('note')}
         className="mb-2"
       />
-      <Form.Control
-        as="textarea"
-        rows={2}
-        name="footerBankDetails"
-        value={formData.footerBankDetails}
-        onChange={handleChange}
-        placeholder={t('bankDetails')}
-      />
+      <Form.Label className="fw-bold">{t('bankDetails')}</Form.Label>
+      <div className="row g-2">
+        <div className="col-md-6">
+          <Form.Control
+            type="text"
+            name="bank_name"
+            value={formData.bank_name}
+            onChange={handleChange}
+            placeholder="Bank Name"
+          />
+        </div>
+        <div className="col-md-6">
+          <Form.Control
+            type="text"
+            name="account_no"
+            value={formData.account_no}
+            onChange={handleChange}
+            placeholder="Account No."
+          />
+        </div>
+        <div className="col-md-6">
+          <Form.Control
+            type="text"
+            name="account_holder"
+            value={formData.account_holder}
+            onChange={handleChange}
+            placeholder="Account Holder"
+          />
+        </div>
+        <div className="col-md-6">
+          <Form.Control
+            type="text"
+            name="ifsc_code"
+            value={formData.ifsc_code}
+            onChange={handleChange}
+            placeholder="IFSC Code"
+          />
+        </div>
+      </div>
     </Form.Group>
 
     {/* Field Visibility Toggles */}
