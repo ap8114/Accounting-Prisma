@@ -13,8 +13,10 @@ import SalesOrderTab from './MultiStepSalesForm/SalesOrderTab';
 import DeliveryChallanTab from './MultiStepSalesForm/DeliveryChallanTab';
 import InvoiceTab from './MultiStepSalesForm/InvoiceTab';
 import PaymentTab from './MultiStepSalesForm/PaymentTab';
+import GetCompanyId from '../../../Api/GetCompanyId'; 
 
 const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
+  const companyId = GetCompanyId();
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [serviceForm, setServiceForm] = useState({
     name: "",
@@ -1082,6 +1084,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           handleAddItem={handleAddItem}
           handleUpdateItem={handleUpdateItem}
           handleAddCategory={handleAddCategory}
+          companyId={companyId} 
         />
 
         {/* Service Modal */}

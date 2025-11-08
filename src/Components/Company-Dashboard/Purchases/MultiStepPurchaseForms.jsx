@@ -7,8 +7,10 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUpload, faTrash, faEye, faEdit, faPlus, faSearch, faUserPlus } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import AddProductModal from '../Inventory/AddProductModal';
+import GetCompanyId from '../../../Api/GetCompanyId';
 
 const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
+  const companyId = GetCompanyId();
   const [key, setKey] = useState(initialStep || 'purchaseQuotation');
   const tabsWithItems = ['purchaseQuotation', 'purchaseOrder', 'goodsReceipt', 'bill'];
   const navigate = useNavigate();
@@ -963,6 +965,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
           handleAddItem={handleAddItem}
           handleUpdateItem={handleUpdateItem}
           handleAddCategory={handleAddCategory}
+          companyId={companyId}
         />
         
         <Table bordered hover size="sm" className="dark-bordered-table">
