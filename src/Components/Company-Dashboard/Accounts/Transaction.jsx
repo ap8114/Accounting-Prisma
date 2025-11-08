@@ -244,7 +244,7 @@ const Transaction = () => {
     console.log("Selected list for search:", selectedList);
     console.log("Search term:", searchTerm);
     
-    // ✅ Fixed search logic to handle different possible name fields
+    // ✅ Fixed search logic to handle different possible name fields and phone numbers
     const results = selectedList.filter(item => {
       // Check various possible name fields
       const nameFields = [
@@ -259,7 +259,21 @@ const Transaction = () => {
       // Find the first non-empty name field
       const itemName = nameFields.find(name => name && name.trim() !== '') || '';
       
-      return itemName.toLowerCase().includes(searchTerm.toLowerCase());
+      // Check phone number fields
+      const phoneFields = [
+        item.phone,
+        item.phone_number,
+        item.mobile,
+        item.contact_number,
+        item.telephone
+      ];
+      
+      // Find the first non-empty phone field
+      const itemPhone = phoneFields.find(phone => phone && phone.trim() !== '') || '';
+      
+      // Return true if search term matches either name or phone
+      return itemName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+             itemPhone.toLowerCase().includes(searchTerm.toLowerCase());
     });
     
     console.log("Search results:", results);
@@ -282,6 +296,23 @@ const Transaction = () => {
     const name = nameFields.find(name => name && name.trim() !== '');
     
     return name || `ID: ${item.id}`;
+  };
+
+  // ✅ New helper to display phone number - check multiple possible fields
+  const getDisplayPhone = (item) => {
+    // Check various possible phone fields in order of preference
+    const phoneFields = [
+      item.phone,
+      item.phone_number,
+      item.mobile,
+      item.contact_number,
+      item.telephone
+    ];
+    
+    // Return the first non-empty phone field
+    const phone = phoneFields.find(phone => phone && phone.trim() !== '');
+    
+    return phone || '';
   };
 
   // Handle selecting a customer/vendor from search results
@@ -776,7 +807,7 @@ const Transaction = () => {
                     <InputGroup>
                       <Form.Control
                         type="text"
-                        placeholder={`Search ${fromToType === 'customer' ? 'Customer' : 'Vendor'}`}
+                        placeholder={`Search ${fromToType === 'customer' ? 'Customer' : 'Vendor'} by name or phone`}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         onFocus={() => {
@@ -803,7 +834,10 @@ const Transaction = () => {
                               className="p-2 hover:bg-light cursor-pointer"
                               onClick={() => handleSelectFromSearch(item)}
                             >
-                              {getDisplayName(item)}
+                              <div className="fw-bold">{getDisplayName(item)}</div>
+                              {getDisplayPhone(item) && (
+                                <div className="text-muted small">{getDisplayPhone(item)}</div>
+                              )}
                             </div>
                           ))
                         ) : (
