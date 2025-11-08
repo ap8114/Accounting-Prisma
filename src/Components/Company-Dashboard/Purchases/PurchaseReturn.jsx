@@ -48,12 +48,12 @@ const PurchaseReturn = () => {
   const [vendors, setVendors] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
-  
+
   // Search states for dropdowns
   const [vendorSearch, setVendorSearch] = useState('');
   const [warehouseSearch, setWarehouseSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  
+
   // Show dropdown states
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
   const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
@@ -383,7 +383,7 @@ const PurchaseReturn = () => {
   };
 
   // Filter vendors based on search
-  const filteredVendors = vendors.filter(vendor => 
+  const filteredVendors = vendors.filter(vendor =>
     vendor.name_english.toLowerCase().includes(vendorSearch.toLowerCase())
   );
 
@@ -402,12 +402,12 @@ const PurchaseReturn = () => {
   });
 
   // Custom Search Input Component
-  const SearchInput = ({ 
-    items, 
-    value, 
-    onChange, 
-    placeholder, 
-    searchValue, 
+  const SearchInput = ({
+    items,
+    value,
+    onChange,
+    placeholder,
+    searchValue,
     onSearchChange,
     displayField = "name_english",
     idField = "id",
@@ -425,14 +425,14 @@ const PurchaseReturn = () => {
         />
         <InputGroup.Text><FaSearch /></InputGroup.Text>
       </InputGroup>
-      
+
       {showDropdown && (
-        <div className="border rounded mt-1 position-absolute w-100 bg-white shadow" 
-             style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1000 }}>
+        <div className="border rounded mt-1 position-absolute w-100 bg-white shadow"
+          style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1000 }}>
           {items.length > 0 ? (
             items.map(item => (
-              <div 
-                key={item[idField]} 
+              <div
+                key={item[idField]}
                 className="p-2 hover:bg-light"
                 style={{ cursor: 'pointer' }}
                 onClick={() => {
@@ -449,7 +449,7 @@ const PurchaseReturn = () => {
           )}
         </div>
       )}
-      
+
       {value && !showDropdown && (
         <div className="mt-1 p-2 bg-light rounded">
           Selected: {value}
@@ -468,22 +468,41 @@ const PurchaseReturn = () => {
   }
 
   return (
-    <div className="mt-4 p-4">
+    <div className="p-3">
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <h2 className="mb-0 fw-bold text-dark">Purchase Returns</h2>
         <div className="d-flex gap-2 flex-wrap">
-          <Button variant="success" size="sm" className="rounded-pill px-3" disabled>
-            <i className="fas fa-file-import me-2" /> Import
+          <Button
+            variant="success"
+            size="sm"
+            className="rounded-pill px-2 py-0 text-nowrap"
+            disabled
+          >
+            <i className="fas fa-file-import me-1" /> Import
           </Button>
-          <Button variant="warning" size="sm" className="rounded-pill px-3" disabled>
-            <i className="fas fa-file-export me-2" /> Export
+
+          <Button
+            variant="warning"
+            size="sm"
+            className="rounded-pill px-2 py-0 text-nowrap"
+            disabled
+          >
+            <i className="fas fa-file-export me-1" /> Export
           </Button>
-          <Button variant="info" size="sm" className="rounded-pill px-3" disabled>
-            <i className="fas fa-download me-2" /> Download
+
+          <Button
+            variant="info"
+            size="sm"
+            className="rounded-pill px-2 py-0 text-nowrap"
+            disabled
+          >
+            <i className="fas fa-download me-1" /> Download
           </Button>
+
           <Button
             variant="primary"
-            className="rounded-pill px-4"
+            size="sm"
+            className="rounded-pill py-0 text-nowrap"
             onClick={() => {
               const now = new Date();
               const year = now.getFullYear();
@@ -494,9 +513,10 @@ const PurchaseReturn = () => {
               setShowModal(true);
             }}
           >
-            <BiPlus size={18} className="me-2" /> New Return
+            <BiPlus size={14} className="me-1 text-nowrap" /> New Return
           </Button>
         </div>
+
       </div>
 
       <Row className="mb-4 g-3">
