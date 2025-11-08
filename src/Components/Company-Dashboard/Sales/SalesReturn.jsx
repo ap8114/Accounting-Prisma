@@ -790,7 +790,7 @@ const SalesReturn = () => {
                           <td>{item.qty}</td>
                           <td>₹{item.price.toLocaleString()}</td>
                           <td>₹{item.total.toLocaleString()}</td>
-                          <td>{item.notes || '-'}</td>
+                          <td>{item.narration || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
