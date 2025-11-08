@@ -817,6 +817,7 @@ const PointOfSale = () => {
         handleAddItem={handleAddItem}
         handleUpdateItem={handleUpdateItem}
         handleAddCategory={handleAddCategory}
+        companyId={companyId}
       />
     </Container>
   );

@@ -1,4 +1,4 @@
-import React, { useEffect, useState , useContext } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -27,12 +27,13 @@ function StockTransfer() {
   const [manualVoucherNo, setManualVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState("");
   const [destinationWarehouse, setDestinationWarehouse] = useState("");
+  const [destinationWarehouseId, setDestinationWarehouseId] = useState(null); // Added state for warehouse ID
   const [itemSearch, setItemSearch] = useState("");
   const [items, setItems] = useState([]);
   const [note, setNote] = useState("");
   const [showWarehouseList, setShowWarehouseList] = useState(false);
   const [showItemList, setShowItemList] = useState(false);
-   const { convertPrice, symbol, currency } = useContext(CurrencyContext);
+  const { convertPrice, symbol, currency } = useContext(CurrencyContext);
 
   const [filters, setFilters] = useState({
     fromDate: "",
@@ -227,6 +228,7 @@ function StockTransfer() {
       setManualVoucherNo(editTransfer.manualVoucherNo);
       setVoucherDate(editTransfer.voucherDate);
       setDestinationWarehouse(editTransfer.destinationWarehouse);
+      setDestinationWarehouseId(editTransfer.destinationWarehouseId); // Set warehouse ID
       setItems([...editTransfer.items]);
       setNote(editTransfer.note);
       setShowModal(true);
@@ -284,13 +286,19 @@ function StockTransfer() {
     setLoading(true);
     setError("");
     try {
-      const destWh = warehouses.find(w => w.name === destinationWarehouse);
+      // Use destinationWarehouseId if available, otherwise find by name
+      let destWarehouseId = destinationWarehouseId;
+      if (!destWarehouseId && destinationWarehouse) {
+        const destWh = warehouses.find(w => w.name === destinationWarehouse);
+        destWarehouseId = destWh?.id || 1;
+      }
+
       const transferData = {
         company_id: companyId,
         voucher_no: voucherNo,
         manual_voucher_no: manualVoucherNo,
         transfer_date: voucherDate,
-        destination_warehouse_id: destWh?.id || 1,
+        destination_warehouse_id: destWarehouseId,
         notes: note,
         items: items.map(item => {
           const srcWh = warehouses.find(w => w.name === item.sourceWarehouse);
@@ -304,7 +312,15 @@ function StockTransfer() {
         }),
       };
 
-      const response = await axios.post(`${BaseUrl}stocktransfers`, transferData);
+      let response;
+      if (editTransfer) {
+        // Update existing transfer
+        response = await axios.put(`${BaseUrl}stocktransfers/${editTransfer.id}`, transferData);
+      } else {
+        // Create new transfer
+        response = await axios.post(`${BaseUrl}stocktransfers`, transferData);
+      }
+
       const isSuccess = response.data?.success || response.data?.status;
 
       if (isSuccess) {
@@ -312,12 +328,12 @@ function StockTransfer() {
         setShowModal(false);
         resetForm();
         setEditTransfer(null);
-        alert("Stock transfer created successfully!");
+        alert(editTransfer ? "Stock transfer updated successfully!" : "Stock transfer created successfully!");
       } else {
         throw new Error("Failed to save transfer");
       }
     } catch (err) {
-      setError(err.message || "Failed to create stock transfer");
+      setError(err.message || "Failed to save stock transfer");
     } finally {
       setLoading(false);
     }
@@ -328,6 +344,7 @@ function StockTransfer() {
     setManualVoucherNo("");
     setVoucherDate("");
     setDestinationWarehouse("");
+    setDestinationWarehouseId(null); // Reset warehouse ID
     setItemSearch("");
     setItems([]);
     setNote("");
@@ -485,7 +502,11 @@ function StockTransfer() {
             <div className="modal-content">
               <div className="modal-header">
                 <h5>{editTransfer ? "Edit" : "New"} Stock Transfer</h5>
-                <button className="btn-close" onClick={() => { setShowModal(false); resetForm(); }}></button>
+                <button className="btn-close" onClick={() => { 
+                  setShowModal(false); 
+                  resetForm(); 
+                  setEditTransfer(null);
+                }}></button>
               </div>
               <div className="modal-body">
                 {error && <div className="alert alert-danger">{error}</div>}
@@ -538,6 +559,7 @@ function StockTransfer() {
                               className="list-group-item list-group-item-action"
                               onClick={() => {
                                 setDestinationWarehouse(w.name);
+                                setDestinationWarehouseId(w.id); // Set warehouse ID
                                 setShowWarehouseList(false);
                               }}
                             >
@@ -685,9 +707,9 @@ function StockTransfer() {
                 </div>
 
                 <div className="d-flex justify-content-between align-items-center">
-                  <strong>Total: ₹{calculateTotalAmount()}</strong>
+                  <strong>Total: {symbol}{convertPrice(calculateTotalAmount())}</strong>
                   <button className="btn btn-success" onClick={handleSubmitTransfer} disabled={loading}>
-                    {loading ? "Saving..." : "Save Transfer"}
+                    {loading ? "Saving..." : (editTransfer ? "Update Transfer" : "Save Transfer")}
                   </button>
                 </div>
               </div>
@@ -730,8 +752,8 @@ function StockTransfer() {
                               <td>{i.itemName}</td>
                               <td>{i.sourceWarehouse}</td>
                               <td>{i.quantity}</td>
-                              <td>₹{parseFloat(i.rate).toFixed(2)}</td>
-                              <td>₹{parseFloat(i.amount).toFixed(2)}</td>
+                              <td>{symbol}{convertPrice(parseFloat(i.rate))}</td>
+                              <td>{symbol}{convertPrice(parseFloat(i.amount))}</td>
                             </tr>
                           ))
                         ) : (
@@ -745,7 +767,7 @@ function StockTransfer() {
                       <strong>Narration:</strong> {viewTransfer.note}
                     </div>
                   )}
-                  <div className="mt-3 h5">Total: ₹{parseFloat(viewTransfer.totalAmount).toFixed(2)}</div>
+                  <div className="mt-3 h5">Total: {symbol}{convertPrice(parseFloat(viewTransfer.totalAmount))}</div>
                 </div>
                 <div className="mt-3 text-end">
                   <button className="btn btn-primary me-2" onClick={printTransfer}>
