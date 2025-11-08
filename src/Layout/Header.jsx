@@ -184,7 +184,7 @@ const Header = ({ onToggleSidebar }) => {
                 boxShadow: "0 4px 8px rgba(2, 51, 71, 0.2)",
               }}
             >
-              P
+              
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   Button,
@@ -8,10 +8,11 @@ import {
   Row,
   Col,
   Card,
-  Spinner
+  Spinner,
+  InputGroup
 } from 'react-bootstrap';
-import { FaEye, FaEdit, FaTrash } from "react-icons/fa";
-import { BiPlus, BiSearch } from 'react-icons/bi';
+import { FaEye, FaEdit, FaTrash, FaSearch } from "react-icons/fa";
+import { BiPlus, BiSearch as BiSearchIcon } from 'react-icons/bi';
 import axiosInstance from "../../../Api/axiosInstance";
 import GetCompanyId from "../../../Api/GetCompanyId";
 
@@ -47,6 +48,16 @@ const PurchaseReturn = () => {
   const [vendors, setVendors] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
+  
+  // Search states for dropdowns
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [warehouseSearch, setWarehouseSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  
+  // Show dropdown states
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
+  const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [itemQty, setItemQty] = useState(1);
@@ -61,6 +72,7 @@ const PurchaseReturn = () => {
     invoice_no: '',
     return_date: '',
     warehouse_id: '',
+    warehouse_name: '',
     return_type: 'Purchase Return',
     reason_for_return: '',
     manual_voucher_no: '',
@@ -345,6 +357,7 @@ const PurchaseReturn = () => {
       invoice_no: item.invoice_no || '',
       return_date: item.return_date ? item.return_date.split('T')[0] : '',
       warehouse_id: item.warehouse_id?.toString() || '',
+      warehouse_name: getWarehouseName(item.warehouse_id),
       return_type: item.return_type || 'Purchase Return',
       reason_for_return: item.reason_for_return || '',
       manual_voucher_no: item.manual_voucher_no || '',
@@ -368,6 +381,82 @@ const PurchaseReturn = () => {
     setDeleteId(id);
     setShowDeleteModal(true);
   };
+
+  // Filter vendors based on search
+  const filteredVendors = vendors.filter(vendor => 
+    vendor.name_english.toLowerCase().includes(vendorSearch.toLowerCase())
+  );
+
+  // Filter warehouses based on search
+  const filteredWarehouses = warehouses.filter(warehouse => {
+    if (!warehouse) return false;
+    const name = warehouse.warehouse_name || '';
+    return name.toLowerCase().includes(warehouseSearch.toLowerCase());
+  });
+
+  // Filter products based on search
+  const filteredProducts = products.filter(product => {
+    if (!product) return false;
+    const name = product.item_name || '';
+    return name.toLowerCase().includes(productSearch.toLowerCase());
+  });
+
+  // Custom Search Input Component
+  const SearchInput = ({ 
+    items, 
+    value, 
+    onChange, 
+    placeholder, 
+    searchValue, 
+    onSearchChange,
+    displayField = "name_english",
+    idField = "id",
+    showDropdown,
+    setShowDropdown
+  }) => (
+    <div className="position-relative">
+      <InputGroup>
+        <Form.Control
+          type="text"
+          placeholder={placeholder}
+          value={searchValue}
+          onChange={(e) => onSearchChange(e.target.value)}
+          onFocus={() => setShowDropdown(true)}
+        />
+        <InputGroup.Text><FaSearch /></InputGroup.Text>
+      </InputGroup>
+      
+      {showDropdown && (
+        <div className="border rounded mt-1 position-absolute w-100 bg-white shadow" 
+             style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1000 }}>
+          {items.length > 0 ? (
+            items.map(item => (
+              <div 
+                key={item[idField]} 
+                className="p-2 hover:bg-light"
+                style={{ cursor: 'pointer' }}
+                onClick={() => {
+                  onChange(item[idField], item[displayField]);
+                  onSearchChange('');
+                  setShowDropdown(false);
+                }}
+              >
+                {item[displayField]}
+              </div>
+            ))
+          ) : (
+            <div className="p-2 text-muted">No items found</div>
+          )}
+        </div>
+      )}
+      
+      {value && !showDropdown && (
+        <div className="mt-1 p-2 bg-light rounded">
+          Selected: {value}
+        </div>
+      )}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -414,7 +503,7 @@ const PurchaseReturn = () => {
         <Col lg={4} md={6}>
           <div className="input-group">
             <span className="input-group-text bg-light">
-              <BiSearch />
+              <BiSearchIcon />
             </span>
             <Form.Control
               type="text"
@@ -543,26 +632,22 @@ const PurchaseReturn = () => {
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Vendor *</Form.Label>
-                  <Form.Select
-                    name="vendor_id"
-                    value={formData.vendor_id}
-                    onChange={(e) => {
-                      const vendor = vendors.find(v => v.id == e.target.value);
+                  <SearchInput
+                    items={vendors}
+                    value={formData.vendor_name}
+                    onChange={(id, name) => {
                       setFormData((prev) => ({
                         ...prev,
-                        vendor_id: e.target.value,
-                        vendor_name: vendor?.name_english || '',
+                        vendor_id: id,
+                        vendor_name: name
                       }));
                     }}
-                    required
-                  >
-                    <option value="">Select Vendor</option>
-                    {vendors.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name_english}
-                      </option>
-                    ))}
-                  </Form.Select>
+                    placeholder="Search vendor..."
+                    searchValue={vendorSearch}
+                    onSearchChange={setVendorSearch}
+                    showDropdown={showVendorDropdown}
+                    setShowDropdown={setShowVendorDropdown}
+                  />
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -595,19 +680,23 @@ const PurchaseReturn = () => {
               <Col md={4}>
                 <Form.Group>
                   <Form.Label>Warehouse *</Form.Label>
-                  <Form.Select
-                    name="warehouse_id"
-                    value={formData.warehouse_id}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="">Select Warehouse</option>
-                    {warehouses.map((wh) => (
-                      <option key={wh.id} value={wh.id}>
-                        {wh.warehouse_name}
-                      </option>
-                    ))}
-                  </Form.Select>
+                  <SearchInput
+                    items={warehouses}
+                    value={formData.warehouse_name}
+                    onChange={(id, name) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        warehouse_id: id,
+                        warehouse_name: name
+                      }));
+                    }}
+                    placeholder="Search warehouse..."
+                    searchValue={warehouseSearch}
+                    onSearchChange={setWarehouseSearch}
+                    displayField="warehouse_name"
+                    showDropdown={showWarehouseDropdown}
+                    setShowDropdown={setShowWarehouseDropdown}
+                  />
                 </Form.Group>
               </Col>
               <Col md={4}>
@@ -703,10 +792,11 @@ const PurchaseReturn = () => {
               <Row className="g-2 mb-3">
                 <Col md={3}>
                   <Form.Group>
-                    <Form.Select
-                      value={selectedProduct?.id || ''}
-                      onChange={(e) => {
-                        const prod = products.find(p => p.id == e.target.value);
+                    <SearchInput
+                      items={products}
+                      value={selectedProduct?.item_name || ''}
+                      onChange={(id, name) => {
+                        const prod = products.find(p => p.id == id);
                         setSelectedProduct(prod || null);
                         if (prod && prod.sale_price) {
                           setItemRate(parseFloat(prod.sale_price));
@@ -714,14 +804,13 @@ const PurchaseReturn = () => {
                           setItemRate(0);
                         }
                       }}
-                    >
-                      <option value="">Select Product</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.item_name}
-                        </option>
-                      ))}
-                    </Form.Select>
+                      placeholder="Search product..."
+                      searchValue={productSearch}
+                      onSearchChange={setProductSearch}
+                      displayField="item_name"
+                      showDropdown={showProductDropdown}
+                      setShowDropdown={setShowProductDropdown}
+                    />
                   </Form.Group>
                 </Col>
                 <Col md={2}>
