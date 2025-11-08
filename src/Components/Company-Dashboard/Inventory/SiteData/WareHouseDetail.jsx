@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button, Card, Table, Badge, Dropdown } from "react-bootstrap";
 import { FaArrowLeft, FaWarehouse, FaBoxes, FaFilter, FaTable, FaTh } from "react-icons/fa";
 import AddProductModal from "../AddProductModal";
+import GetCompanyId from "../../../../Api/GetCompanyId";
 
 const warehouseProductsMap = {
     "1": [
@@ -137,6 +138,7 @@ const warehouseProductsMap = {
 };
 
 const WareHouseDetail = () => {
+    const companyId = GetCompanyId();
     const { id } = useParams();
     const navigate = useNavigate();
     const [warehouse, setWarehouse] = useState(null);
@@ -372,25 +374,26 @@ const WareHouseDetail = () => {
                     Add New Product
                 </Button>
                 <AddProductModal     
-                    showAdd={showAdd}
-                    showEdit={showEdit}
-                    newItem={newItem}
-                    categories={categories}
-                    newCategory={newCategory}
-                    showUOMModal={showUOMModal}
-                    showAddCategoryModal={showAddCategoryModal}
-                    setShowAdd={setShowAdd}
-                    setShowEdit={setShowEdit}
-                    setShowUOMModal={setShowUOMModal}
-                    setShowAddCategoryModal={setShowAddCategoryModal}
-                    setNewCategory={setNewCategory}
-                    handleChange={handleChange}
-                    handleAddItem={handleAddItem}
-                    handleUpdateItem={handleUpdateItem}
-                    handleAddCategory={handleAddCategory}
-                    selectedWarehouse={selectedWarehouse}
-                    formMode="addStock"      
-                />
+    showAdd={showAdd}
+    showEdit={showEdit}
+    newItem={newItem}
+    categories={categories}
+    newCategory={newCategory}
+    showUOMModal={showUOMModal}
+    showAddCategoryModal={showAddCategoryModal}
+    setShowAdd={setShowAdd}
+    setShowEdit={setShowEdit}
+    setShowUOMModal={setShowUOMModal}
+    setShowAddCategoryModal={setShowAddCategoryModal}
+    setNewCategory={setNewCategory}
+    handleChange={handleChange}
+    handleAddItem={handleAddItem}
+    handleUpdateItem={handleUpdateItem}
+    handleAddCategory={handleAddCategory}
+    selectedWarehouse={selectedWarehouse}
+    formMode="addStock"      
+    companyId={companyId} // Add this prop
+/>
             </div>
             {warehouse ? (
                 <>
