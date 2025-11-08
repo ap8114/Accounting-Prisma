@@ -7,6 +7,7 @@ import {
   FaEye,
   FaEdit,
   FaTrash,
+  FaSearch,
 } from "react-icons/fa";
 import axiosInstance from "../../../Api/axiosInstance";
 import Swal from "sweetalert2";
@@ -31,6 +32,9 @@ const Income = () => {
     { id: 1, account: "", amount: "0.00", narration: "" },
   ]);
   const [receivedFromId, setReceivedFromId] = useState("");
+  const [receivedFromSearchTerm, setReceivedFromSearchTerm] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [narration, setNarration] = useState("");
   const [showNarration, setShowNarration] = useState(true);
   const [autoReceiptNo, setAutoReceiptNo] = useState("");
@@ -114,15 +118,18 @@ const Income = () => {
         });
 
         setCustomers(transformedCustomers);
+        setFilteredCustomers(transformedCustomers); // Initialize filtered customers
         console.log("Transformed customers:", transformedCustomers);
       } else {
         console.warn("API response not successful:", response.data);
         setCustomers([]);
+        setFilteredCustomers([]);
       }
     } catch (err) {
       console.error("Error fetching customers:", err);
       setError(err.message || "Failed to fetch customers");
       setCustomers([]);
+      setFilteredCustomers([]);
     } finally {
       setCustomersLoading(false);
     }
@@ -228,6 +235,97 @@ const Income = () => {
     }
   };
 
+  // ✅ NEW: Handle customer search
+  const handleCustomerSearch = (searchTerm) => {
+    setReceivedFromSearchTerm(searchTerm);
+    
+    if (!searchTerm.trim()) {
+      // If search term is empty, show all customers
+      setFilteredCustomers(customers);
+      return;
+    }
+
+    const filtered = customers.filter(customer => {
+      // Check name fields
+      const nameFields = [
+        customer.name_english,
+        customer.name_arabic,
+        customer.company_name,
+        customer.account_name
+      ];
+      
+      // Find the first non-empty name field
+      const customerName = nameFields.find(name => name && name.trim() !== '') || '';
+      
+      // Check phone number fields
+      const phoneFields = [
+        customer.phone,
+        customer.bank_account_number
+      ];
+      
+      // Find the first non-empty phone field
+      const customerPhone = phoneFields.find(phone => phone && phone.trim() !== '') || '';
+      
+      // Return true if search term matches either name or phone
+      return customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+             customerPhone.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+    
+    setFilteredCustomers(filtered);
+  };
+
+  // ✅ NEW: Handle customer selection
+  const handleCustomerSelect = (customer) => {
+    const customerId = customer.id;
+    setReceivedFromId(customerId);
+    
+    // Get display name
+    const nameFields = [
+      customer.name_english,
+      customer.name_arabic,
+      customer.company_name,
+      customer.account_name
+    ];
+    
+    const displayName = nameFields.find(name => name && name.trim() !== '') || `ID: ${customer.id}`;
+    
+    setReceivedFromSearchTerm(displayName);
+    setShowCustomerDropdown(false);
+    
+    // Add a new row with the customer name as the account
+    setTableRows([
+      ...tableRows,
+      {
+        id: Date.now(),
+        account: displayName,
+        amount: "0.00",
+        narration: "",
+      },
+    ]);
+  };
+
+  // ✅ NEW: Helper function to get display name
+  const getCustomerDisplayName = (customer) => {
+    const nameFields = [
+      customer.name_english,
+      customer.name_arabic,
+      customer.company_name,
+      customer.account_name
+    ];
+    
+    return nameFields.find(name => name && name.trim() !== '') || `ID: ${customer.id}`;
+  };
+
+  // ✅ NEW: Helper function to get display phone
+  const getCustomerDisplayPhone = (customer) => {
+    const phoneFields = [
+      customer.phone,
+      customer.bank_account_number
+    ];
+    
+    return phoneFields.find(phone => phone && phone.trim() !== '') || '';
+  };
+
   // MAIN EFFECT: Initialize all data ONCE
   useEffect(() => {
     if (!companyId) return;
@@ -261,6 +359,7 @@ const Income = () => {
       setTableRows([{ id: 1, account: "", amount: "0.00", narration: "" }]);
       setNarration("");
       setReceivedFromId("");
+      setReceivedFromSearchTerm("");
       setLoading(false);
     }
   }, [showCreateModal]);
@@ -276,6 +375,20 @@ const Income = () => {
   useEffect(() => {
     if (!showDeleteModal) setDeleteVoucher(null);
   }, [showDeleteModal]);
+
+  // ✅ NEW: Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCustomerDropdown && !event.target.closest('.customer-search-container')) {
+        setShowCustomerDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCustomerDropdown]);
 
   const getStatusBadge = (status) => {
     if (!status) return "badge bg-secondary";
@@ -310,26 +423,6 @@ const Income = () => {
     setTableRows(
       tableRows.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
-  };
-
-  const handleReceivedFromChange = (e) => {
-    const customerId = e.target.value;
-    setReceivedFromId(customerId);
-    if (customerId) {
-      const customer = customers.find((c) => c.id == customerId);
-      if (customer) {
-        // Add a new row with the customer name as the account
-        setTableRows([
-          ...tableRows,
-          {
-            id: Date.now(),
-            account: customer.name_english || customer.account_name,
-            amount: "0.00",
-            narration: "",
-          },
-        ]);
-      }
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -835,44 +928,80 @@ const Income = () => {
                     <label className="form-label fw-semibold">
                       Received From
                     </label>
-                    <div className="input-group">
-                      <select
-                        className="form-select"
-                        value={receivedFromId}
-                        onChange={handleReceivedFromChange}
-                        disabled={customersLoading}
-                      >
-                        <option value="">Select Customer</option>
-                        {customers.length > 0 ? (
-                          customers.map((cust) => (
-                            <option key={cust.id} value={cust.id}>
-                              {cust.name_english || cust.account_name}
-                            </option>
-                          ))
-                        ) : (
-                          <option disabled>No customers found</option>
-                        )}
-                      </select>
-                      <button
-                        className="btn btn-outline-secondary"
-                        type="button"
-                        onClick={refreshCustomers}
-                        disabled={customersLoading}
-                      >
-                        {customersLoading ? (
-                          <span
-                            className="spinner-border spinner-border-sm"
-                            role="status"
-                            aria-hidden="true"
-                          ></span>
-                        ) : (
-                          "Refresh"
-                        )}
-                      </button>
+                    <div className="customer-search-container position-relative">
+                      <div className="input-group">
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Search customer by name or phone..."
+                          value={receivedFromSearchTerm}
+                          onChange={(e) => {
+                            handleCustomerSearch(e.target.value);
+                            setShowCustomerDropdown(true);
+                          }}
+                          onFocus={() => {
+                            setShowCustomerDropdown(true);
+                            if (!receivedFromSearchTerm.trim()) {
+                              setFilteredCustomers(customers);
+                            }
+                          }}
+                        />
+                        <span className="input-group-text">
+                          <FaSearch />
+                        </span>
+                      </div>
+                      {showCustomerDropdown && (
+                        <div
+                          className="position-absolute w-100 mt-1 shadow-sm bg-white border rounded-1"
+                          style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}
+                        >
+                          {customersLoading ? (
+                            <div className="p-3 text-center">
+                              <div className="spinner-border spinner-border-sm me-2" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                              </div>
+                              <span>Loading customers...</span>
+                            </div>
+                          ) : filteredCustomers.length > 0 ? (
+                            filteredCustomers.map(customer => (
+                              <div
+                                key={customer.id}
+                                className="p-3 border-bottom"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => handleCustomerSelect(customer)}
+                              >
+                                <div className="fw-bold">{getCustomerDisplayName(customer)}</div>
+                                {getCustomerDisplayPhone(customer) && (
+                                  <div className="small text-muted">{getCustomerDisplayPhone(customer)}</div>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-3 text-center text-muted">
+                              No customers found
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="input-group mt-2">
+                        <button
+                          className="btn btn-outline-secondary"
+                          type="button"
+                          onClick={refreshCustomers}
+                          disabled={customersLoading}
+                        >
+                          {customersLoading ? (
+                            <span
+                              className="spinner-border spinner-border-sm"
+                              role="status"
+                              aria-hidden="true"
+                            ></span>
+                          ) : (
+                            "Refresh"
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    {customersLoading && (
-                      <div className="form-text">Loading customers...</div>
-                    )}
                   </div>
                 </div>
 

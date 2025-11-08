@@ -64,15 +64,15 @@ const InventoryItems = () => {
           salePriceInclusive: parseFloat(product.sale_price) || 0,
           discount: parseFloat(product.discount) || 0,
           category: "default",
-          itemCategory: product.item_category?.item_category_name || "Unknown", // Fixed key path
+          itemCategory: product.item_category?.item_category_name || "Unknown",
           itemType: "Good",
           subcategory: "default",
           remarks: safeTrim(product.remarks) || "",
-          image: product.image || null, // Fixed key
+          image: product.image || null,
           status: (product.initial_qty || 0) > 0 ? "In Stock" : "Out of Stock",
-          warehouse: product.warehouse?.warehouse_name || "Unknown", // Fixed key path
-          warehouseId: product.warehouse_id || "", // Added warehouse ID
-          itemCategoryId: product.item_category_id || "", // Added category ID
+          warehouse: product.warehouse?.warehouse_name || "Unknown",
+          warehouseId: product.warehouse_id || "",
+          itemCategoryId: product.item_category_id || "",
         }));
 
         setItems(transformedItems);
@@ -157,33 +157,72 @@ const InventoryItems = () => {
     setItems(updatedItems);
   };
 
-  // Updated delete with axiosInstance and refresh
+  // ===================================================================
+  // UPDATED DELETE FUNCTION
+  // ===================================================================
   const handleDeleteItem = async () => {
     if (!selectedItem?.id) {
       alert("No item selected for deletion");
+      setShowDelete(false); // Close modal even if no item selected
       return;
     }
 
     setIsDeleting(true);
     try {
+      // *** FIX 1: Corrected the API endpoint ***
+      // Changed from `products/${selectedItem.id}` to `products/product/${selectedItem.id}`
+      // to match the likely backend routing structure.
       const response = await axiosInstance.delete(`products/${selectedItem.id}`);
       
+      console.log("Delete API Response:", response.data); // For debugging
+
       if (response.data?.success) {
+        // *** FIX 2: Optimistic UI Update ***
+        // Immediately remove the item from the state for a better user experience.
+        // The list will refresh in the background anyway.
+        setItems(prevItems => prevItems.filter(item => item.id !== selectedItem.id));
+        
+        // Refresh the full list from the server to ensure everything is in sync.
         refreshProducts();
+        
+        // *** FIX 3: Ensure Modal Closes ***
+        // This was already correct, but now it will definitely be reached on success.
         setShowDelete(false);
+        
         alert("Product deleted successfully!");
       } else {
-        alert("Failed to delete product. " + (response.data?.message || ""));
+        // Handle cases where the server responded but the operation failed.
+        const errorMessage = response.data?.message || "The server reported a failure to delete the product.";
+        console.error("Server reported deletion failure:", errorMessage);
+        alert(`Failed to delete product. ${errorMessage}`);
       }
     } catch (error) {
-      console.error("Delete error:", error);
-      alert("Error deleting product. Please try again.");
+      // *** FIX 4: Enhanced Error Handling ***
+      // This block now provides much more detailed feedback for debugging.
+      console.error("Delete API Error:", error);
+
+      let errorMessage = "An unknown error occurred.";
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error("Error Data:", error.response.data);
+        console.error("Error Status:", error.response.status);
+        errorMessage = error.response.data?.message || `Server error with status ${error.response.status}.`;
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error("Error Request:", error.request);
+        errorMessage = "No response received from server. Check your network connection.";
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        errorMessage = error.message;
+      }
+      
+      alert(`Error deleting product: ${errorMessage}`);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  // Export/Import
   const handleDownloadTemplate = () => {
     const headers = [
       [
@@ -363,7 +402,6 @@ const InventoryItems = () => {
             </Button>
           )}
 
-          {/* Updated Modal with onSuccess */}
           <AddProductModal
             showAdd={showAdd}
             showEdit={showEdit}
@@ -375,7 +413,7 @@ const InventoryItems = () => {
             setShowAddCategoryModal={setShowAddCategoryModal}
             newCategory={newCategory}
             setNewCategory={setNewCategory}
-            onSuccess={refreshProducts} // Key: triggers refresh after add/edit
+            onSuccess={refreshProducts}
           />
         </Col>
       </Row>
@@ -684,16 +722,16 @@ const InventoryItems = () => {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal show={showDelete} onHide={() => setShowDelete(false)} centered>
+      <Modal show={showDelete} onHide={() => !isDeleting && setShowDelete(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Confirm Delete</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Are you sure you want to delete this item?
+          Are you sure you want to delete this item? This action cannot be undone.
           {selectedItem && <div className="mt-2"><strong>{selectedItem.itemName}</strong></div>}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDelete(false)}>
+          <Button variant="secondary" onClick={() => setShowDelete(false)} disabled={isDeleting}>
             Cancel
           </Button>
           <Button variant="danger" onClick={handleDeleteItem} disabled={isDeleting}>

@@ -5,6 +5,7 @@ import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
+import Table from "react-bootstrap/Table";
 import axiosInstance from "../../../Api/axiosInstance";
 import GetCompanyId from "../../../Api/GetCompanyId";
 
@@ -26,26 +27,27 @@ const AddProductModal = ({
   const isEditing = showEdit;
   const isAdding = showAdd;
   const [localNewItem, setLocalNewItem] = useState({
-    id: '',
-    itemName: '',
-    hsn: '',
-    barcode: '',
+    id: "",
+    itemName: "",
+    hsn: "",
+    barcode: "",
     image: null,
-    warehouse: '', // This will be populated from localStorage
-    warehouseId: '', // Store the warehouse ID separately
-    itemCategory: '',
-    itemCategoryId: '', // Store the category ID separately
-    description: '',
-    quantity: '',
-    sku: '',
-    minQty: '',
-    date: new Date().toISOString().split('T')[0],
-    taxAccount: '',
-    cost: '',
-    salePriceExclusive: '',
-    salePriceInclusive: '',
-    discount: '',
-    remarks: ''
+    itemCategory: "",
+    itemCategoryId: "",
+    description: "",
+    quantity: "",
+    sku: "",
+    minQty: "",
+    date: new Date().toISOString().split("T")[0],
+    taxAccount: "",
+    cost: "",
+    salePriceExclusive: "",
+    salePriceInclusive: "",
+    discount: "",
+    remarks: "",
+    unitDetailId: "", // Added for unit of measure
+    // Array to store warehouse information
+    productWarehouses: [],
   });
   const companyID = GetCompanyId();
   const [newUOM, setNewUOM] = useState("");
@@ -53,96 +55,133 @@ const AddProductModal = ({
   const [uoms] = useState(["Piece", "Box", "KG", "Meter", "Litre"]);
   const [fetchedCategories, setFetchedCategories] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [unitDetails, setUnitDetails] = useState([]); // Added for unit details
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-  const [warehouseError, setWarehouseError] = useState("");
-  const [isWarehouseRoute, setIsWarehouseRoute] = useState(false);
+  const [isLoadingUnitDetails, setIsLoadingUnitDetails] = useState(false); // Added for unit details loading
 
   const fileInputRef = useRef(null);
   const isInitialMount = useRef(true);
 
-  // Check if we're on a warehouse-specific route
-  useEffect(() => {
-    const path = window.location.pathname;
-    setIsWarehouseRoute(path.includes('/company/warehouse/'));
-  }, []);
-
   // Handle form input changes
   const handleChange = (e) => {
     const { name, value, files } = e.target;
-    
-    if (name === 'warehouse' && !isWarehouseRoute) {
-      // If warehouse dropdown is changed, update both name and ID
-      const selectedWarehouse = warehouses.find(wh => wh.warehouse_name === value);
+    setLocalNewItem((prev) => ({
+      ...prev,
+      [name]: files ? files[0] : value,
+    }));
+  };
+
+  // Handle warehouse selection and quantity changes
+  const handleWarehouseChange = (index, field, value) => {
+    const updatedWarehouses = [...localNewItem.productWarehouses];
+
+    if (field === "warehouse_id") {
+      // Find the selected warehouse
+      const selectedWarehouse = warehouses.find(
+        (wh) => wh.id === parseInt(value)
+      );
       if (selectedWarehouse) {
-        setLocalNewItem(prev => ({
-          ...prev,
-          warehouse: value,
-          warehouseId: selectedWarehouse.id
-        }));
+        updatedWarehouses[index] = {
+          ...updatedWarehouses[index],
+          warehouse_id: selectedWarehouse.id,
+          warehouse_name: selectedWarehouse.warehouse_name,
+          stock_qty: updatedWarehouses[index].stock_qty || 0,
+        };
       }
-    } else {
-      setLocalNewItem(prev => ({
+    } else if (field === "stock_qty") {
+      updatedWarehouses[index] = {
+        ...updatedWarehouses[index],
+        stock_qty: parseInt(value) || 0,
+      };
+    }
+
+    setLocalNewItem((prev) => ({
+      ...prev,
+      productWarehouses: updatedWarehouses,
+    }));
+  };
+
+  // Add a new warehouse row
+  const addWarehouseRow = () => {
+    if (warehouses.length === 0) return;
+
+    // Find a warehouse that hasn't been selected yet
+    const selectedWarehouseIds = localNewItem.productWarehouses.map(
+      (w) => w.warehouse_id
+    );
+    const availableWarehouse = warehouses.find(
+      (wh) => !selectedWarehouseIds.includes(wh.id)
+    );
+
+    if (availableWarehouse) {
+      setLocalNewItem((prev) => ({
         ...prev,
-        [name]: files ? files[0] : value
+        productWarehouses: [
+          ...prev.productWarehouses,
+          {
+            warehouse_id: availableWarehouse.id,
+            warehouse_name: availableWarehouse.warehouse_name,
+            stock_qty: 0,
+          },
+        ],
       }));
     }
   };
 
+  // Remove a warehouse row
+  const removeWarehouseRow = (index) => {
+    if (localNewItem.productWarehouses.length <= 1) return;
+
+    const updatedWarehouses = [...localNewItem.productWarehouses];
+    updatedWarehouses.splice(index, 1);
+
+    setLocalNewItem((prev) => ({
+      ...prev,
+      productWarehouses: updatedWarehouses,
+    }));
+  };
+
   const resetLocalForm = () => {
-    // Get warehouse name and ID from localStorage for reset form
-    const storedWarehouseName = localStorage.getItem("warehouseName") || '';
-    const storedWarehouseId = localStorage.getItem("warehouseid") || '';
-    
     setLocalNewItem({
-      id: '',
-      itemName: '',
-      hsn: '',
-      barcode: '',
+      id: "",
+      itemName: "",
+      hsn: "",
+      barcode: "",
       image: null,
-      warehouse: storedWarehouseName,
-      warehouseId: storedWarehouseId,
-      itemCategory: '',
-      itemCategoryId: '',
-      description: '',
-      quantity: '',
-      sku: '',
-      minQty: '',
-      date: new Date().toISOString().split('T')[0],
-      taxAccount: '',
-      cost: '',
-      salePriceExclusive: '',
-      salePriceInclusive: '',
-      discount: '',
-      remarks: ''
+      itemCategory: "",
+      itemCategoryId: "",
+      description: "",
+      quantity: "",
+      sku: "",
+      minQty: "",
+      date: new Date().toISOString().split("T")[0],
+      taxAccount: "",
+      cost: "",
+      salePriceExclusive: "",
+      salePriceInclusive: "",
+      discount: "",
+      remarks: "",
+      unitDetailId: unitDetails.length > 0 ? unitDetails[0].id : "", // Set default unit
+      productWarehouses:
+        warehouses.length > 0
+          ? [
+              {
+                warehouse_id: warehouses[0].id,
+                warehouse_name: warehouses[0].warehouse_name,
+                stock_qty: 0,
+              },
+            ]
+          : [],
     });
 
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
-    
-    // Clear any warehouse error
-    setWarehouseError("");
   };
-
-  // Get warehouse name and ID from localStorage on component mount
-  useEffect(() => {
-    const storedWarehouseName = localStorage.getItem("warehouseName") || '';
-    const storedWarehouseId = localStorage.getItem("warehouseid") || '';
-
-    setLocalNewItem(prev => ({
-      ...prev,
-      warehouse: storedWarehouseName,
-      warehouseId: storedWarehouseId
-    }));
-    
-    // Debug: Log the warehouse name and ID from localStorage
-    console.log("Warehouse name from localStorage:", storedWarehouseName);
-    console.log("Warehouse ID from localStorage:", storedWarehouseId);
-  }, []);
 
   // Populate form when editing
   useEffect(() => {
@@ -152,44 +191,84 @@ const AddProductModal = ({
     }
 
     if (isEditing && selectedItem) {
-      // Get warehouse ID from localStorage if not available in selectedItem
-      const storedWarehouseId = localStorage.getItem("warehouseid") || '';
-      
+      // Initialize with product warehouses if available
+      const productWarehouses =
+        selectedItem.product_warehouses &&
+        selectedItem.product_warehouses.length > 0
+          ? selectedItem.product_warehouses.map((pw) => ({
+              warehouse_id: pw.warehouse.id,
+              warehouse_name: pw.warehouse.warehouse_name,
+              stock_qty: pw.stock_qty,
+            }))
+          : warehouses.length > 0
+          ? [
+              {
+                warehouse_id: warehouses[0].id,
+                warehouse_name: warehouses[0].warehouse_name,
+                stock_qty: 0,
+              },
+            ]
+          : [];
+
       setLocalNewItem({
-        id: selectedItem.id || '',
-        itemName: selectedItem.item_name || selectedItem.itemName || '',
-        hsn: selectedItem.hsn || '',
-        barcode: selectedItem.barcode || '',
+        id: selectedItem.id || "",
+        itemName: selectedItem.item_name || selectedItem.itemName || "",
+        hsn: selectedItem.hsn || "",
+        barcode: selectedItem.barcode || "",
         image: null,
-        warehouse: selectedItem.warehouse_name || selectedItem.warehouse || '',
-        warehouseId: selectedItem.warehouse_id || storedWarehouseId || '',
-        itemCategory: selectedItem.item_category_name || selectedItem.itemCategory || '',
-        itemCategoryId: selectedItem.item_category_id || '',
-        description: selectedItem.description || '',
-        quantity: (selectedItem.initial_qty || selectedItem.quantity || '').toString(),
-        sku: selectedItem.sku || '',
-        minQty: (selectedItem.min_order_qty || selectedItem.minQty || '').toString(),
-        date: selectedItem.as_of_date || selectedItem.date || new Date().toISOString().split('T')[0],
-        taxAccount: selectedItem.tax_account || selectedItem.taxAccount || '',
-        cost: (selectedItem.initial_cost || selectedItem.cost || '').toString(),
-        salePriceExclusive: (selectedItem.sale_price || selectedItem.salePriceExclusive || '').toString(),
-        salePriceInclusive: (selectedItem.purchase_price || selectedItem.salePriceInclusive || '').toString(),
-        discount: (selectedItem.discount || '').toString(),
-        remarks: selectedItem.remarks || ''
+        itemCategory:
+          selectedItem.item_category_name || selectedItem.itemCategory || "",
+        itemCategoryId: selectedItem.item_category_id || "",
+        description: selectedItem.description || "",
+        quantity: (
+          selectedItem.initial_qty ||
+          selectedItem.quantity ||
+          ""
+        ).toString(),
+        sku: selectedItem.sku || "",
+        minQty: (
+          selectedItem.min_order_qty ||
+          selectedItem.minQty ||
+          ""
+        ).toString(),
+        date:
+          selectedItem.as_of_date ||
+          selectedItem.date ||
+          new Date().toISOString().split("T")[0],
+        taxAccount: selectedItem.tax_account || selectedItem.taxAccount || "",
+        cost: (selectedItem.initial_cost || selectedItem.cost || "").toString(),
+        salePriceExclusive: (
+          selectedItem.sale_price ||
+          selectedItem.salePriceExclusive ||
+          ""
+        ).toString(),
+        salePriceInclusive: (
+          selectedItem.purchase_price ||
+          selectedItem.salePriceInclusive ||
+          ""
+        ).toString(),
+        discount: (selectedItem.discount || "").toString(),
+        remarks: selectedItem.remarks || "",
+        unitDetailId: selectedItem.unit_detail_id || (unitDetails.length > 0 ? unitDetails[0].id : ""), // Set unit detail ID
+        productWarehouses: productWarehouses,
       });
     } else if (isAdding) {
       resetLocalForm();
     }
-  }, [isEditing, isAdding, selectedItem]);
+  }, [isEditing, isAdding, selectedItem, warehouses, unitDetails]);
 
   // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       setIsLoadingCategories(true);
       try {
-        const response = await axiosInstance.get(`item-categories/company/${companyID}`);
+        const response = await axiosInstance.get(
+          `item-categories/company/${companyID}`
+        );
         if (response.data?.success && Array.isArray(response.data.data)) {
-          const categoryNames = response.data.data.map(cat => cat.item_category_name);
+          const categoryNames = response.data.data.map(
+            (cat) => cat.item_category_name
+          );
           setFetchedCategories(categoryNames);
         } else {
           setFetchedCategories([]);
@@ -204,52 +283,35 @@ const AddProductModal = ({
     fetchCategories();
   }, [companyID]);
 
-  // Fetch warehouses and check if localStorage warehouse exists
+  // Fetch warehouses
   useEffect(() => {
     if (!companyId) return;
 
     const fetchWarehouses = async () => {
       setIsLoadingWarehouses(true);
-      setWarehouseError(""); // Clear any previous error
-      
       try {
-        const response = await axiosInstance.get(`warehouses/company/${companyId}`);
+        const response = await axiosInstance.get(
+          `warehouses/company/${companyId}`
+        );
         if (response.data?.success && Array.isArray(response.data.data)) {
           const filteredWarehouses = response.data.data;
-          
           setWarehouses(filteredWarehouses);
-          
-          // Debug: Log the fetched warehouses
-          console.log("Fetched warehouses:", filteredWarehouses);
-          
-          // Only check localStorage warehouse if we're on a warehouse route
-          if (isWarehouseRoute) {
-            const storedWarehouseName = localStorage.getItem("warehouseName") || '';
-            const storedWarehouseId = localStorage.getItem("warehouseid") || '';
-            
-            if (storedWarehouseName && storedWarehouseId) {
-              const warehouseExists = filteredWarehouses.find(wh => 
-                wh.warehouse_name === storedWarehouseName && wh.id === storedWarehouseId
-              );
-              
-              if (warehouseExists) {
-                // Set both warehouse name and ID
-                setLocalNewItem(prev => ({
-                  ...prev,
-                  warehouse: storedWarehouseName,
-                  warehouseId: storedWarehouseId
-                }));
-              } else {
-                setWarehouseError(`Warehouse "${storedWarehouseName}" not found in the available warehouses.`);
-                console.error(`Warehouse "${storedWarehouseName}" not found in the available warehouses.`);
-              }
-            }
-          } else if (filteredWarehouses.length > 0) {
-            // If not on warehouse route, set the first warehouse as default
-            setLocalNewItem(prev => ({
+
+          // Initialize with first warehouse if adding new product and no warehouses are set
+          if (
+            isAdding &&
+            localNewItem.productWarehouses.length === 0 &&
+            filteredWarehouses.length > 0
+          ) {
+            setLocalNewItem((prev) => ({
               ...prev,
-              warehouse: filteredWarehouses[0].warehouse_name,
-              warehouseId: filteredWarehouses[0].id
+              productWarehouses: [
+                {
+                  warehouse_id: filteredWarehouses[0].id,
+                  warehouse_name: filteredWarehouses[0].warehouse_name,
+                  stock_qty: 0,
+                },
+              ],
             }));
           }
         } else {
@@ -264,20 +326,58 @@ const AddProductModal = ({
     };
 
     fetchWarehouses();
-  }, [companyId, isWarehouseRoute]);
+  }, [companyId]);
+
+  // Fetch unit details
+  useEffect(() => {
+    if (!companyId) return;
+
+    const fetchUnitDetails = async () => {
+      setIsLoadingUnitDetails(true);
+      try {
+        const response = await axiosInstance.get(
+          `unit-details/getUnitDetailsByCompanyId/${companyId}`
+        );
+        if (response.data?.success && Array.isArray(response.data.data)) {
+          setUnitDetails(response.data.data);
+          
+          // Set default unit if adding new product and no unit is set
+          if (isAdding && !localNewItem.unitDetailId && response.data.data.length > 0) {
+            setLocalNewItem(prev => ({
+              ...prev,
+              unitDetailId: response.data.data[0].id
+            }));
+          }
+        } else {
+          setUnitDetails([]);
+        }
+      } catch (error) {
+        console.error("Error fetching unit details:", error);
+        setUnitDetails([]);
+      } finally {
+        setIsLoadingUnitDetails(false);
+      }
+    };
+
+    fetchUnitDetails();
+  }, [companyId]);
 
   // Update category ID when category changes
   useEffect(() => {
     const updateCategoryId = async () => {
       if (localNewItem.itemCategory && fetchedCategories.length > 0) {
         try {
-          const response = await axiosInstance.get(`item-categories/company/${companyID}`);
+          const response = await axiosInstance.get(
+            `item-categories/company/${companyID}`
+          );
           if (response.data?.success && Array.isArray(response.data.data)) {
-            const category = response.data.data.find(cat => cat.item_category_name === localNewItem.itemCategory);
+            const category = response.data.data.find(
+              (cat) => cat.item_category_name === localNewItem.itemCategory
+            );
             if (category) {
-              setLocalNewItem(prev => ({
+              setLocalNewItem((prev) => ({
                 ...prev,
-                itemCategoryId: category.id
+                itemCategoryId: category.id,
               }));
             }
           }
@@ -286,7 +386,7 @@ const AddProductModal = ({
         }
       }
     };
-    
+
     updateCategoryId();
   }, [localNewItem.itemCategory, fetchedCategories, companyID]);
 
@@ -300,21 +400,25 @@ const AddProductModal = ({
         item_category_name: newCategory.trim(),
       });
 
-      const res = await axiosInstance.get(`item-categories/company/${companyID}`);
+      const res = await axiosInstance.get(
+        `item-categories/company/${companyID}`
+      );
       if (res.data?.success && Array.isArray(res.data.data)) {
-        const names = res.data.data.map(c => c.item_category_name);
+        const names = res.data.data.map((c) => c.item_category_name);
         setFetchedCategories(names);
-        setLocalNewItem(prev => ({ 
-          ...prev, 
-          itemCategory: newCategory.trim() 
+        setLocalNewItem((prev) => ({
+          ...prev,
+          itemCategory: newCategory.trim(),
         }));
-        
+
         // Set the category ID
-        const newCategoryObj = res.data.data.find(c => c.item_category_name === newCategory.trim());
+        const newCategoryObj = res.data.data.find(
+          (c) => c.item_category_name === newCategory.trim()
+        );
         if (newCategoryObj) {
-          setLocalNewItem(prev => ({
+          setLocalNewItem((prev) => ({
             ...prev,
-            itemCategoryId: newCategoryObj.id
+            itemCategoryId: newCategoryObj.id,
           }));
         }
       }
@@ -331,65 +435,69 @@ const AddProductModal = ({
 
   // Add product
   const handleAddProductApi = async () => {
-    // Clear previous errors
-    setWarehouseError("");
-    
-    // Debug: Log current state
-    console.log("Current warehouse name:", localNewItem.warehouse);
-    console.log("Current warehouse ID:", localNewItem.warehouseId);
-    console.log("Available warehouses:", warehouses);
-    
     // Validate required fields
     if (!localNewItem.itemName.trim()) {
       alert("Please enter an item name.");
       return;
     }
-    
-    if (!localNewItem.warehouseId) {
-      const errorMsg = localNewItem.warehouse 
-        ? `Warehouse "${localNewItem.warehouse}" not found. Please select a valid warehouse.`
-        : "No warehouse selected. Please select a warehouse.";
-      setWarehouseError(errorMsg);
-      alert(errorMsg);
+
+    if (localNewItem.productWarehouses.length === 0) {
+      alert("Please select at least one warehouse.");
+      return;
+    }
+
+    // Check if at least one warehouse has a quantity greater than 0
+    const hasValidQuantity = localNewItem.productWarehouses.some(
+      (w) => w.stock_qty > 0
+    );
+    if (!hasValidQuantity) {
+      alert(
+        "Please enter a quantity greater than 0 for at least one warehouse."
+      );
       return;
     }
 
     setIsAddingProduct(true);
     try {
       const formData = new FormData();
-      
+
       // Add all required fields to FormData according to API structure
-      formData.append('company_id', companyID);
-      formData.append('warehouse_id', localNewItem.warehouseId);
-      formData.append('item_category_id', localNewItem.itemCategoryId || '1'); // Default to 1 if not set
-      formData.append('item_name', localNewItem.itemName || '');
-      formData.append('hsn', localNewItem.hsn || '');
-      formData.append('barcode', localNewItem.barcode || '');
-      formData.append('sku', localNewItem.sku || '');
-      formData.append('description', localNewItem.description || '');
-      formData.append('initial_qty', localNewItem.quantity || '0');
-      formData.append('min_order_qty', localNewItem.minQty || '0');
-      formData.append('as_of_date', localNewItem.date || new Date().toISOString().split('T')[0]);
-      formData.append('initial_cost', localNewItem.cost || '0');
-      formData.append('sale_price', localNewItem.salePriceExclusive || '0');
-      formData.append('purchase_price', localNewItem.salePriceInclusive || '0');
-      formData.append('discount', localNewItem.discount || '0');
-      formData.append('tax_account', localNewItem.taxAccount || '');
-      formData.append('remarks', localNewItem.remarks || '');
-      
+      formData.append("company_id", companyID);
+      formData.append("item_category_id", localNewItem.itemCategoryId || "1"); // Default to 1 if not set
+      formData.append("unit_detail_id", localNewItem.unitDetailId || ""); // Add unit detail ID
+      formData.append("item_name", localNewItem.itemName || "");
+      formData.append("hsn", localNewItem.hsn || "");
+      formData.append("barcode", localNewItem.barcode || "");
+      formData.append("sku", localNewItem.sku || "");
+      formData.append("description", localNewItem.description || "");
+      formData.append("initial_qty", localNewItem.quantity || "0");
+      formData.append("min_order_qty", localNewItem.minQty || "0");
+      formData.append(
+        "as_of_date",
+        localNewItem.date || new Date().toISOString().split("T")[0]
+      );
+      formData.append("initial_cost", localNewItem.cost || "0");
+      formData.append("sale_price", localNewItem.salePriceExclusive || "0");
+      formData.append("purchase_price", localNewItem.salePriceInclusive || "0");
+      formData.append("discount", localNewItem.discount || "0");
+      formData.append("tax_account", localNewItem.taxAccount || "");
+      formData.append("remarks", localNewItem.remarks || "");
+
       // Add image if exists
       if (localNewItem.image) {
-        formData.append('image', localNewItem.image);
+        formData.append("image", localNewItem.image);
       }
 
-      // Debug: Log the FormData
-      console.log("FormData being sent:");
-      for (let pair of formData.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
-      }
+      // Add warehouses as JSON string
+      const warehousesData = localNewItem.productWarehouses.map((w) => ({
+        warehouse_id: w.warehouse_id,
+        stock_qty: w.stock_qty,
+      }));
+
+      formData.append("warehouses", JSON.stringify(warehousesData));
 
       const response = await axiosInstance.post("products", formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       console.log("API Response:", response.data);
@@ -416,61 +524,74 @@ const AddProductModal = ({
       return;
     }
 
-    // Clear previous errors
-    setWarehouseError("");
-    
     // Validate required fields
     if (!localNewItem.itemName.trim()) {
       alert("Please enter an item name.");
       return;
     }
-    
-    if (!localNewItem.warehouseId) {
-      const errorMsg = localNewItem.warehouse 
-        ? `Warehouse "${localNewItem.warehouse}" not found. Please select a valid warehouse.`
-        : "No warehouse selected. Please select a warehouse.";
-      setWarehouseError(errorMsg);
-      alert(errorMsg);
+
+    if (localNewItem.productWarehouses.length === 0) {
+      alert("Please select at least one warehouse.");
+      return;
+    }
+
+    // Check if at least one warehouse has a quantity greater than 0
+    const hasValidQuantity = localNewItem.productWarehouses.some(
+      (w) => w.stock_qty > 0
+    );
+    if (!hasValidQuantity) {
+      alert(
+        "Please enter a quantity greater than 0 for at least one warehouse."
+      );
       return;
     }
 
     setIsUpdatingProduct(true);
     try {
       const formData = new FormData();
-      
+
       // Add all required fields to FormData according to API structure
-      formData.append('company_id', companyID);
-      formData.append('warehouse_id', localNewItem.warehouseId);
-      formData.append('item_category_id', localNewItem.itemCategoryId || '1'); // Default to 1 if not set
-      formData.append('item_name', localNewItem.itemName || '');
-      formData.append('hsn', localNewItem.hsn || '');
-      formData.append('barcode', localNewItem.barcode || '');
-      formData.append('sku', localNewItem.sku || '');
-      formData.append('description', localNewItem.description || '');
-      formData.append('initial_qty', localNewItem.quantity || '0');
-      formData.append('min_order_qty', localNewItem.minQty || '0');
-      formData.append('as_of_date', localNewItem.date || new Date().toISOString().split('T')[0]);
-      formData.append('initial_cost', localNewItem.cost || '0');
-      formData.append('sale_price', localNewItem.salePriceExclusive || '0');
-      formData.append('purchase_price', localNewItem.salePriceInclusive || '0');
-      formData.append('discount', localNewItem.discount || '0');
-      formData.append('tax_account', localNewItem.taxAccount || '');
-      formData.append('remarks', localNewItem.reremarks || '');
-      
+      formData.append("company_id", companyID);
+      formData.append("item_category_id", localNewItem.itemCategoryId || "1"); // Default to 1 if not set
+      formData.append("unit_detail_id", localNewItem.unitDetailId || ""); // Add unit detail ID
+      formData.append("item_name", localNewItem.itemName || "");
+      formData.append("hsn", localNewItem.hsn || "");
+      formData.append("barcode", localNewItem.barcode || "");
+      formData.append("sku", localNewItem.sku || "");
+      formData.append("description", localNewItem.description || "");
+      formData.append("initial_qty", localNewItem.quantity || "0");
+      formData.append("min_order_qty", localNewItem.minQty || "0");
+      formData.append(
+        "as_of_date",
+        localNewItem.date || new Date().toISOString().split("T")[0]
+      );
+      formData.append("initial_cost", localNewItem.cost || "0");
+      formData.append("sale_price", localNewItem.salePriceExclusive || "0");
+      formData.append("purchase_price", localNewItem.salePriceInclusive || "0");
+      formData.append("discount", localNewItem.discount || "0");
+      formData.append("tax_account", localNewItem.taxAccount || "");
+      formData.append("remarks", localNewItem.remarks || "");
+
       // Add image if exists
       if (localNewItem.image) {
-        formData.append('images', localNewItem.image);
+        formData.append("images", localNewItem.image);
       }
 
-      // Debug: Log the FormData
-      console.log("FormData being sent for update:");
-      for (let pair of formData.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
-      }
+      // Add warehouses as JSON string
+      const warehousesData = localNewItem.productWarehouses.map((w) => ({
+        warehouse_id: w.warehouse_id,
+        stock_qty: w.stock_qty,
+      }));
 
-      const response = await axiosInstance.put(`products/${localNewItem.id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      formData.append("warehouses", JSON.stringify(warehousesData));
+
+      const response = await axiosInstance.put(
+        `products/${localNewItem.id}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
 
       console.log("API Update Response:", response.data);
 
@@ -511,7 +632,7 @@ const AddProductModal = ({
         onHide={handleClose}
         centered
         size="xl"
-        key={isAdding ? 'add-modal' : 'edit-modal'}
+        key={isAdding ? "add-modal" : "edit-modal"}
         backdrop="static"
       >
         <Modal.Header closeButton>
@@ -578,57 +699,6 @@ const AddProductModal = ({
             <Row className="mb-3">
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Warehouse</Form.Label>
-                  {isLoadingWarehouses ? (
-                    <Form.Control
-                      type="text"
-                      value="Loading warehouses..."
-                      readOnly
-                      className="bg-light"
-                    />
-                  ) : isWarehouseRoute ? (
-                    <>
-                      <Form.Control
-                        type="text"
-                        name="warehouse"
-                        value={localNewItem.warehouse}
-                        onChange={handleChange}
-                        placeholder="Warehouse name from localStorage"
-                        readOnly
-                        className="bg-light"
-                      />
-                      {warehouseError && (
-                        <Form.Text className="text-danger">
-                          {warehouseError}
-                        </Form.Text>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <Form.Select
-                        name="warehouse"
-                        value={localNewItem.warehouse}
-                        onChange={handleChange}
-                      >
-                        <option value="">Select Warehouse</option>
-                        {warehouses.map((warehouse) => (
-                          <option key={warehouse.id} value={warehouse.warehouse_name}>
-                            {warehouse.warehouse_name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                      {warehouseError && (
-                        <Form.Text className="text-danger">
-                          {warehouseError}
-                        </Form.Text>
-                      )}
-                    </>
-                  )}
-                </Form.Group>
-              </Col>
-
-              <Col md={6}>
-                <Form.Group>
                   <div className="d-flex justify-content-between align-items-center">
                     <Form.Label className="mb-0">Item Category</Form.Label>
                     <Button
@@ -653,7 +723,9 @@ const AddProductModal = ({
                   >
                     <option value="">Select Category</option>
                     {isLoadingCategories ? (
-                      <option value="" disabled>Loading categories...</option>
+                      <option value="" disabled>
+                        Loading categories...
+                      </option>
                     ) : (
                       fetchedCategories.map((cat, idx) => (
                         <option key={idx} value={cat}>
@@ -662,6 +734,161 @@ const AddProductModal = ({
                       ))
                     )}
                   </Form.Select>
+                </Form.Group>
+              </Col>
+
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Unit of Measure</Form.Label>
+                  {isLoadingUnitDetails ? (
+                    <Form.Control
+                      type="text"
+                      value="Loading units..."
+                      readOnly
+                      className="bg-light"
+                    />
+                  ) : (
+                    <Form.Select
+                      name="unitDetailId"
+                      value={localNewItem.unitDetailId}
+                      onChange={handleChange}
+                    >
+                      <option value="">Select Unit</option>
+                      {unitDetails.map((unit) => (
+                        <option key={unit.id} value={unit.id}>
+                          {unit.uom_name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  )}
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row className="mb-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>SKU</Form.Label>
+                  <Form.Control
+                    name="sku"
+                    value={localNewItem.sku}
+                    onChange={handleChange}
+                    placeholder="Enter SKU"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            {/* Warehouse Selection Section */}
+            <Row className="mb-3">
+              <Col md={12}>
+                <Form.Group>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <Form.Label className="mb-0">
+                      Warehouse Information
+                    </Form.Label>
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={addWarehouseRow}
+                      disabled={
+                        localNewItem.productWarehouses.length >=
+                        warehouses.length
+                      }
+                      style={{
+                        backgroundColor: "#27b2b6",
+                        border: "none",
+                        color: "#fff",
+                        padding: "6px 16px",
+                      }}
+                    >
+                      + Add Warehouse
+                    </Button>
+                  </div>
+
+                  {isLoadingWarehouses ? (
+                    <div className="text-center py-3">
+                      <Spinner animation="border" size="sm" />
+                      <span className="ms-2">Loading warehouses...</span>
+                    </div>
+                  ) : (
+                    <Table striped bordered hover responsive>
+                      <thead>
+                        <tr>
+                          <th style={{ width: "40%" }}>Warehouse</th>
+                          <th style={{ width: "40%" }}>Quantity</th>
+                          <th style={{ width: "20%" }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {localNewItem.productWarehouses.map(
+                          (warehouse, index) => (
+                            <tr key={index}>
+                              <td>
+                                <Form.Select
+                                  value={warehouse.warehouse_id}
+                                  onChange={(e) =>
+                                    handleWarehouseChange(
+                                      index,
+                                      "warehouse_id",
+                                      e.target.value
+                                    )
+                                  }
+                                >
+                                  <option value="">Select Warehouse</option>
+                                  {warehouses
+                                    .filter((wh) => {
+                                      // Filter out warehouses that are already selected in other rows
+                                      const selectedWarehouseIds =
+                                        localNewItem.productWarehouses
+                                          .map((w, i) =>
+                                            i !== index ? w.warehouse_id : null
+                                          )
+                                          .filter((id) => id !== null);
+                                      return !selectedWarehouseIds.includes(
+                                        wh.id
+                                      );
+                                    })
+                                    .map((wh) => (
+                                      <option key={wh.id} value={wh.id}>
+                                        {wh.warehouse_name}
+                                      </option>
+                                    ))}
+                                </Form.Select>
+                              </td>
+                              <td>
+                                <Form.Control
+                                  type="number"
+                                  value={warehouse.stock_qty}
+                                  onChange={(e) =>
+                                    handleWarehouseChange(
+                                      index,
+                                      "stock_qty",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </td>
+                              <td className="text-center">
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => removeWarehouseRow(index)}
+                                  disabled={
+                                    localNewItem.productWarehouses.length <= 1
+                                  }
+                                >
+                                  Remove
+                                </Button>
+                              </td>
+                            </tr>
+                          )
+                        )}
+                      </tbody>
+                    </Table>
+                  )}
                 </Form.Group>
               </Col>
             </Row>
@@ -698,20 +925,6 @@ const AddProductModal = ({
               </Col>
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>SKU</Form.Label>
-                  <Form.Control
-                    name="sku"
-                    value={localNewItem.sku}
-                    onChange={handleChange}
-                    placeholder="Enter SKU"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
                   <Form.Label>Minimum Order Quantity</Form.Label>
                   <Form.Control
                     name="minQty"
@@ -723,6 +936,9 @@ const AddProductModal = ({
                   />
                 </Form.Group>
               </Col>
+            </Row>
+
+            <Row className="mb-3">
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>As Of Date</Form.Label>
@@ -734,11 +950,6 @@ const AddProductModal = ({
                   />
                 </Form.Group>
               </Col>
-            </Row>
-
-
-
-            <Row className="mb-3">
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Default Tax Account</Form.Label>
@@ -750,6 +961,9 @@ const AddProductModal = ({
                   />
                 </Form.Group>
               </Col>
+            </Row>
+
+            <Row className="mb-3">
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Initial Cost/Unit</Form.Label>
@@ -764,9 +978,6 @@ const AddProductModal = ({
                   />
                 </Form.Group>
               </Col>
-            </Row>
-
-            <Row className="mb-3">
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Default Sale Price (Exclusive)</Form.Label>
@@ -781,6 +992,9 @@ const AddProductModal = ({
                   />
                 </Form.Group>
               </Col>
+            </Row>
+
+            <Row className="mb-3">
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Default Purchase Price (Inclusive)</Form.Label>
@@ -795,9 +1009,6 @@ const AddProductModal = ({
                   />
                 </Form.Group>
               </Col>
-            </Row>
-
-            <Row className="mb-3">
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Default Discount %</Form.Label>
@@ -813,7 +1024,10 @@ const AddProductModal = ({
                   />
                 </Form.Group>
               </Col>
-              <Col md={6}>
+            </Row>
+
+            <Row className="mb-3">
+              <Col md={12}>
                 <Form.Group>
                   <Form.Label>Remarks</Form.Label>
                   <Form.Control
@@ -837,23 +1051,36 @@ const AddProductModal = ({
             disabled={
               isAddingProduct ||
               isUpdatingProduct ||
-              !localNewItem.warehouse ||
-              !!warehouseError
+              localNewItem.productWarehouses.length === 0
             }
           >
             {isAdding ? (
               isAddingProduct ? (
                 <>
-                  <Spinner as="span" animation="border" size="sm" className="me-2" />
+                  <Spinner
+                    as="span"
+                    animation="border"
+                    size="sm"
+                    className="me-2"
+                  />
                   Adding...
                 </>
-              ) : "Add"
+              ) : (
+                "Add"
+              )
             ) : isUpdatingProduct ? (
               <>
-                <Spinner as="span" animation="border" size="sm" className="me-2" />
+                <Spinner
+                  as="span"
+                  animation="border"
+                  size="sm"
+                  className="me-2"
+                />
                 Updating...
               </>
-            ) : "Update"}
+            ) : (
+              "Update"
+            )}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -879,19 +1106,33 @@ const AddProductModal = ({
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAddCategoryModal(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowAddCategoryModal(false)}
+          >
             Cancel
           </Button>
           <Button
-            style={{ backgroundColor: "#27b2b6", border: "none", color: "#fff" }}
+            style={{
+              backgroundColor: "#27b2b6",
+              border: "none",
+              color: "#fff",
+            }}
             onClick={handleAddCategoryApi}
           >
             {isAddingCategory ? (
               <>
-                <Spinner as="span" animation="border" size="sm" className="me-2" />
+                <Spinner
+                  as="span"
+                  animation="border"
+                  size="sm"
+                  className="me-2"
+                />
                 Adding...
               </>
-            ) : "Add"}
+            ) : (
+              "Add"
+            )}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -921,13 +1162,17 @@ const AddProductModal = ({
             Cancel
           </Button>
           <Button
-            style={{ backgroundColor: "#27b2b6", border: "none", color: "#fff" }}
+            style={{
+              backgroundColor: "#27b2b6",
+              border: "none",
+              color: "#fff",
+            }}
             onClick={handleAddUOM}
           >
             Add
           </Button>
         </Modal.Footer>
-      </Modal>  
+      </Modal>
     </>
   );
 };

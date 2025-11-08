@@ -17,6 +17,7 @@ const initialFormData = {
   date: new Date().toISOString().split('T')[0],
   partyName: "",
   customerVendor: "",
+  customerVendorId: "", // Added to store the ID of selected customer/vendor
   voucherNo: "INV0001",
   receiptNo: "",
   paymentMode: "",
@@ -76,24 +77,28 @@ const mapLocalToApiPayload = (localVoucher, companyId, vendors, customers, accou
 
   if (localVoucher.voucherType === "Expense") {
     fromAccountId = localVoucher.fromAccount || "";
-    const vendor = vendors.find(v => v.name_english === localVoucher.customerVendor);
-    vendorId = vendor?.id || "";
+    // Use the stored ID if available, otherwise fall back to name search
+    vendorId = localVoucher.customerVendorId || 
+      (vendors.find(v => v.name_english === localVoucher.customerVendor)?.id || "");
   } else if (localVoucher.voucherType === "Income") {
     fromAccountId = localVoucher.fromAccount || "";
-    const customer = customers.find(c => c.name_english === localVoucher.customerVendor);
-    customerId = customer?.id || "";
+    // Use the stored ID if available, otherwise fall back to name search
+    customerId = localVoucher.customerVendorId || 
+      (customers.find(c => c.name_english === localVoucher.customerVendor)?.id || "");
   } else if (localVoucher.voucherType === "Contra") {
     fromAccountId = localVoucher.fromAccount || "";
     toAccountId = localVoucher.toAccount || "";
     transferAmount = localVoucher.transferAmount || 0;
   } else if (localVoucher.voucherType === "Purchase") {
     fromAccountId = localVoucher.fromAccount || "";
-    const vendor = vendors.find(v => v.name_english === localVoucher.customerVendor);
-    vendorId = vendor?.id || "";
+    // Use the stored ID if available, otherwise fall back to name search
+    vendorId = localVoucher.customerVendorId || 
+      (vendors.find(v => v.name_english === localVoucher.customerVendor)?.id || "");
   } else if (localVoucher.voucherType === "Sales") {
     fromAccountId = localVoucher.fromAccount || "";
-    const customer = customers.find(c => c.name_english === localVoucher.customerVendor);
-    customerId = customer?.id || "";
+    // Use the stored ID if available, otherwise fall back to name search
+    customerId = localVoucher.customerVendorId || 
+      (customers.find(c => c.name_english === localVoucher.customerVendor)?.id || "");
   }
 
   if (fromAccountId) formData.append('from_account', fromAccountId);
@@ -242,6 +247,7 @@ const mapApiVoucherToLocal = (apiVoucher) => {
     partyPhone: apiVoucher.from_phone || "",
     partyAddress: apiVoucher.from_address || "",
     customerVendor: customerVendorName,
+    customerVendorId: apiVoucher.customer_id || apiVoucher.vendor_id || "", // Added to store ID
     fromAccount: apiVoucher.from_account ? String(apiVoucher.from_account) : "",
     toAccount: apiVoucher.to_account ? String(apiVoucher.to_account) : "",
     items,
@@ -287,6 +293,11 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [selectedProductIndex, setSelectedProductIndex] = useState(null);
+  
+  // ✅ New state for customer/vendor search
+  const [customerVendorSearchTerm, setCustomerVendorSearchTerm] = useState("");
+  const [showCustomerVendorDropdown, setShowCustomerVendorDropdown] = useState(false);
+  const [filteredCustomerVendorList, setFilteredCustomerVendorList] = useState([]);
 
   const fetchDropdownData = async () => {
     if (!companyId) return;
@@ -329,11 +340,155 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     }
   };
 
+  // ✅ New function to handle customer/vendor search
+  const handleCustomerVendorSearch = (searchTerm) => {
+    setCustomerVendorSearchTerm(searchTerm);
+    
+    if (!searchTerm.trim()) {
+      // If search term is empty, show all customers or vendors based on voucher type
+      const list = ["Expense", "Purchase"].includes(voucherType) ? vendors : customers;
+      setFilteredCustomerVendorList(list);
+      return;
+    }
+
+    const list = ["Expense", "Purchase"].includes(voucherType) ? vendors : customers;
+    const filtered = list.filter(item => {
+      // Check name fields
+      const nameFields = [
+        item.name_english,
+        item.name,
+        item.company_name,
+        item.customer_name,
+        item.vendor_name,
+        item.display_name
+      ];
+      
+      // Find the first non-empty name field
+      const itemName = nameFields.find(name => name && name.trim() !== '') || '';
+      
+      // Check phone number fields
+      const phoneFields = [
+        item.phone,
+        item.phone_number,
+        item.mobile,
+        item.contact_number,
+        item.telephone
+      ];
+      
+      // Find the first non-empty phone field
+      const itemPhone = phoneFields.find(phone => phone && phone.trim() !== '') || '';
+      
+      // Return true if search term matches either name or phone
+      return itemName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+             itemPhone.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+    
+    setFilteredCustomerVendorList(filtered);
+  };
+
+  // ✅ New function to handle customer/vendor selection
+  const handleCustomerVendorSelect = (item) => {
+    // Get display name
+    const nameFields = [
+      item.name_english,
+      item.name,
+      item.company_name,
+      item.customer_name,
+      item.vendor_name,
+      item.display_name
+    ];
+    
+    const displayName = nameFields.find(name => name && name.trim() !== '') || `ID: ${item.id}`;
+    
+    setFormData({
+      ...formData,
+      customerVendor: displayName,
+      customerVendorId: item.id,
+      customerEmail: item.email || "",
+      customerPhone: item.phone || item.phone_number || "",
+      customerAddress: item.address || ""
+    });
+    
+    setCustomerVendorSearchTerm(displayName);
+    setShowCustomerVendorDropdown(false);
+  };
+
+  // ✅ Helper function to get display name
+  const getDisplayName = (item) => {
+    const nameFields = [
+      item.name_english,
+      item.name,
+      item.company_name,
+      item.customer_name,
+      item.vendor_name,
+      item.display_name
+    ];
+    
+    return nameFields.find(name => name && name.trim() !== '') || `ID: ${item.id}`;
+  };
+
+  // ✅ Helper function to get display phone
+  const getDisplayPhone = (item) => {
+    const phoneFields = [
+      item.phone,
+      item.phone_number,
+      item.mobile,
+      item.contact_number,
+      item.telephone
+    ];
+    
+    return phoneFields.find(phone => phone && phone.trim() !== '') || '';
+  };
+
   useEffect(() => {
     if (productSearchTerm.trim() === "") return;
     const timer = setTimeout(() => fetchProducts(productSearchTerm), 300);
     return () => clearTimeout(timer);
   }, [productSearchTerm, companyId]);
+
+  // ✅ New useEffect for customer/vendor search
+  useEffect(() => {
+    if (customerVendorSearchTerm.trim() === "") {
+      // If search term is empty, show all customers or vendors based on voucher type
+      const list = ["Expense", "Purchase"].includes(voucherType) ? vendors : customers;
+      setFilteredCustomerVendorList(list);
+      return;
+    }
+
+    const list = ["Expense", "Purchase"].includes(voucherType) ? vendors : customers;
+    const filtered = list.filter(item => {
+      // Check name fields
+      const nameFields = [
+        item.name_english,
+        item.name,
+        item.company_name,
+        item.customer_name,
+        item.vendor_name,
+        item.display_name
+      ];
+      
+      // Find the first non-empty name field
+      const itemName = nameFields.find(name => name && name.trim() !== '') || '';
+      
+      // Check phone number fields
+      const phoneFields = [
+        item.phone,
+        item.phone_number,
+        item.mobile,
+        item.contact_number,
+        item.telephone
+      ];
+      
+      // Find the first non-empty phone field
+      const itemPhone = phoneFields.find(phone => phone && phone.trim() !== '') || '';
+      
+      // Return true if search term matches either name or phone
+      return itemName.toLowerCase().includes(customerVendorSearchTerm.toLowerCase()) || 
+             itemPhone.toLowerCase().includes(customerVendorSearchTerm.toLowerCase());
+    });
+    
+    setFilteredCustomerVendorList(filtered);
+  }, [customerVendorSearchTerm, voucherType, vendors, customers]);
 
   const handleProductSelect = (product, index) => {
     const newItems = [...formData.items];
@@ -361,11 +516,20 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     if (editData) {
       setVoucherType(editData.voucherType);
       setFormData(editData);
+      // Initialize search term with the customer/vendor name
+      setCustomerVendorSearchTerm(editData.customerVendor || "");
     } else {
       setVoucherType("Expense");
       setFormData(initialFormData);
+      setCustomerVendorSearchTerm("");
     }
   }, [editData, show]);
+
+  // ✅ Update filtered list when voucher type changes
+  useEffect(() => {
+    const list = ["Expense", "Purchase"].includes(voucherType) ? vendors : customers;
+    setFilteredCustomerVendorList(list);
+  }, [voucherType, vendors, customers]);
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
@@ -464,6 +628,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
       .then(() => {
         setFormData(initialFormData);
         setVoucherType("Expense");
+        setCustomerVendorSearchTerm("");
         onHide();
       })
       .catch((error) => {
@@ -582,24 +747,122 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     if (["Expense", "Purchase"].includes(voucherType)) {
       return (
         <>
-          {loadingVendors ? <Spinner size="sm" /> : (
-            <Form.Select name="customerVendor" value={formData.customerVendor} onChange={handleChange}>
-              <option value="">Select Vendor</option>
-              {vendors.map(v => <option key={v.id} value={v.name_english}>{v.name_english}</option>)}
-            </Form.Select>
-          )}
+          {/* ✅ Updated to use searchable input for vendors */}
+          <div className="position-relative">
+            <InputGroup>
+              <FormControl
+                placeholder="Search vendor by name or phone..."
+                value={customerVendorSearchTerm}
+                onChange={(e) => {
+                  handleCustomerVendorSearch(e.target.value);
+                  setShowCustomerVendorDropdown(true);
+                }}
+                onFocus={() => {
+                  setShowCustomerVendorDropdown(true);
+                  // Initialize with all vendors if search term is empty
+                  if (!customerVendorSearchTerm.trim()) {
+                    setFilteredCustomerVendorList(vendors);
+                  }
+                }}
+              />
+              <InputGroup.Text>
+                <FaSearch />
+              </InputGroup.Text>
+            </InputGroup>
+            {showCustomerVendorDropdown && (
+              <div
+                className="position-absolute w-100 mt-1 shadow-sm bg-white border rounded-1"
+                style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {loadingVendors ? (
+                  <div className="p-3 text-center">
+                    <Spinner as="span" animation="border" size="sm" />
+                    <span className="ms-2">Loading vendors...</span>
+                  </div>
+                ) : filteredCustomerVendorList.length > 0 ? (
+                  filteredCustomerVendorList.map(vendor => (
+                    <div
+                      key={vendor.id}
+                      className="p-3 border-bottom"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => handleCustomerVendorSelect(vendor)}
+                    >
+                      <div className="fw-bold">{getDisplayName(vendor)}</div>
+                      {getDisplayPhone(vendor) && (
+                        <div className="small text-muted">{getDisplayPhone(vendor)}</div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-3 text-center text-muted">
+                    No vendors found
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </>
       );
     }
     if (["Income", "Sales"].includes(voucherType)) {
       return (
         <>
-          {loadingCustomers ? <Spinner size="sm" /> : (
-            <Form.Select name="customerVendor" value={formData.customerVendor} onChange={handleChange}>
-              <option value="">Select Customer</option>
-              {customers.map(c => <option key={c.id} value={c.name_english}>{c.name_english}</option>)}
-            </Form.Select>
-          )}
+          {/* ✅ Updated to use searchable input for customers */}
+          <div className="position-relative">
+            <InputGroup>
+              <FormControl
+                placeholder="Search customer by name or phone..."
+                value={customerVendorSearchTerm}
+                onChange={(e) => {
+                  handleCustomerVendorSearch(e.target.value);
+                  setShowCustomerVendorDropdown(true);
+                }}
+                onFocus={() => {
+                  setShowCustomerVendorDropdown(true);
+                  // Initialize with all customers if search term is empty
+                  if (!customerVendorSearchTerm.trim()) {
+                    setFilteredCustomerVendorList(customers);
+                  }
+                }}
+              />
+              <InputGroup.Text>
+                <FaSearch />
+              </InputGroup.Text>
+            </InputGroup>
+            {showCustomerVendorDropdown && (
+              <div
+                className="position-absolute w-100 mt-1 shadow-sm bg-white border rounded-1"
+                style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {loadingCustomers ? (
+                  <div className="p-3 text-center">
+                    <Spinner as="span" animation="border" size="sm" />
+                    <span className="ms-2">Loading customers...</span>
+                  </div>
+                ) : filteredCustomerVendorList.length > 0 ? (
+                  filteredCustomerVendorList.map(customer => (
+                    <div
+                      key={customer.id}
+                      className="p-3 border-bottom"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => handleCustomerVendorSelect(customer)}
+                    >
+                      <div className="fw-bold">{getDisplayName(customer)}</div>
+                      {getDisplayPhone(customer) && (
+                        <div className="small text-muted">{getDisplayPhone(customer)}</div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-3 text-center text-muted">
+                    No customers found
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </>
       );
     }
@@ -899,12 +1162,61 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
           <h6 className="fw-bold mb-3">Sales Invoice</h6>
           <Form.Group className="mb-3">
             <Form.Label>Customer *</Form.Label>
-            {loadingCustomers ? <Spinner size="sm" /> : (
-              <Form.Select name="partyName" value={formData.partyName} onChange={handleChange}>
-                <option value="">Select Customer</option>
-                {customers.map(c => <option key={c.id} value={c.name_english}>{c.name_english}</option>)}
-              </Form.Select>
-            )}
+            {/* ✅ Updated to use searchable input for customers */}
+            <div className="position-relative">
+              <InputGroup>
+                <FormControl
+                  placeholder="Search customer by name or phone..."
+                  value={customerVendorSearchTerm}
+                  onChange={(e) => {
+                    handleCustomerVendorSearch(e.target.value);
+                    setShowCustomerVendorDropdown(true);
+                  }}
+                  onFocus={() => {
+                    setShowCustomerVendorDropdown(true);
+                    // Initialize with all customers if search term is empty
+                    if (!customerVendorSearchTerm.trim()) {
+                      setFilteredCustomerVendorList(customers);
+                    }
+                  }}
+                />
+                <InputGroup.Text>
+                  <FaSearch />
+                </InputGroup.Text>
+              </InputGroup>
+              {showCustomerVendorDropdown && (
+                <div
+                  className="position-absolute w-100 mt-1 shadow-sm bg-white border rounded-1"
+                  style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  {loadingCustomers ? (
+                    <div className="p-3 text-center">
+                      <Spinner as="span" animation="border" size="sm" />
+                      <span className="ms-2">Loading customers...</span>
+                    </div>
+                  ) : filteredCustomerVendorList.length > 0 ? (
+                    filteredCustomerVendorList.map(customer => (
+                      <div
+                        key={customer.id}
+                        className="p-3 border-bottom"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleCustomerVendorSelect(customer)}
+                      >
+                        <div className="fw-bold">{getDisplayName(customer)}</div>
+                        {getDisplayPhone(customer) && (
+                          <div className="small text-muted">{getDisplayPhone(customer)}</div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-center text-muted">
+                      No customers found
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </Form.Group>
           {renderProductSection()}
         </div>
@@ -925,6 +1237,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     const handleClickOutside = (event) => {
       if (!event.target.closest('.position-relative')) {
         setShowProductDropdown(false);
+        setShowCustomerVendorDropdown(false);
         setSelectedProductIndex(null);
       }
     };
