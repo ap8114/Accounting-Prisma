@@ -1,79 +1,145 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaFilePdf, FaFileExcel } from 'react-icons/fa';
 import { BsGear } from 'react-icons/bs';
 import { BiSolidReport, BiSolidDollarCircle } from 'react-icons/bi';
+import GetCompanyId from '../../../Api/GetCompanyId';
+import axiosInstance from '../../../Api/axiosInstance'; // ✅ Adjust path if needed
 import {
   Table,
-  Container,
   Card,
-  Button,
   Row,
   Col,
-  Modal,
-  Form,
+  ToastContainer,
+  Toast,
 } from "react-bootstrap";
+
 const Salesreport = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [category, setCategory] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  const [tableData, setTableData] = useState([
-    {
-      sku: "PT001",
-      customerName: "John Doe",
-      customerNameArabic: "جون دو", // Arabic: John Doe
-      productName: "Laptop",
-      category: "Computers",
-      soldQty: 5,
-      soldAmount: "$1200",
-      instockQty: 100,
-      status: "Paid",
-    },
-    {
-      sku: "PT002",
-      customerName: "Jane Smith",
-      customerNameArabic: "جين سميث", // Arabic: Jane Smith
-      productName: "Smartphone",
-      category: "Electronics",
-      soldQty: 10,
-      soldAmount: "$800",
-      instockQty: 140,
-      status: "Pending",
-    },
-    {
-      sku: "PT003",
-      customerName: "Michael Brown",
-      customerNameArabic: "مايكل براون", // Arabic: Michael Brown
-      productName: "Tablet",
-      category: "Electronics",
-      soldQty: 8,
-      soldAmount: "$600",
-      instockQty: 300,
-      status: "Overdue",
-    },
-  ]);
-  // Filtered data based on search inputs
-  const filteredData = tableData.filter((row) =>
-    row.customerName.toLowerCase().includes(customerSearch.toLowerCase()) && 
+
+  const companyId = GetCompanyId();
+
+  const [summary, setSummary] = useState({
+    totalAmount: '$0',
+    totalPaid: '$0',
+    totalUnpaid: '$0',
+    overdue: '$0',
+  });
+
+  const [detailedData, setDetailedData] = useState([]);
+  const [pagination, setPagination] = useState({
+    showingFrom: 0,
+    showingTo: 0,
+    totalRecords: 0,
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [errorToast, setErrorToast] = useState({ show: false, message: '' });
+
+  const fetchReports = async () => {
+    if (!companyId) {
+      setErrorToast({ show: true, message: 'Company ID is missing. Please log in again.' });
+      return;
+    }
+
+    setLoading(true);
+    setErrorToast({ show: false, message: '' });
+
+    try {
+      const params = { companyId };
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+      if (category) params.category = category;
+
+      const [summaryRes, detailedRes] = await Promise.all([
+        axiosInstance.get('/sales-reports/summary', { params }),
+        axiosInstance.get('/sales-reports/detailed', { params }),
+      ]);
+
+      // ✅ Process summary
+      if (summaryRes.data?.success && summaryRes.data?.data) {
+        const s = summaryRes.data.data;
+        setSummary({
+          totalAmount: `$${Number(s.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          totalPaid: `$${Number(s.total_paid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          totalUnpaid: `$${Number(s.total_unpaid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          overdue: `$${Number(s.overdue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        });
+      } else {
+        setSummary({ totalAmount: '$0', totalPaid: '$0', totalUnpaid: '$0', overdue: '$0' });
+      }
+
+      // ✅ Process detailed data
+      if (detailedRes.data?.success && Array.isArray(detailedRes.data.data)) {
+        const formattedData = detailedRes.data.data.map((item) => ({
+          sku: item.sku || 'N/A',
+          customerName: item.customer_name || 'N/A',
+          customerNameArabic: item.customer_name_arabic || 'N/A',
+          productName: item.product_name || 'N/A',
+          category: item.category || 'N/A',
+          soldQty: item.sold_qty || 0,
+          soldAmount: `$${Number(item.sold_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          instockQty: item.instock_qty || 0,
+          status: item.status || 'Pending',
+        }));
+        setDetailedData(formattedData);
+
+        // ✅ Pagination info
+        const pag = detailedRes.data.pagination || {};
+        setPagination({
+          showingFrom: pag.showing_from || 0,
+          showingTo: pag.showing_to || 0,
+          totalRecords: pag.total_records || formattedData.length,
+        });
+      } else {
+        setDetailedData([]);
+        setPagination({ showingFrom: 0, showingTo: 0, totalRecords: 0 });
+      }
+    } catch (err) {
+      console.error('API Error:', err);
+      setErrorToast({
+        show: true,
+        message: err?.response?.data?.message || 'Failed to load sales data. Please try again.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReports();
+  }, [companyId]);
+
+  // 🔍 Client-side filtering (only on customer & product name)
+  const filteredData = detailedData.filter((row) =>
+    row.customerName.toLowerCase().includes(customerSearch.toLowerCase()) &&
     row.productName.toLowerCase().includes(productSearch.toLowerCase())
   );
 
-  // 🔹 Cycle status function
+  // 🔁 For demo only — in real app, update via API
   const cycleStatus = (index) => {
     const statuses = ["Paid", "Pending", "Overdue"];
-    setTableData((prev) =>
+    setDetailedData((prev) =>
       prev.map((row, i) =>
         i === index
           ? {
-            ...row,
-            status: statuses[(statuses.indexOf(row.status) + 1) % statuses.length],
-          }
+              ...row,
+              status: statuses[(statuses.indexOf(row.status) + 1) % statuses.length],
+            }
           : row
       )
     );
   };
+
+  const handleGenerate = (e) => {
+    e.preventDefault();
+    fetchReports();
+  };
+
   return (
     <div className="container my-4">
       <div className="mb-4">
@@ -87,7 +153,7 @@ const Salesreport = () => {
           <div className="shadow-sm rounded p-3 bg-white border border-success d-flex align-items-center justify-content-between w-100">
             <div>
               <small className="text-muted">Total Amount</small>
-              <h5 className="fw-bold">$4,56,000</h5>
+              <h5 className="fw-bold">{summary.totalAmount}</h5>
             </div>
             <BiSolidDollarCircle size={28} color="#4CAF50" />
           </div>
@@ -97,7 +163,7 @@ const Salesreport = () => {
           <div className="shadow-sm rounded p-3 bg-white border border-primary d-flex align-items-center justify-content-between w-100">
             <div>
               <small className="text-muted">Total Paid</small>
-              <h5 className="fw-bold">$2,56,42</h5>
+              <h5 className="fw-bold">{summary.totalPaid}</h5>
             </div>
             <BiSolidDollarCircle size={28} color="#1A73E8" />
           </div>
@@ -107,7 +173,7 @@ const Salesreport = () => {
           <div className="shadow-sm rounded p-3 bg-white border border-warning d-flex align-items-center justify-content-between w-100">
             <div>
               <small className="text-muted">Total Unpaid</small>
-              <h5 className="fw-bold">$1,52,45</h5>
+              <h5 className="fw-bold">{summary.totalUnpaid}</h5>
             </div>
             <BiSolidDollarCircle size={28} color="#EF6C00" />
           </div>
@@ -117,7 +183,7 @@ const Salesreport = () => {
           <div className="shadow-sm rounded p-3 bg-white border border-danger d-flex align-items-center justify-content-between w-100">
             <div>
               <small className="text-muted">Overdue</small>
-              <h5 className="fw-bold">$2,56,12</h5>
+              <h5 className="fw-bold">{summary.overdue}</h5>
             </div>
             <BiSolidReport size={28} color="#D32F2F" />
           </div>
@@ -125,74 +191,76 @@ const Salesreport = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-3 rounded mb-3 shadow-sm row g-3">
-        {/* Start Date */}
-        <div className="col-12 col-md-3">
-          <label className="form-label">Start Date</label>
-          <input
-            type="date"
-            className="form-control"
-            value={startDate}
-            onChange={e => setStartDate(e.target.value)}
-          />
-        </div>
+      <form onSubmit={handleGenerate}>
+        <div className="bg-white p-3 rounded mb-3 shadow-sm row g-3">
+          <div className="col-12 col-md-3">
+            <label className="form-label">Start Date</label>
+            <input
+              type="date"
+              className="form-control"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
 
-        {/* End Date */}
-        <div className="col-12 col-md-3">
-          <label className="form-label">End Date</label>
-          <input
-            type="date"
-            className="form-control"
-            value={endDate}
-            onChange={e => setEndDate(e.target.value)}
-          />
-        </div>
+          <div className="col-12 col-md-3">
+            <label className="form-label">End Date</label>
+            <input
+              type="date"
+              className="form-control"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
 
-        {/* Category */}
-        <div className="col-12 col-md-3">
-          <label className="form-label">Category</label>
-          <select className="form-select" value={category} onChange={e => setCategory(e.target.value)}>
-            <option value="">All</option>
-            <option value="Computers">Computers</option>
-            <option value="Electronics">Electronics</option>
-            <option value="Shoe">Shoe</option>
-          </select>
-        </div>
+          <div className="col-12 col-md-3">
+            <label className="form-label">Category</label>
+            <select
+              className="form-select"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="Computers">Computers</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Shoe">Shoe</option>
+            </select>
+          </div>
 
-        {/* Customer Search */}
-        <div className="col-12 col-md-3">
-          <label className="form-label">Search Customer Name</label>
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Search Customer..."
-            value={customerSearch}
-            onChange={e => setCustomerSearch(e.target.value)}
-          />
-        </div>
+          <div className="col-12 col-md-3">
+            <label className="form-label">Search Customer Name</label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search Customer..."
+              value={customerSearch}
+              onChange={(e) => setCustomerSearch(e.target.value)}
+            />
+          </div>
 
-        {/* Product Search */}
-        <div className="col-12 col-md-3">
-          <label className="form-label">Search Product Name</label>
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Search Product..."
-            value={productSearch}
-            onChange={e => setProductSearch(e.target.value)}
-          />
-        </div>
+          <div className="col-12 col-md-3">
+            <label className="form-label">Search Product Name</label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search Product..."
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+            />
+          </div>
 
-        {/* Generate Button */}
-        <div className="col-12 col-md-3 d-flex align-items-end">
-          <button
-            className="btn w-100"
-            style={{ backgroundColor: '#3daaaaff', color: '#fff' }}
-          >
-            Generate Report
-          </button>
+          <div className="col-12 col-md-3 d-flex align-items-end">
+            <button
+              type="submit"
+              className="btn w-100"
+              style={{ backgroundColor: '#3daaaaff', color: '#fff' }}
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'Generate Report'}
+            </button>
+          </div>
         </div>
-      </div>
+      </form>
 
       {/* Table */}
       <div className="bg-white rounded p-3 shadow-sm">
@@ -212,7 +280,7 @@ const Salesreport = () => {
         </div>
 
         <div className="table-responsive">
-          <table className="table table-bordered">
+          <Table className="table table-bordered">
             <thead className="table-light">
               <tr>
                 <th>SKU</th>
@@ -227,7 +295,13 @@ const Salesreport = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredData.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="9" className="text-center text-muted">
+                    Loading...
+                  </td>
+                </tr>
+              ) : filteredData.length > 0 ? (
                 filteredData.map((row, i) => (
                   <tr key={i}>
                     <td>{row.sku}</td>
@@ -244,12 +318,13 @@ const Salesreport = () => {
                       <span
                         role="button"
                         onClick={() => cycleStatus(i)}
-                        className={`badge ${row.status === "Paid"
+                        className={`badge ${
+                          row.status === "Paid"
                             ? "bg-success"
                             : row.status === "Pending"
-                              ? "bg-warning"
-                              : "bg-danger"
-                          }`}
+                            ? "bg-warning text-dark"
+                            : "bg-danger"
+                        }`}
                         style={{ cursor: "pointer" }}
                       >
                         {row.status}
@@ -259,19 +334,20 @@ const Salesreport = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center text-muted">
+                  <td colSpan="9" className="text-center text-muted">
                     No data available
                   </td>
                 </tr>
               )}
             </tbody>
-          </table>
-          {/* Pagination */}
+          </Table>
+
+          {/* Pagination Footer */}
           <div className="d-flex justify-content-between align-items-center mt-3 px-3">
             <span className="small text-muted">
-              Showing 1 to 3 of 3 results
+              Showing {pagination.showingFrom} to {pagination.showingTo} of{' '}
+              {pagination.totalRecords} results
             </span>
-
             <nav>
               <ul className="pagination pagination-sm mb-0">
                 <li className="page-item disabled">
@@ -285,18 +361,15 @@ const Salesreport = () => {
                     1
                   </button>
                 </li>
-                <li className="page-item">
-                  <button className="page-link">2</button>
-                </li>
-                <li className="page-item">
+                <li className="page-item disabled">
                   <button className="page-link rounded-end">&raquo;</button>
                 </li>
               </ul>
             </nav>
           </div>
-
         </div>
       </div>
+
       {/* Page Description */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
@@ -310,6 +383,22 @@ const Salesreport = () => {
           </ul>
         </Card.Body>
       </Card>
+
+      {/* Toast for errors */}
+      <ToastContainer position="top-end" className="p-3">
+        <Toast
+          bg="danger"
+          onClose={() => setErrorToast({ show: false, message: '' })}
+          show={errorToast.show}
+          delay={5000}
+          autohide
+        >
+          <Toast.Header>
+            <strong className="me-auto">Error</strong>
+          </Toast.Header>
+          <Toast.Body className="text-white">{errorToast.message}</Toast.Body>
+        </Toast>
+      </ToastContainer>
     </div>
   );
 };

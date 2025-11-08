@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   Button,
@@ -11,15 +11,20 @@ import {
   Spinner,
   InputGroup
 } from 'react-bootstrap';
-import { FaEye, FaEdit, FaTrash, FaSearch } from "react-icons/fa";
-import { BiPlus, BiSearch as BiSearchIcon } from 'react-icons/bi';
+import {
+  FaEye, FaEdit, FaTrash, FaSearch
+} from "react-icons/fa";
+import { BiPlus } from 'react-icons/bi';
 import axiosInstance from "../../../Api/axiosInstance";
 import GetCompanyId from "../../../Api/GetCompanyId";
 
 const STATUS_OPTIONS = ['pending', 'approved', 'rejected'];
 
+// Helper: Capitalize status
+const formatStatus = (status) => status?.charAt(0).toUpperCase() + status?.slice(1) || '—';
+
 const getStatusVariant = (status) => {
-  switch (status) {
+  switch (status?.toLowerCase()) {
     case 'approved': return 'success';
     case 'pending': return 'warning';
     case 'rejected': return 'danger';
@@ -49,15 +54,35 @@ const PurchaseReturn = () => {
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
 
-  // Search states for dropdowns
+  // Search states
   const [vendorSearch, setVendorSearch] = useState('');
   const [warehouseSearch, setWarehouseSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
 
-  // Show dropdown states
+  // Dropdown visibility (only one open at a time)
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
   const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
+
+  const closeAllDropdowns = () => {
+    setShowVendorDropdown(false);
+    setShowWarehouseDropdown(false);
+    setShowProductDropdown(false);
+  };
+
+  // Controlled dropdown handlers
+  const openVendorDropdown = () => {
+    closeAllDropdowns();
+    setShowVendorDropdown(true);
+  };
+  const openWarehouseDropdown = () => {
+    closeAllDropdowns();
+    setShowWarehouseDropdown(true);
+  };
+  const openProductDropdown = () => {
+    closeAllDropdowns();
+    setShowProductDropdown(true);
+  };
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [itemQty, setItemQty] = useState(1);
@@ -92,13 +117,20 @@ const PurchaseReturn = () => {
 
   const [formData, setFormData] = useState(initialFormData);
 
-  // ✅ Fixed fetch functions to handle { success, data: [...] } structure
+  // ✅ FIX: Handle both array AND single object response
   const fetchReturns = async () => {
     if (!companyId) return [];
     try {
-      const res = await axiosInstance.get(`/get-particular/${companyId}`);
-      // API returns: { success: true,  [...] }
-      return Array.isArray(res.data?.data) ? res.data.data : [];
+      const res = await axiosInstance.get(`/get-particular/${companyId}`); 
+      const data = res.data?.data;
+      // If it's a single object, wrap in array. If array, use as-is.
+      if (Array.isArray(data)) {
+        return data;
+      } else if (data && typeof data === 'object') {
+        return [data];
+      } else {
+        return [];
+      }
     } catch (err) {
       console.error('Failed to load returns', err);
       setError("Failed to load purchase returns.");
@@ -219,6 +251,7 @@ const PurchaseReturn = () => {
     setItemRate(0);
     setItemTaxPercent(18);
     setItemDiscount(0);
+    closeAllDropdowns();
   };
 
   const handleRemoveItem = (index) => {
@@ -247,7 +280,6 @@ const PurchaseReturn = () => {
 
     const safeRefId = `REF-PR-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`.toUpperCase();
 
-    // ✅ ONLY send purchase_return_items (as per your API structure)
     const purchaseReturnItems = formData.items.map(item => ({
       product_id: item.product_id,
       item_name: item.item_name,
@@ -280,7 +312,6 @@ const PurchaseReturn = () => {
       tax_total: formData.tax_total,
       discount_total: formData.discount_total,
       grand_total: formData.grand_total,
-      // ✅ ONLY send purchase_return_items (your API expects this)
       purchase_return_items: purchaseReturnItems,
     };
 
@@ -296,6 +327,7 @@ const PurchaseReturn = () => {
       setShowModal(false);
       setFormData(initialFormData);
       setIsEditMode(false);
+      closeAllDropdowns();
     } catch (err) {
       console.error("Submit error", err);
       const message = err.response?.data?.message || "An error occurred. Please try again.";
@@ -303,7 +335,7 @@ const PurchaseReturn = () => {
     }
   };
 
-  // ✅ Safe filter with array check
+  // ✅ Safe filter
   const filteredReturns = (Array.isArray(returns) ? returns : []).filter((item) => {
     const matchesSearch =
       searchTerm === '' ||
@@ -312,18 +344,18 @@ const PurchaseReturn = () => {
       (item.invoice_no && item.invoice_no.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
-    const matchesWarehouse = warehouseFilter === 'All' || item.warehouse_id == warehouseFilter;
+    const matchesWarehouse = warehouseFilter === 'All' || String(item.warehouse_id) === String(warehouseFilter);
 
     return matchesSearch && matchesStatus && matchesWarehouse;
   });
 
   const getVendorName = (id) => {
-    const v = vendors.find(v => v.id === id);
+    const v = vendors.find(v => String(v.id) === String(id));
     return v ? v.name_english : '—';
   };
 
   const getWarehouseName = (id) => {
-    const w = warehouses.find(w => w.id === id);
+    const w = warehouses.find(w => String(w.id) === String(id));
     return w ? w.warehouse_name : '—';
   };
 
@@ -333,7 +365,6 @@ const PurchaseReturn = () => {
   };
 
   const handleEditClick = (item) => {
-    // ✅ Convert string numbers to actual numbers
     const normalizedItems = (item.purchase_return_items || []).map(i => ({
       id: i.id,
       purchase_return_id: i.purchase_return_id,
@@ -351,12 +382,12 @@ const PurchaseReturn = () => {
 
     setFormData({
       id: item.id,
-      vendor_id: item.vendor_id?.toString() || '',
+      vendor_id: String(item.vendor_id) || '',
       vendor_name: item.vendor_name || '',
       return_no: item.return_no || '',
       invoice_no: item.invoice_no || '',
       return_date: item.return_date ? item.return_date.split('T')[0] : '',
-      warehouse_id: item.warehouse_id?.toString() || '',
+      warehouse_id: String(item.warehouse_id) || '',
       warehouse_name: getWarehouseName(item.warehouse_id),
       return_type: item.return_type || 'Purchase Return',
       reason_for_return: item.reason_for_return || '',
@@ -382,26 +413,35 @@ const PurchaseReturn = () => {
     setShowDeleteModal(true);
   };
 
-  // Filter vendors based on search
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await axiosInstance.delete(`/delete-purchase-return/${deleteId}`);
+      alert("Purchase return deleted successfully.");
+      fetchData();
+      setShowDeleteModal(false);
+    } catch (err) {
+      console.error("Delete error", err);
+      alert(err.response?.data?.message || "Failed to delete. Please try again.");
+    }
+  };
+
   const filteredVendors = vendors.filter(vendor =>
     vendor.name_english.toLowerCase().includes(vendorSearch.toLowerCase())
   );
 
-  // Filter warehouses based on search
   const filteredWarehouses = warehouses.filter(warehouse => {
     if (!warehouse) return false;
     const name = warehouse.warehouse_name || '';
     return name.toLowerCase().includes(warehouseSearch.toLowerCase());
   });
 
-  // Filter products based on search
   const filteredProducts = products.filter(product => {
     if (!product) return false;
     const name = product.item_name || '';
     return name.toLowerCase().includes(productSearch.toLowerCase());
   });
 
-  // Custom Search Input Component
   const SearchInput = ({
     items,
     value,
@@ -412,7 +452,7 @@ const PurchaseReturn = () => {
     displayField = "name_english",
     idField = "id",
     showDropdown,
-    setShowDropdown
+    onOpen
   }) => (
     <div className="position-relative">
       <InputGroup>
@@ -421,7 +461,7 @@ const PurchaseReturn = () => {
           placeholder={placeholder}
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
-          onFocus={() => setShowDropdown(true)}
+          onFocus={onOpen}
         />
         <InputGroup.Text><FaSearch /></InputGroup.Text>
       </InputGroup>
@@ -438,7 +478,7 @@ const PurchaseReturn = () => {
                 onClick={() => {
                   onChange(item[idField], item[displayField]);
                   onSearchChange('');
-                  setShowDropdown(false);
+                  closeAllDropdowns();
                 }}
               >
                 {item[displayField]}
@@ -472,33 +512,15 @@ const PurchaseReturn = () => {
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <h2 className="mb-0 fw-bold text-dark">Purchase Returns</h2>
         <div className="d-flex gap-2 flex-wrap">
-          <Button
-            variant="success"
-            size="sm"
-            className="rounded-pill px-2 py-0 text-nowrap"
-            disabled
-          >
+          <Button variant="success" size="sm" className="rounded-pill px-2 py-0 text-nowrap" disabled>
             <i className="fas fa-file-import me-1" /> Import
           </Button>
-
-          <Button
-            variant="warning"
-            size="sm"
-            className="rounded-pill px-2 py-0 text-nowrap"
-            disabled
-          >
+          <Button variant="warning" size="sm" className="rounded-pill px-2 py-0 text-nowrap" disabled>
             <i className="fas fa-file-export me-1" /> Export
           </Button>
-
-          <Button
-            variant="info"
-            size="sm"
-            className="rounded-pill px-2 py-0 text-nowrap"
-            disabled
-          >
+          <Button variant="info" size="sm" className="rounded-pill px-2 py-0 text-nowrap" disabled>
             <i className="fas fa-download me-1" /> Download
           </Button>
-
           <Button
             variant="primary"
             size="sm"
@@ -513,18 +535,15 @@ const PurchaseReturn = () => {
               setShowModal(true);
             }}
           >
-            <BiPlus size={14} className="me-1 text-nowrap" /> New Return
+            <BiPlus size={14} className="me-1" /> New Return
           </Button>
         </div>
-
       </div>
 
       <Row className="mb-4 g-3">
         <Col lg={4} md={6}>
           <div className="input-group">
-            <span className="input-group-text bg-light">
-              <BiSearchIcon />
-            </span>
+            <span className="input-group-text bg-light"><FaSearch /></span>
             <Form.Control
               type="text"
               placeholder="Search returns..."
@@ -538,7 +557,7 @@ const PurchaseReturn = () => {
             <option value="All">Status: All</option>
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {formatStatus(s)}
               </option>
             ))}
           </Form.Select>
@@ -582,9 +601,7 @@ const PurchaseReturn = () => {
             <tbody>
               {filteredReturns.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="text-muted py-4">
-                    No purchase returns found.
-                  </td>
+                  <td colSpan="9" className="text-muted py-4">No purchase returns found.</td>
                 </tr>
               ) : (
                 filteredReturns.map((item) => (
@@ -597,9 +614,9 @@ const PurchaseReturn = () => {
                     <td className="text-muted">
                       {item.return_date ? item.return_date.split('T')[0] : ''}
                     </td>
-                    <td className="fw-bold">₹{item.grand_total?.toLocaleString()}</td>
+                    <td className="fw-bold">₹{Number(item.grand_total).toLocaleString()}</td>
                     <td>
-                      <Badge bg={getStatusVariant(item.status)}>{item.status}</Badge>
+                      <Badge bg={getStatusVariant(item.status)}>{formatStatus(item.status)}</Badge>
                     </td>
                     <td>
                       <div className="d-flex gap-2 justify-content-center">
@@ -621,9 +638,7 @@ const PurchaseReturn = () => {
           </Table>
         </div>
         <div className="d-flex justify-content-between align-items-center p-3 bg-white">
-          <small className="text-muted">
-            Showing {filteredReturns.length} of {returns.length} entries
-          </small>
+          <small className="text-muted">Showing {filteredReturns.length} of {returns.length} entries</small>
           <div className="btn-group btn-group-sm">
             <button className="btn btn-outline-secondary disabled">&laquo;</button>
             <button className="btn btn-primary">1</button>
@@ -633,7 +648,7 @@ const PurchaseReturn = () => {
       </Card>
 
       {/* Add/Edit Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
+      <Modal show={showModal} onHide={() => { setShowModal(false); closeAllDropdowns(); }} size="lg" centered>
         <Modal.Header closeButton>
           <Modal.Title>{isEditMode ? 'Edit Purchase Return' : 'Add New Purchase Return'}</Modal.Title>
         </Modal.Header>
@@ -653,20 +668,16 @@ const PurchaseReturn = () => {
                 <Form.Group>
                   <Form.Label>Vendor *</Form.Label>
                   <SearchInput
-                    items={vendors}
+                    items={filteredVendors}
                     value={formData.vendor_name}
                     onChange={(id, name) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        vendor_id: id,
-                        vendor_name: name
-                      }));
+                      setFormData((prev) => ({ ...prev, vendor_id: id, vendor_name: name }));
                     }}
                     placeholder="Search vendor..."
                     searchValue={vendorSearch}
                     onSearchChange={setVendorSearch}
                     showDropdown={showVendorDropdown}
-                    setShowDropdown={setShowVendorDropdown}
+                    onOpen={openVendorDropdown}
                   />
                 </Form.Group>
               </Col>
@@ -701,21 +712,17 @@ const PurchaseReturn = () => {
                 <Form.Group>
                   <Form.Label>Warehouse *</Form.Label>
                   <SearchInput
-                    items={warehouses}
+                    items={filteredWarehouses}
                     value={formData.warehouse_name}
                     onChange={(id, name) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        warehouse_id: id,
-                        warehouse_name: name
-                      }));
+                      setFormData((prev) => ({ ...prev, warehouse_id: id, warehouse_name: name }));
                     }}
                     placeholder="Search warehouse..."
                     searchValue={warehouseSearch}
                     onSearchChange={setWarehouseSearch}
                     displayField="warehouse_name"
                     showDropdown={showWarehouseDropdown}
-                    setShowDropdown={setShowWarehouseDropdown}
+                    onOpen={openWarehouseDropdown}
                   />
                 </Form.Group>
               </Col>
@@ -729,7 +736,7 @@ const PurchaseReturn = () => {
                   >
                     {STATUS_OPTIONS.map((s) => (
                       <option key={s} value={s}>
-                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                        {formatStatus(s)}
                       </option>
                     ))}
                   </Form.Select>
@@ -813,13 +820,14 @@ const PurchaseReturn = () => {
                 <Col md={3}>
                   <Form.Group>
                     <SearchInput
-                      items={products}
+                      items={filteredProducts}
                       value={selectedProduct?.item_name || ''}
                       onChange={(id, name) => {
-                        const prod = products.find(p => p.id == id);
+                        const prod = products.find(p => String(p.id) === String(id));
                         setSelectedProduct(prod || null);
-                        if (prod && prod.sale_price) {
-                          setItemRate(parseFloat(prod.sale_price));
+                        // Use purchase_price or default if not available
+                        if (prod && (prod.purchase_price || prod.sale_price)) {
+                          setItemRate(parseFloat(prod.purchase_price || prod.sale_price) || 0);
                         } else {
                           setItemRate(0);
                         }
@@ -829,7 +837,7 @@ const PurchaseReturn = () => {
                       onSearchChange={setProductSearch}
                       displayField="item_name"
                       showDropdown={showProductDropdown}
-                      setShowDropdown={setShowProductDropdown}
+                      onOpen={openProductDropdown}
                     />
                   </Form.Group>
                 </Col>
@@ -870,9 +878,7 @@ const PurchaseReturn = () => {
                   />
                 </Col>
                 <Col md={1}>
-                  <Button variant="primary" onClick={handleAddItem} className="w-100">
-                    +
-                  </Button>
+                  <Button variant="primary" onClick={handleAddItem} className="w-100">+</Button>
                 </Col>
               </Row>
 
@@ -894,9 +900,9 @@ const PurchaseReturn = () => {
                       <tr key={idx}>
                         <td>{item.item_name}</td>
                         <td>{item.quantity}</td>
-                        <td>₹{item.rate}</td>
+                        <td>₹{item.rate.toFixed(2)}</td>
                         <td>{item.tax_percent}%</td>
-                        <td>₹{item.discount}</td>
+                        <td>₹{item.discount.toFixed(2)}</td>
                         <td>₹{item.amount.toLocaleString()}</td>
                         <td className="text-center">
                           <Button size="sm" variant="danger" onClick={() => handleRemoveItem(idx)}>
@@ -917,7 +923,7 @@ const PurchaseReturn = () => {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
+          <Button variant="secondary" onClick={() => { setShowModal(false); closeAllDropdowns(); }}>
             Cancel
           </Button>
           <Button
@@ -939,47 +945,29 @@ const PurchaseReturn = () => {
           {selectedReturn && (
             <div>
               <Row className="mb-3">
-                <Col md={6}>
-                  <strong>Reference ID:</strong> {selectedReturn.reference_id}
-                </Col>
-                <Col md={6}>
-                  <strong>Return No:</strong> {selectedReturn.return_no}
-                </Col>
+                <Col md={6}><strong>Reference ID:</strong> {selectedReturn.reference_id}</Col>
+                <Col md={6}><strong>Return No:</strong> {selectedReturn.return_no}</Col>
               </Row>
               <Row className="mb-3">
-                <Col md={6}>
-                  <strong>Invoice:</strong> {selectedReturn.invoice_no}
-                </Col>
-                <Col md={6}>
-                  <strong>Vendor:</strong> {getVendorName(selectedReturn.vendor_id)}
-                </Col>
+                <Col md={6}><strong>Invoice:</strong> {selectedReturn.invoice_no}</Col>
+                <Col md={6}><strong>Vendor:</strong> {getVendorName(selectedReturn.vendor_id)}</Col>
               </Row>
               <Row className="mb-3">
-                <Col md={6}>
-                  <strong>Warehouse:</strong> {getWarehouseName(selectedReturn.warehouse_id)}
-                </Col>
-                <Col md={6}>
-                  <strong>Date:</strong> {selectedReturn.return_date?.split('T')[0]}
-                </Col>
+                <Col md={6}><strong>Warehouse:</strong> {getWarehouseName(selectedReturn.warehouse_id)}</Col>
+                <Col md={6}><strong>Date:</strong> {selectedReturn.return_date?.split('T')[0]}</Col>
               </Row>
               <Row className="mb-3">
-                <Col md={6}>
-                  <strong>Amount:</strong> ₹{selectedReturn.grand_total?.toLocaleString()}
-                </Col>
+                <Col md={6}><strong>Amount:</strong> ₹{Number(selectedReturn.grand_total).toLocaleString()}</Col>
                 <Col md={6}>
                   <strong>Status:</strong>
                   <Badge bg={getStatusVariant(selectedReturn.status)} className="ms-2">
-                    {selectedReturn.status}
+                    {formatStatus(selectedReturn.status)}
                   </Badge>
                 </Col>
               </Row>
               <Row className="mb-3">
-                <Col md={6}>
-                  <strong>Reason:</strong> {selectedReturn.reason_for_return || 'N/A'}
-                </Col>
-                <Col md={6}>
-                  <strong>Manual Voucher:</strong> {selectedReturn.manual_voucher_no || '—'}
-                </Col>
+                <Col md={6}><strong>Reason:</strong> {selectedReturn.reason_for_return || 'N/A'}</Col>
+                <Col md={6}><strong>Manual Voucher:</strong> {selectedReturn.manual_voucher_no || '—'}</Col>
               </Row>
               <Row className="mb-3">
                 <Col md={12}>
@@ -1027,7 +1015,7 @@ const PurchaseReturn = () => {
                       ))}
                       <tr className="fw-bold">
                         <td colSpan={5} className="text-end">Grand Total</td>
-                        <td>₹{selectedReturn.grand_total?.toLocaleString()}</td>
+                        <td>₹{Number(selectedReturn.grand_total).toLocaleString()}</td>
                       </tr>
                     </tbody>
                   </Table>
@@ -1037,9 +1025,7 @@ const PurchaseReturn = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="primary" onClick={() => setShowViewModal(false)}>
-            Close
-          </Button>
+          <Button variant="primary" onClick={() => setShowViewModal(false)}>Close</Button>
         </Modal.Footer>
       </Modal>
 
@@ -1052,12 +1038,8 @@ const PurchaseReturn = () => {
           <p>Are you sure you want to delete this purchase return? This action cannot be undone.</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger">
-            Delete
-          </Button>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
+          <Button variant="danger" onClick={handleConfirmDelete}>Delete</Button>
         </Modal.Footer>
       </Modal>
 
