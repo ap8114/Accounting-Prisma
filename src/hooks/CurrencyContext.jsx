@@ -20,10 +20,12 @@ export const CurrencyProvider = ({ children }) => {
     setSymbol(symbols[currency] || currency);
   }, [currency]);
 
-  const convertPrice = (priceInUSD) => {
-    if (!rates[currency]) return priceInUSD.toFixed(2);
-    return (priceInUSD * rates[currency]).toFixed(2);
-  };
+const convertPrice = (priceInUSD) => {
+  const price = parseFloat(priceInUSD) || 0;
+  if (!rates[currency]) return price.toFixed(2);
+  return (price * rates[currency]).toFixed(2);
+};
+
 
   return (
     <CurrencyContext.Provider value={{ currency, setCurrency, convertPrice, symbol }}>

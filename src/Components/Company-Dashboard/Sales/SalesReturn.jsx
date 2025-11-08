@@ -1,151 +1,35 @@
-
-
-
-
-import React, { useState, useRef, useMemo } from 'react';
-import { Table, Button, Badge, Form, Row, Col, InputGroup, Modal } from 'react-bootstrap';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Table, Button, Badge, Form, Row, Col, InputGroup, Modal, Spinner, Alert } from 'react-bootstrap';
 import { FaEye, FaDownload, FaTrash, FaUpload, FaFile, FaCalendarAlt, FaSearch, FaEdit } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowRight } from "react-icons/fa";
 import { Card } from "react-bootstrap";
-
-// Initial Data with referenceId and narration
-const initialReturns = [
-  {
-    id: 1,
-    returnNo: 'SR-1001',
-    invoiceNo: 'INV-2045',
-    customer: 'Client A',
-    date: '20-07-2025',
-    items: 2,
-    status: 'Processed',
-    amount: 15000,
-    returnType: 'Sales Return',
-    reason: 'Defective Product',
-    warehouse: 'Main Warehouse',
-    referenceId: 'REF-1001',
-    voucherNo: 'VR-1001',
-    narration: 'Customer reported laptop screen damage',
-    itemsList: [
-      { productId: 1, productName: 'Laptop Dell XPS 13', qty: 1, price: 80000, total: 80000, narration: 'Screen damaged' },
-      { productId: 2, productName: 'Wireless Mouse', qty: 1, price: 1200, total: 1200, narration: 'Not working' }
-    ]
-  },
-  {
-    id: 2,
-    returnNo: 'SR-1002',
-    invoiceNo: 'INV-2046',
-    customer: 'Client B',
-    date: '21-07-2025',
-    items: 1,
-    status: 'Pending',
-    amount: 8000,
-    returnType: 'Credit Note',
-    reason: 'Wrong Item',
-    warehouse: 'North Branch',
-    referenceId: 'REF-1002',
-    voucherNo: 'VR-1002',
-    narration: 'Ordered wireless keyboard but received wired version',
-    itemsList: [
-      { productId: 4, productName: 'Keyboard Logitech', qty: 1, price: 8000, total: 8000, narration: 'Received wired instead of wireless' }
-    ]
-  },
-  {
-    id: 3,
-    returnNo: 'SR-1003',
-    invoiceNo: 'INV-2047',
-    customer: 'Client C',
-    date: '22-07-2025',
-    items: 3,
-    status: 'Approved',
-    amount: 22000,
-    returnType: 'Sales Return',
-    reason: 'Quality Issue',
-    warehouse: 'South Branch',
-    referenceId: 'REF-1003',
-    voucherNo: 'VR-1003',
-    narration: 'Monitor had dead pixels on arrival',
-    itemsList: [
-      { productId: 5, productName: 'Monitor 24"', qty: 1, price: 15000, total: 15000, narration: 'Dead pixels in center' },
-      { productId: 3, productName: 'USB Cable', qty: 2, price: 300, total: 600, narration: 'Damaged connectors' }
-    ]
-  },
-  {
-    id: 4,
-    returnNo: 'SR-1004',
-    invoiceNo: 'INV-2048',
-    customer: 'Client A',
-    date: '23-07-2025',
-    items: 1,
-    status: 'Rejected',
-    amount: 5000,
-    returnType: 'Credit Note',
-    reason: 'No Issue Found',
-    warehouse: 'Main Warehouse',
-    referenceId: 'REF-1004',
-    voucherNo: 'VR-1004',
-    narration: 'Product tested and found to be in working condition',
-    itemsList: [
-      { productId: 2, productName: 'Wireless Mouse', qty: 1, price: 5000, total: 5000, narration: 'No issues found' }
-    ]
-  },
-  {
-    id: 5,
-    returnNo: 'SR-1005',
-    invoiceNo: 'INV-2049',
-    customer: 'Client D',
-    date: '24-07-2025',
-    items: 2,
-    status: 'Processed',
-    amount: 12000,
-    returnType: 'Sales Return',
-    reason: 'Damaged in Transit',
-    warehouse: 'East Branch',
-    referenceId: 'REF-1005',
-    voucherNo: 'VR-1005',
-    narration: 'Package arrived with visible damage to outer box',
-    itemsList: [
-      { productId: 1, productName: 'Laptop Dell XPS 13', qty: 1, price: 10000, total: 10000, narration: 'Dented corner' },
-      { productId: 3, productName: 'USB Cable', qty: 1, price: 2000, total: 2000, narration: 'Cable cut' }
-    ]
-  }
-];
-
-const warehouseOptions = [
-  'Main Warehouse',
-  'North Branch',
-  'South Branch',
-  'East Branch',
-  'West Branch'
-];
-
-// Status & Type Badges
-const getStatusBadge = (status) => {
-  switch (status) {
-    case 'Processed': return <Badge bg="success">Processed</Badge>;
-    case 'Pending': return <Badge bg="warning" text="dark">Pending</Badge>;
-    case 'Approved': return <Badge bg="info">Approved</Badge>;
-    case 'Rejected': return <Badge bg="danger">Rejected</Badge>;
-    default: return <Badge bg="secondary">{status}</Badge>;
-  }
-};
-
-const getReturnTypeBadge = (returnType) => {
-  if (returnType === 'Sales Return') return <Badge bg="primary">Sales Return</Badge>;
-  if (returnType === 'Credit Note') return <Badge bg="secondary">Credit Note</Badge>;
-  return <Badge bg="light" text="dark">{returnType}</Badge>;
-};
-
-const productOptions = [
-  { id: 1, name: 'Laptop Dell XPS 13', price: 80000 },
-  { id: 2, name: 'Wireless Mouse', price: 1200 },
-  { id: 3, name: 'USB Cable', price: 300 },
-  { id: 4, name: 'Keyboard Logitech', price: 2500 },
-  { id: 5, name: 'Monitor 24"', price: 15000 }
-];
+import axiosInstance from '../../../Api/axiosInstance';
+import GetCompanyId from '../../../Api/GetCompanyId';
 
 const SalesReturn = () => {
-  const [returns, setReturns] = useState(initialReturns);
+  const [returns, setReturns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const companyId = GetCompanyId();
+
+  // Dropdown data
+  const [customers, setCustomers] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [products, setProducts] = useState([]);
+  
+  // Search states for dropdowns
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [warehouseSearch, setWarehouseSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  
+  // Show dropdown states
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+
+  // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [returnTypeFilter, setReturnTypeFilter] = useState('All');
@@ -155,92 +39,169 @@ const SalesReturn = () => {
   const [dateTo, setDateTo] = useState('');
   const [amountMin, setAmountMin] = useState('');
   const [amountMax, setAmountMax] = useState('');
-  const [voucherNo, setVoucherNo] = useState(''); // For manual input
-  const [autoVoucherNo, setAutoVoucherNo] = useState('VR-1001'); // Auto-generated voucher number
-  
+  const [voucherNo, setVoucherNo] = useState('');
+
   const navigate = useNavigate();
   const fileInputRef = useRef();
-  
+
   // Modal States
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editReturn, setEditReturn] = useState(null); 
+  const [editReturn, setEditReturn] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newReturn, setNewReturn] = useState({
     returnNo: '',
     invoiceNo: '',
-    customer: '',
+    customerId: null,
+    customerName: '',
     date: '',
     items: 0,
-    status: 'Pending',
+    status: 'pending',
     amount: 0,
     returnType: 'Sales Return',
     reason: '',
-    warehouse: warehouseOptions[0],
+    warehouseId: null,
+    warehouseName: '',
     referenceId: '',
     voucherNo: '',
     narration: '',
     itemsList: []
   });
-  
-  // Derived Data
-  const uniqueCustomers = [...new Set(returns.map(r => r.customer))];
+
+  // ========= FETCH DROPDOWN DATA =========
+  const fetchCustomers = async () => {
+    try {
+      const res = await axiosInstance.get(`/vendorCustomer/company/${companyId}`, { params: { type: 'customer' } });
+      const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setCustomers(data);
+      console.log("Customers loaded:", data.length); // Debug log
+    } catch (err) {
+      console.error('Failed to load customers', err);
+    }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      const res = await axiosInstance.get(`/warehouses/company/${companyId}`);
+      const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setWarehouses(data);
+      console.log("Warehouses loaded:", data.length); // Debug log
+      console.log("First warehouse:", data[0]); // Debug log
+    } catch (err) {
+      console.error('Failed to load warehouses', err);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const res = await axiosInstance.get(`/products/company/${companyId}`);
+      const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setProducts(data);
+      console.log("Products loaded:", data.length); // Debug log
+    } catch (err) {
+      console.error('Failed to load products', err);
+    }
+  };
+
+  // ========= FETCH SALES RETURNS =========
+  const fetchReturns = async () => {
+    try {
+      setLoading(true);
+      const response = await axiosInstance.get(`/get-returns`, {
+        params: {company_id: companyId}
+      });
+      const data = response.data;
+      const mapped = (data.data || []).map(r => ({
+        id: r.id,
+        returnNo: r.return_no,
+        invoiceNo: r.invoice_no,
+        customerId: r.customer_id,
+        customerName: r.customer_name || 'Unknown',
+        date: r.return_date ? r.return_date.split('T')[0] : '',
+        items: r.sales_return_items?.reduce((sum, i) => sum + (parseInt(i.quantity) || 0), 0) || 0,
+        status: r.status.charAt(0).toUpperCase() + r.status.slice(1),
+        amount: parseFloat(r.grand_total) || 0,
+        returnType: r.return_type || 'Sales Return',
+        reason: r.reason_for_return || '',
+        warehouseId: r.warehouse_id,
+        warehouseName: r.warehouse_name || '',
+        referenceId: r.reference_id || '',
+        voucherNo: r.manual_voucher_no || '',
+        narration: r.notes || '',
+        itemsList: (r.sales_return_items || []).map(i => ({
+          productId: i.product_id,
+          productName: i.item_name || '',
+          qty: parseInt(i.quantity) || 0,
+          price: parseFloat(i.rate) || 0,
+          total: parseFloat(i.amount) || 0,
+          narration: i.notes || ''
+        }))
+      }));
+      setReturns(mapped);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || err.message || 'Failed to load sales returns');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+    fetchWarehouses();
+    fetchProducts();
+    fetchReturns();
+  }, []);
+
+  const uniqueCustomers = [...new Set(returns.map(r => r.customerName))];
   const uniqueReturnTypes = [...new Set(returns.map(r => r.returnType))];
-  
-  // Filtered Returns
+
   const filteredReturns = useMemo(() => {
     return returns.filter(item => {
       const matchesSearch = [
         item.returnNo,
         item.invoiceNo,
-        item.customer,
+        item.customerName,
         item.reason,
-        item.warehouse,
+        item.warehouseName,
         item.narration
-      ].some(field => field.toLowerCase().includes(searchTerm.toLowerCase()));
-      
+      ].some(field => field?.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
       const matchesType = returnTypeFilter === 'All' || item.returnType === returnTypeFilter;
-      const matchesWarehouse = warehouseFilter === 'All' || item.warehouse === warehouseFilter;
-      const matchesCustomer = !customerFilter || item.customer === customerFilter;
-      
+      const matchesWarehouse = warehouseFilter === 'All' || item.warehouseName === warehouseFilter;
+      const matchesCustomer = !customerFilter || item.customerName === customerFilter;
       let matchesDate = true;
       if (dateFrom || dateTo) {
-        const returnDate = new Date(item.date.split('-').reverse().join('-'));
-        if (dateFrom) {
-          const fromDate = new Date(dateFrom);
-          matchesDate = returnDate >= fromDate;
-        }
-        if (dateTo && matchesDate) {
-          const toDate = new Date(dateTo);
-          matchesDate = returnDate <= toDate;
-        }
+        const returnDate = new Date(item.date);
+        if (dateFrom) matchesDate = returnDate >= new Date(dateFrom);
+        if (dateTo && matchesDate) matchesDate = returnDate <= new Date(dateTo);
       }
-      
       let matchesAmount = true;
       if (amountMin) matchesAmount = item.amount >= parseFloat(amountMin);
       if (amountMax && matchesAmount) matchesAmount = item.amount <= parseFloat(amountMax);
-      
       return matchesSearch && matchesStatus && matchesType && matchesWarehouse && matchesCustomer && matchesDate && matchesAmount;
     });
   }, [returns, searchTerm, statusFilter, returnTypeFilter, warehouseFilter, customerFilter, dateFrom, dateTo, amountMin, amountMax]);
-  
-  // Delete Handler
-  const handleDelete = (id) => {
-    if (window.confirm("Are you sure you want to delete this sales return?")) {
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this sales return?")) return;
+    try {
+      await axiosInstance.delete(`/delete-sale/${id}`);
       setReturns(prev => prev.filter(r => r.id !== id));
+      alert("Sales return deleted successfully!");
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to delete sales return.");
     }
   };
-  
-  // Export All as CSV
+
   const handleExportAll = () => {
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    let csvContent = "text/csv;charset=utf-8,\uFEFF";
     csvContent += "Reference ID,Return No,Invoice No,Customer,Date,Items,Amount,Status,Return Type,Reason,Warehouse,Narration\n";
     returns.forEach(r => {
-      csvContent += `"${r.referenceId}","${r.returnNo}","${r.invoiceNo}","${r.customer}","${r.date}",${r.items},${r.amount},"${r.status}","${r.returnType}","${r.reason}","${r.warehouse}","${r.narration}"\n`;
+      csvContent += `"${r.referenceId}","${r.returnNo}","${r.invoiceNo}","${r.customerName}","${r.date}",${r.items},${r.amount},"${r.status}","${r.returnType}","${r.reason}","${r.warehouseName}","${r.narration}"\n`;
     });
-    
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -249,13 +210,11 @@ const SalesReturn = () => {
     link.click();
     document.body.removeChild(link);
   };
-  
-  // Download Single
+
   const handleDownload = (item) => {
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    let csvContent = "text/csv;charset=utf-8,\uFEFF";
     csvContent += "Reference ID,Return No,Invoice No,Customer,Date,Items,Amount,Status,Return Type,Reason,Warehouse,Narration\n";
-    csvContent += `"${item.referenceId}","${item.returnNo}","${item.invoiceNo}","${item.customer}","${item.date}",${item.items},${item.amount},"${item.status}","${item.returnType}","${item.reason}","${item.warehouse}","${item.narration}"\n`;
-    
+    csvContent += `"${item.referenceId}","${item.returnNo}","${item.invoiceNo}","${item.customerName}","${item.date}",${item.items},${item.amount},"${item.status}","${item.returnType}","${item.reason}","${item.warehouseName}","${item.narration}"\n`;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -264,8 +223,7 @@ const SalesReturn = () => {
     link.click();
     document.body.removeChild(link);
   };
-  
-  // Clear Filters
+
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('All');
@@ -277,152 +235,292 @@ const SalesReturn = () => {
     setAmountMin('');
     setAmountMax('');
   };
-  
-  // Add New Return
+
   const handleAddClick = () => {
-    const nextId = returns.length + 1;
-    const autoRefId = `REF-${1000 + nextId}`;
     setNewReturn({
       returnNo: '',
       invoiceNo: '',
-      customer: '',
+      customerId: null,
+      customerName: '',
       date: '',
       items: 0,
-      status: 'Pending',
+      status: 'pending',
       amount: 0,
       returnType: 'Sales Return',
       reason: '',
-      warehouse: warehouseOptions[0],
-      referenceId: autoRefId,
+      warehouseId: null,
+      warehouseName: '',
+      referenceId: '',
       voucherNo: '',
       narration: '',
       itemsList: []
     });
+    setCustomerSearch('');
+    setWarehouseSearch('');
+    setProductSearch('');
+    setShowCustomerDropdown(false);
+    setShowWarehouseDropdown(false);
+    setShowProductDropdown(false);
     setShowAddModal(true);
   };
-  
-  // Add product to items list when selected from dropdown
-  const handleProductSelect = (e) => {
-    const productId = parseInt(e.target.value);
-    if (!productId) return;
-    
-    const product = productOptions.find(p => p.id === productId);
-    if (!product) return;
-    
-    const newItem = {
-      productId: product.id,
-      productName: product.name,
-      qty: 1,
-      price: product.price,
-      total: product.price * 1,
-      narration: ''
-    };
-    
-    setNewReturn(prev => {
-      const updatedItemsList = [...prev.itemsList, newItem];
-      const totalItems = updatedItemsList.reduce((sum, item) => sum + item.qty, 0);
-      const totalAmount = updatedItemsList.reduce((sum, item) => sum + item.total, 0);
-      
-      return {
-        ...prev,
-        itemsList: updatedItemsList,
-        items: totalItems,
-        amount: totalAmount
-      };
-    });
-    
-    // Reset dropdown selection
-    e.target.value = '';
+
+  const handleAddItem = () => {
+    setNewReturn(prev => ({
+      ...prev,
+      itemsList: [...prev.itemsList, { productId: null, productName: '', qty: 1, price: 0, total: 0, narration: '' }]
+    }));
   };
-  
-  // Update item in the list
+
   const handleItemChange = (index, field, value) => {
     setNewReturn(prev => {
-      const updatedItemsList = [...prev.itemsList];
-      const item = updatedItemsList[index];
-      
+      const updated = [...prev.itemsList];
+      const item = updated[index];
       if (field === 'qty') {
-        const newQty = parseInt(value) || 0;
-        item.qty = newQty;
-        item.total = newQty * item.price;
+        const qty = parseInt(value) || 0;
+        item.qty = qty;
+        item.total = qty * item.price;
       } else if (field === 'price') {
-        const newPrice = parseFloat(value) || 0;
-        item.price = newPrice;
-        item.total = item.qty * newPrice;
+        const price = parseFloat(value) || 0;
+        item.price = price;
+        item.total = item.qty * price;
+      } else if (field === 'productName') {
+        // value = { id, name }
+        item.productId = value.id;
+        item.productName = value.name;
       } else if (field === 'narration') {
         item.narration = value;
       }
-      
-      updatedItemsList[index] = item;
-      
-      const totalItems = updatedItemsList.reduce((sum, item) => sum + item.qty, 0);
-      const totalAmount = updatedItemsList.reduce((sum, item) => sum + item.total, 0);
-      
-      return {
-        ...prev,
-        itemsList: updatedItemsList,
-        items: totalItems,
-        amount: totalAmount
-      };
+      updated[index] = item;
+      const totalItems = updated.reduce((sum, i) => sum + i.qty, 0);
+      const totalAmount = updated.reduce((sum, i) => sum + i.total, 0);
+      return { ...prev, itemsList: updated, items: totalItems, amount: totalAmount };
     });
   };
-  
-  // Remove item from the list
+
   const handleRemoveItem = (index) => {
     setNewReturn(prev => {
-      const updatedItemsList = prev.itemsList.filter((_, i) => i !== index);
-      const totalItems = updatedItemsList.reduce((sum, item) => sum + item.qty, 0);
-      const totalAmount = updatedItemsList.reduce((sum, item) => sum + item.total, 0);
-      
-      return {
-        ...prev,
-        itemsList: updatedItemsList,
-        items: totalItems,
-        amount: totalAmount
-      };
+      const updated = prev.itemsList.filter((_, i) => i !== index);
+      const totalItems = updated.reduce((sum, i) => sum + i.qty, 0);
+      const totalAmount = updated.reduce((sum, i) => sum + i.total, 0);
+      return { ...prev, itemsList: updated, items: totalItems, amount: totalAmount };
     });
   };
-  
-  const handleAddReturn = () => {
-    if (!newReturn.returnNo || !newReturn.invoiceNo || !newReturn.customer || !newReturn.date || newReturn.itemsList.length === 0) {
-      alert("Please fill required fields and add at least one item.");
+
+  const handleAddReturn = async () => {
+    const { returnNo, invoiceNo, customerId, date, returnType, warehouseId, narration, itemsList } = newReturn;
+    if (!returnNo || !invoiceNo || !customerId || !date || itemsList.length === 0 || !warehouseId) {
+      alert("Please fill all required fields and add at least one item.");
       return;
     }
-  
-    const newItem = {
-      ...newReturn,
-      id: Math.max(...returns.map(r => r.id), 0) + 1,
-      voucherNo: voucherNo
+
+    const payload = {
+      company_id: companyId,
+      reference_id: newReturn.referenceId || null,
+      manual_voucher_no: voucherNo || null,
+      customer_id: customerId,
+      return_no: returnNo,
+      invoice_no: invoiceNo,
+      return_date: date,
+      return_type: returnType,
+      warehouse_id: warehouseId,
+      reason_for_return: newReturn.reason || '',
+      notes: narration,
+      status: newReturn.status,
+      sales_return_items: itemsList.map(item => ({
+        product_id: item.productId,
+        item_name: item.productName,
+        quantity: item.qty.toString(),
+        rate: item.price.toString(),
+        tax_percent: "18",
+        discount: "0",
+        amount: item.total.toString(),
+        notes: item.narration
+      }))
     };
-  
-    setReturns(prev => [...prev, newItem]);
-    setShowAddModal(false);
-    // Reset states
-    setNewReturn({
-      returnNo: '', 
-      invoiceNo: '', 
-      customer: '', 
-      date: '', 
-      items: 0, 
-      status: 'Pending',
-      amount: 0, 
-      returnType: 'Sales Return', 
-      reason: '', 
-      warehouse: warehouseOptions[0],
-      referenceId: '', 
-      voucherNo: '', 
-      narration: '', 
-      itemsList: []
-    });
-    setVoucherNo('');
+
+    try {
+      const response = await axiosInstance.post('/create-sales-return', payload);
+      if (response.data.success) {
+        alert("Sales return created successfully!");
+        setShowAddModal(false);
+        setVoucherNo('');
+        fetchReturns();
+      } else {
+        alert(response.data.message || "Failed to create sales return.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Network error. Please try again.");
+    }
   };
-  
-  // Edit Handlers
-  const handleEditSave = () => {
-    setReturns(prev => prev.map(r => r.id === editReturn.id ? editReturn : r));
-    setShowEditModal(false);
+
+  const handleEditSave = async () => {
+    if (!editReturn) return;
+    const payload = {
+      company_id: companyId,
+      reference_id: editReturn.referenceId,
+      manual_voucher_no: editReturn.voucherNo || null,
+      customer_id: editReturn.customerId,
+      return_no: editReturn.returnNo,
+      invoice_no: editReturn.invoiceNo,
+      return_date: editReturn.date,
+      return_type: editReturn.returnType,
+      warehouse_id: editReturn.warehouseId,
+      reason_for_return: editReturn.reason || '',
+      notes: editReturn.narration,
+      status: editReturn.status.toLowerCase(),
+      sales_return_items: editReturn.itemsList.map(item => ({
+        product_id: item.productId,
+        item_name: item.productName,
+        quantity: item.qty.toString(),
+        rate: item.price.toString(),
+        tax_percent: "18",
+        discount: "0",
+        amount: item.total.toString(),
+        notes: item.narration
+      }))
+    };
+    try {
+      const response = await axiosInstance.put(`/update-sale/${editReturn.id}`, payload);
+      if (response.data.success) {
+        alert("Sales return updated successfully!");
+        setShowEditModal(false);
+        fetchReturns();
+      } else {
+        alert(response.data.message || "Failed to update sales return.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Network error. Please try again.");
+    }
   };
-  
+
+  const getStatusBadge = (status) => {
+    const lower = status?.toLowerCase();
+    if (lower === 'processed') return <Badge bg="success">Processed</Badge>;
+    if (lower === 'pending') return <Badge bg="warning" text="dark">Pending</Badge>;
+    if (lower === 'approved') return <Badge bg="info">Approved</Badge>;
+    if (lower === 'rejected') return <Badge bg="danger">Rejected</Badge>;
+    return <Badge bg="secondary">{status}</Badge>;
+  };
+
+  const getReturnTypeBadge = (returnType) => {
+    if (returnType === 'Sales Return') return <Badge bg="primary">Sales Return</Badge>;
+    if (returnType === 'Credit Note') return <Badge bg="secondary">Credit Note</Badge>;
+    return <Badge bg="light" text="dark">{returnType}</Badge>;
+  };
+
+  // Filter customers based on search
+  const filteredCustomers = customers.filter(customer => 
+    customer.name_english.toLowerCase().includes(customerSearch.toLowerCase())
+  );
+
+  // Filter warehouses based on search
+  const filteredWarehouses = warehouses.filter(warehouse => {
+    if (!warehouse) return false;
+    const name = warehouse.warehouse_name || ''; // Changed from warehouse.name to warehouse.warehouse_name
+    return name.toLowerCase().includes(warehouseSearch.toLowerCase());
+  });
+
+  // Filter products based on search
+  const filteredProducts = products.filter(product => {
+    if (!product) return false;
+    const name = product.item_name || '';
+    return name.toLowerCase().includes(productSearch.toLowerCase());
+  });
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-50">
+        <Spinner animation="border" variant="primary" />
+        <span className="ms-2">Loading sales returns...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="danger" className="m-4">
+        {error}
+      </Alert>
+    );
+  }
+
+  // Helper: get customer display name
+  const getCustomerName = (customerId) => {
+    const cust = customers.find(c => c.id === customerId);
+    return cust ? cust.name_english : 'Unknown';
+  };
+
+  // Helper: get warehouse display name
+  const getWarehouseName = (warehouseId) => {
+    const wh = warehouses.find(w => w.id === warehouseId);
+    return wh ? (wh.warehouse_name || '') : ''; // Changed from wh.name to wh.warehouse_name
+  };
+
+  // Custom Search Input Component
+  const SearchInput = ({ 
+    items, 
+    value, 
+    onChange, 
+    placeholder, 
+    searchValue, 
+    onSearchChange,
+    displayField = "name_english",
+    idField = "id",
+    showDropdown,
+    setShowDropdown
+  }) => {
+    console.log("SearchInput rendered with items:", items.length); // Debug log
+    console.log("SearchInput showDropdown:", showDropdown); // Debug log
+    
+    return (
+      <div className="position-relative">
+        <InputGroup>
+          <Form.Control
+            type="text"
+            placeholder={placeholder}
+            value={searchValue}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onFocus={() => setShowDropdown(true)}
+          />
+          <InputGroup.Text><FaSearch /></InputGroup.Text>
+        </InputGroup>
+        
+        {showDropdown && (
+          <div className="border rounded mt-1 position-absolute w-100 bg-white shadow" 
+               style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1000 }}>
+            {items.length > 0 ? (
+              items.map(item => (
+                <div 
+                  key={item[idField]} 
+                  className="p-2 hover:bg-light"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    console.log("Item selected:", item[displayField]); // Debug log
+                    onChange(item[idField], item[displayField]);
+                    onSearchChange('');
+                    setShowDropdown(false);
+                  }}
+                >
+                  {item[displayField]}
+                </div>
+              ))
+            ) : (
+              <div className="p-2 text-muted">No items found</div>
+            )}
+          </div>
+        )}
+        
+        {value && !showDropdown && (
+          <div className="mt-1 p-2 bg-light rounded">
+            Selected: {value}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="p-4 my-4 px-4">
       {/* Header */}
@@ -445,10 +543,6 @@ const SalesReturn = () => {
             ref={fileInputRef}
             accept=".csv"
             style={{ display: 'none' }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) alert(`Imported: ${file.name}`);
-            }}
           />
           <Button
             className="rounded-pill px-4 d-flex align-items-center"
@@ -466,7 +560,7 @@ const SalesReturn = () => {
           </Button>
         </div>
       </div>
-      
+
       {/* Filters */}
       <div className="bg-light p-3 rounded mb-4">
         <Row className="g-3">
@@ -509,8 +603,10 @@ const SalesReturn = () => {
           <Col md={2}>
             <Form.Select value={warehouseFilter} onChange={(e) => setWarehouseFilter(e.target.value)}>
               <option value="All">All Warehouses</option>
-              {warehouseOptions.map((warehouse, idx) => (
-                <option key={idx} value={warehouse}>{warehouse}</option>
+              {warehouses.map((w, idx) => (
+                <option key={w.id || idx} value={w.warehouse_name || w.name}>
+                  {w.warehouse_name || w.name}
+                </option>
               ))}
             </Form.Select>
           </Col>
@@ -525,7 +621,7 @@ const SalesReturn = () => {
           </Col>
         </Row>
       </div>
-      
+
       {/* Summary Cards */}
       <div className="row mb-4">
         <div className="col-md-3 mb-3">
@@ -561,11 +657,10 @@ const SalesReturn = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Voucher No Section */}
       <div className="bg-white p-3 rounded shadow-sm mb-4">
         <Row className="align-items-end g-3">
-          {/* Manual / Auto Voucher No */}
           <Col md={4}>
             <Form.Group>
               <Form.Label className="fw-bold"> Manual Voucher No</Form.Label>
@@ -579,21 +674,9 @@ const SalesReturn = () => {
               </InputGroup>
             </Form.Group>
           </Col>
-          {/* Auto-generated Display */}
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label className="fw-bold"> Auto Voucher No</Form.Label>
-              <Form.Control
-                type="text"
-                value={autoVoucherNo}
-                readOnly
-                className="bg-light"
-              />
-            </Form.Group>
-          </Col>
         </Row>
       </div>
-      
+
       {/* Table */}
       <div className="table-responsive">
         <Table bordered hover className="align-middle">
@@ -603,7 +686,6 @@ const SalesReturn = () => {
               <th>Return No</th>
               <th>Reference ID</th>
               <th>Voucher No (Manual)</th>
-              <th>Voucher No (Auto)</th>
               <th>Invoice No</th>
               <th>Customer</th>
               <th>Warehouse</th>
@@ -625,10 +707,9 @@ const SalesReturn = () => {
                   <td><strong>{item.returnNo}</strong></td>
                   <td>{item.referenceId}</td>
                   <td>{item.voucherNo || "-"}</td>
-                  <td>{autoVoucherNo}</td>
                   <td>{item.invoiceNo}</td>
-                  <td>{item.customer}</td>
-                  <td>{item.warehouse}</td>
+                  <td>{item.customerName}</td>
+                  <td>{item.warehouseName}</td>
                   <td>{item.date}</td>
                   <td className="text-center">{item.items}</td>
                   <td className="fw-bold text-danger">
@@ -673,7 +754,7 @@ const SalesReturn = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="16" className="text-center py-4">
+                <td colSpan="15" className="text-center py-4">
                   No sales returns found
                 </td>
               </tr>
@@ -681,7 +762,7 @@ const SalesReturn = () => {
           </tbody>
         </Table>
       </div>
-      
+
       {/* View Modal */}
       <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg">
         <Modal.Header closeButton>
@@ -694,11 +775,10 @@ const SalesReturn = () => {
                 <tbody>
                   <tr><td className="fw-bold">Reference ID</td><td>{selectedReturn.referenceId}</td></tr>
                   <tr><td className="fw-bold">Voucher No (Manual)</td><td>{selectedReturn.voucherNo || '-'}</td></tr>
-                  <tr><td className="fw-bold">Voucher No (Auto)</td><td>{autoVoucherNo}</td></tr>
                   <tr><td className="fw-bold">Return No</td><td>{selectedReturn.returnNo}</td></tr>
                   <tr><td className="fw-bold">Invoice No</td><td>{selectedReturn.invoiceNo}</td></tr>
-                  <tr><td className="fw-bold">Customer</td><td>{selectedReturn.customer}</td></tr>
-                  <tr><td className="fw-bold">Warehouse</td><td>{selectedReturn.warehouse}</td></tr>
+                  <tr><td className="fw-bold">Customer</td><td>{selectedReturn.customerName}</td></tr>
+                  <tr><td className="fw-bold">Warehouse</td><td>{selectedReturn.warehouseName}</td></tr>
                   <tr><td className="fw-bold">Date</td><td>{selectedReturn.date}</td></tr>
                   <tr><td className="fw-bold">Items</td><td>{selectedReturn.items}</td></tr>
                   <tr><td className="fw-bold">Amount</td><td>₹{selectedReturn.amount.toLocaleString('en-IN')}</td></tr>
@@ -708,7 +788,6 @@ const SalesReturn = () => {
                   <tr><td className="fw-bold">Status</td><td>{getStatusBadge(selectedReturn.status)}</td></tr>
                 </tbody>
               </table>
-              
               {selectedReturn.itemsList && selectedReturn.itemsList.length > 0 && (
                 <div className="mt-4">
                   <h6 className="fw-bold">Returned Items</h6>
@@ -743,7 +822,7 @@ const SalesReturn = () => {
           <Button variant="secondary" onClick={() => setShowViewModal(false)}>Close</Button>
         </Modal.Footer>
       </Modal>
-      
+
       {/* Edit Modal */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg">
         <Modal.Header closeButton>
@@ -756,27 +835,14 @@ const SalesReturn = () => {
                 <Form.Label>Reference ID</Form.Label>
                 <Form.Control type="text" value={editReturn.referenceId} readOnly />
               </Form.Group>
-              
-              {/* Voucher No Section */}
-              <Row className="g-3 mb-3">
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Manual Voucher No</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={editReturn.voucherNo}
-                      onChange={(e) => setEditReturn(prev => ({ ...prev, voucherNo: e.target.value }))}
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Auto Voucher No</Form.Label>
-                    <Form.Control type="text" value={autoVoucherNo} readOnly className="bg-light" />
-                  </Form.Group>
-                </Col>
-              </Row>
-              
+              <Form.Group className="mb-3">
+                <Form.Label>Manual Voucher No</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={editReturn.voucherNo}
+                  onChange={(e) => setEditReturn(prev => ({ ...prev, voucherNo: e.target.value }))}
+                />
+              </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Return No *</Form.Label>
                 <Form.Control
@@ -785,7 +851,6 @@ const SalesReturn = () => {
                   onChange={(e) => setEditReturn(prev => ({ ...prev, returnNo: e.target.value }))}
                 />
               </Form.Group>
-              
               <Form.Group className="mb-3">
                 <Form.Label>Invoice No *</Form.Label>
                 <Form.Control
@@ -794,16 +859,25 @@ const SalesReturn = () => {
                   onChange={(e) => setEditReturn(prev => ({ ...prev, invoiceNo: e.target.value }))}
                 />
               </Form.Group>
-              
               <Form.Group className="mb-3">
                 <Form.Label>Customer *</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={editReturn.customer}
-                  onChange={(e) => setEditReturn(prev => ({ ...prev, customer: e.target.value }))}
+                <SearchInput
+                  items={customers}
+                  value={editReturn.customerName}
+                  onChange={(id, name) => {
+                    setEditReturn(prev => ({
+                      ...prev,
+                      customerId: id,
+                      customerName: name
+                    }));
+                  }}
+                  placeholder="Search customer..."
+                  searchValue={customerSearch}
+                  onSearchChange={setCustomerSearch}
+                  showDropdown={showCustomerDropdown}
+                  setShowDropdown={setShowCustomerDropdown}
                 />
               </Form.Group>
-              
               <Form.Group className="mb-3">
                 <Form.Label>Date *</Form.Label>
                 <Form.Control
@@ -812,19 +886,26 @@ const SalesReturn = () => {
                   onChange={(e) => setEditReturn(prev => ({ ...prev, date: e.target.value }))}
                 />
               </Form.Group>
-              
               <Form.Group className="mb-3">
                 <Form.Label>Warehouse *</Form.Label>
-                <Form.Select
-                  value={editReturn.warehouse}
-                  onChange={(e) => setEditReturn(prev => ({ ...prev, warehouse: e.target.value }))}
-                >
-                  {warehouseOptions.map((wh, idx) => (
-                    <option key={idx} value={wh}>{wh}</option>
-                  ))}
-                </Form.Select>
+                <SearchInput
+                  items={warehouses}
+                  value={editReturn.warehouseName}
+                  onChange={(id, warehouse_name) => {
+                    setEditReturn(prev => ({
+                      ...prev,
+                      warehouseId: id,
+                      warehouseName: warehouse_name
+                    }));
+                  }}
+                  placeholder="Search warehouse..."
+                  searchValue={warehouseSearch}
+                  onSearchChange={setWarehouseSearch}
+                  displayField="warehouse_name" // Changed from "name" to "warehouse_name"
+                  showDropdown={showWarehouseDropdown}
+                  setShowDropdown={setShowWarehouseDropdown}
+                />
               </Form.Group>
-              
               <Form.Group className="mb-3">
                 <Form.Label>Return Type</Form.Label>
                 <Form.Select
@@ -835,7 +916,14 @@ const SalesReturn = () => {
                   <option value="Credit Note">Credit Note</option>
                 </Form.Select>
               </Form.Group>
-              
+              <Form.Group className="mb-3">
+                <Form.Label>Reason</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={editReturn.reason}
+                  onChange={(e) => setEditReturn(prev => ({ ...prev, reason: e.target.value }))}
+                />
+              </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Narration</Form.Label>
                 <Form.Control
@@ -843,10 +931,8 @@ const SalesReturn = () => {
                   rows={2}
                   value={editReturn.narration}
                   onChange={(e) => setEditReturn(prev => ({ ...prev, narration: e.target.value }))}
-                  placeholder="Enter detailed narration..."
                 />
               </Form.Group>
-              
               <Form.Group className="mb-3">
                 <Form.Label>Status</Form.Label>
                 <Form.Select
@@ -859,6 +945,67 @@ const SalesReturn = () => {
                   <option value="Rejected">Rejected</option>
                 </Form.Select>
               </Form.Group>
+
+              <div className="mt-3">
+                <h6>Returned Items ({editReturn.itemsList.length})</h6>
+                {editReturn.itemsList.map((item, index) => (
+                  <Row key={index} className="mb-2">
+                    <Col md={4}>
+                      <SearchInput
+                        items={products}
+                        value={item.productName}
+                        onChange={(id, name) => {
+                          const updated = [...editReturn.itemsList];
+                          updated[index].productId = id;
+                          updated[index].productName = name;
+                          setEditReturn({ ...editReturn, itemsList: updated });
+                        }}
+                        placeholder="Search product..."
+                        searchValue={productSearch}
+                        onSearchChange={setProductSearch}
+                        displayField="item_name"
+                        showDropdown={showProductDropdown}
+                        setShowDropdown={setShowProductDropdown}
+                      />
+                    </Col>
+                    <Col md={2}>
+                      <Form.Control
+                        type="number"
+                        value={item.qty}
+                        onChange={(e) => {
+                          const updated = [...editReturn.itemsList];
+                          updated[index].qty = parseInt(e.target.value) || 0;
+                          updated[index].total = updated[index].qty * updated[index].price;
+                          setEditReturn({ ...editReturn, itemsList: updated });
+                        }}
+                      />
+                    </Col>
+                    <Col md={2}>
+                      <Form.Control
+                        type="number"
+                        value={item.price}
+                        onChange={(e) => {
+                          const updated = [...editReturn.itemsList];
+                          updated[index].price = parseFloat(e.target.value) || 0;
+                          updated[index].total = updated[index].qty * updated[index].price;
+                          setEditReturn({ ...editReturn, itemsList: updated });
+                        }}
+                      />
+                    </Col>
+                    <Col md={3}>
+                      <Form.Control
+                        placeholder="Narration"
+                        value={item.narration}
+                        onChange={(e) => {
+                          const updated = [...editReturn.itemsList];
+                          updated[index].narration = e.target.value;
+                          setEditReturn({ ...editReturn, itemsList: updated });
+                        }}
+                      />
+                    </Col>
+                  </Row>
+                ))}
+              </div>
             </Form>
           )}
         </Modal.Body>
@@ -867,7 +1014,7 @@ const SalesReturn = () => {
           <Button variant="primary" onClick={handleEditSave} style={{ backgroundColor: '#3daaaa' }}>Save Changes</Button>
         </Modal.Footer>
       </Modal>
-      
+
       {/* Add Modal */}
       <Modal show={showAddModal} onHide={() => setShowAddModal(false)} size="lg">
         <Modal.Header closeButton>
@@ -875,62 +1022,39 @@ const SalesReturn = () => {
         </Modal.Header>
         <Modal.Body>
           <Form>
-            {/* Reference ID */}
             <Form.Group className="mb-3">
-              <Form.Label>Reference ID</Form.Label>
+              <Form.Label>Reference ID (Auto)</Form.Label>
+              <Form.Control type="text" value={newReturn.referenceId} readOnly placeholder="Assigned after save" />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Manual Voucher No</Form.Label>
               <Form.Control
                 type="text"
-                value={newReturn.referenceId}
-                readOnly
-                placeholder="Auto-generated"
+                value={voucherNo}
+                onChange={(e) => setVoucherNo(e.target.value)}
+                placeholder="Optional"
               />
             </Form.Group>
-            
-            {/* Voucher No Section */}
-            <Row className="g-3 mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Manual Voucher No</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={voucherNo}
-                    onChange={(e) => setVoucherNo(e.target.value)}
-                    placeholder="Enter voucher no"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Auto Voucher No</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={autoVoucherNo}
-                    readOnly
-                    className="bg-light"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            {/* Customer, Return No, Invoice No */}
             <Row className="g-3 mb-3">
               <Col md={4}>
                 <Form.Group>
                   <Form.Label>Customer *</Form.Label>
-                  <Form.Select
-                    value={newReturn.customer}
-                    onChange={(e) =>
-                      setNewReturn((prev) => ({ ...prev, customer: e.target.value }))
-                    }
-                    required
-                  >
-                    <option value="">Select Customer</option>
-                    {uniqueCustomers.map((cust, idx) => (
-                      <option key={idx} value={cust}>
-                        {cust}
-                      </option>
-                    ))}
-                  </Form.Select>
+                  <SearchInput
+                    items={customers}
+                    value={newReturn.customerName}
+                    onChange={(id, name) => {
+                      setNewReturn(prev => ({
+                        ...prev,
+                        customerId: id,
+                        customerName: name
+                      }));
+                    }}
+                    placeholder="Search customer..."
+                    searchValue={customerSearch}
+                    onSearchChange={setCustomerSearch}
+                    showDropdown={showCustomerDropdown}
+                    setShowDropdown={setShowCustomerDropdown}
+                  />
                 </Form.Group>
               </Col>
               <Col md={4}>
@@ -939,10 +1063,7 @@ const SalesReturn = () => {
                   <Form.Control
                     type="text"
                     value={newReturn.returnNo}
-                    onChange={(e) =>
-                      setNewReturn((prev) => ({ ...prev, returnNo: e.target.value }))
-                    }
-                    placeholder="e.g. SR-1006"
+                    onChange={(e) => setNewReturn(prev => ({ ...prev, returnNo: e.target.value }))}
                     required
                   />
                 </Form.Group>
@@ -953,17 +1074,12 @@ const SalesReturn = () => {
                   <Form.Control
                     type="text"
                     value={newReturn.invoiceNo}
-                    onChange={(e) =>
-                      setNewReturn((prev) => ({ ...prev, invoiceNo: e.target.value }))
-                    }
-                    placeholder="e.g. INV-2050"
+                    onChange={(e) => setNewReturn(prev => ({ ...prev, invoiceNo: e.target.value }))}
                     required
                   />
                 </Form.Group>
               </Col>
             </Row>
-            
-            {/* Date, Return Type, Warehouse */}
             <Row className="g-3 mb-3">
               <Col md={4}>
                 <Form.Group>
@@ -971,9 +1087,7 @@ const SalesReturn = () => {
                   <Form.Control
                     type="date"
                     value={newReturn.date}
-                    onChange={(e) =>
-                      setNewReturn((prev) => ({ ...prev, date: e.target.value }))
-                    }
+                    onChange={(e) => setNewReturn(prev => ({ ...prev, date: e.target.value }))}
                     required
                   />
                 </Form.Group>
@@ -983,9 +1097,7 @@ const SalesReturn = () => {
                   <Form.Label>Return Type</Form.Label>
                   <Form.Select
                     value={newReturn.returnType}
-                    onChange={(e) =>
-                      setNewReturn((prev) => ({ ...prev, returnType: e.target.value }))
-                    }
+                    onChange={(e) => setNewReturn(prev => ({ ...prev, returnType: e.target.value }))}
                   >
                     <option value="Sales Return">Sales Return</option>
                     <option value="Credit Note">Credit Note</option>
@@ -995,145 +1107,112 @@ const SalesReturn = () => {
               <Col md={4}>
                 <Form.Group>
                   <Form.Label>Warehouse *</Form.Label>
-                  <Form.Select
-                    value={newReturn.warehouse}
-                    onChange={(e) =>
-                      setNewReturn((prev) => ({ ...prev, warehouse: e.target.value }))
-                    }
-                    required
-                  >
-                    {warehouseOptions.map((wh, idx) => (
-                      <option key={idx} value={wh}>
-                        {wh}
-                      </option>
-                    ))}
-                  </Form.Select>
+                  <SearchInput
+                    items={warehouses}
+                    value={newReturn.warehouseName}
+                    onChange={(id, warehouse_name) => {
+                      setNewReturn(prev => ({
+                        ...prev,
+                        warehouseId: id,
+                        warehouseName: warehouse_name
+                      }));
+                    }}
+                    placeholder="Search warehouse..."
+                    searchValue={warehouseSearch}
+                    onSearchChange={setWarehouseSearch}
+                    displayField="warehouse_name" // Changed from "name" to "warehouse_name"
+                    showDropdown={showWarehouseDropdown}
+                    setShowDropdown={setShowWarehouseDropdown}
+                  />
                 </Form.Group>
               </Col>
             </Row>
-            
-            {/* Items Section */}
+
             <div className="mb-4">
-              <h6 className="fw-bold border-bottom pb-2">Add Returned Items</h6>
-              
-              {/* Product Dropdown - Auto adds on selection */}
-              <Row className="mb-3">
-                <Col md={12}>
-                  <Form.Group>
-                    <Form.Label>Select Product</Form.Label>
-                    <Form.Select 
-                      onChange={handleProductSelect}
-                    >
-                      <option value="">-- Select a product to add --</option>
-                      {productOptions.map(product => (
-                        <option key={product.id} value={product.id}>
-                          {product.name} - ₹{product.price.toLocaleString()}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-              </Row>
-              
-              {/* Selected Items Table */}
-              {newReturn.itemsList.length > 0 && (
-                <div className="mt-4">
-                  <h6 className="fw-bold">Selected Items</h6>
-                  <Table striped bordered hover size="sm">
-                    <thead>
-                      <tr>
-                        <th>Product</th>
-                        <th>Qty</th>
-                        <th>Price</th>
-                        <th>Total</th>
-                        <th>Narration</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {newReturn.itemsList.map((item, index) => (
-                        <tr key={index}>
-                          <td>{item.productName}</td>
-                          <td>
-                            <Form.Control
-                              type="number"
-                              min="1"
-                              value={item.qty}
-                              onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
-                              size="sm"
-                            />
-                          </td>
-                          <td>
-                            <Form.Control
-                              type="number"
-                              min="0"
-                              value={item.price}
-                              onChange={(e) => handleItemChange(index, 'price', e.target.value)}
-                              size="sm"
-                            />
-                          </td>
-                          <td>₹{item.total.toLocaleString()}</td>
-                          <td>
-                            <Form.Control
-                              type="text"
-                              value={item.narration}
-                              onChange={(e) => handleItemChange(index, 'narration', e.target.value)}
-                              placeholder="Item narration"
-                              size="sm"
-                            />
-                          </td>
-                          <td className="text-center">
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => handleRemoveItem(index)}
-                            >
-                              <FaTrash />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                      <tr className="fw-bold">
-                        <td colSpan={3} className="text-end">Total Amount</td>
-                        <td>₹{newReturn.amount.toLocaleString()}</td>
-                        <td colSpan={2}></td>
-                      </tr>
-                    </tbody>
-                  </Table>
-                </div>
-              )}
+              <h6 className="fw-bold">Returned Items</h6>
+              {newReturn.itemsList.map((item, index) => (
+                <Row key={index} className="mb-2 align-items-end">
+                  <Col md={4}>
+                    <SearchInput
+                      items={products}
+                      value={item.productName}
+                      onChange={(id, name) => {
+                        handleItemChange(index, 'productName', { id, name });
+                      }}
+                      placeholder="Search product..."
+                      searchValue={productSearch}
+                      onSearchChange={setProductSearch}
+                      displayField="item_name"
+                      showDropdown={showProductDropdown}
+                      setShowDropdown={setShowProductDropdown}
+                    />
+                  </Col>
+                  <Col md={2}>
+                    <Form.Control
+                      type="number"
+                      placeholder="Qty"
+                      value={item.qty}
+                      onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
+                    />
+                  </Col>
+                  <Col md={2}>
+                    <Form.Control
+                      type="number"
+                      placeholder="Price"
+                      value={item.price}
+                      onChange={(e) => handleItemChange(index, 'price', e.target.value)}
+                    />
+                  </Col>
+                  <Col md={3}>
+                    <Form.Control
+                      placeholder="Narration"
+                      value={item.narration}
+                      onChange={(e) => handleItemChange(index, 'narration', e.target.value)}
+                    />
+                  </Col>
+                  <Col md={1}>
+                    <Button variant="danger" size="sm" onClick={() => handleRemoveItem(index)}>
+                      <FaTrash />
+                    </Button>
+                  </Col>
+                </Row>
+              ))}
+              <Button
+                variant="outline-primary"
+                size="sm"
+                className="mt-2"
+                onClick={handleAddItem}
+              >
+                + Add Item
+              </Button>
             </div>
-            
-            {/* Narration */}
+            <Form.Group className="mb-3">
+              <Form.Label>Reason for Return</Form.Label>
+              <Form.Control
+                type="text"
+                value={newReturn.reason}
+                onChange={(e) => setNewReturn(prev => ({ ...prev, reason: e.target.value }))}
+              />
+            </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Narration</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={2}
                 value={newReturn.narration}
-                onChange={(e) =>
-                  setNewReturn((prev) => ({ ...prev, narration: e.target.value }))
-                }
-                placeholder="Enter detailed narration about the return..."
+                onChange={(e) => setNewReturn(prev => ({ ...prev, narration: e.target.value }))}
               />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAddModal(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleAddReturn}
-            style={{ backgroundColor: '#3daaaa' }}
-          >
+          <Button variant="secondary" onClick={() => setShowAddModal(false)}>Cancel</Button>
+          <Button variant="primary" onClick={handleAddReturn} style={{ backgroundColor: '#3daaaa' }}>
             Add Return
           </Button>
         </Modal.Footer>
       </Modal>
-      
-      {/* Info Card */}
+
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
           <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
@@ -1148,6 +1227,8 @@ const SalesReturn = () => {
             <li><strong>Reference ID</strong> is now auto-generated for every new return (e.g., REF-1001).</li>
             <li><strong>Narration</strong> field allows adding detailed descriptions about each return.</li>
             <li>Select products from dropdown to automatically add them to your return. Customize quantity, price, and add narration for each item.</li>
+            <li>Now with direct search input fields for customers, warehouses, and products that show all available options on click.</li>
+            <li>Warehouse field is now empty by default, allowing you to select the appropriate warehouse.</li>
           </ul>
         </Card.Body>
       </Card>
@@ -1156,6 +1237,3 @@ const SalesReturn = () => {
 };
 
 export default SalesReturn;
-
-
-
