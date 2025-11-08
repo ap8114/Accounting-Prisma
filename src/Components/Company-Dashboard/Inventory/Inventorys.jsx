@@ -674,7 +674,7 @@ const InventoryItems = () => {
                 </Row>
               )}
             </>
-          )}
+          )}                                                                                                                                                  
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowView(false)}>

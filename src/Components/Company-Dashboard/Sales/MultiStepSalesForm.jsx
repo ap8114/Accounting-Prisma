@@ -15,6 +15,54 @@ import InvoiceTab from './MultiStepSalesForm/InvoiceTab';
 import PaymentTab from './MultiStepSalesForm/PaymentTab';
 
 const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [serviceForm, setServiceForm] = useState({
+    name: "",
+    serviceDescription: "",
+    price: "",
+    tax: ""
+  });
+
+  const handleServiceInput = (e) => {
+    const { name, value } = e.target;
+    setServiceForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAddService = () => {
+    if (!serviceForm.name || !serviceForm.price) {
+      alert("Service name and price are required!");
+      return;
+    }
+
+    const serviceItem = {
+      name: serviceForm.name,
+      qty: 1,
+      rate: serviceForm.price,
+      tax: serviceForm.tax || 0,
+      discount: 0,
+      description: serviceForm.serviceDescription,
+      warehouse: ''
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        items: [...prev[key].items, serviceItem]
+      }
+    }));
+
+    setServiceForm({
+      name: "",
+      serviceDescription: "",
+      price: "",
+      tax: ""
+    });
+    setShowServiceModal(false);
+  };
   const [key, setKey] = useState(initialStep || 'quotation');
   const tabsWithItems = ['quotation', 'salesOrder', 'deliveryChallan', 'invoice'];
   const navigate = useNavigate();
@@ -37,7 +85,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       billToAddress: "",
       billToEmail: "",
       billToPhone: "",
-      items: [{ name: '', description: '', qty: '', rate: '', tax: 0, discount: 0, sellingPrice: 0, uom: 'PCS' }],
+  items: [{ name: '', description: '', qty: '', rate: '', tax: 0, discount: 0, sellingPrice: 0, uom: 'PCS', warehouse: '' }],
       terms: '',
       signature: '',
       photo: '',
@@ -68,7 +116,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       shipToAddress: '',
       shipToEmail: '',
       shipToPhone: '',
-      items: [{ name: '', qty: '', rate: '', tax: 0, discount: 0 }],
+  items: [{ name: '', qty: '', rate: '', tax: 0, discount: 0, warehouse: '' }],
       terms: '',
       signature: '',
       photo: '',
@@ -100,7 +148,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       shipToAddress: '',
       shipToEmail: '',
       shipToPhone: '',
-      items: [{ name: '', qty: '', deliveredQty: '', rate: '', tax: 0, discount: 0 }],
+  items: [{ name: '', qty: '', deliveredQty: '', rate: '', tax: 0, discount: 0, warehouse: '' }],
       terms: '',
       signature: '',
       photo: '',
@@ -129,7 +177,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       shipToAddress: '',
       shipToEmail: '',
       shipToPhone: '',
-      items: [{ description: '', rate: '', qty: '', tax: '', discount: '', amount: '' }],
+  items: [{ description: '', rate: '', qty: '', tax: '', discount: '', amount: '', warehouse: '' }],
       paymentStatus: '',
       paymentMethod: '',
       note: '',
@@ -176,6 +224,8 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     { id: 7, name: "Water Bottle", category: "Other", price: 200, tax: 5, hsn: "3924", uom: "PCS" },
     { id: 8, name: "Desk Lamp", category: "Furniture", price: 1500, tax: 12, hsn: "9405", uom: "PCS" },
   ]);
+  // Warehouse options
+  const [warehouses, setWarehouses] = useState(["Main Warehouse", "Warehouse A", "Warehouse B"]);
   const [showUOMModal, setShowUOMModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
@@ -435,7 +485,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
         ...prev[tab],
         items: [
           ...prev[tab].items,
-          { name: '', qty: '', rate: '', tax: 0, discount: 0 }
+          { name: '', qty: '', rate: '', tax: 0, discount: 0, warehouse: '' }
         ],
       },
     }));
@@ -687,7 +737,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
               name: item.name,
               qty: item.qty,
               rate: item.rate,
-
+              warehouse: item.warehouse || ''
             })),
           },
         }));
@@ -718,6 +768,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
               qty: item.qty,
               deliveredQty: item.qty,
               rate: item.rate,
+              warehouse: item.warehouse || ''
             })),
           },
         }));
@@ -748,6 +799,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
               tax: 0,
               discount: 0,
               amount: item.rate * item.deliveredQty,
+              warehouse: item.warehouse || ''
             })),
           },
         }));
@@ -905,7 +957,8 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       tax: newItem.tax,
       discount: 0,
       hsn: newItem.hsn,
-      uom: newItem.uom
+      uom: newItem.uom,
+      warehouse: ''
     };
 
     const tab = key;
@@ -960,7 +1013,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
         ...prev,
         [tab]: {
           ...prev[tab],
-          items: [...items, { name: '', qty: '', rate: '', tax: 0, discount: 0 }]
+          items: [...items, { name: '', qty: '', rate: '', tax: 0, discount: 0, warehouse: '' }]
         }
       }));
     };
@@ -998,9 +1051,16 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             <Button
               size="sm"
               onClick={() => setShowAdd(true)}
-              style={{ backgroundColor: "#53b2a5", border: "none", padding: "6px 12px", fontWeight: "500" }}
+              style={{ backgroundColor: "#53b2a5", border: "none", padding: "6px 12px", fontWeight: "500", marginRight: "5px" }}
             >
               + Add Product
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowServiceModal(true)}
+              style={{ backgroundColor: "#53b2a5", border: "none", padding: "6px 12px", fontWeight: "500" }}
+            >
+              + Add Service
             </Button>
           </div>
         </div>
@@ -1024,18 +1084,84 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           handleAddCategory={handleAddCategory}
         />
 
+        {/* Service Modal */}
+        <Modal show={showServiceModal} onHide={() => setShowServiceModal(false)} centered>
+          <Modal.Header closeButton className="bg-light">
+            <Modal.Title>Add Service</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Form>
+              <Form.Group className="mb-3">
+                <Form.Label>Service Name</Form.Label>
+                <Form.Control 
+                  name="name" 
+                  onChange={(e) => handleServiceInput(e)} 
+                  required 
+                  className="shadow-sm"
+                  placeholder="Enter service name"
+                />
+              </Form.Group>
+              
+              <Form.Group className="mb-3">
+                <Form.Label>Service Description</Form.Label>
+                <Form.Control 
+                  as="textarea" 
+                  name="serviceDescription" 
+                  onChange={(e) => handleServiceInput(e)} 
+                  rows={3}
+                  className="shadow-sm"
+                  placeholder="Describe the service"
+                />
+              </Form.Group>
+              
+              <Form.Group className="mb-3">
+                <Form.Label>Price</Form.Label>
+                <Form.Control 
+                  type="number"
+                  step="0.01"
+                  name="price" 
+                  onChange={(e) => handleServiceInput(e)} 
+                  placeholder="Enter service price"
+                  className="shadow-sm"
+                  required
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Tax %</Form.Label>
+                <Form.Control 
+                  type="number"
+                  name="tax" 
+                  onChange={(e) => handleServiceInput(e)} 
+                  className="shadow-sm"
+                  placeholder="e.g. 18"
+                />
+              </Form.Group>
+            </Form>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowServiceModal(false)}>
+              Cancel
+            </Button>
+            <Button style={{ backgroundColor: '#53b2a5', borderColor: '#53b2a5' }} onClick={handleAddService}>
+              Add Service
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
         <Table bordered hover size="sm" className="dark-bordered-table">
           <thead className="bg-light">
-            <tr>
-              <th>Item Name</th>
-              <th>Qty</th>
-              {tab === 'deliveryChallan' && <th>Delivered Qty</th>}
-              <th>Rate</th>
-              <th>Tax %</th>
-              <th>Discount</th>
-              <th>Amount</th>
-              <th>Action</th>
-            </tr>
+              <tr>
+                <th>Item Name</th>
+                <th>Qty</th>
+                <th>Warehouse</th>
+                {tab === 'deliveryChallan' && <th>Delivered Qty</th>}
+                <th>Rate</th>
+                <th>Tax %</th>
+                <th>Discount</th>
+                <th>Amount</th>
+                <th>Action</th>
+              </tr>
           </thead>
           <tbody>
             {items.map((item, idx) => {
@@ -1112,6 +1238,18 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                       onChange={(e) => handleItemChange(idx, 'qty', e.target.value)}
                       placeholder="Qty"
                     />
+                  </td>
+                  <td>
+                    <Form.Select
+                      size="sm"
+                      value={item.warehouse || ""}
+                      onChange={(e) => handleItemChange(idx, 'warehouse', e.target.value)}
+                    >
+                      <option value="">Select Warehouse</option>
+                      {warehouses.map((w, i) => (
+                        <option key={i} value={w}>{w}</option>
+                      ))}
+                    </Form.Select>
                   </td>
                   {tab === 'deliveryChallan' && (
                     <td>

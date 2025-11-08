@@ -1,20 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  Container,  
-  Alert,  
-  Modal,  
-  Button,  
-  Form,  
-  Row,  
-  Col,  
-  Card,  
-  Image,  
-  Table,
-  ListGroup,
-  Badge,
-  Dropdown
-} from "react-bootstrap";
+import {  Container,   Alert,   Modal,   Button,   Form,   Row,   Col,   Card,   Image,   Table, ListGroup, Badge, Dropdown} from "react-bootstrap";
 import CustomerList from "./CustomerList";
 import AddProductModal from "../AddProductModal";
 import axiosInstance from "../../../../Api/axiosInstance";
@@ -125,14 +111,14 @@ const PointOfSale = () => {
   const handleAddCategory = () => {
     setShowAddCategoryModal(false);
   };
-
+ 
   // --- Create Invoice ---
   const handleCreateInvoice = async () => {
     // Validation checks
     if (!selectedCustomer) {
       setValidationError("Please select a customer before creating an invoice");
       return;
-    }
+    }   
     
     if (selectedProducts.length === 0) {
       setValidationError("Please add at least one product to the invoice");

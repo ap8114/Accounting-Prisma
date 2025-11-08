@@ -192,8 +192,8 @@ const DeliveryChallans = () => {
               data-bs-toggle="dropdown"
               aria-expanded="false"
               style={{ backgroundColor: "#3daaaa", color: "white" }}
-            >
-              Sort By: Last 7 Days
+              >
+                Sort By: Last 7 Days
             </button>
             <ul className="dropdown-menu w-100" aria-labelledby="sortDropdown">
               {["Recently Added", "Ascending", "Desending", "Last Month", "Last 7 days"].map((item, index) => (
