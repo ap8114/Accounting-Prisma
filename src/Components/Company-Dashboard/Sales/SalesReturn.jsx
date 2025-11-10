@@ -20,7 +20,7 @@ const SalesReturn = () => {
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
 
-  // Unified dropdown state: string like "customer", "warehouse", "product-0", "edit-product-2", etc.
+  // Unified dropdown state
   const [openDropdown, setOpenDropdown] = useState(null);
 
   // Filters
@@ -73,6 +73,7 @@ const SalesReturn = () => {
       console.error('Failed to load customers', err);
     }
   };
+
   const fetchWarehouses = async () => {
     try {
       const res = await axiosInstance.get(`/warehouses/company/${companyId}`);
@@ -82,6 +83,7 @@ const SalesReturn = () => {
       console.error('Failed to load warehouses', err);
     }
   };
+
   const fetchProducts = async () => {
     try {
       const res = await axiosInstance.get(`/products/company/${companyId}`);
@@ -91,6 +93,7 @@ const SalesReturn = () => {
       console.error('Failed to load products', err);
     }
   };
+
   const fetchReturns = async () => {
     try {
       const response = await axiosInstance.get(`/sales-return/get-returns`, {
@@ -127,6 +130,7 @@ const SalesReturn = () => {
       setError(err.response?.data?.message || err.message || 'Failed to load sales returns');
     }
   };
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -151,16 +155,20 @@ const SalesReturn = () => {
     const cust = customers.find(c => c.id === customerId);
     return cust ? (cust.name_english || cust.name || `Customer ${customerId}`) : 'Unknown Customer';
   };
+
   const getWarehouseName = (warehouseId) => {
     const wh = warehouses.find(w => w.id === warehouseId);
     return wh ? (wh.warehouse_name || wh.name || `Warehouse ${warehouseId}`) : 'Unknown Warehouse';
   };
+
+  // 🔁 UPDATED: Use `warehouses` instead of `product_warehouses`
   const getAvailableStock = (productId, warehouseId) => {
     const product = products.find(p => p.id === productId);
     if (!product || !warehouseId) return 0;
-    const whEntry = product.product_warehouses?.find(w => w.warehouse_id === warehouseId);
+    const whEntry = product.warehouses?.find(w => w.warehouse_id === warehouseId);
     return whEntry ? parseInt(whEntry.stock_qty) || 0 : 0;
   };
+
   const validateItemsAgainstWarehouseStock = (itemsList, warehouseId) => {
     if (!warehouseId) return 'Please select a warehouse.';
     for (const item of itemsList) {
@@ -172,10 +180,12 @@ const SalesReturn = () => {
     }
     return null;
   };
+
+  // 🔁 UPDATED: Filter products by `warehouses` field
   const getFilteredProducts = (warehouseId) => {
     if (!warehouseId) return products;
     return products.filter(p =>
-      p.product_warehouses?.some(w => w.warehouse_id === warehouseId)
+      p.warehouses?.some(w => w.warehouse_id === warehouseId)
     );
   };
 
@@ -183,7 +193,9 @@ const SalesReturn = () => {
   const uniqueCustomers = useMemo(() => {
     return customers.map(c => c.name_english || c.name || `Customer ${c.id}`).filter(Boolean);
   }, [customers]);
+
   const uniqueReturnTypes = [...new Set(returns.map(r => r.returnType))];
+
   const filteredReturns = useMemo(() => {
     return returns.filter(item => {
       const custName = getCustomerName(item.customer_id);
@@ -225,6 +237,7 @@ const SalesReturn = () => {
       alert(err.response?.data?.message || "Failed to delete sales return.");
     }
   };
+
   const handleExportAll = () => {
     let csvContent = "text/csv;charset=utf-8,\uFEFF";
     csvContent += "Reference ID,Return No,Invoice No,Customer,Date,Items,Amount,Status,Return Type,Reason,Warehouse,Narration\n";
@@ -239,6 +252,7 @@ const SalesReturn = () => {
     link.click();
     document.body.removeChild(link);
   };
+
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('All');
@@ -250,6 +264,7 @@ const SalesReturn = () => {
     setAmountMin('');
     setAmountMax('');
   };
+
   const handleAddClick = () => {
     setAddItemError('');
     setNewReturn({
@@ -273,6 +288,7 @@ const SalesReturn = () => {
     setOpenDropdown(null);
     setShowAddModal(true);
   };
+
   const handleAddItem = () => {
     setAddItemError('');
     setNewReturn(prev => ({
@@ -280,6 +296,7 @@ const SalesReturn = () => {
       itemsList: [...prev.itemsList, { productId: null, productName: '', qty: 1, price: 0, total: 0, narration: '' }]
     }));
   };
+
   const handleItemChange = (index, field, value, form = 'new') => {
     setAddItemError('');
     const setter = form === 'new' ? setNewReturn : setEditReturn;
@@ -306,6 +323,7 @@ const SalesReturn = () => {
       return { ...prev, itemsList: updated, items: totalItems, amount: totalAmount };
     });
   };
+
   const handleRemoveItem = (index, form = 'new') => {
     setAddItemError('');
     const setter = form === 'new' ? setNewReturn : setEditReturn;
@@ -316,6 +334,7 @@ const SalesReturn = () => {
       return { ...prev, itemsList: updated, items: totalItems, amount: totalAmount };
     });
   };
+
   const handleAddReturn = async () => {
     const { returnNo, invoiceNo, customerId, date, itemsList, warehouseId } = newReturn;
     if (!returnNo || !invoiceNo || !customerId || !date || itemsList.length === 0) {
@@ -366,6 +385,7 @@ const SalesReturn = () => {
       setAddItemError(err.response?.data?.message || "Network error. Please try again.");
     }
   };
+
   const handleEditSave = async () => {
     if (!editReturn) return;
     const validationError = validateItemsAgainstWarehouseStock(editReturn.itemsList, editReturn.warehouseId);
@@ -411,6 +431,7 @@ const SalesReturn = () => {
       setAddItemError(err.response?.data?.message || "Network error. Please try again.");
     }
   };
+
   const getStatusBadge = (status) => {
     const lower = status?.toLowerCase();
     if (lower === 'processed') return <Badge bg="success">Processed</Badge>;
@@ -419,6 +440,7 @@ const SalesReturn = () => {
     if (lower === 'rejected') return <Badge bg="danger">Rejected</Badge>;
     return <Badge className='bg-secondary'>{status}</Badge>;
   };
+
   const getReturnTypeBadge = (returnType) => {
     if (returnType === 'Sales Return') return <Badge bg="primary">Sales Return</Badge>;
     if (returnType === 'Credit Note') return <Badge bg="secondary">Credit Note</Badge>;
@@ -428,11 +450,9 @@ const SalesReturn = () => {
   // ====== DROPDOWN RENDERER ======
   const renderDropdown = ({ items, onSelect, searchValue, onSearchChange, displayField = "name_english", idField = "id", openKey }) => {
     if (openDropdown !== openKey) return null;
-
     const filteredItems = items.filter(item =>
       (item[displayField] || '').toLowerCase().includes(searchValue.toLowerCase())
     );
-
     return (
       <div
         className="position-absolute w-100 bg-white border rounded shadow"
@@ -821,7 +841,6 @@ const SalesReturn = () => {
                   onChange={(e) => setEditReturn(prev => ({ ...prev, invoiceNo: e.target.value }))}
                 />
               </Form.Group>
-
               {/* Customer Dropdown */}
               <Form.Group className="mb-3">
                 <Form.Label>Customer *</Form.Label>
@@ -843,7 +862,6 @@ const SalesReturn = () => {
                   })}
                 </div>
               </Form.Group>
-
               <Form.Group className="mb-3">
                 <Form.Label>Date *</Form.Label>
                 <Form.Control
@@ -852,7 +870,6 @@ const SalesReturn = () => {
                   onChange={(e) => setEditReturn(prev => ({ ...prev, date: e.target.value }))}
                 />
               </Form.Group>
-
               {/* Warehouse Dropdown */}
               <Form.Group className="mb-3">
                 <Form.Label>Warehouse *</Form.Label>
@@ -874,7 +891,6 @@ const SalesReturn = () => {
                   })}
                 </div>
               </Form.Group>
-
               <Form.Group className="mb-3">
                 <Form.Label>Return Type</Form.Label>
                 <Form.Select
@@ -914,7 +930,6 @@ const SalesReturn = () => {
                   <option value="Rejected">Rejected</option>
                 </Form.Select>
               </Form.Group>
-
               <div className="mt-3">
                 <h6>Returned Items ({editReturn.itemsList.length})</h6>
                 {editReturn.itemsList.map((item, index) => {
@@ -1246,7 +1261,7 @@ const SalesReturn = () => {
           <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
           <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
             <li>✅ **Products filtered by selected warehouse** in both Add & Edit modals.</li>
-            <li>✅ **Stock validation uses warehouse-specific `stock_qty`**, not total_stock.</li>
+            <li>✅ **Stock validation uses warehouse-specific `stock_qty` from `warehouses` field**.</li>
             <li>✅ **Item narration is correctly updated and saved** in both modals.</li>
             <li>✅ **Only one dropdown opens at a time** — clean UI behavior.</li>
             <li>✅ **Warehouse info is always visible and used consistently**.</li>
