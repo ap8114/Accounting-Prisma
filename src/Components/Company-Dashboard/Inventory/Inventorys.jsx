@@ -44,36 +44,51 @@ const InventoryItems = () => {
       );
 
       if (response.data?.success && Array.isArray(response.data.data)) {
-        const transformedItems = response.data.data.map((product) => ({
-          id: product.id || 0,
-          itemName: safeTrim(product.item_name) || "Unnamed Product",
-          hsn: safeTrim(product.hsn) || "N/A",
-          barcode: product.barcode || "",
-          unit: "Numbers",
-          description: safeTrim(product.description) || "No description available",
-          quantity: product.initial_qty || 0,
-          date: product.as_of_date || "2020-01-01",
-          cost: parseFloat(product.initial_cost) || 0,
-          value: (parseFloat(product.initial_cost) || 0) * (product.initial_qty || 0),
-          minQty: product.min_order_qty || 0,
-          taxAccount: safeTrim(product.tax_account) || "N/A",
-          cess: 0,
-          purchasePriceExclusive: parseFloat(product.purchase_price) || 0,
-          purchasePriceInclusive: parseFloat(product.purchase_price) || 0,
-          salePriceExclusive: parseFloat(product.sale_price) || 0,
-          salePriceInclusive: parseFloat(product.sale_price) || 0,
-          discount: parseFloat(product.discount) || 0,
-          category: "default",
-          itemCategory: product.item_category?.item_category_name || "Unknown",
-          itemType: "Good",
-          subcategory: "default",
-          remarks: safeTrim(product.remarks) || "",
-          image: product.image || null,
-          status: (product.initial_qty || 0) > 0 ? "In Stock" : "Out of Stock",
-          warehouse: product.warehouse?.warehouse_name || "Unknown",
-          warehouseId: product.warehouse_id || "",
-          itemCategoryId: product.item_category_id || "",
-        }));
+        const transformedItems = response.data.data.map((product) => {
+          // Get the primary warehouse (first one in the array)
+          const primaryWarehouse = product.warehouses && product.warehouses.length > 0 
+            ? product.warehouses[0] 
+            : null;
+          
+          return {
+            id: product.id || 0,
+            itemName: safeTrim(product.item_name) || "Unnamed Product", // FIXED: Using item_name instead of sku
+            hsn: "N/A", // Not available in the response
+            barcode: "", // Not available in the response
+            sku: product.sku || "",
+            unit: product.unit_detail?.uom_id?.toString() || "Numbers",
+            description: safeTrim(product.description) || "No description available", // FIXED: Using actual description
+            quantity: product.total_stock || 0,
+            date: new Date(product.created_at).toISOString().split('T')[0] || "2020-01-01",
+            cost: 0, // Not available in the response
+            value: 0, // Not available in the response
+            minQty: 0, // Not available in the response
+            taxAccount: "N/A", // Not available in the response
+            cess: 0,
+            purchasePriceExclusive: 0, // Not available in the response
+            purchasePriceInclusive: 0, // Not available in the response
+            salePriceExclusive: 0, // Not available in the response
+            salePriceInclusive: 0, // Not available in the response
+            discount: 0, // Not available in the response
+            category: "default",
+            itemCategory: product.item_category?.item_category_name || "Unknown",
+            itemType: "Good",
+            subcategory: "default",
+            remarks: "", // Not available in the response
+            image: product.image || null, // FIXED: Using actual image
+            status: (product.total_stock || 0) > 0 ? "In Stock" : "Out of Stock",
+            warehouse: primaryWarehouse?.warehouse_name || "Unknown",
+            warehouseId: primaryWarehouse?.warehouse_id?.toString() || "",
+            itemCategoryId: product.item_category?.id?.toString() || "",
+            // Store all warehouses for detailed view
+            warehouses: product.warehouses?.map(w => ({
+              id: w.warehouse_id,
+              name: w.warehouse_name,
+              location: w.location,
+              stockQty: w.stock_qty
+            })) || []
+          };
+        });
 
         setItems(transformedItems);
       } else {
@@ -100,13 +115,27 @@ const InventoryItems = () => {
     }
   }, [companyId]);
 
+  // Extract unique warehouses from all items
+  const getAllWarehouses = () => {
+    const warehouseSet = new Set();
+    items.forEach(item => {
+      if (item.warehouses) {
+        item.warehouses.forEach(w => {
+          warehouseSet.add(w.name);
+        });
+      }
+    });
+    return ["All", ...Array.from(warehouseSet)];
+  };
+
   const uniqueCategories = ["All", ...new Set(items.map((item) => item.itemCategory))];
-  const uniqueWarehouses = ["All", ...new Set(items.map((item) => item.warehouse))];
+  const uniqueWarehouses = getAllWarehouses();
 
   const filteredItems = items.filter((item) => {
     const matchesSearch = item.itemName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "All" || item.itemCategory === selectedCategory;
-    const matchesWarehouse = selectedWarehouse === "All" || item.warehouse === selectedWarehouse;
+    const matchesWarehouse = selectedWarehouse === "All" || 
+      item.warehouses?.some(w => w.name === selectedWarehouse);
 
     let matchesQuantity = true;
     const qty = item.quantity;
@@ -157,63 +186,41 @@ const InventoryItems = () => {
     setItems(updatedItems);
   };
 
-  // ===================================================================
-  // UPDATED DELETE FUNCTION
-  // ===================================================================
   const handleDeleteItem = async () => {
     if (!selectedItem?.id) {
       alert("No item selected for deletion");
-      setShowDelete(false); // Close modal even if no item selected
+      setShowDelete(false);
       return;
     }
 
     setIsDeleting(true);
     try {
-      // *** FIX 1: Corrected the API endpoint ***
-      // Changed from `products/${selectedItem.id}` to `products/product/${selectedItem.id}`
-      // to match the likely backend routing structure.
       const response = await axiosInstance.delete(`products/${selectedItem.id}`);
       
-      console.log("Delete API Response:", response.data); // For debugging
+      console.log("Delete API Response:", response.data);
 
       if (response.data?.success) {
-        // *** FIX 2: Optimistic UI Update ***
-        // Immediately remove the item from the state for a better user experience.
-        // The list will refresh in the background anyway.
         setItems(prevItems => prevItems.filter(item => item.id !== selectedItem.id));
-        
-        // Refresh the full list from the server to ensure everything is in sync.
         refreshProducts();
-        
-        // *** FIX 3: Ensure Modal Closes ***
-        // This was already correct, but now it will definitely be reached on success.
         setShowDelete(false);
-        
         alert("Product deleted successfully!");
       } else {
-        // Handle cases where the server responded but the operation failed.
         const errorMessage = response.data?.message || "The server reported a failure to delete the product.";
         console.error("Server reported deletion failure:", errorMessage);
         alert(`Failed to delete product. ${errorMessage}`);
       }
     } catch (error) {
-      // *** FIX 4: Enhanced Error Handling ***
-      // This block now provides much more detailed feedback for debugging.
       console.error("Delete API Error:", error);
 
       let errorMessage = "An unknown error occurred.";
       if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
         console.error("Error Data:", error.response.data);
         console.error("Error Status:", error.response.status);
         errorMessage = error.response.data?.message || `Server error with status ${error.response.status}.`;
       } else if (error.request) {
-        // The request was made but no response was received
         console.error("Error Request:", error.request);
         errorMessage = "No response received from server. Check your network connection.";
       } else {
-        // Something happened in setting up the request that triggered an Error
         errorMessage = error.message;
       }
       
@@ -489,11 +496,9 @@ const InventoryItems = () => {
                 </th>
                 <th>Product</th>
                 <th>Category</th>
-                <th>HSN</th>
+                <th>SKU</th>
                 <th>Quantity</th>
                 <th>Warehouse</th>
-                <th>Amount</th>
-                <th>Value</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -517,11 +522,22 @@ const InventoryItems = () => {
                       <span className="product-name">{item.itemName}</span>
                     </td>
                     <td>{item.itemCategory}</td>
-                    <td>{item.hsn}</td>
+                    <td>{item.sku}</td>
                     <td>{item.quantity}</td>
-                    <td>{item.warehouse}</td>
-                    <td>{item.cost}</td>
-                    <td>{item.value}</td>
+                    <td>
+                      {item.warehouses && item.warehouses.length > 0 ? (
+                        <div>
+                          {item.warehouses[0].name}
+                          {item.warehouses.length > 1 && (
+                            <span className="text-muted ms-1">
+                              (+{item.warehouses.length - 1} more)
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        "Unknown"
+                      )}
+                    </td>
                     <td>
                       <span
                         className={`badge px-3 py-1 rounded-pill fw-semibold ${
@@ -597,7 +613,7 @@ const InventoryItems = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="10" className="text-center">
+                  <td colSpan="8" className="text-center">
                     No items found.
                   </td>
                 </tr>
@@ -641,73 +657,72 @@ const InventoryItems = () => {
                   <strong>Item Name:</strong> {selectedItem.itemName}
                 </Col>
                 <Col md={6}>
-                  <strong>HSN:</strong> {selectedItem.hsn}
+                  <strong>SKU:</strong> {selectedItem.sku}
                 </Col>
-                <Col md={6}>
-                  <strong>Barcode:</strong> {selectedItem.barcode}
-                </Col>
-                <Col md={6}>
-                  <strong>Unit:</strong> {selectedItem.unit}
-                </Col>
-                <Col md={12}>
-                  <strong>Description:</strong> {selectedItem.description}
-                </Col>
-              </Row>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <strong>Quantity:</strong> {selectedItem.quantity}
-                </Col>
-                <Col md={6}>
-                  <strong>Date:</strong> {selectedItem.date}
-                </Col>
-                <Col md={6}>
-                  <strong>Cost:</strong> {selectedItem.cost}
-                </Col>
-                <Col md={6}>
-                  <strong>Value:</strong> {selectedItem.value}
-                </Col>
-                <Col md={6}>
-                  <strong>Min Order Qty:</strong> {selectedItem.minQty}
-                </Col>
-              </Row>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <strong>Tax Account:</strong> {selectedItem.taxAccount}
-                </Col>
-                <Col md={6}>
-                  <strong>Cess:</strong> {selectedItem.cess}
-                </Col>
-                <Col md={6}>
-                  <strong>Purchase Price (Incl):</strong> {selectedItem.purchasePriceInclusive}
-                </Col>
-                <Col md={6}>
-                  <strong>Sale Price (Incl):</strong> {selectedItem.salePriceInclusive}
-                </Col>
-                <Col md={6}>
-                  <strong>Discount %:</strong> {selectedItem.discount}
-                </Col>
-              </Row>
-              <Row className="mb-3">
                 <Col md={6}>
                   <strong>Category:</strong> {selectedItem.itemCategory}
                 </Col>
                 <Col md={6}>
-                  <strong>Subcategory:</strong> {selectedItem.subcategory}
+                  <strong>Unit:</strong> {selectedItem.unit}
                 </Col>
-                <Col md={12}>
-                  <strong>Remarks:</strong> {selectedItem.remarks}
+                <Col md={6}>
+                  <strong>Total Stock:</strong> {selectedItem.quantity}
+                </Col>
+                <Col md={6}>
+                  <strong>Description:</strong> {selectedItem.description}
                 </Col>
               </Row>
+              
+              {/* Warehouse Information */}
+              <Row className="mb-3">
+                <Col md={12}>
+                  <strong>Warehouse Information:</strong>
+                  {selectedItem.warehouses && selectedItem.warehouses.length > 0 ? (
+                    <table className="table table-sm mt-2">
+                      <thead>
+                        <tr>
+                          <th>Warehouse Name</th>
+                          <th>Location</th>
+                          <th>Stock Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedItem.warehouses.map((warehouse, index) => (
+                          <tr key={index}>
+                            <td>{warehouse.name}</td>
+                            <td>{warehouse.location}</td>
+                            <td>{warehouse.stockQty}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="text-muted mt-2">No warehouse information available</p>
+                  )}
+                </Col>
+              </Row>
+              
+              <Row className="mb-3">
+                <Col md={6}>
+                  <strong>Status:</strong> {selectedItem.status}
+                </Col>
+                <Col md={6}>
+                  <strong>Created At:</strong> {selectedItem.date}
+                </Col>
+              </Row>
+
+              {/* Image Display */}
               {selectedItem.image && (
                 <Row className="mb-3">
                   <Col md={12}>
-                    <strong>Image Preview:</strong>
-                    <br />
-                    <img
-                      src={selectedItem.image}
-                      alt="item preview"
-                      style={{ maxHeight: "200px", marginTop: "10px" }}
-                    />
+                    <strong>Image:</strong>
+                    <div className="mt-2">
+                      <img 
+                        src={selectedItem.image} 
+                        alt={selectedItem.itemName}
+                        style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "contain" }}
+                      />
+                    </div>
                   </Col>
                 </Row>
               )}
