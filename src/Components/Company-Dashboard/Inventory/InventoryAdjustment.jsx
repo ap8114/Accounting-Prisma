@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef , useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import axiosInstance from '../../../Api/axiosInstance';
 import GetCompanyId from '../../../Api/GetCompanyId';
 import { CurrencyContext } from '../../../hooks/CurrencyContext';
@@ -28,7 +28,7 @@ function InventoryAdjustment() {
   const [itemSearch, setItemSearch] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [showItemDropdown, setShowItemDropdown] = useState(false);
-   const { convertPrice, symbol, currency } = useContext(CurrencyContext);
+  const { convertPrice, symbol, currency } = useContext(CurrencyContext);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -55,7 +55,7 @@ function InventoryAdjustment() {
     allWarehousesRef.current = allWarehouses;
   }, [allWarehouses]);
 
-  // 🔥 FETCH ITEMS
+  // 🔥 FETCH ITEMS - FIXED to properly handle warehouse data
   const fetchItems = async () => {
     if (!companyId) return;
     try {
@@ -64,7 +64,19 @@ function InventoryAdjustment() {
         const mapped = response.data.data.map(item => ({
           id: item.id,
           name: (item.item_name?.trim() || 'Unnamed Item'),
-          unit: 'Piece',
+          sku: item.sku || '',
+          description: item.description || '',
+          total_stock: item.total_stock || 0,
+          // FIXED: Include warehouse information
+          warehouses: Array.isArray(item.warehouses) ? item.warehouses.map(wh => ({
+            id: wh.warehouse_id,
+            name: wh.warehouse_name,
+            location: wh.location,
+            stock_qty: wh.stock_qty
+          })) : [],
+          unit: item.unit_detail?.uom_id?.toString() || 'Piece',
+          item_category: item.item_category?.item_category_name || '',
+          image: item.image || null
         }));
         setAllItems(mapped);
         setFilteredItems(mapped);
@@ -76,14 +88,18 @@ function InventoryAdjustment() {
     }
   };
 
-  // 🔥 FETCH WAREHOUSES
+  // 🔥 FETCH WAREHOUSES - FIXED to properly fetch warehouses for the company
   const fetchWarehouses = async () => {
     if (!companyId) return;
     try {
-      const response = await axiosInstance.get('warehouses');
+      const response = await axiosInstance.get(`warehouses/company/${companyId}`);
       if (response.data.success && Array.isArray(response.data.data)) {
-        const filtered = response.data.data.filter(wh => wh.company_id == companyId);
-        setAllWarehouses(filtered);
+        const mapped = response.data.data.map(wh => ({
+          id: wh.id,
+          warehouse_name: wh.warehouse_name,
+          location: wh.location || ''
+        }));
+        setAllWarehouses(mapped);
       }
     } catch (error) {
       console.error('Error fetching warehouses:', error);
@@ -185,7 +201,8 @@ function InventoryAdjustment() {
       setFilteredItems(allItems);
     } else {
       const filtered = allItems.filter(item =>
-        item.name.toLowerCase().includes(itemSearch.toLowerCase())
+        item.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
+        (item.sku && item.sku.toLowerCase().includes(itemSearch.toLowerCase()))
       );
       setFilteredItems(filtered);
     }
@@ -571,7 +588,7 @@ function InventoryAdjustment() {
                             filteredItems.map(item => (
                               <li key={item.id}>
                                 <button className="dropdown-item" type="button" onClick={() => handleItemSelect(item)}>
-                                  {item.name} ({item.unit})
+                                  {item.name} ({item.unit}) - Total Stock: {item.total_stock}
                                 </button>
                               </li>
                             ))
@@ -659,8 +676,8 @@ function InventoryAdjustment() {
                         <div className="mb-3">
                           <label className="form-label">Total Value</label>
                           <div className="input-group">
-                            <span className="input-group-text">$</span>
-                            <input type="text" className="form-control" value={totalAmount.toFixed(2)} readOnly />
+                            <span className="input-group-text">{symbol}</span>
+                            <input type="text" className="form-control" value={convertPrice(totalAmount)} readOnly />
                           </div>
                         </div>
                       </div>
@@ -719,8 +736,8 @@ function InventoryAdjustment() {
                           <td><div>{item.itemName}</div><small className="text-muted">({item.unit})</small></td>
                           <td>{item.warehouseName || '-'}</td>
                           <td>{item.quantity || '-'}</td>
-                          <td>{item.rate ? `$${parseFloat(item.rate).toFixed(2)}` : '-'}</td>
-                          <td>{item.amount ? `$${parseFloat(item.amount).toFixed(2)}` : '-'}</td>
+                          <td>{item.rate ? `${symbol}${convertPrice(parseFloat(item.rate))}` : '-'}</td>
+                          <td>{item.amount ? `${symbol}${convertPrice(parseFloat(item.amount))}` : '-'}</td>
                           <td>{item.narration || '-'}</td>
                         </tr>
                       ))}
@@ -734,7 +751,7 @@ function InventoryAdjustment() {
                   </div>
                 )}
                 <div className="d-flex justify-content-between align-items-center">
-                  <h5><strong>Total Amount: ${viewAdjustment.totalAmount.toFixed(2)}</strong></h5>
+                  <h5><strong>Total Amount: {symbol}{convertPrice(viewAdjustment.totalAmount)}</strong></h5>
                   <button className="btn btn-secondary" onClick={() => setViewAdjustment(null)}>Close</button>
                 </div>
               </div>
@@ -757,7 +774,7 @@ function InventoryAdjustment() {
                 <p><strong>Voucher No:</strong> {adjustmentToDelete?.voucherNo}</p>
                 <p><strong>Date:</strong> {adjustmentToDelete?.voucherDate}</p>
                 <p><strong>Type:</strong> {adjustmentToDelete?.adjustmentType}</p>
-                <p><strong>Total Amount:</strong> ${adjustmentToDelete?.totalAmount.toFixed(2)}</p>
+                <p><strong>Total Amount:</strong> {symbol}{convertPrice(adjustmentToDelete?.totalAmount)}</p>
                 <p className="text-danger">This action cannot be undone.</p>
               </div>
               <div className="modal-footer">
