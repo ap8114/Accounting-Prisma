@@ -328,7 +328,7 @@ function StockTransfer() {
       let response;
       if (editTransfer) {
         // Update existing transfer
-        response = await axios.put(`${BaseUrl}stocktransfers/${editTransfer.id}`, transferData);
+        response = await axiosInstance.put(`stocktransfers/${editTransfer.id}`, transferData);
       } else {
         // Create new transfer
         response = await axios.post(`${BaseUrl}stocktransfers`, transferData);
