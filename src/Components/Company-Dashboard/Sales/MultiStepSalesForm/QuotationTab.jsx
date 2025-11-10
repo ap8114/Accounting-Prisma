@@ -51,7 +51,12 @@ const QuotationTab = ({
   const [companyInfo, setCompanyInfo] = useState({
     name: '',
     email: '',
-    logo_url: null
+    logo_url: null,
+    address: '',
+    country: '',
+    state: '',
+    city: '',
+    postal_code: ''
   });
 
   // Fetch customers and company info
@@ -87,6 +92,11 @@ const QuotationTab = ({
             name: selected.name || '',
             email: selected.email || '',
             logo_url: selected.profile || '',
+            address: selected.address || '',
+            country: selected.country || '',
+            state: selected.state || '',
+            city: selected.city || '',
+            postal_code: selected.postal_code || ''
           });
         }
       } catch (err) {
@@ -102,7 +112,7 @@ const QuotationTab = ({
   useEffect(() => {
     const term = (customerSearchTerm || '').trim();
     if (!term) {
-      setFilteredCustomerList([]);
+      setFilteredCustomerList(customerList);
       return;
     }
 
@@ -285,6 +295,19 @@ const QuotationTab = ({
     // navigate('/next-step');
   };
 
+  // Format company address
+  const formatCompanyAddress = () => {
+    const parts = [
+      companyInfo.address,
+      companyInfo.city,
+      companyInfo.state,
+      companyInfo.postal_code,
+      companyInfo.country
+    ].filter(Boolean);
+    
+    return parts.join(', ');
+  };
+
   return (
     <>
       <Form>
@@ -331,7 +354,7 @@ const QuotationTab = ({
               />
               <Form.Control
                 type="text"
-                value={formData.quotation.companyAddress}
+                value={formatCompanyAddress()}
                 onChange={(e) => handleChange("quotation", "companyAddress", e.target.value)}
                 placeholder="Company Address, City, State, Pincode......."
                 className="form-control-no-border"
@@ -394,8 +417,10 @@ const QuotationTab = ({
                     setShowCustomerDropdown(true);
                   }}
                   onFocus={() => {
-                    if (customerSearchTerm) {
-                      setShowCustomerDropdown(true);
+                    setShowCustomerDropdown(true);
+                    // If search term is empty, show all customers
+                    if (!customerSearchTerm) {
+                      setFilteredCustomerList(customerList);
                     }
                   }}
                 />
@@ -403,7 +428,13 @@ const QuotationTab = ({
                   icon={faChevronDown} 
                   className="position-absolute end-0 top-50 translate-middle-y me-2 text-muted" 
                   style={{ cursor: 'pointer' }}
-                  onClick={() => setShowCustomerDropdown(!showCustomerDropdown)}
+                  onClick={() => {
+                    setShowCustomerDropdown(!showCustomerDropdown);
+                    // If dropdown is being opened and search term is empty, show all customers
+                    if (!showCustomerDropdown && !customerSearchTerm) {
+                      setFilteredCustomerList(customerList);
+                    }
+                  }}
                 />
               </div>
               
@@ -429,7 +460,7 @@ const QuotationTab = ({
                 </div>
               )}
               
-              {showCustomerDropdown && filteredCustomerList.length === 0 && customerSearchTerm && (
+              {showCustomerDropdown && filteredCustomerList.length === 0 && (
                 <div 
                   ref={dropdownRef}
                   className="position-absolute w-100 bg-white border rounded mt-1 shadow-sm z-index-10 p-2 text-muted"
