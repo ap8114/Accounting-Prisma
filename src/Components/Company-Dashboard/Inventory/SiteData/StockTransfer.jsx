@@ -27,7 +27,7 @@ function StockTransfer() {
   const [manualVoucherNo, setManualVoucherNo] = useState("");
   const [voucherDate, setVoucherDate] = useState("");
   const [destinationWarehouse, setDestinationWarehouse] = useState("");
-  const [destinationWarehouseId, setDestinationWarehouseId] = useState(null); // Added state for warehouse ID
+  const [destinationWarehouseId, setDestinationWarehouseId] = useState(null);
   const [itemSearch, setItemSearch] = useState("");
   const [items, setItems] = useState([]);
   const [note, setNote] = useState("");
@@ -56,7 +56,7 @@ function StockTransfer() {
 
   const companyId = GetCompanyId();
 
-  // ✅ Fetch products by company
+  // ✅ Fetch products by company (FIXED: Now properly handles warehouse stock information)
   const fetchProductsByCompany = async () => {
     if (!companyId) return;
     setProductsLoading(true);
@@ -66,21 +66,34 @@ function StockTransfer() {
       const productsData = Array.isArray(response.data?.data) ? response.data.data : [];
 
       if (isSuccess && productsData.length > 0) {
-        const transformed = productsData.map(p => ({
-          id: p.id || 0,
-          name: (p.item_name || "").toString().trim(),
-          sku: (p.sku || "").toString().trim(),
-          barcode: (p.barcode || "").toString().trim(),
-          hsn: (p.hsn || "").toString().trim(),
-          sale_price: parseFloat(p.sale_price) || 0,
-          purchase_price: parseFloat(p.purchase_price) || 0,
-          initial_qty: p.initial_qty != null ? Number(p.initial_qty) : 0,
-          warehouse_id: p.warehouse_id || null,
-          description: p.description || "",
-          min_order_qty: p.min_order_qty || 0,
-          tax_account: p.tax_account || "",
-          remarks: p.remarks || "",
-        }));
+        const transformed = productsData.map(p => {
+          // Extract warehouse information
+          const warehouses = Array.isArray(p.warehouses) ? p.warehouses : [];
+          
+          return {
+            id: p.id || 0,
+            name: (p.item_name || "").toString().trim(),
+            sku: (p.sku || "").toString().trim(),
+            barcode: (p.barcode || "").toString().trim(),
+            hsn: (p.hsn || "").toString().trim(),
+            sale_price: parseFloat(p.sale_price) || 0,
+            purchase_price: parseFloat(p.purchase_price) || 0,
+            total_stock: p.total_stock || 0, // Total stock across all warehouses
+            warehouses: warehouses.map(w => ({
+              id: w.warehouse_id,
+              name: w.warehouse_name,
+              location: w.location,
+              stock_qty: w.stock_qty
+            })),
+            description: p.description || "",
+            min_order_qty: p.min_order_qty || 0,
+            tax_account: p.tax_account || "",
+            remarks: p.remarks || "",
+            image: p.image || null,
+            item_category: p.item_category?.item_category_name || "",
+            unit_detail: p.unit_detail?.uom_id || ""
+          };
+        });
         setProducts(transformed);
       } else {
         setProducts([]);
@@ -228,7 +241,7 @@ function StockTransfer() {
       setManualVoucherNo(editTransfer.manualVoucherNo);
       setVoucherDate(editTransfer.voucherDate);
       setDestinationWarehouse(editTransfer.destinationWarehouse);
-      setDestinationWarehouseId(editTransfer.destinationWarehouseId); // Set warehouse ID
+      setDestinationWarehouseId(editTransfer.destinationWarehouseId);
       setItems([...editTransfer.items]);
       setNote(editTransfer.note);
       setShowModal(true);
@@ -344,7 +357,7 @@ function StockTransfer() {
     setManualVoucherNo("");
     setVoucherDate("");
     setDestinationWarehouse("");
-    setDestinationWarehouseId(null); // Reset warehouse ID
+    setDestinationWarehouseId(null);
     setItemSearch("");
     setItems([]);
     setNote("");
@@ -559,7 +572,7 @@ function StockTransfer() {
                               className="list-group-item list-group-item-action"
                               onClick={() => {
                                 setDestinationWarehouse(w.name);
-                                setDestinationWarehouseId(w.id); // Set warehouse ID
+                                setDestinationWarehouseId(w.id);
                                 setShowWarehouseList(false);
                               }}
                             >
@@ -611,8 +624,15 @@ function StockTransfer() {
                               <strong>{p.name}</strong>
                               <div className="small text-muted">
                                 {p.sku && `SKU: ${p.sku}`} {p.barcode && `| Barcode: ${p.barcode}`}
-                                {p.initial_qty !== undefined && `| Stock: ${p.initial_qty}`}
+                                {/* ✅ FIXED: Display total stock across all warehouses */}
+                                {p.total_stock !== undefined && `| Total Stock: ${p.total_stock}`}
                               </div>
+                              {/* ✅ NEW: Display warehouse-specific stock information */}
+                              {p.warehouses && p.warehouses.length > 0 && (
+                                <div className="small text-muted">
+                                  Warehouses: {p.warehouses.map(w => `${w.name}: ${w.stock_qty}`).join(", ")}
+                                </div>
+                              )}
                             </li>
                           ))
                       )}
@@ -635,59 +655,68 @@ function StockTransfer() {
                     </thead>
                     <tbody>
                       {items.length > 0 ? (
-                        items.map(item => (
-                          <tr key={item.id}>
-                            <td>{item.itemName}</td>
-                            <td>
-                              <select
-                                className="form-select form-select-sm"
-                                value={item.sourceWarehouse}
-                                onChange={e => updateItemField(item.id, 'sourceWarehouse', e.target.value)}
-                              >
-                                <option value="">-- Select --</option>
-                                {warehouses.map(w => (
-                                  // ✅ FIXED: Disable the destination warehouse in the source dropdown
-                                  <option 
-                                    key={w.id} 
-                                    value={w.name}
-                                    disabled={w.name === destinationWarehouse}
-                                  >
-                                    {w.name} {w.location && `(${w.location})`}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                className="form-control form-control-sm"
-                                value={item.quantity}
-                                onChange={e => updateItemField(item.id, 'quantity', e.target.value)}
-                                min="0"
-                                step="0.01"
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                className="form-control form-control-sm"
-                                value={item.rate}
-                                onChange={e => updateItemField(item.id, 'rate', e.target.value)}
-                                min="0"
-                                step="0.01"
-                              />
-                            </td>
-                            <td>{parseFloat(item.amount).toFixed(2)}</td>
-                            <td>
-                              <input
-                                type="text"
-                                className="form-control form-control-sm"
-                                value={item.narration}
-                                onChange={e => updateItemField(item.id, 'narration', e.target.value)}
-                              />
-                            </td>
-                          </tr>
-                        ))
+                        items.map(item => {
+                          // Find the product to get warehouse stock information
+                          const product = products.find(p => p.id === item.productId);
+                          
+                          return (
+                            <tr key={item.id}>
+                              <td>{item.itemName}</td>
+                              <td>
+                                <select
+                                  className="form-select form-select-sm"
+                                  value={item.sourceWarehouse}
+                                  onChange={e => updateItemField(item.id, 'sourceWarehouse', e.target.value)}
+                                >
+                                  <option value="">-- Select --</option>
+                                  {warehouses.map(w => {
+                                    // ✅ FIXED: Disable the destination warehouse in the source dropdown
+                                    // Also show stock availability for each warehouse
+                                    const warehouseStock = product?.warehouses?.find(wh => wh.id === w.id)?.stock_qty || 0;
+                                    return (
+                                      <option 
+                                        key={w.id} 
+                                        value={w.name}
+                                        disabled={w.name === destinationWarehouse || warehouseStock <= 0}
+                                      >
+                                        {w.name} {w.location && `(${w.location})`} - Stock: {warehouseStock}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="form-control form-control-sm"
+                                  value={item.quantity}
+                                  onChange={e => updateItemField(item.id, 'quantity', e.target.value)}
+                                  min="0"
+                                  step="0.01"
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="form-control form-control-sm"
+                                  value={item.rate}
+                                  onChange={e => updateItemField(item.id, 'rate', e.target.value)}
+                                  min="0"
+                                  step="0.01"
+                                />
+                              </td>
+                              <td>{parseFloat(item.amount).toFixed(2)}</td>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="form-control form-control-sm"
+                                  value={item.narration}
+                                  onChange={e => updateItemField(item.id, 'narration', e.target.value)}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr><td colSpan="6" className="text-center">No items added</td></tr>
                       )}
@@ -744,7 +773,7 @@ function StockTransfer() {
                           <th>Rate</th>
                           <th>Amount</th>
                         </tr>
-                      </thead>
+                        </thead>
                       <tbody>
                         {viewTransfer.items.length > 0 ? (
                           viewTransfer.items.map(i => (
