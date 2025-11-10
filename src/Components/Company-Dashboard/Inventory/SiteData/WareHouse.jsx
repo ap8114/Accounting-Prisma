@@ -24,6 +24,12 @@ const WareHouse = () => {
   const [showModal, setShowModal] = useState(false);
   const [warehouseName, setWarehouseName] = useState("");
   const [location, setLocation] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [country, setCountry] = useState("");
   const [editId, setEditId] = useState(null);
   const [filterLocation, setFilterLocation] = useState("");
   const navigate = useNavigate();
@@ -64,10 +70,16 @@ const WareHouse = () => {
         .filter((w) => w.company_id == companyId)
         .map((w) => ({
           _id: w.id?.toString() || w._id?.toString(),
-          id: w.id?.toString() || w._id?.toString(), // Add id field for consistency
+          id: w.id?.toString() || w._id?.toString(),
           name: w.warehouse_name || w.name,
           location: w.location,
-          totalStocks: 0,
+          address_line1: w.address_line1,
+          address_line2: w.address_line2,
+          city: w.city,
+          state: w.state,
+          pincode: w.pincode,
+          country: w.country,
+          totalStocks: w.totalStocks || 0, // ✅ FIX: was totalStockUnits
         }));
 
       setWarehouses(filteredAndMapped);
@@ -88,6 +100,12 @@ const WareHouse = () => {
   const resetFormAndCloseModal = () => {
     setWarehouseName("");
     setLocation("");
+    setAddressLine1("");
+    setAddressLine2("");
+    setCity("");
+    setState("");
+    setPincode("");
+    setCountry("");
     setEditId(null);
     setShowModal(false);
     setModalError(null);
@@ -102,15 +120,27 @@ const WareHouse = () => {
       setEditId(data._id);
       setWarehouseName(data.name);
       setLocation(data.location);
+      setAddressLine1(data.address_line1 || "");
+      setAddressLine2(data.address_line2 || "");
+      setCity(data.city || "");
+      setState(data.state || "");
+      setPincode(data.pincode || "");
+      setCountry(data.country || "");
     } else {
       setEditId(null);
       setWarehouseName("");
       setLocation("");
+      setAddressLine1("");
+      setAddressLine2("");
+      setCity("");
+      setState("");
+      setPincode("");
+      setCountry("");
     }
     setShowModal(true);
   };
 
-  // Updated handleFormSubmit with proper API integration
+  // Updated handleFormSubmit with full address fields
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -121,27 +151,27 @@ const WareHouse = () => {
         company_id: companyId,
         warehouse_name: warehouseName,
         location: location,
+        address_line1: addressLine1 || null,
+        address_line2: addressLine2 || null,
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
+        country: country || null,
       };
 
       console.log("Submitting payload:", payload);
 
       let response;
       if (editId) {
-        // Update existing warehouse
         response = await axiosInstance.patch(`/warehouses/${editId}`, payload);
       } else {
-        // Create new warehouse
         response = await axiosInstance.post("/warehouses", payload);
       }
 
       console.log("API Response:", response.data);
 
-      // Check if response is successful
       if (response.data) {
-        // Refresh the warehouse list
         await fetchWarehouses();
-
-        // Reset form and close modal
         resetFormAndCloseModal();
       } else {
         throw new Error(response.data?.message || "Failed to save warehouse");
@@ -168,7 +198,6 @@ const WareHouse = () => {
 
     try {
       await axiosInstance.delete(`/warehouses/${id}`);
-      // Re-fetch after delete
       await fetchWarehouses();
     } catch (err) {
       console.error("Delete Error:", err);
@@ -176,7 +205,7 @@ const WareHouse = () => {
     }
   };
 
-  // --- Pagination & Import/Export (unchanged) ---
+  // --- Pagination & Import/Export ---
   const totalPages = Math.ceil(warehouses.length / itemsPerPage);
   const currentItems = warehouses.slice(
     (currentPage - 1) * itemsPerPage,
@@ -197,6 +226,7 @@ const WareHouse = () => {
         _id: Date.now().toString() + index,
         name: item["Warehouse Name"] || "",
         location: item["Location"] || "",
+        totalStocks: 0, // ✅ number, not string
       }));
       setWarehouses(formatted);
     };
@@ -226,7 +256,7 @@ const WareHouse = () => {
     setCurrentPage(pageNumber);
   };
 
-  // --- Add/Edit Item States (unchanged for brevity) ---
+  // --- Add/Edit Item States (unchanged) ---
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [newItem, setNewItem] = useState({
@@ -359,7 +389,6 @@ const WareHouse = () => {
     setShowEdit(false);
   };
 
-  // Updated function to handle adding stock to a specific warehouse
   const handleAddStockModal = (warehouse) => {
     setSelectedWarehouse(warehouse);
     setShowAdd(true);
@@ -457,14 +486,13 @@ const WareHouse = () => {
                           style={{ cursor: "pointer" }}
                           onClick={() => {
                             localStorage.setItem("warehouseName", w.name);
-                         localStorage.setItem("warehouseid", w.id);
+                            localStorage.setItem("warehouseid", w.id);
                             navigate(`/company/warehouse/${w._id}`);
                           }}
                         >
                           <u>{w.name}</u>
                         </td>
-
-                        <td>{w.totalStocks}</td>
+                        <td>{w.totalStocks}</td> {/* ✅ Now shows real totalStockUnits */}
                         <td>{w.location}</td>
                         <td>
                           <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -486,7 +514,6 @@ const WareHouse = () => {
                             >
                               <FaTrash size={18} />
                             </Button>
-                            {/* Add Stock button removed from Actions column */}
                           </div>
                         </td>
                       </tr>
@@ -511,9 +538,7 @@ const WareHouse = () => {
               <nav>
                 <ul className="pagination pagination-sm mb-0 flex-wrap">
                   <li
-                    className={`page-item ${
-                      currentPage === 1 ? "disabled" : ""
-                    }`}
+                    className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
                   >
                     <button
                       className="page-link rounded-start"
@@ -527,18 +552,16 @@ const WareHouse = () => {
                   {Array.from({ length: totalPages }, (_, index) => (
                     <li
                       key={index + 1}
-                      className={`page-item ${
-                        currentPage === index + 1 ? "active" : ""
-                      }`}
+                      className={`page-item ${currentPage === index + 1 ? "active" : ""}`}
                     >
                       <button
                         className="page-link"
                         style={
                           currentPage === index + 1
                             ? {
-                                backgroundColor: "#3daaaa",
-                                borderColor: "#3daaaa",
-                              }
+                              backgroundColor: "#3daaaa",
+                              borderColor: "#3daaaa",
+                            }
                             : {}
                         }
                         onClick={() => handlePageChange(index + 1)}
@@ -548,9 +571,7 @@ const WareHouse = () => {
                     </li>
                   ))}
                   <li
-                    className={`page-item ${
-                      currentPage === totalPages ? "disabled" : ""
-                    }`}
+                    className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}
                   >
                     <button
                       className="page-link rounded-end"
@@ -569,8 +590,8 @@ const WareHouse = () => {
         )}
       </div>
 
-      {/* Add/Edit Warehouse Modal */}
-      <Modal show={showModal} onHide={resetFormAndCloseModal} size="md">
+      {/* Add/Edit Warehouse Modal with Full Address Fields */}
+      <Modal show={showModal} onHide={resetFormAndCloseModal} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>
             {editId ? "Edit Warehouse" : "Create Warehouse"}
@@ -587,26 +608,99 @@ const WareHouse = () => {
             </Alert>
           )}
           <Form onSubmit={handleFormSubmit}>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Warehouse Name *</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={warehouseName}
+                    onChange={(e) => setWarehouseName(e.target.value)}
+                    required
+                    placeholder="Enter warehouse name"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Location *</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    required
+                    placeholder="Enter location"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
             <Form.Group className="mb-3">
-              <Form.Label>Warehouse Name</Form.Label>
+              <Form.Label>Address Line 1</Form.Label>
               <Form.Control
                 type="text"
-                value={warehouseName}
-                onChange={(e) => setWarehouseName(e.target.value)}
-                required
-                placeholder="Enter warehouse name"
+                value={addressLine1}
+                onChange={(e) => setAddressLine1(e.target.value)}
+                placeholder="Street address, P.O. box, company name, etc."
               />
             </Form.Group>
+
             <Form.Group className="mb-3">
-              <Form.Label>Location</Form.Label>
+              <Form.Label>Address Line 2</Form.Label>
               <Form.Control
                 type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                required
-                placeholder="Enter location"
+                value={addressLine2}
+                onChange={(e) => setAddressLine2(e.target.value)}
+                placeholder="Apartment, suite, unit, building, floor, etc."
               />
             </Form.Group>
+
+            <Row>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>City</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="City"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>State / Province</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    placeholder="State"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Postal Code</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value)}
+                    placeholder="Pincode"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Country</Form.Label>
+              <Form.Control
+                type="text"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="Country"
+              />
+            </Form.Group>
+
             <div className="d-flex justify-content-end">
               <Button variant="secondary" onClick={resetFormAndCloseModal}>
                 Close
@@ -637,7 +731,7 @@ const WareHouse = () => {
         </Modal.Body>
       </Modal>
 
-      {/* AddProductModal - moved outside the table */}
+      {/* AddProductModal */}
       <AddProductModal
         showAdd={showAdd}
         showEdit={showEdit}
@@ -659,7 +753,6 @@ const WareHouse = () => {
         selectedWarehouse={selectedWarehouse}
         companyId={companyId}
         onSuccess={() => {
-          // Refresh data or perform other actions on success
           fetchWarehouses();
         }}
       />
