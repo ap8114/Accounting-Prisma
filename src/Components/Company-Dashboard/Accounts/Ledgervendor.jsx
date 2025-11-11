@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useLocation } from "react-router-dom";
 import GetCompanyId from "../../../Api/GetCompanyId";
@@ -31,11 +31,11 @@ const Ledgervendor = () => {
 
   // State for API data
   const [vendorData, setVendorData] = useState(null);
-  const [summary, setSummary] = useState(null);
+  const [ledgerSummary, setLedgerSummary] = useState(null);
+  const [transactionSummary, setTransactionSummary] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const passedVendor = location.state?.vendor;
 
   // State for filters and UI
@@ -57,27 +57,31 @@ const Ledgervendor = () => {
         setLoading(false);
         return;
       }
-
       if (!passedVendor || !passedVendor.id) {
         setError("Vendor ID not found");
         setLoading(false);
         return;
       }
-
       try {
         setLoading(true);
         const response = await axiosInstance.get(`/vendorCustomer/vendor-ledger/${passedVendor.id}/${companyId}`);
         const result = response.data;
-
         if (result.success) {
           setVendorData(result.vendor);
-          setSummary(result.summary);
-          // Initialize items array for each transaction if not present
-          const transactionsWithItems = result.transactions.map(t => ({
+          setLedgerSummary(result.ledger_summary);
+          setTransactionSummary(result.transaction_summary);
+
+          // Process transactions: convert string amounts to numbers
+          const processedTransactions = result.transactions.map((t, index) => ({
+            id: t.id || `api_${index}`,
             ...t,
-            items: t.items || [] // Ensure items array exists, default to empty
+            debit: parseFloat(t.debit) || 0,
+            credit: parseFloat(t.credit) || 0,
+            balanceValue: Math.abs(parseFloat(t.balance.replace(/[^\d.-]/g, '')) || 0) * (t.balance.includes('Cr') ? 1 : -1),
+            balanceType: t.balance_type,
+            items: t.items || [],
           }));
-          setTransactions(transactionsWithItems);
+          setTransactions(processedTransactions);
         } else {
           setError(result.message || "Failed to fetch vendor ledger data");
         }
@@ -88,13 +92,13 @@ const Ledgervendor = () => {
         setLoading(false);
       }
     };
-
     fetchVendorLedger();
   }, [companyId, passedVendor]);
 
-  // Use API data if available, fallback to dummy data if needed during development
+  // Use API data if available
   const currentVendor = vendorData || {
     name: "Unknown Vendor",
+
     company_name: "N/A",
     email: "N/A",
     phone: "N/A",
@@ -116,134 +120,12 @@ const Ledgervendor = () => {
     company_location: "",
   };
 
-  // Use API summary or fallback
-  const currentSummary = summary || {
+  const currentSummary = ledgerSummary || {
     total_payments: 0,
     total_purchases: 0,
     outstanding_balance: 0,
     balance_type: "Cr",
   };
-
-  // Process transactions from API or fallback to dummy data structure
-  const processedData = useMemo(() => {
-    if (!transactions || transactions.length === 0) {
-      return [];
-    }
-
-    let filtered = [...transactions];
-
-    // Apply date filters
-    if (fromDate) {
-      filtered = filtered.filter((e) => e.date >= fromDate);
-    }
-    if (toDate) {
-      filtered = filtered.filter((e) => e.date <= toDate);
-    }
-
-    // Apply search query
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter((e) =>
-        e.particulars.toLowerCase().includes(q) ||
-        (e.narration && e.narration.toLowerCase().includes(q)) ||
-        e.vch_no.toLowerCase().includes(q) ||
-        (e.items && e.items.some((i) => i.item.toLowerCase().includes(q)))
-      );
-    }
-
-    // Apply balance type filter
-    if (balanceType !== "all") {
-      filtered = filtered.filter((e) =>
-        balanceType === "debit" ? parseFloat(e.debit || 0) > 0 : parseFloat(e.credit || 0) > 0
-      );
-    }
-
-    // Apply voucher type filter
-    if (voucherTypeFilter !== "all") {
-      filtered = filtered.filter((e) => e.vch_type === voucherTypeFilter);
-    }
-
-    // Calculate running balance based on filtered data
-    // Start from the first transaction's balance or use opening balance if available
-    let runningBalance = 0;
-    // Try to get the starting balance from the first transaction or summary
-    if (filtered.length > 0) {
-      // If the first transaction has a balance, we can use that to calculate
-      // Otherwise, we need to calculate from scratch based on filtered data
-      // For simplicity here, we'll recalculate the running balance from scratch for the filtered set
-      // We assume the opening balance is part of the initial dataset if relevant
-      // A more robust solution would involve fetching the balance before fromDate
-      // For now, we'll just ensure the balance is calculated consistently for the filtered data
-      runningBalance = 0; // Reset for filtered calculation
-    }
-
-    // Calculate running balance for filtered transactions
-    // This is a simplified approach - in a real app, you'd want to fetch the balance at the start date
-    return filtered.map((entry, index) => {
-      // For the first entry, we might need to get the balance from the API or calculate from all data
-      // For simplicity, we'll assume the balance in the data is correct and just pass it through
-      // Or recalculate based on previous entries in the filtered set
-      // Since the API provides the balance, we'll use the provided balance field
-      // But if we need to recalculate, we can do so:
-      // runningBalance += parseFloat(entry.credit || 0) - parseFloat(entry.debit || 0);
-
-      // Use the balance from the API response if available, otherwise calculate
-      const calculatedBalanceValue = runningBalance + (parseFloat(entry.credit || 0) - parseFloat(entry.debit || 0));
-      runningBalance = calculatedBalanceValue;
-
-      const isCredit = calculatedBalanceValue >= 0;
-      const balanceTypeLabel = isCredit ? "Cr" : "Dr";
-      const formattedBalance = `${Math.abs(calculatedBalanceValue).toLocaleString('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-      })} ${balanceTypeLabel}`;
-
-      return {
-        id: index, // Use index as ID for the processed list
-        ...entry,
-        balance: entry.balance || formattedBalance, // Use API balance if available
-        balanceValue: calculatedBalanceValue,
-        balanceType: entry.balance_type || balanceTypeLabel,
-        debit: parseFloat(entry.debit || 0),
-        credit: parseFloat(entry.credit || 0),
-      };
-    });
-  }, [transactions, fromDate, toDate, balanceType, searchQuery, voucherTypeFilter]);
-
-  // Calculate totals
-  const totals = useMemo(() => {
-    return processedData.reduce(
-      (acc, e) => {
-        acc.totalDebit += e.debit || 0;
-        acc.totalCredit += e.credit || 0;
-        return acc;
-      },
-      { totalDebit: 0, totalCredit: 0 }
-    );
-  }, [processedData]);
-
-  // Get current balance from summary or last processed transaction
-  const currentBalance = summary 
-    ? summary.outstanding_balance 
-    : (processedData.length > 0 ? processedData[processedData.length - 1].balanceValue : 0);
-
-  // Determine if any transaction has items
-  const hasItems = useMemo(() => processedData.some((e) => e.items && e.items.length > 0), [processedData]);
-
-  // Auto-expand items when needed
-  useEffect(() => {
-    if (activeTab === "all" || activeTab === "itemsDetails") {
-      const newExpanded = {};
-      processedData.forEach((entry) => {
-        if (entry.items && entry.items.length > 0) {
-          newExpanded[entry.id] = true;
-        }
-      });
-      setExpandedRows(newExpanded);
-    } else {
-      setExpandedRows({});
-    }
-  }, [activeTab, processedData]);
 
   const resetFilters = () => {
     setFromDate("2025-04-01");
@@ -256,10 +138,23 @@ const Ledgervendor = () => {
   const exportToExcel = () => alert("Export to Excel functionality");
   const exportToPDF = () => alert("Export to PDF functionality");
 
+  // Calculate totals
+  const totals = transactions.reduce(
+    (acc, transaction) => {
+      acc.totalDebit += transaction.debit;
+      acc.totalCredit += transaction.credit;
+      return acc;
+    },
+    { totalDebit: 0, totalCredit: 0 }
+  );
+
   // Determine visibility based on activeTab
   const showVendorDetails = activeTab === "all" || activeTab === "customerDetails";
   const showNarration = activeTab === "all" || activeTab === "narration";
   const showCountTable = activeTab === "all" || activeTab === "countTable";
+  const vendor = passedVendor || defaultVendor;
+  // Check if any transaction has items
+  const hasItems = transactions.some(transaction => transaction.items && transaction.items.length > 0);
 
   if (loading) {
     return (
@@ -312,7 +207,9 @@ const Ledgervendor = () => {
                     Total Payments (Dr)
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
-                    {currentSummary.total_payments.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                    {typeof currentSummary.total_payments === 'number'
+                      ? currentSummary.total_payments.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+                      : '₹0.00'}
                   </div>
                 </div>
                 <div className="col-auto">
@@ -331,7 +228,9 @@ const Ledgervendor = () => {
                     Total Purchases (Cr)
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
-                    {currentSummary.total_purchases.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                    {typeof currentSummary.total_purchases === 'number'
+                      ? currentSummary.total_purchases.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+                      : '₹0.00'}
                   </div>
                 </div>
                 <div className="col-auto">
@@ -350,7 +249,9 @@ const Ledgervendor = () => {
                     Outstanding Balance
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
-                    {Math.abs(currentSummary.outstanding_balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} {currentSummary.balance_type}
+                    {typeof currentSummary.outstanding_balance === 'number'
+                      ? Math.abs(currentSummary.outstanding_balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+                      : '₹0.00'} {currentSummary.balance_type}
                   </div>
                 </div>
                 <div className="col-auto">
@@ -443,19 +344,35 @@ const Ledgervendor = () => {
               <tbody>
                 <tr>
                   <td>Opening Balance</td>
-                  <td>{(currentVendor.opening_balance || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
+                  <td>
+                    {typeof currentVendor.opening_balance === 'number'
+                      ? currentVendor.opening_balance.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+                      : '₹0.00'}
+                  </td>
                 </tr>
                 <tr>
                   <td>Total Purchases (Cr)</td>
-                  <td>{currentSummary.total_purchases.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
+                  <td>
+                    {typeof currentSummary.total_purchases === 'number'
+                      ? currentSummary.total_purchases.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+                      : '₹0.00'}
+                  </td>
                 </tr>
                 <tr>
                   <td>Total Payments (Dr)</td>
-                  <td>{currentSummary.total_payments.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
+                  <td>
+                    {typeof currentSummary.total_payments === 'number'
+                      ? currentSummary.total_payments.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+                      : '₹0.00'}
+                  </td>
                 </tr>
                 <tr className="table-info fw-bold">
                   <td>Current Balance</td>
-                  <td>{Math.abs(currentSummary.outstanding_balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} {currentSummary.balance_type}</td>
+                  <td>
+                    {typeof currentSummary.outstanding_balance === 'number'
+                      ? Math.abs(currentSummary.outstanding_balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+                      : '₹0.00'} {currentSummary.balance_type}
+                  </td>
                 </tr>
               </tbody>
             </Table>
@@ -517,10 +434,10 @@ const Ledgervendor = () => {
                       <p>This is to confirm that as per our records, your account stands at the following balance:</p>
                       <table class="table">
                         <tr><th>Description</th><th>Amount (₹)</th></tr>
-                        <tr><td>Opening Balance</td><td>${(currentVendor.opening_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
-                        <tr><td>Total Purchases (Cr)</td><td>${currentSummary.total_purchases.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
-                        <tr><td>Total Payments (Dr)</td><td>${currentSummary.total_payments.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
-                        <tr><td><strong>Current Balance</strong></td><td><strong>${Math.abs(currentSummary.outstanding_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${currentSummary.balance_type}</strong></td></tr>
+                        <tr><td>Opening Balance</td><td>${typeof currentVendor.opening_balance === 'number' ? currentVendor.opening_balance.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}</td></tr>
+                        <tr><td>Total Purchases (Cr)</td><td>${typeof currentSummary.total_purchases === 'number' ? currentSummary.total_purchases.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}</td></tr>
+                        <tr><td>Total Payments (Dr)</td><td>${typeof currentSummary.total_payments === 'number' ? currentSummary.total_payments.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}</td></tr>
+                        <tr><td><strong>Current Balance</strong></td><td><strong>${typeof currentSummary.outstanding_balance === 'number' ? Math.abs(currentSummary.outstanding_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'} ${currentSummary.balance_type}</strong></td></tr>
                       </table>
                       <p>We hereby confirm the above balance as correct.</p>
                       <div class="signature"><p><strong>For the Company</strong></p><div class="signature-line"></div>
@@ -565,32 +482,32 @@ const Ledgervendor = () => {
               <Col md={4}>
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Personal Info</h6>
-                  <p className="mb-2"><i className="bi bi-person text-success me-2"></i><strong>Name:</strong> {currentVendor.name}</p>
-                  <p className="mb-2"><i className="bi bi-building text-success me-2"></i><strong>Company:</strong> {currentVendor.company_name || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-telephone text-success me-2"></i><strong>Phone:</strong> {currentVendor.phone || "N/A"}</p>
-                  <p className="mb-0"><i className="bi bi-envelope text-success me-2"></i><strong>Email:</strong> {currentVendor.email || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-person text-success me-2"></i><strong>Name:</strong> {vendor.name}</p>
+                  <p className="mb-2"><i className="bi bi-building text-success me-2"></i><strong>Company:</strong> {vendor.companyName || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-telephone text-success me-2"></i><strong>Phone:</strong> {vendor.phone}</p>
+                  <p className="mb-0"><i className="bi bi-envelope text-success me-2"></i><strong>Email:</strong> {vendor.email}</p>
                   <p className="mb-0 d-flex align-items-center">
                     <FaGlobe className="me-2" style={{ color: "#53b2a5" }} />
-                    <span><strong>Location:</strong> <a href={currentVendor.company_location} target="_blank" rel="noopener noreferrer" style={{ color: "#007bff" }}>Click Location</a></span>
+                    <span><strong>Location:</strong> <a href={vendor.companyLocation} target="_blank" rel="noopener noreferrer" style={{ color: "#007bff" }}>Click Location</a></span>
                   </p>
                 </div>
               </Col>
               <Col md={4}>
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Address Info</h6>
-                  <p className="mb-2"><i className="bi bi-geo-alt text-success me-2"></i><strong>Address:</strong> {currentVendor.address || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-truck text-success me-2"></i><strong>Shipping:</strong> {currentVendor.shipping_address || "Same as above"}</p>
-                  <p className="mb-2"><i className="bi bi-globe text-success me-2"></i><strong>Country:</strong> {currentVendor.country || "India"}</p>
-                  <p className="mb-0"><i className="bi bi-flag text-success me-2"></i><strong>State:</strong> {currentVendor.state || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-geo-alt text-success me-2"></i><strong>Address:</strong> {vendor.address}</p>
+                  <p className="mb-2"><i className="bi bi-truck text-success me-2"></i><strong>Shipping:</strong> {vendor.shippingAddress || "Same as above"}</p>
+                  <p className="mb-2"><i className="bi bi-globe text-success me-2"></i><strong>Country:</strong> {vendor.country || "India"}</p>
+                  <p className="mb-0"><i className="bi bi-flag text-success me-2"></i><strong>State:</strong> {vendor.state || "N/A"}</p>
                 </div>
               </Col>
               <Col md={4}>
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Financial Info</h6>
-                  <p className="mb-2"><i className="bi bi-hash text-success me-2"></i><strong>Pincode:</strong> {currentVendor.pincode || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-file-earmark-text text-success me-2"></i><strong>GSTIN:</strong> {currentVendor.gstin || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-calendar text-success me-2"></i><strong>Credit Period:</strong> {currentVendor.credit_period || "N/A"} days</p>
-                  <p className="mb-0"><i className="bi bi-cash-stack text-success me-2"></i><strong>Balance:</strong> ₹{Math.abs(currentSummary.outstanding_balance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+                  <p className="mb-2"><i className="bi bi-hash text-success me-2"></i><strong>Pincode:</strong> {vendor.pincode || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-file-earmark-text text-success me-2"></i><strong>GSTIN:</strong> {vendor.gstin || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-calendar text-success me-2"></i><strong>Credit Period:</strong> {vendor.creditPeriod || "N/A"} days</p>
+                  <p className="mb-0"><i className="bi bi-cash-stack text-success me-2"></i><strong>Balance:</strong> ₹{parseFloat(vendor.payable || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
                 </div>
               </Col>
             </Row>
@@ -601,7 +518,7 @@ const Ledgervendor = () => {
       {/* Main Ledger Table */}
       <Card>
         <Card.Header className="text-white d-flex justify-content-between align-items-center">
-          <Badge bg="light" text="dark">{processedData.length} transaction(s)</Badge>
+          <Badge bg="light" text="dark">{transactions.length} transaction(s)</Badge>
           <div className="d-flex align-items-center gap-2">
             <Button variant="light" size="sm" className="d-flex align-items-center px-3 py-2 shadow-sm border" onClick={exportToExcel}>
               <FaFileExport className="me-2" /><span className="small fw-medium">Excel</span>
@@ -658,11 +575,11 @@ const Ledgervendor = () => {
                       <Form.Label>Voucher Type</Form.Label>
                       <Form.Select value={voucherTypeFilter} onChange={(e) => setVoucherTypeFilter(e.target.value)}>
                         <option value="all">All Types</option>
+                        <option value="Opening">Opening</option>
                         <option value="Invoice">Purchase</option>
                         <option value="Payment">Payment</option>
                         <option value="Return">Purchase Return</option>
                         <option value="Expense">Expense</option>
-                        <option value="Opening">Opening</option>
                       </Form.Select>
                     </Form.Group>
                   </Col>
@@ -701,8 +618,8 @@ const Ledgervendor = () => {
                 </tr>
               </thead>
               <tbody>
-                {processedData.length > 0 ? (
-                  processedData.map((entry) => (
+                {transactions.length > 0 ? (
+                  transactions.map((entry) => (
                     <React.Fragment key={entry.id}>
                       <tr>
                         <td>{entry.date}</td>
@@ -732,28 +649,30 @@ const Ledgervendor = () => {
                         <td>
                           <Badge
                             bg={
-                              entry.vch_type === "Invoice"
-                                ? "primary"
-                                : entry.vch_type === "Payment"
-                                  ? "success"
-                                  : entry.vch_type === "Return"
-                                    ? "warning"
-                                    : entry.vch_type === "Expense"
-                                      ? "info"
-                                      : entry.vch_type === "Opening"
-                                        ? "secondary"
+                              entry.vch_type === "Opening"
+                                ? "secondary"
+                                : entry.vch_type === "Invoice"
+                                  ? "primary"
+                                  : entry.vch_type === "Payment"
+                                    ? "success"
+                                    : entry.vch_type === "Return"
+                                      ? "warning"
+                                      : entry.vch_type === "Expense"
+                                        ? "info"
                                         : "dark"
                             }
                           >
-                            {entry.vch_type === "Invoice"
-                              ? "Purchase"
-                              : entry.vch_type === "Return"
-                                ? "Return"
-                                : entry.vch_type === "Expense"
-                                  ? "Expense"
-                                  : entry.vch_type === "Opening"
-                                    ? "Opening"
-                                    : entry.vch_type}
+                            {entry.vch_type === "Opening"
+                              ? "Opening"
+                              : entry.vch_type === "Invoice"
+                                ? "Purchase"
+                                : entry.vch_type === "Return"
+                                  ? "Return"
+                                  : entry.vch_type === "Expense"
+                                    ? "Expense"
+                                    : entry.vch_type === "Payment"
+                                      ? "Payment"
+                                      : entry.vch_type}
                           </Badge>
                         </td>
                         <td className="text-end">
@@ -791,7 +710,7 @@ const Ledgervendor = () => {
                                 </thead>
                                 <tbody>
                                   {entry.items.map((item, idx) => (
-                                    <tr key={idx}>
+                                    <tr key={`${entry.id}_item_${idx}`}>
                                       <td className="fw-bold">{item.item}</td>
                                       <td>{item.quantity}</td>
                                       <td>{parseFloat(item.rate || 0).toFixed(3)}</td>
@@ -821,10 +740,22 @@ const Ledgervendor = () => {
               <tfoot className="table-light">
                 <tr>
                   <td colSpan={showNarration ? 4 : 3} className="text-end fw-bold">Total</td>
-                  <td className="text-end fw-bold">{totals.totalDebit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
-                  <td className="text-end fw-bold">{totals.totalCredit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
                   <td className="text-end fw-bold">
-                    {Math.abs(currentBalance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} {summary?.balance_type || (currentBalance >= 0 ? "Cr" : "Dr")}
+                    {typeof totals.totalDebit === 'number'
+                      ? totals.totalDebit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+                      : '₹0.00'}
+                  </td>
+                  <td className="text-end fw-bold">
+                    {typeof totals.totalCredit === 'number'
+                      ? totals.totalCredit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+                      : '₹0.00'}
+                  </td>
+                  <td className="text-end fw-bold">
+                    {ledgerSummary && typeof ledgerSummary.outstanding_balance === 'number'
+                      ? `${Math.abs(ledgerSummary.outstanding_balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} ${ledgerSummary.balance_type}`
+                      : transactions.length > 0
+                        ? transactions[transactions.length - 1].balance
+                        : "₹0.00 Cr"}
                   </td>
                 </tr>
               </tfoot>
@@ -848,47 +779,55 @@ const Ledgervendor = () => {
                 </thead>
                 <tbody>
                   {(() => {
-                    const voucherTypeCounts = {};
-                    const typeMap = {
-                      Invoice: "Purchase",
-                      Payment: "Payment",
-                      Return: "Purchase Return",
-                      Expense: "Expense",
-                      Opening: "Opening Balance",
-                    };
-                    processedData.forEach((entry) => {
-                      const displayType = typeMap[entry.vch_type] || entry.vch_type;
-                      voucherTypeCounts[displayType] = (voucherTypeCounts[displayType] || 0) + 1;
-                    });
-                    const allTypes = [
-                      "Opening Balance",
-                      "Purchase",
-                      "Payment",
-                      "Purchase Return",
-                      "Expense",
-                      "Receipt",
-                      "Sales Return",
-                      "Manufacturing",
-                      "Stock Journal",
-                      "Stock Adjustment",
-                      "Banking",
-                      "Journal",
-                    ];
-                    return allTypes.map((type) => {
-                      const count = voucherTypeCounts[type] || 0;
-                      return (
-                        <tr key={type}>
-                          <td className="py-2">{type}</td>
-                          <td className="text-center fw-bold py-2">{count}</td>
-                        </tr>
-                      );
-                    });
+                    const countsToUse = transactionSummary || {};
+                    if (!transactionSummary) {
+                      // Fallback logic if transactionSummary is not fetched or not in the response structure
+                      const voucherTypeCounts = {};
+                      const typeMap = {
+                        Opening: "opening_balance",
+                        Invoice: "purchase",
+                        Payment: "payment",
+                        Return: "purchase_return",
+                        Expense: "expense",
+                        // Add other mappings if API voucher types change
+                      };
+                      transactions.forEach((entry) => {
+                        const displayKey = typeMap[entry.vch_type] || entry.vch_type.toLowerCase();
+                        const snakeCaseKey = displayKey.replace(/\s+/g, '_').toLowerCase();
+                        voucherTypeCounts[snakeCaseKey] = (voucherTypeCounts[snakeCaseKey] || 0) + 1;
+                      });
+                      // Define the order for the fallback table
+                      const fallbackOrder = ["opening_balance", "purchase", "payment", "purchase_return", "expense", "receipt", "sales_return", "manufacturing", "stock_journal", "stock_adjustment", "banking", "journal"];
+                      return fallbackOrder.map((type) => {
+                        const count = voucherTypeCounts[type] || 0;
+                        const displayLabel = type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                        return (
+                          <tr key={type}>
+                            <td className="py-2">{displayLabel}</td>
+                            <td className="text-center fw-bold py-2">{count}</td>
+                          </tr>
+                        );
+                      });
+                    } else {
+                      // Use the fetched transactionSummary data with the specified snake_case keys
+                      const apiKeysOrder = ["opening_balance", "purchase", "payment", "purchase_return", "expense", "receipt", "sales_return", "manufacturing", "stock_journal", "stock_adjustment", "banking", "journal"];
+                      return apiKeysOrder.map((key) => {
+                        const count = countsToUse[key] || 0;
+                        const displayLabel = key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                        return (
+                          <tr key={key}>
+                            <td className="py-2">{displayLabel}</td>
+                            <td className="text-center fw-bold py-2">{count}</td>
+                          </tr>
+                        );
+                      });
+                    }
                   })()}
                 </tbody>
                 <tfoot>
                   <tr className="bg-light fw-bold">
                     <td>Total Transactions</td>
-                    <td className="text-center">{processedData.length}</td>
+                    <td className="text-center">{transactionSummary?.total_transactions || transactions.length}</td>
                   </tr>
                 </tfoot>
               </Table>
