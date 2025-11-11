@@ -67,10 +67,10 @@ const VendorItemDetailsView = () => {
                 entry.voucherType === "Invoice"
                   ? "primary"
                   : entry.voucherType === "Payment"
-                  ? "success"
-                  : entry.voucherType === "Return"
-                  ? "warning"
-                  : "secondary"
+                    ? "success"
+                    : entry.voucherType === "Return"
+                      ? "warning"
+                      : "secondary"
               }
             >
               {entry.voucherType === "Invoice" ? "Purchase" : entry.voucherType}
