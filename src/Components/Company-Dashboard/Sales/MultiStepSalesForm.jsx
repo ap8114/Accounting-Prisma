@@ -12,7 +12,7 @@ import SalesOrderTab from './MultiStepSalesForm/SalesOrderTab';
 import DeliveryChallanTab from './MultiStepSalesForm/DeliveryChallanTab';
 import InvoiceTab from './MultiStepSalesForm/InvoiceTab';
 import PaymentTab from './MultiStepSalesForm/PaymentTab';
-import GetCompanyId from '../../../Api/GetCompanyId'; 
+import GetCompanyId from '../../../Api/GetCompanyId';
 import axiosInstance from '../../../Api/axiosInstance';
 
 const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
@@ -32,18 +32,18 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   // Function to fetch company details
   const fetchCompanyDetails = async () => {
     if (!companyId) return;
-    
+
     setLoadingCompany(true);
     try {
       const response = await axiosInstance.get(`auth/Company`);
       const data = response.data;
-      
+
       if (data.success) {
         // Find the company with matching ID
         const company = data.data.find(c => c.id === parseInt(companyId));
         if (company) {
           setCompanyDetails(company);
-          
+
           // Update form data with company details
           const companyInfo = {
             companyName: company.name || "",
@@ -55,7 +55,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             companyIcon: company.branding?.company_icon_url || "",
             companyFavicon: company.branding?.favicon_url || ""
           };
-          
+
           // Update all tabs with company info
           setFormData(prev => ({
             quotation: { ...prev.quotation, ...companyInfo },
@@ -65,7 +65,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             payment: { ...prev.payment, ...companyInfo }
           }));
         }
-      } 
+      }
     } catch (error) {
       console.error("Error fetching company details:", error);
     } finally {
@@ -291,16 +291,16 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   // Available items for search
   const [availableItems, setAvailableItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
-  
+
   // Fetch products from API using Axios
   const fetchProducts = async () => {
     if (!companyId) return;
-    
+
     setLoadingItems(true);
     try {
       const response = await axiosInstance.get(`products/company/${companyId}`);
       const data = response.data;
-      
+
       if (data.success) {
         const formattedItems = data.data.map(product => ({
           id: product.id,
@@ -316,7 +316,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           warehouses: product.warehouses || []
         }));
         setAvailableItems(formattedItems);
-      } 
+      }
     } catch (error) {
       console.error("Error fetching products:", error);
       // Fallback to default items
@@ -328,18 +328,18 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   // Fetch warehouses from API using Axios
   const [warehouses, setWarehouses] = useState([]);
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
-  
+
   const fetchWarehouses = async () => {
     if (!companyId) return;
-    
+
     setLoadingWarehouses(true);
     try {
       const response = await axiosInstance.get(`warehouses/company/${companyId}`);
       const data = response.data;
-      
+
       if (data.success) {
         setWarehouses(data.data);
-      } 
+      }
     } catch (error) {
       console.error("Error fetching warehouses:", error);
     } finally {
@@ -1193,14 +1193,14 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     // Get available warehouses for a specific item
     const getAvailableWarehousesForItem = (item) => {
       if (!item || !item.name) return warehouses;
-      
+
       // Find the product in availableItems
       const product = availableItems.find(p => p.name === item.name);
-      
+
       if (!product || !product.warehouses || product.warehouses.length === 0) {
         return [];
       }
-      
+
       // Return only warehouses where this product is available
       return product.warehouses.map(w => w.warehouse_name);
     };
@@ -1250,7 +1250,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           handleAddItem={handleAddItem}
           handleUpdateItem={handleUpdateItem}
           handleAddCategory={handleAddCategory}
-          companyId={companyId} 
+          companyId={companyId}
         />
 
         {/* Service Modal */}
@@ -1262,34 +1262,34 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             <Form>
               <Form.Group className="mb-3">
                 <Form.Label>Service Name</Form.Label>
-                <Form.Control 
-                  name="name" 
-                  onChange={(e) => handleServiceInput(e)} 
-                  required 
+                <Form.Control
+                  name="name"
+                  onChange={(e) => handleServiceInput(e)}
+                  required
                   className="shadow-sm"
                   placeholder="Enter service name"
                 />
               </Form.Group>
-              
+
               <Form.Group className="mb-3">
                 <Form.Label>Service Description</Form.Label>
-                <Form.Control 
-                  as="textarea" 
-                  name="serviceDescription" 
-                  onChange={(e) => handleServiceInput(e)} 
+                <Form.Control
+                  as="textarea"
+                  name="serviceDescription"
+                  onChange={(e) => handleServiceInput(e)}
                   rows={3}
                   className="shadow-sm"
                   placeholder="Describe the service"
                 />
               </Form.Group>
-              
+
               <Form.Group className="mb-3">
                 <Form.Label>Price</Form.Label>
-                <Form.Control 
+                <Form.Control
                   type="number"
                   step="0.01"
-                  name="price" 
-                  onChange={(e) => handleServiceInput(e)} 
+                  name="price"
+                  onChange={(e) => handleServiceInput(e)}
                   placeholder="Enter service price"
                   className="shadow-sm"
                   required
@@ -1298,10 +1298,10 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
 
               <Form.Group className="mb-3">
                 <Form.Label>Tax %</Form.Label>
-                <Form.Control 
+                <Form.Control
                   type="number"
-                  name="tax" 
-                  onChange={(e) => handleServiceInput(e)} 
+                  name="tax"
+                  onChange={(e) => handleServiceInput(e)}
                   className="shadow-sm"
                   placeholder="e.g. 18"
                 />
@@ -1320,17 +1320,17 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
 
         <Table bordered hover size="sm" className="dark-bordered-table">
           <thead className="bg-light">
-              <tr>
-                <th>Item Name</th>
-                <th>Qty</th>
-                <th>Warehouse</th>
-                {tab === 'deliveryChallan' && <th>Delivered Qty</th>}
-                <th>Rate</th>
-                <th>Tax %</th>
-                <th>Discount</th>
-                <th>Amount</th>
-                <th>Action</th>
-              </tr>
+            <tr>
+              <th>Item Name</th>
+              <th>Qty</th>
+              <th>Warehouse</th>
+              {tab === 'deliveryChallan' && <th>Delivered Qty</th>}
+              <th>Rate</th>
+              <th>Tax %</th>
+              <th>Discount</th>
+              <th>Amount</th>
+              <th>Action</th>
+            </tr>
           </thead>
           <tbody>
             {items.map((item, idx) => {
@@ -1428,8 +1428,8 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                       {warehouses.map((w, i) => {
                         const isAvailable = availableWarehouses.includes(w.warehouse_name);
                         return (
-                          <option 
-                            key={i} 
+                          <option
+                            key={i}
                             value={w.warehouse_name}
                             disabled={!isAvailable}
                             style={!isAvailable ? { color: '#999' } : {}}
@@ -1525,8 +1525,8 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
               textAlign: 'center',
             }}
           >
-            {currentTab.companyLogo ? (
-              <img src={currentTab.companyLogo} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100px' }} />
+            {currentTab.company_logo_url ? (
+              <img src={currentTab.company_logo_url} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100px' }} />
             ) : (
               'Logo'
             )}
@@ -1839,7 +1839,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           >
             View Bills
           </Button>
-        </div> 
+        </div>
 
         <Tabs activeKey={key} onSelect={setKey} className="mb-4" fill>
           {/* ============= QUOTATION TAB ============= */}
@@ -2011,6 +2011,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             />
           </Tab>
         </Tabs>
+<div>
+  rohit
+</div>
 
         {/* Hidden PDF View - Only for PDF generation and printing */}
         <div style={{

@@ -76,8 +76,10 @@ const QuotationTab = ({
         console.error('Failed to fetch customers:', err);
         toast.error('Error fetching customers');
       }
-    };
+    }
 
+
+    // Inside the fetchCompanies function, update the state assignment:
     const fetchCompanies = async () => {
       try {
         const res = await axiosInstance.get(`${BaseUrl}auth/Company`);
@@ -91,7 +93,7 @@ const QuotationTab = ({
           setCompanyInfo({
             name: selected.name || '',
             email: selected.email || '',
-            logo_url: selected.profile || '',
+            company_logo_url: selected.branding?.company_logo_url || '', // Fixed: Access branding object
             address: selected.address || '',
             country: selected.country || '',
             state: selected.state || '',
@@ -142,8 +144,8 @@ const QuotationTab = ({
   // Handle clicks outside the dropdown to close it
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target) && 
-          searchRef.current && !searchRef.current.contains(event.target)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
+        searchRef.current && !searchRef.current.contains(event.target)) {
         setShowCustomerDropdown(false);
       }
     };
@@ -304,7 +306,7 @@ const QuotationTab = ({
       companyInfo.postal_code,
       companyInfo.country
     ].filter(Boolean);
-    
+
     return parts.join(', ');
   };
 
@@ -319,9 +321,9 @@ const QuotationTab = ({
               style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
               onClick={() => document.getElementById('logo-upload')?.click()}
             >
-              {companyInfo.logo_url ? (
+              {companyInfo.company_logo_url ? (
                 <img
-                  src={companyInfo.logo_url}
+                  src={companyInfo.company_logo_url}
                   alt="Company Logo"
                   style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
                   onError={(e) => {
@@ -424,9 +426,9 @@ const QuotationTab = ({
                     }
                   }}
                 />
-                <FontAwesomeIcon 
-                  icon={faChevronDown} 
-                  className="position-absolute end-0 top-50 translate-middle-y me-2 text-muted" 
+                <FontAwesomeIcon
+                  icon={faChevronDown}
+                  className="position-absolute end-0 top-50 translate-middle-y me-2 text-muted"
                   style={{ cursor: 'pointer' }}
                   onClick={() => {
                     setShowCustomerDropdown(!showCustomerDropdown);
@@ -437,15 +439,15 @@ const QuotationTab = ({
                   }}
                 />
               </div>
-              
+
               {showCustomerDropdown && filteredCustomerList.length > 0 && (
-                <div 
+                <div
                   ref={dropdownRef}
                   className="position-absolute w-100 bg-white border rounded mt-1 shadow-sm z-index-10"
                   style={{ maxHeight: '200px', overflowY: 'auto' }}
                 >
                   {filteredCustomerList.map(customer => (
-                    <div 
+                    <div
                       key={customer.id}
                       className="p-2 hover:bg-light cursor-pointer"
                       onClick={() => handleCustomerSelect(customer)}
@@ -459,9 +461,9 @@ const QuotationTab = ({
                   ))}
                 </div>
               )}
-              
+
               {showCustomerDropdown && filteredCustomerList.length === 0 && (
-                <div 
+                <div
                   ref={dropdownRef}
                   className="position-absolute w-100 bg-white border rounded mt-1 shadow-sm z-index-10 p-2 text-muted"
                 >
