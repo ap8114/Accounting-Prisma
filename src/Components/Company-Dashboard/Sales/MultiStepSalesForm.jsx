@@ -2011,9 +2011,6 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             />
           </Tab>
         </Tabs>
-<div>
-  rohit
-</div>
 
         {/* Hidden PDF View - Only for PDF generation and printing */}
         <div style={{
