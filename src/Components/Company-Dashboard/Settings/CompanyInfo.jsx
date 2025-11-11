@@ -34,17 +34,15 @@ const CompanyInfo = () => {
     headerLabel: 'Invoice No.',
     footerTerms: '',
     footerNote: '',
-  footerBankDetails: '',
-  // Dedicated bank fields (used instead of free-text footerBankDetails)
-  bank_name: '',
-  account_no: '',
-  account_holder: '',
-  ifsc_code: '',
-
-
+    footerBankDetails: '',
+    // Dedicated bank fields (used instead of free-text footerBankDetails)
+    bank_name: '',
+    account_no: '',
+    account_holder: '',
+    ifsc_code: '',
     purchaseLogo: null,
-purchaseDarkLogo: null,
-purchaseIcon: null,
+    purchaseDarkLogo: null,
+    purchaseIcon: null,
     showDescription: true,
     showItemName: true,
     showPrice: true,
@@ -95,7 +93,7 @@ purchaseIcon: null,
       invoiceTemplate: "Invoice Template",
 
       purchases: "Purchases",
-receipts: "Receipts",
+      receipts: "Receipts",
       salesInvoice: "Sales Invoice",
       cashInvoice: "Cash Invoice",
       deliveryNote: "Delivery Note",
@@ -142,7 +140,7 @@ receipts: "Receipts",
       // Invoice Settings
       invoiceTemplate: "نموذج الفاتورة",
       purchases: "المشتريات",
-receipts: "الإيصالات",
+      receipts: "الإيصالات",
       salesInvoice: "فاتورة مبيعات",
       cashInvoice: "فاتورة نقدية",
       deliveryNote: "مذكرة تسليم",
@@ -298,7 +296,7 @@ receipts: "الإيصالات",
         fontFamily: printLanguage === 'ar' ? '"Segoe UI", Tahoma, sans-serif' : 'system-ui'
       }}
     >
-      <CurrencySetting/>
+      <CurrencySetting />
       <Container className="p-4" style={{ maxWidth: '100%' }}>
         {/* Language Toggle Buttons */}
         <div className="d-flex justify-content-end mb-3 flex-wrap gap-2">
@@ -517,305 +515,302 @@ receipts: "الإيصالات",
               </div>
             </Tab.Pane>
 
-        
-{/* === INVOICE SETTINGS === */}
-<Tab.Pane eventKey="invoice">
-  <div className=" p-4 card">
-    <h2 className="mb-4" style={{ fontSize: '20px', fontWeight: '600' }}>
-      {t('invoiceSettings')}
-    </h2>
 
-    {/* Nested Tabs: Invoices, Purchases, Receipts */}
-    <Tab.Container defaultActiveKey="invoices">
-      <Nav variant="tabs" className="mb-4">
-        <Nav.Item>
-          <Nav.Link eventKey="invoices">Invoices</Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
-          <Nav.Link eventKey="purchases">{t('purchases')}</Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
-          <Nav.Link eventKey="receipts">{t('receipts')}</Nav.Link>
-        </Nav.Item>
-      </Nav>
+            {/* === INVOICE SETTINGS === */}
+            <Tab.Pane eventKey="invoice">
+              <div className=" p-4 card">
+                <h2 className="mb-4" style={{ fontSize: '20px', fontWeight: '600' }}>
+                  {t('invoiceSettings')}
+                </h2>
 
-      <Tab.Content>
-        {/* ========= INVOICES TAB ========= */}
-        <Tab.Pane eventKey="invoices">
+                {/* Nested Tabs: Invoices, Purchases, Receipts */}
+                <Tab.Container defaultActiveKey="invoices">
+                  <Nav variant="tabs" className="mb-4">
+                    <Nav.Item>
+                      <Nav.Link eventKey="invoices">Invoices</Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="purchases">{t('purchases')}</Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="receipts">{t('receipts')}</Nav.Link>
+                    </Nav.Item>
+                  </Nav>
 
-        <Form.Group className="mb-4">
-        <Form.Label className="fw-bold">{t('invoiceTemplate')}</Form.Label>
-          <div className="row g-3 mt-3 p-4">
-            {[
-              { id: 'template1', name: 'General Invoice 1', img: '/templates/inv1.png' },
-              { id: 'template2', name: 'General Invoice 2', img: '/templates/inv2.png' },
-              { id: 'template3', name: 'General Invoice 3', img: '/templates/inv3.png' },
-       
-            ].map((tmpl) => (
-              <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
-                <div
-                  className={`border rounded overflow-hidden shadow-sm cursor-pointer ${
-                    formData.invoiceTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
-                  }`}
-                  onClick={() => setFormData(prev => ({ ...prev, invoiceTemplateId: tmpl.id }))}
-                  style={{ transition: 'all 0.2s' }}
-                >
-                  <img
-                    src={tmpl.img}
-                    alt={tmpl.name}
-                    className="w-100"
-                    style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
+                  <Tab.Content>
+                    {/* ========= INVOICES TAB ========= */}
+                    <Tab.Pane eventKey="invoices">
+
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">{t('invoiceTemplate')}</Form.Label>
+                        <div className="row g-3 mt-3 p-4">
+                          {[
+                            { id: 'template1', name: 'General Invoice 1', img: '/templates/inv1.png' },
+                            { id: 'template2', name: 'General Invoice 2', img: '/templates/inv2.png' },
+                            { id: 'template3', name: 'General Invoice 3', img: '/templates/inv3.png' },
+
+                          ].map((tmpl) => (
+                            <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
+                              <div
+                                className={`border rounded overflow-hidden shadow-sm cursor-pointer ${formData.invoiceTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
+                                  }`}
+                                onClick={() => setFormData(prev => ({ ...prev, invoiceTemplateId: tmpl.id }))}
+                                style={{ transition: 'all 0.2s' }}
+                              >
+                                <img
+                                  src={tmpl.img}
+                                  alt={tmpl.name}
+                                  className="w-100"
+                                  style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
+                                />
+                                <div className="p-2 bg-light d-flex justify-content-between align-items-center">
+                                  <small className="text-dark fw-medium">{tmpl.name}</small>
+                                  <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
+                                    ☆
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Form.Group>
+                    </Tab.Pane>
+
+                    {/* ========= PURCHASES TAB ========= */}
+                    <Tab.Pane eventKey="purchases">
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">{t('purchases')}</Form.Label>
+                        <div className="row g-3 mt-3">
+                          {[
+                            { id: 'purchase1', name: 'General Purchase 1', img: '/templates/purchase1.png' },
+                            { id: 'purchase2', name: 'General Purchase 2', img: '/templates/purchase2.png' },
+                            { id: 'purchase3', name: 'General Purchase 3', img: '/templates/purchase3.png' },
+
+                          ].map((tmpl) => (
+                            <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
+                              <div
+                                className={`border rounded overflow-hidden shadow-sm cursor-pointer ${formData.purchaseTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
+                                  }`}
+                                onClick={() => setFormData(prev => ({ ...prev, purchaseTemplateId: tmpl.id }))}
+                                style={{ transition: 'all 0.2s' }}
+                              >
+                                <img
+                                  src={tmpl.img}
+                                  alt={tmpl.name}
+                                  className="w-100"
+                                  style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
+                                />
+                                <div className="p-2 bg-light d-flex justify-content-between align-items-center">
+                                  <small className="text-dark fw-medium">{tmpl.name}</small>
+                                  <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
+                                    ☆
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Form.Group>
+                    </Tab.Pane>
+
+                    {/* ========= RECEIPTS TAB ========= */}
+                    <Tab.Pane eventKey="receipts">
+
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">{t('receipts')}</Form.Label>
+                        <div className="row g-3 mt-3">
+                          {[
+                            { id: 'receipt1', name: 'General Receipt 1', img: '/templates/receipt1.png' },
+                            { id: 'receipt2', name: 'General Receipt 2', img: '/templates/receipt2.png' },
+                            { id: 'receipt3', name: 'General Receipt 3', img: '/templates/receipt3.png' },
+
+                          ].map((tmpl) => (
+                            <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
+                              <div
+                                className={`border rounded overflow-hidden shadow-sm cursor-pointer ${formData.receiptTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
+                                  }`}
+                                onClick={() => setFormData(prev => ({ ...prev, receiptTemplateId: tmpl.id }))}
+                                style={{ transition: 'all 0.2s' }}
+                              >
+                                <img
+                                  src={tmpl.img}
+                                  alt={tmpl.name}
+                                  className="w-100"
+                                  style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
+                                />
+                                <div className="p-2 bg-light d-flex justify-content-between align-items-center">
+                                  <small className="text-dark fw-medium">{tmpl.name}</small>
+                                  <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
+                                    ☆
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Form.Group>
+
+                    </Tab.Pane>
+
+
+                  </Tab.Content>
+                </Tab.Container>
+
+
+                {/* Dynamic Header Label */}
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-bold">{t('headerText')}</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="headerLabel"
+                    value={formData.headerLabel}
+                    onChange={handleChange}
+                    placeholder="e.g., Invoice No."
                   />
-                  <div className="p-2 bg-light d-flex justify-content-between align-items-center">
-                    <small className="text-dark fw-medium">{tmpl.name}</small>
-                    <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
-                      ☆
-                    </Button>
+                </Form.Group>
+
+                {/* Footer Fields */}
+                <Form.Group className="mb-4 mt-4">
+                  <Form.Label className="fw-bold">{t('footerText')}</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    name="footerTerms"
+                    value={formData.footerTerms}
+                    onChange={handleChange}
+                    placeholder={t('termsConditions')}
+                    className="mb-2"
+                  />
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    name="footerNote"
+                    value={formData.footerNote}
+                    onChange={handleChange}
+                    placeholder={t('note')}
+                    className="mb-2"
+                  />
+                  <Form.Label className="fw-bold">{t('bankDetails')}</Form.Label>
+                  <div className="row g-2">
+                    <div className="col-md-6">
+                      <Form.Control
+                        type="text"
+                        name="bank_name"
+                        value={formData.bank_name}
+                        onChange={handleChange}
+                        placeholder="Bank Name"
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <Form.Control
+                        type="text"
+                        name="account_no"
+                        value={formData.account_no}
+                        onChange={handleChange}
+                        placeholder="Account No."
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <Form.Control
+                        type="text"
+                        name="account_holder"
+                        value={formData.account_holder}
+                        onChange={handleChange}
+                        placeholder="Account Holder"
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <Form.Control
+                        type="text"
+                        name="ifsc_code"
+                        value={formData.ifsc_code}
+                        onChange={handleChange}
+                        placeholder="IFSC Code"
+                      />
+                    </div>
                   </div>
+                </Form.Group>
+
+                {/* Field Visibility Toggles */}
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-bold">{t('customizeFields')}</Form.Label>
+                  <div className="d-flex flex-column gap-2">
+                    <Form.Check
+                      type="checkbox"
+                      label={t('description')}
+                      name="showDescription"
+                      checked={formData.showDescription}
+                      onChange={handleChange}
+                    />
+                    <Form.Check
+                      type="checkbox"
+                      label={t('itemName')}
+                      name="showItemName"
+                      checked={formData.showItemName}
+                      onChange={handleChange}
+                    />
+                    <Form.Check
+                      type="checkbox"
+                      label={t('price')}
+                      name="showPrice"
+                      checked={formData.showPrice}
+                      onChange={handleChange}
+                    />
+                    <Form.Check
+                      type="checkbox"
+                      label={t('quantity')}
+                      name="showQuantity"
+                      checked={formData.showQuantity}
+                      onChange={handleChange}
+                    />
+                    <Form.Check
+                      type="checkbox"
+                      label={t('total')}
+                      name="showTotal"
+                      checked={formData.showTotal}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </Form.Group>
+
+                {/* Currency Subunit Info */}
+                {formData.currency && (
+                  <Form.Group className="mb-4">
+                    <Form.Label className="fw-bold">
+                      {printLanguage === 'both' ? (
+                        <>
+                          <div>Currency Format</div>
+                          <div>تنسيق العملة</div>
+                        </>
+                      ) : printLanguage === 'ar' ? 'تنسيق العملة' : 'Currency Format'}
+                    </Form.Label>
+                    <div className="alert alert-info mb-0">
+                      {printLanguage === 'ar'
+                        ? `العملة: ${getSubunitLabels(formData.currency).major}، الوحدة الفرعية: ${getSubunitLabels(formData.currency).minor}`
+                        : `Major Unit: ${getSubunitLabels(formData.currency).major}, Minor Unit: ${getSubunitLabels(formData.currency).minor}`}
+                    </div>
+                  </Form.Group>
+                )}
+
+                <div className="d-flex justify-content-end mt-4">
+                  <Button variant="outline-secondary" className="me-3 px-4 py-2">
+                    {t('cancel')}
+                  </Button>
+                  <Button
+                    className="px-4 py-2"
+                    style={{
+                      borderRadius: '4px',
+                      backgroundColor: '#002d4d',
+                      borderColor: '#002d4d',
+                      border: 'none',
+                      color: '#fff'
+                    }}
+                  >
+                    {t('saveSettings')}
+                  </Button>
                 </div>
               </div>
-            ))}
-          </div>
-          </Form.Group>
-        </Tab.Pane>
-
-        {/* ========= PURCHASES TAB ========= */}
-        <Tab.Pane eventKey="purchases">
-        <Form.Group className="mb-4">
-        <Form.Label className="fw-bold">{t('purchases')}</Form.Label>
-          <div className="row g-3 mt-3">
-            {[
-              { id: 'purchase1', name: 'General Purchase 1', img: '/templates/purchase1.png' },
-              { id: 'purchase2', name: 'General Purchase 2', img: '/templates/purchase2.png' },
-              { id: 'purchase3', name: 'General Purchase 3', img: '/templates/purchase3.png' },
-       
-            ].map((tmpl) => (
-              <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
-                <div
-                  className={`border rounded overflow-hidden shadow-sm cursor-pointer ${
-                    formData.purchaseTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
-                  }`}
-                  onClick={() => setFormData(prev => ({ ...prev, purchaseTemplateId: tmpl.id }))}
-                  style={{ transition: 'all 0.2s' }}
-                >
-                  <img
-                    src={tmpl.img}
-                    alt={tmpl.name}
-                    className="w-100"
-                    style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
-                  />
-                  <div className="p-2 bg-light d-flex justify-content-between align-items-center">
-                    <small className="text-dark fw-medium">{tmpl.name}</small>
-                    <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
-                      ☆
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          </Form.Group>
-        </Tab.Pane>
-
-        {/* ========= RECEIPTS TAB ========= */}
-        <Tab.Pane eventKey="receipts">
-
-        <Form.Group className="mb-4">
-        <Form.Label className="fw-bold">{t('receipts')}</Form.Label>
-          <div className="row g-3 mt-3">
-            {[
-              { id: 'receipt1', name: 'General Receipt 1', img: '/templates/receipt1.png' },
-              { id: 'receipt2', name: 'General Receipt 2', img: '/templates/receipt2.png' },
-              { id: 'receipt3', name: 'General Receipt 3', img: '/templates/receipt3.png' },
-        
-            ].map((tmpl) => (
-              <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
-                <div
-                  className={`border rounded overflow-hidden shadow-sm cursor-pointer ${
-                    formData.receiptTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
-                  }`}
-                  onClick={() => setFormData(prev => ({ ...prev, receiptTemplateId: tmpl.id }))}
-                  style={{ transition: 'all 0.2s' }}
-                >
-                  <img
-                    src={tmpl.img}
-                    alt={tmpl.name}
-                    className="w-100"
-                    style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
-                  />
-                  <div className="p-2 bg-light d-flex justify-content-between align-items-center">
-                    <small className="text-dark fw-medium">{tmpl.name}</small>
-                    <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
-                      ☆
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          </Form.Group>
-
-        </Tab.Pane>
-
-
-      </Tab.Content>
-    </Tab.Container>
-
-
-    {/* Dynamic Header Label */}
-    <Form.Group className="mb-4">
-      <Form.Label className="fw-bold">{t('headerText')}</Form.Label>
-      <Form.Control
-        type="text"
-        name="headerLabel"
-        value={formData.headerLabel}
-        onChange={handleChange}
-        placeholder="e.g., Invoice No."
-      />
-    </Form.Group>
-
-      {/* Footer Fields */}
-      <Form.Group className="mb-4 mt-4">
-      <Form.Label className="fw-bold">{t('footerText')}</Form.Label>
-      <Form.Control
-        as="textarea"
-        rows={2}
-        name="footerTerms"
-        value={formData.footerTerms}
-        onChange={handleChange}
-        placeholder={t('termsConditions')}
-        className="mb-2"
-      />
-      <Form.Control
-        as="textarea"
-        rows={2}
-        name="footerNote"
-        value={formData.footerNote}
-        onChange={handleChange}
-        placeholder={t('note')}
-        className="mb-2"
-      />
-      <Form.Label className="fw-bold">{t('bankDetails')}</Form.Label>
-      <div className="row g-2">
-        <div className="col-md-6">
-          <Form.Control
-            type="text"
-            name="bank_name"
-            value={formData.bank_name}
-            onChange={handleChange}
-            placeholder="Bank Name"
-          />
-        </div>
-        <div className="col-md-6">
-          <Form.Control
-            type="text"
-            name="account_no"
-            value={formData.account_no}
-            onChange={handleChange}
-            placeholder="Account No."
-          />
-        </div>
-        <div className="col-md-6">
-          <Form.Control
-            type="text"
-            name="account_holder"
-            value={formData.account_holder}
-            onChange={handleChange}
-            placeholder="Account Holder"
-          />
-        </div>
-        <div className="col-md-6">
-          <Form.Control
-            type="text"
-            name="ifsc_code"
-            value={formData.ifsc_code}
-            onChange={handleChange}
-            placeholder="IFSC Code"
-          />
-        </div>
-      </div>
-    </Form.Group>
-
-    {/* Field Visibility Toggles */}
-    <Form.Group className="mb-4">
-      <Form.Label className="fw-bold">{t('customizeFields')}</Form.Label>
-      <div className="d-flex flex-column gap-2">
-        <Form.Check
-          type="checkbox"
-          label={t('description')}
-          name="showDescription"
-          checked={formData.showDescription}
-          onChange={handleChange}
-        />
-        <Form.Check
-          type="checkbox"
-          label={t('itemName')}
-          name="showItemName"
-          checked={formData.showItemName}
-          onChange={handleChange}
-        />
-        <Form.Check
-          type="checkbox"
-          label={t('price')}
-          name="showPrice"
-          checked={formData.showPrice}
-          onChange={handleChange}
-        />
-        <Form.Check
-          type="checkbox"
-          label={t('quantity')}
-          name="showQuantity"
-          checked={formData.showQuantity}
-          onChange={handleChange}
-        />
-        <Form.Check
-          type="checkbox"
-          label={t('total')}
-          name="showTotal"
-          checked={formData.showTotal}
-          onChange={handleChange}
-        />
-      </div>
-    </Form.Group>
-
-    {/* Currency Subunit Info */}
-    {formData.currency && (
-      <Form.Group className="mb-4">
-        <Form.Label className="fw-bold">
-          {printLanguage === 'both' ? (
-            <>
-              <div>Currency Format</div>
-              <div>تنسيق العملة</div>
-            </>
-          ) : printLanguage === 'ar' ? 'تنسيق العملة' : 'Currency Format'}
-        </Form.Label>
-        <div className="alert alert-info mb-0">
-          {printLanguage === 'ar'
-            ? `العملة: ${getSubunitLabels(formData.currency).major}، الوحدة الفرعية: ${getSubunitLabels(formData.currency).minor}`
-            : `Major Unit: ${getSubunitLabels(formData.currency).major}, Minor Unit: ${getSubunitLabels(formData.currency).minor}`}
-        </div>
-      </Form.Group>
-    )}
-
-    <div className="d-flex justify-content-end mt-4">
-      <Button variant="outline-secondary" className="me-3 px-4 py-2">
-        {t('cancel')}
-      </Button>
-      <Button
-        className="px-4 py-2"
-        style={{
-          borderRadius: '4px',
-          backgroundColor: '#002d4d',
-          borderColor: '#002d4d',
-          border: 'none',
-          color: '#fff'
-        }}
-      >
-        {t('saveSettings')}
-      </Button>
-    </div>
-  </div>
-</Tab.Pane>
+            </Tab.Pane>
 
 
 

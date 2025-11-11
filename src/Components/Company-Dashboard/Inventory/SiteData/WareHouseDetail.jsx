@@ -408,6 +408,7 @@ const WareHouseDetail = () => {
       ) : (
         <Card className="text-center p-5 border-0 shadow-sm bg-light">
           <p className="text-muted">Warehouse not found.</p>
+    
         </Card>
       )}
     </div>
