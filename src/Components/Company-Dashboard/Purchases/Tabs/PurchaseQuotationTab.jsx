@@ -30,7 +30,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
   // State for API products
   const [apiProducts, setApiProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
-  
+
   // State for company details
   const [companyDetails, setCompanyDetails] = useState(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
@@ -71,10 +71,10 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
         const currentCompany = response.data.data.find(
           (company) => company.id === parseInt(companyId)
         );
-        
+
         if (currentCompany) {
           setCompanyDetails(currentCompany);
-          
+
           // Update form data with company details
           setFormData((prev) => ({
             ...prev,
@@ -84,7 +84,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
             companyPhone: currentCompany.phone || "",
             logo: currentCompany.branding?.company_logo_url || "",
           }));
-          
+
           console.log("Company details loaded:", currentCompany);
         }
       }
@@ -250,10 +250,17 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
   // Handlers
   const handleChange = (field, value) => {
     // Don't allow editing of company fields
-    if (["companyName", "companyAddress", "companyEmail", "companyPhone"].includes(field)) {
+    if (
+      [
+        "companyName",
+        "companyAddress",
+        "companyEmail",
+        "companyPhone",
+      ].includes(field)
+    ) {
       return;
     }
-    
+
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -385,7 +392,9 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
       return (
         vendorName.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
         (vendorCompany &&
-          vendorCompany.toLowerCase().includes(vendorSearchTerm.toLowerCase())) ||
+          vendorCompany
+            .toLowerCase()
+            .includes(vendorSearchTerm.toLowerCase())) ||
         (vendorEmail &&
           vendorEmail.toLowerCase().includes(vendorSearchTerm.toLowerCase())) ||
         (vendorPhone &&
@@ -1322,9 +1331,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                   color: "#666",
                 }}
               >
-                {loadingVendors
-                  ? "Loading vendors..."
-                  : "No vendors found"}
+                {loadingVendors ? "Loading vendors..." : "No vendors found"}
               </div>
             )}
           </div>
@@ -1369,11 +1376,11 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                     <small>Upload Logo</small>
                   </>
                 )}
-                <input 
-                  id="logo-upload" 
-                  type="file" 
-                  accept="image/*" 
-                  hidden 
+                <input
+                  id="logo-upload"
+                  type="file"
+                  accept="image/*"
+                  hidden
                   onChange={handleLogoChange}
                 />
               </div>
@@ -1481,7 +1488,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
             <Col md={8}>
               <h5>Quotation From</h5>
               {renderVendorSearch()}
-              
+
               <Form.Group className="mb-2">
                 <Form.Control
                   type="text"
@@ -1632,7 +1639,8 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                   <tr>
                     <td className="fw-bold">Sub Total:</td>
                     <td>
-                      $                       {formData.items
+                      ${" "}
+                      {formData.items
                         .reduce(
                           (sum, item) =>
                             sum +
@@ -1646,7 +1654,8 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                   <tr>
                     <td className="fw-bold">Tax:</td>
                     <td>
-                      $                       {formData.items
+                      ${" "}
+                      {formData.items
                         .reduce((sum, item) => {
                           const subtotal =
                             (parseFloat(item.rate) || 0) *
@@ -1661,7 +1670,8 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                   <tr>
                     <td className="fw-bold">Discount:</td>
                     <td>
-                      $                       {formData.items
+                      ${" "}
+                      {formData.items
                         .reduce(
                           (sum, item) => sum + (parseFloat(item.discount) || 0),
                           0
@@ -1672,7 +1682,8 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                   <tr>
                     <td className="fw-bold">Total:</td>
                     <td className="fw-bold">
-                      $                       {calculateTotalWithTaxAndDiscount(formData.items).toFixed(
+                      ${" "}
+                      {calculateTotalWithTaxAndDiscount(formData.items).toFixed(
                         2
                       )}
                     </td>

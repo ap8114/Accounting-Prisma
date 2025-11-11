@@ -25,6 +25,59 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     tax: ""
   });
 
+  // Add state for company details
+  const [companyDetails, setCompanyDetails] = useState(null);
+  const [loadingCompany, setLoadingCompany] = useState(false);
+
+  // Function to fetch company details
+  const fetchCompanyDetails = async () => {
+    if (!companyId) return;
+    
+    setLoadingCompany(true);
+    try {
+      const response = await axiosInstance.get(`auth/Company`);
+      const data = response.data;
+      
+      if (data.success) {
+        // Find the company with matching ID
+        const company = data.data.find(c => c.id === parseInt(companyId));
+        if (company) {
+          setCompanyDetails(company);
+          
+          // Update form data with company details
+          const companyInfo = {
+            companyName: company.name || "",
+            companyAddress: company.address || "",
+            companyEmail: company.email || "",
+            companyPhone: company.phone || "",
+            companyLogo: company.branding?.company_logo_url || "",
+            companyDarkLogo: company.branding?.company_dark_logo_url || "",
+            companyIcon: company.branding?.company_icon_url || "",
+            companyFavicon: company.branding?.favicon_url || ""
+          };
+          
+          // Update all tabs with company info
+          setFormData(prev => ({
+            quotation: { ...prev.quotation, ...companyInfo },
+            salesOrder: { ...prev.salesOrder, ...companyInfo },
+            deliveryChallan: { ...prev.deliveryChallan, ...companyInfo },
+            invoice: { ...prev.invoice, ...companyInfo },
+            payment: { ...prev.payment, ...companyInfo }
+          }));
+        }
+      } 
+    } catch (error) {
+      console.error("Error fetching company details:", error);
+    } finally {
+      setLoadingCompany(false);
+    }
+  };
+
+  // Fetch company details when component mounts or companyId changes
+  useEffect(() => {
+    fetchCompanyDetails();
+  }, [companyId]);
+
   const handleServiceInput = (e) => {
     const { name, value } = e.target;
     setServiceForm(prev => ({
@@ -74,12 +127,16 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   // --- Form Data State ---
   const [formData, setFormData] = useState(() => ({
     quotation: {
-      companyName: "",
       referenceId: '',
       manualRefNo: "", // Optional manual ref
+      companyName: "",
       companyAddress: "",
       companyEmail: "",
       companyPhone: "",
+      companyLogo: "", // Added company logo
+      companyDarkLogo: "", // Added company dark logo
+      companyIcon: "", // Added company icon
+      companyFavicon: "", // Added company favicon
       quotationNo: "", // Auto-generated Quotation No
       quotationDate: "",
       validDate: "",
@@ -110,6 +167,10 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       companyAddress: '',
       companyEmail: '',
       companyPhone: '',
+      companyLogo: "", // Added company logo
+      companyDarkLogo: "", // Added company dark logo
+      companyIcon: "", // Added company icon
+      companyFavicon: "", // Added company favicon
       billToName: "",
       billToAddress: "",
       billToEmail: "",
@@ -142,6 +203,10 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       companyAddress: '',
       companyEmail: '',
       companyPhone: '',
+      companyLogo: "", // Added company logo
+      companyDarkLogo: "", // Added company dark logo
+      companyIcon: "", // Added company icon
+      companyFavicon: "", // Added company favicon
       billToName: "",
       billToAddress: "",
       billToEmail: "",
@@ -171,6 +236,10 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       companyAddress: '',
       companyEmail: '',
       companyPhone: '',
+      companyLogo: "", // Added company logo
+      companyDarkLogo: "", // Added company dark logo
+      companyIcon: "", // Added company icon
+      companyFavicon: "", // Added company favicon
       customerName: '',
       customerAddress: '',
       customerEmail: '',
@@ -208,6 +277,10 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       companyAddress: '',
       companyEmail: '',
       companyPhone: '',
+      companyLogo: "", // Added company logo
+      companyDarkLogo: "", // Added company dark logo
+      companyIcon: "", // Added company icon
+      companyFavicon: "", // Added company favicon
       signature: '',
       photo: '',
       files: [],
@@ -795,6 +868,10 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             companyAddress: prevData.quotation.companyAddress,
             companyEmail: prevData.quotation.companyEmail,
             companyPhone: prevData.quotation.companyPhone,
+            companyLogo: prevData.quotation.companyLogo,
+            companyDarkLogo: prevData.quotation.companyDarkLogo,
+            companyIcon: prevData.quotation.companyIcon,
+            companyFavicon: prevData.quotation.companyFavicon,
             items: prevData.quotation.items.map(item => ({
               name: item.name,
               qty: item.qty,
@@ -817,6 +894,10 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             companyAddress: prevData.salesOrder.companyAddress,
             companyEmail: prevData.salesOrder.companyEmail,
             companyPhone: prevData.salesOrder.companyPhone,
+            companyLogo: prevData.salesOrder.companyLogo,
+            companyDarkLogo: prevData.salesOrder.companyDarkLogo,
+            companyIcon: prevData.salesOrder.companyIcon,
+            companyFavicon: prevData.salesOrder.companyFavicon,
             billToName: prevData.salesOrder.customerName,
             billToAddress: prevData.salesOrder.customerAddress,
             billToEmail: prevData.salesOrder.customerEmail,
@@ -854,6 +935,10 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             companyAddress: prevData.deliveryChallan.companyAddress,
             companyEmail: prevData.deliveryChallan.companyEmail,
             companyPhone: prevData.deliveryChallan.companyPhone,
+            companyLogo: prevData.deliveryChallan.companyLogo,
+            companyDarkLogo: prevData.deliveryChallan.companyDarkLogo,
+            companyIcon: prevData.deliveryChallan.companyIcon,
+            companyFavicon: prevData.deliveryChallan.companyFavicon,
             items: prevData.deliveryChallan.items.map(item => ({
               description: item.name,
               qty: item.deliveredQty,
@@ -885,6 +970,10 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             companyAddress: prevData.invoice.companyAddress,
             companyEmail: prevData.invoice.companyEmail,
             companyPhone: prevData.invoice.companyPhone,
+            companyLogo: prevData.invoice.companyLogo,
+            companyDarkLogo: prevData.invoice.companyDarkLogo,
+            companyIcon: prevData.invoice.companyIcon,
+            companyFavicon: prevData.invoice.companyFavicon,
           },
         }));
         return 'payment';
@@ -1436,18 +1525,18 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
               textAlign: 'center',
             }}
           >
-            {currentTab.logo ? (
-              <img src={currentTab.logo} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100px' }} />
+            {currentTab.companyLogo ? (
+              <img src={currentTab.companyLogo} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100px' }} />
             ) : (
               'Logo'
             )}
           </div>
           <div style={{ textAlign: 'center', color: '#28a745' }}>
             <h2>
-              {key === 'purchaseQuotation' && 'PURCHASE QUOTATION'}
-              {key === 'purchaseOrder' && 'PURCHASE ORDER'}
-              {key === 'goodsReceipt' && 'GOODS RECEIPT NOTE'}
-              {key === 'bill' && 'PURCHASE BILL'}
+              {key === 'quotation' && 'SALES QUOTATION'}
+              {key === 'salesOrder' && 'SALES ORDER'}
+              {key === 'deliveryChallan' && 'DELIVERY CHALLAN'}
+              {key === 'invoice' && 'INVOICE'}
               {key === 'payment' && 'PAYMENT RECEIPT'}
             </h2>
           </div>
@@ -1461,13 +1550,13 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           <p>Email: {currentTab.companyEmail} | Phone: {currentTab.companyPhone}</p>
         </div>
 
-        {/* Vendor Info */}
-        {currentTab.vendorName && (
+        {/* Customer Info */}
+        {currentTab.billToName && (
           <div style={{ marginBottom: '15px' }}>
-            <h5>VENDOR</h5>
-            <p>{currentTab.vendorName}</p>
-            <p>{currentTab.vendorAddress}</p>
-            <p>Email: {currentTab.vendorEmail} | Phone: {currentTab.vendorPhone}</p>
+            <h5>BILL TO</h5>
+            <p>{currentTab.billToName}</p>
+            <p>{currentTab.billToAddress}</p>
+            <p>Email: {currentTab.billToEmail} | Phone: {currentTab.billToPhone}</p>
           </div>
         )}
 
@@ -1481,8 +1570,8 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           </div>
         )}
 
-        {/* Driver & Vehicle (Goods Receipt) */}
-        {key === 'goodsReceipt' && (
+        {/* Driver & Vehicle (Delivery Challan) */}
+        {key === 'deliveryChallan' && (
           <div style={{ marginBottom: '15px' }}>
             <h5>DRIVER DETAILS</h5>
             <p>{currentTab.driverName} | {currentTab.driverPhone}</p>
@@ -1493,14 +1582,14 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
         {/* Document Numbers */}
         <div style={{ marginBottom: '15px' }}>
           <strong>Ref ID:</strong> {currentTab.referenceId} |
-          {key === 'purchaseQuotation' && <><strong>Quotation No.:</strong> {currentTab.quotationNo} | </>}
-          {key === 'purchaseOrder' && <><strong>Order No.:</strong> {currentTab.orderNo} | </>}
-          {key === 'goodsReceipt' && <><strong>Receipt No.:</strong> {currentTab.receiptNo} | </>}
-          {key === 'bill' && <><strong>Bill No.:</strong> {currentTab.billNo} | </>}
+          {key === 'quotation' && <><strong>Quotation No.:</strong> {currentTab.quotationNo} | </>}
+          {key === 'salesOrder' && <><strong>Order No.:</strong> {currentTab.salesOrderNo} | </>}
+          {key === 'deliveryChallan' && <><strong>Challan No.:</strong> {currentTab.challanNo} | </>}
+          {key === 'invoice' && <><strong>Invoice No.:</strong> {currentTab.invoiceNo} | </>}
           {key === 'payment' && <><strong>Payment No.:</strong> {currentTab.paymentNo} | </>}
           <strong>Date:</strong> {currentTab[`${key}Date`] || currentTab.date || new Date().toISOString().split('T')[0]}
-          {key === 'purchaseQuotation' && currentTab.validDate && <> | <strong>Valid Till:</strong> {currentTab.validDate}</>}
-          {key === 'bill' && currentTab.dueDate && <> | <strong>Due Date:</strong> {currentTab.dueDate}</>}
+          {key === 'quotation' && currentTab.validDate && <> | <strong>Valid Till:</strong> {currentTab.validDate}</>}
+          {key === 'invoice' && currentTab.dueDate && <> | <strong>Due Date:</strong> {currentTab.dueDate}</>}
         </div>
 
         {/* Items Table */}
@@ -1510,7 +1599,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
               <tr>
                 <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Item Name</th>
                 <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Qty</th>
-                {key === 'goodsReceipt' && <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Received Qty</th>}
+                {key === 'deliveryChallan' && <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Delivered Qty</th>}
                 <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Rate</th>
                 <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Tax %</th>
                 <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Discount</th>
@@ -1519,7 +1608,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             </thead>
             <tbody>
               {currentTab.items.map((item, idx) => {
-                const qty = key === 'goodsReceipt' ? (parseInt(item.receivedQty) || 0) : (parseInt(item.qty) || 0);
+                const qty = key === 'deliveryChallan' ? (parseInt(item.deliveredQty) || 0) : (parseInt(item.qty) || 0);
                 const rate = parseFloat(item.rate) || 0;
                 const tax = parseFloat(item.tax) || 0;
                 const discount = parseFloat(item.discount) || 0;
@@ -1530,7 +1619,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                   <tr key={idx}>
                     <td style={{ border: '1px solid #000', padding: '8px' }}>{item.name}</td>
                     <td style={{ border: '1px solid #000', padding: '8px' }}>{item.qty}</td>
-                    {key === 'goodsReceipt' && <td style={{ border: '1px solid #000', padding: '8px' }}>{item.receivedQty}</td>}
+                    {key === 'deliveryChallan' && <td style={{ border: '1px solid #000', padding: '8px' }}>{item.deliveredQty}</td>}
                     <td style={{ border: '1px solid #000', padding: '8px' }}>${rate.toFixed(2)}</td>
                     <td style={{ border: '1px solid #000', padding: '8px' }}>{tax}%</td>
                     <td style={{ border: '1px solid #000', padding: '8px' }}>${discount.toFixed(2)}</td>
@@ -1541,7 +1630,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={key === 'goodsReceipt' ? 6 : 5} style={{ textAlign: 'right', fontWeight: 'bold', border: '1px solid #000', padding: '8px' }}>
+                <td colSpan={key === 'deliveryChallan' ? 6 : 5} style={{ textAlign: 'right', fontWeight: 'bold', border: '1px solid #000', padding: '8px' }}>
                   Total:
                 </td>
                 <td style={{ fontWeight: 'bold', border: '1px solid #000', padding: '8px' }}>
@@ -1559,17 +1648,6 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             <p><strong>Amount Paid:</strong> ${parseFloat(currentTab.amount || 0).toFixed(2)}</p>
             <p><strong>Payment Method:</strong> {currentTab.paymentMethod}</p>
             <p><strong>Status:</strong> {currentTab.paymentStatus}</p>
-          </div>
-        )}
-
-        {/* Bank Details */}
-        {currentTab.bankName && (
-          <div style={{ marginBottom: '15px' }}>
-            <h5>BANK DETAILS</h5>
-            <p><strong>Bank Name:</strong> {currentTab.bankName}</p>
-            <p><strong>Account No.:</strong> {currentTab.accountNo}</p>
-            <p><strong>Account Holder:</strong> {currentTab.accountHolder}</p>
-            <p><strong>IFSC:</strong> {currentTab.ifsc}</p>
           </div>
         )}
 
