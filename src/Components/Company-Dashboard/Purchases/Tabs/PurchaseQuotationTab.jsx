@@ -20,12 +20,27 @@ import {
 import { useNavigate } from "react-router-dom";
 import AddProductModal from "../../../Company-Dashboard/Inventory/AddProductModal";
 import GetCompanyId from "../../../../Api/GetCompanyId";
+import axiosInstance from "../../../../Api/axiosInstance";
 
 const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
   const companyId = GetCompanyId();
   const navigate = useNavigate();
   const pdfRef = useRef();
+
+  // State for API products
+  const [apiProducts, setApiProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   
+  // State for company details
+  const [companyDetails, setCompanyDetails] = useState(null);
+  const [loadingCompany, setLoadingCompany] = useState(false);
+
+  // State for vendors
+  const [vendors, setVendors] = useState([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+  const [vendorSearchTerm, setVendorSearchTerm] = useState("");
+  const [showVendorSearch, setShowVendorSearch] = useState(false);
+
   // Generate document number
   const generateDocNo = (prefix) => {
     const year = new Date().getFullYear().toString().slice(-2); // e.g. 24
@@ -44,6 +59,82 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
     return `${prefix}-${year}-${rand}`;
   };
 
+  // Fetch company details from API
+  const fetchCompanyDetails = async () => {
+    if (!companyId) return;
+
+    setLoadingCompany(true);
+    try {
+      const response = await axiosInstance.get(`/auth/Company`);
+      if (response.data && response.data.success) {
+        // Find the current company from the list
+        const currentCompany = response.data.data.find(
+          (company) => company.id === parseInt(companyId)
+        );
+        
+        if (currentCompany) {
+          setCompanyDetails(currentCompany);
+          
+          // Update form data with company details
+          setFormData((prev) => ({
+            ...prev,
+            companyName: currentCompany.name || "",
+            companyAddress: currentCompany.address || "",
+            companyEmail: currentCompany.email || "",
+            companyPhone: currentCompany.phone || "",
+            logo: currentCompany.branding?.company_logo_url || "",
+          }));
+          
+          console.log("Company details loaded:", currentCompany);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching company details:", error);
+    } finally {
+      setLoadingCompany(false);
+    }
+  };
+
+  // Fetch vendors from API
+  const fetchVendors = async () => {
+    if (!companyId) return;
+
+    setLoadingVendors(true);
+    try {
+      const response = await axiosInstance.get(
+        `/vendorCustomer/company/${companyId}?type=vender`
+      );
+      if (response.data && response.data.success) {
+        setVendors(response.data.data);
+        console.log("Vendors loaded:", response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching vendors:", error);
+    } finally {
+      setLoadingVendors(false);
+    }
+  };
+
+  // Fetch products from API
+  const fetchProducts = async () => {
+    if (!companyId) return;
+
+    setLoadingProducts(true);
+    try {
+      const response = await axiosInstance.get(
+        `/products/company/${companyId}`
+      );
+      if (response.data && response.data.success) {
+        setApiProducts(response.data.data);
+        console.log("API Products loaded:", response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
   // Form data state
   const [formData, setFormData] = useState(() => ({
     companyName: "",
@@ -60,7 +151,16 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
     vendorAddress: "",
     vendorEmail: "",
     vendorPhone: "",
-    items: [{ name: "", qty: "", rate: "", tax: 0, discount: 0 }],
+    items: [
+      {
+        name: "",
+        qty: "",
+        rate: "",
+        tax: 0,
+        discount: 0,
+        warehouse: "", // Added warehouse field
+      },
+    ],
     bankName: "",
     accountNo: "",
     accountHolder: "",
@@ -70,83 +170,8 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
     signature: "",
     photo: "",
     files: [],
+    logo: "", // Added logo field
   }));
-
-  // Available items for search
-  const [availableItems, setAvailableItems] = useState([
-    {
-      id: 1,
-      name: "Laptop",
-      category: "Electronics",
-      price: 50000,
-      tax: 18,
-      hsn: "8471",
-      uom: "PCS",
-    },
-    {
-      id: 2,
-      name: "Office Chair",
-      category: "Furniture",
-      price: 5000,
-      tax: 12,
-      hsn: "9401",
-      uom: "PCS",
-    },
-    {
-      id: 3,
-      name: "T-Shirt",
-      category: "Apparel",
-      price: 500,
-      tax: 5,
-      hsn: "6109",
-      uom: "PCS",
-    },
-    {
-      id: 4,
-      name: "Coffee Table",
-      category: "Furniture",
-      price: 8000,
-      tax: 12,
-      hsn: "9403",
-      uom: "PCS",
-    },
-    {
-      id: 5,
-      name: "Smartphone",
-      category: "Electronics",
-      price: 20000,
-      tax: 18,
-      hsn: "8517",
-      uom: "PCS",
-    },
-    {
-      id: 6,
-      name: "Notebook",
-      category: "Stationery",
-      price: 100,
-      tax: 5,
-      hsn: "4820",
-      uom: "PCS",
-    },
-    {
-      id: 7,
-      name: "Water Bottle",
-      category: "Other",
-      price: 200,
-      tax: 5,
-      hsn: "3924",
-      uom: "PCS",
-    },
-    {
-      id: 8,
-      name: "Desk Lamp",
-      category: "Furniture",
-      price: 1500,
-      tax: 12,
-      hsn: "9405",
-      uom: "PCS",
-    },
-  ]);
 
   // State for modals and UI controls
   const [showAdd, setShowAdd] = useState(false);
@@ -162,11 +187,11 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
     "Stationery",
     "Other",
   ]);
-  
+
   // Search state for each row
   const [rowSearchTerms, setRowSearchTerms] = useState({});
   const [showRowSearch, setShowRowSearch] = useState({});
-  
+
   // New item state
   const [newItem, setNewItem] = useState({
     name: "",
@@ -177,7 +202,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
     uom: "PCS",
   });
 
-  // Initialize form data
+  // Initialize form data and fetch company details, vendors, and products
   useEffect(() => {
     const generateRefId = (prefix) => {
       const year = new Date().getFullYear();
@@ -210,14 +235,25 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
     ) {
       handleChange("quotationNo", formData.manualQuotationNo);
     }
+
+    // Fetch company details, vendors, and products from API
+    fetchCompanyDetails();
+    fetchVendors();
+    fetchProducts();
   }, [
     formData.referenceId,
     formData.quotationNo,
     formData.manualQuotationNo,
+    companyId,
   ]);
 
   // Handlers
   const handleChange = (field, value) => {
+    // Don't allow editing of company fields
+    if (["companyName", "companyAddress", "companyEmail", "companyPhone"].includes(field)) {
+      return;
+    }
+    
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -242,7 +278,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
       ...prev,
       items: [
         ...prev.items,
-        { name: "", qty: "", rate: "", tax: 0, discount: 0 },
+        { name: "", qty: "", rate: "", tax: 0, discount: 0, warehouse: "" },
       ],
     }));
   };
@@ -264,16 +300,22 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
   };
 
   const handleSelectSearchedItem = (index, item) => {
+    // Create a copy of the items array
     const updatedItems = [...formData.items];
+
+    // It's an API product
     updatedItems[index] = {
       ...updatedItems[index],
-      name: item.name,
-      rate: item.price,
-      tax: item.tax,
+      name: item.item_name,
+      rate: item.purchase_price || item.sale_price,
+      tax: parseFloat(item.tax_account) || 0,
       hsn: item.hsn,
-      uom: item.uom,
+      uom: item.unit_detail?.uom_id || "PCS",
+      productId: item.id, // Store product ID for reference
+      warehouses: item.warehouses || [], // Store warehouses for selection
     };
 
+    // Update the form data with the new item
     setFormData((prev) => ({
       ...prev,
       items: updatedItems,
@@ -298,6 +340,58 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
       ...prev,
       [rowKey]: !prev[rowKey],
     }));
+  };
+
+  // Vendor search handlers
+  const handleVendorSearchChange = (value) => {
+    setVendorSearchTerm(value);
+    setShowVendorSearch(true);
+  };
+
+  const handleSelectVendor = (vendor) => {
+    // Update form data with vendor details
+    setFormData((prev) => ({
+      ...prev,
+      vendorName: vendor.name_english || "",
+      vendorAddress: vendor.address || "",
+      vendorEmail: vendor.email || "",
+      vendorPhone: vendor.phone || "",
+      // Also update bank details if available
+      bankName: vendor.bank_name_branch || "",
+      accountNo: vendor.bank_account_number || "",
+      accountHolder: vendor.account_name || "",
+      ifsc: vendor.bank_ifsc || "",
+    }));
+
+    // Hide vendor search
+    setShowVendorSearch(false);
+    setVendorSearchTerm("");
+  };
+
+  const toggleVendorSearch = () => {
+    setShowVendorSearch(!showVendorSearch);
+  };
+
+  // Filter vendors based on search term
+  const getFilteredVendors = () => {
+    if (!vendorSearchTerm) return vendors;
+
+    return vendors.filter((vendor) => {
+      const vendorName = vendor.name_english || "";
+      const vendorCompany = vendor.company_name || "";
+      const vendorEmail = vendor.email || "";
+      const vendorPhone = vendor.phone || "";
+
+      return (
+        vendorName.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+        (vendorCompany &&
+          vendorCompany.toLowerCase().includes(vendorSearchTerm.toLowerCase())) ||
+        (vendorEmail &&
+          vendorEmail.toLowerCase().includes(vendorSearchTerm.toLowerCase())) ||
+        (vendorPhone &&
+          vendorPhone.toLowerCase().includes(vendorSearchTerm.toLowerCase()))
+      );
+    });
   };
 
   const calculateTotalAmount = (items) => {
@@ -358,7 +452,9 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
       .from(element)
       .set({
         margin: 10,
-        filename: `purchase-quotation-${formData.quotationNo || "document"}.pdf`,
+        filename: `purchase-quotation-${
+          formData.quotationNo || "document"
+        }.pdf`,
         jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
         html2canvas: { scale: 3 },
         pagebreak: { mode: ["avoid-all", "css", "legacy"] },
@@ -379,6 +475,17 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
   const handleSaveDraft = () => onSubmit(formData, "purchaseQuotation");
 
   // File handlers
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleChange("logo", reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSignatureChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -443,6 +550,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
       discount: 0,
       hsn: newItem.hsn,
       uom: newItem.uom,
+      warehouse: "",
     };
 
     setFormData((prev) => ({
@@ -483,13 +591,19 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
     // Filter items based on search term for each row
     const getFilteredItems = (index) => {
       const searchTerm = rowSearchTerms[`purchaseQuotation-${index}`] || "";
-      if (!searchTerm) return [];
+      if (!searchTerm) return apiProducts; // Return all products if search term is empty
 
-      return availableItems.filter(
-        (item) =>
-          item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.category.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      // Filter API products based on search term
+      return apiProducts.filter((item) => {
+        const itemName = item.item_name || "";
+        const itemCategory = item.item_category?.item_category_name || "";
+
+        return (
+          itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (itemCategory &&
+            itemCategory.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+      });
     };
 
     return (
@@ -548,6 +662,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
           <thead className="bg-light">
             <tr>
               <th>Item Name</th>
+              <th>Warehouse</th>
               <th>Qty</th>
               <th>Rate</th>
               <th>Tax %</th>
@@ -577,11 +692,24 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                         }
                         placeholder="Item Name"
                         style={{ marginRight: "5px" }}
+                        onFocus={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // Show search dropdown when focusing on the input
+                          setShowRowSearch((prev) => ({
+                            ...prev,
+                            [rowKey]: true,
+                          }));
+                        }}
                       />
                       <Button
                         variant="outline-secondary"
                         size="sm"
-                        onClick={() => toggleRowSearch(idx)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleRowSearch(idx);
+                        }}
                         title="Search Items"
                       >
                         <FontAwesomeIcon icon={faSearch} />
@@ -599,6 +727,10 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                           border: "1px solid #ccc",
                           borderRadius: "4px",
                           boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                         }}
                       >
                         <InputGroup size="sm">
@@ -618,36 +750,54 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                           <div
                             style={{ maxHeight: "200px", overflowY: "auto" }}
                           >
-                            {filteredItems.map((filteredItem) => (
-                              <div
-                                key={filteredItem.id}
-                                style={{
-                                  padding: "8px",
-                                  cursor: "pointer",
-                                  borderBottom: "1px solid #eee",
-                                }}
-                                onClick={() =>
-                                  handleSelectSearchedItem(idx, filteredItem)
-                                }
-                                onMouseEnter={(e) =>
-                                  (e.currentTarget.style.backgroundColor =
-                                    "#f0f0f0")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.currentTarget.style.backgroundColor =
-                                    "white")
-                                }
-                              >
-                                <div>
-                                  <strong>{filteredItem.name}</strong>
-                                </div>
+                            {filteredItems.map((filteredItem) => {
+                              // Convert price values to numbers before using toFixed
+                              const purchasePrice =
+                                parseFloat(filteredItem.purchase_price) || 0;
+                              const salePrice =
+                                parseFloat(filteredItem.sale_price) || 0;
+                              const price = purchasePrice || salePrice;
+
+                              return (
                                 <div
-                                  style={{ fontSize: "0.8rem", color: "#666" }}
+                                  key={filteredItem.id}
+                                  style={{
+                                    padding: "8px",
+                                    cursor: "pointer",
+                                    borderBottom: "1px solid #eee",
+                                  }}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleSelectSearchedItem(idx, filteredItem);
+                                  }}
+                                  onMouseEnter={(e) =>
+                                    (e.currentTarget.style.backgroundColor =
+                                      "#f0f0f0")
+                                  }
+                                  onMouseLeave={(e) =>
+                                    (e.currentTarget.style.backgroundColor =
+                                      "white")
+                                  }
                                 >
-                                  {filteredItem.category} - $                                   {filteredItem.price.toFixed(2)}
+                                  <div>
+                                    <strong>{filteredItem.item_name}</strong>
+                                  </div>
+                                  <div
+                                    style={{
+                                      fontSize: "0.8rem",
+                                      color: "#666",
+                                    }}
+                                  >
+                                    {
+                                      filteredItem.item_category
+                                        ?.item_category_name
+                                    }{" "}
+                                    - ${price.toFixed(2)}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         ) : (
                           <div
@@ -657,11 +807,30 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                               color: "#666",
                             }}
                           >
-                            No items found
+                            {loadingProducts
+                              ? "Loading products..."
+                              : "No items found"}
                           </div>
                         )}
                       </div>
                     )}
+                  </td>
+                  <td>
+                    <Form.Select
+                      size="sm"
+                      value={item.warehouse || ""}
+                      onChange={(e) =>
+                        handleItemChange(idx, "warehouse", e.target.value)
+                      }
+                    >
+                      <option value="">Select Warehouse</option>
+                      {item.warehouses &&
+                        item.warehouses.map((warehouse, wIdx) => (
+                          <option key={wIdx} value={warehouse.warehouse_id}>
+                            {warehouse.warehouse_name} ({warehouse.location})
+                          </option>
+                        ))}
+                    </Form.Select>
                   </td>
                   <td>
                     <Form.Control
@@ -724,7 +893,11 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => removeItem(idx)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        removeItem(idx);
+                      }}
                     >
                       Delete
                     </Button>
@@ -742,7 +915,6 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
   const renderPDFView = () => {
     return (
       <div
-        ref={pdfRef}
         style={{
           fontFamily: "Arial, sans-serif",
           padding: "20px",
@@ -828,17 +1000,16 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
               <th style={{ border: "1px solid #000", padding: "8px" }}>
                 Item Name
               </th>
-              <th style={{ border: "1px solid #000", padding: "8px" }}>
-                Qty
-              </th>
-              <th style={{ border: "1px solid #000", padding: "8px" }}>
-                Rate
-              </th>
+              <th style={{ border: "1px solid #000", padding: "8px" }}>Qty</th>
+              <th style={{ border: "1px solid #000", padding: "8px" }}>Rate</th>
               <th style={{ border: "1px solid #000", padding: "8px" }}>
                 Tax %
               </th>
               <th style={{ border: "1px solid #000", padding: "8px" }}>
                 Discount
+              </th>
+              <th style={{ border: "1px solid #000", padding: "8px" }}>
+                Warehouse
               </th>
               <th style={{ border: "1px solid #000", padding: "8px" }}>
                 Amount
@@ -867,6 +1038,9 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                     {parseFloat(item.discount).toFixed(2)}
                   </td>
                   <td style={{ border: "1px solid #000", padding: "8px" }}>
+                    {item.warehouse || ""}
+                  </td>
+                  <td style={{ border: "1px solid #000", padding: "8px" }}>
                     {amount.toFixed(2)}
                   </td>
                 </tr>
@@ -876,7 +1050,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
           <tfoot>
             <tr>
               <td
-                colSpan={5}
+                colSpan={6}
                 style={{
                   textAlign: "right",
                   fontWeight: "bold",
@@ -1018,11 +1192,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
           <Col md={4}>
             <Form.Group>
               <Form.Label>Attach Files</Form.Label>
-              <Form.Control
-                type="file"
-                multiple
-                onChange={handleFileChange}
-              />
+              <Form.Control type="file" multiple onChange={handleFileChange} />
               {formData.files && formData.files.length > 0 && (
                 <div className="mt-2">
                   <ul className="list-unstyled">
@@ -1051,6 +1221,118 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
     );
   };
 
+  // Render vendor search dropdown
+  const renderVendorSearch = () => {
+    const filteredVendors = getFilteredVendors();
+
+    return (
+      <div style={{ position: "relative", marginBottom: "10px" }}>
+        <InputGroup>
+          <FormControl
+            placeholder="Enter Vendor Name....."
+            value={formData.vendorName}
+            onChange={(e) => {
+              handleChange("vendorName", e.target.value);
+              handleVendorSearchChange(e.target.value);
+            }}
+            onFocus={() => setShowVendorSearch(true)}
+          />
+          <Button
+            variant="outline-secondary"
+            onClick={toggleVendorSearch}
+            title="Search Vendors"
+          >
+            <FontAwesomeIcon icon={faSearch} />
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => navigate("/Company/vendorscreditors")}
+            title="Add Vendor"
+            style={{
+              backgroundColor: "#53b2a5",
+              border: "none",
+              padding: "6px 12px",
+              fontWeight: "500",
+            }}
+          >
+            Add Vendor
+          </Button>
+        </InputGroup>
+
+        {showVendorSearch && (
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              right: 0,
+              zIndex: 10,
+              backgroundColor: "white",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+              maxHeight: "300px",
+              overflowY: "auto",
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            {filteredVendors.length > 0 ? (
+              filteredVendors.map((vendor) => (
+                <div
+                  key={vendor.id}
+                  style={{
+                    padding: "10px",
+                    cursor: "pointer",
+                    borderBottom: "1px solid #eee",
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelectVendor(vendor);
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor = "#f0f0f0")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = "white")
+                  }
+                >
+                  <div>
+                    <strong>{vendor.name_english}</strong>
+                    {vendor.company_name && (
+                      <span> - {vendor.company_name}</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: "0.8rem", color: "#666" }}>
+                    {vendor.email} | {vendor.phone}
+                  </div>
+                  <div style={{ fontSize: "0.8rem", color: "#666" }}>
+                    {vendor.address}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div
+                style={{
+                  padding: "10px",
+                  textAlign: "center",
+                  color: "#666",
+                }}
+              >
+                {loadingVendors
+                  ? "Loading vendors..."
+                  : "No vendors found"}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="container-fluid mt-4 px-2" ref={pdfRef}>
@@ -1069,21 +1351,30 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                   borderStyle: "dashed",
                   cursor: "pointer",
                 }}
-                onClick={() =>
-                  document.getElementById("logo-upload")?.click()
-                }
+                onClick={() => document.getElementById("logo-upload")?.click()}
               >
-                <FontAwesomeIcon
-                  icon={faUpload}
-                  size="2x"
-                  className="text-muted"
-                />
-                <small>Upload Logo</small>
-                <input
-                  id="logo-upload"
-                  type="file"
-                  accept="image/*"
-                  hidden
+                {formData.logo ? (
+                  <img
+                    src={formData.logo}
+                    alt="Company Logo"
+                    style={{ maxWidth: "100%", maxHeight: "100px" }}
+                  />
+                ) : (
+                  <>
+                    <FontAwesomeIcon
+                      icon={faUpload}
+                      size="2x"
+                      className="text-muted"
+                    />
+                    <small>Upload Logo</small>
+                  </>
+                )}
+                <input 
+                  id="logo-upload" 
+                  type="file" 
+                  accept="image/*" 
+                  hidden 
+                  onChange={handleLogoChange}
                 />
               </div>
             </Col>
@@ -1093,9 +1384,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                 <Form.Control
                   type="text"
                   value={formData.companyName}
-                  onChange={(e) =>
-                    handleChange("companyName", e.target.value)
-                  }
+                  onChange={(e) => handleChange("companyName", e.target.value)}
                   placeholder="Enter Your Company Name......."
                   className="form-control-no-border"
                   style={{
@@ -1103,7 +1392,10 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                     lineHeight: "1.5",
                     minHeight: "auto",
                     padding: "0",
+                    backgroundColor: "#f8f9fa", // Added to indicate read-only
+                    cursor: "default", // Added to indicate read-only
                   }}
+                  readOnly // Added to make field read-only
                 />
                 <Form.Control
                   type="text"
@@ -1118,14 +1410,15 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                     lineHeight: "1.5",
                     minHeight: "auto",
                     padding: "0",
+                    backgroundColor: "#f8f9fa", // Added to indicate read-only
+                    cursor: "default", // Added to indicate read-only
                   }}
+                  readOnly // Added to make field read-only
                 />
                 <Form.Control
                   type="email"
                   value={formData.companyEmail}
-                  onChange={(e) =>
-                    handleChange("companyEmail", e.target.value)
-                  }
+                  onChange={(e) => handleChange("companyEmail", e.target.value)}
                   placeholder="Company Email......."
                   className="form-control-no-border"
                   style={{
@@ -1133,14 +1426,15 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                     lineHeight: "1.5",
                     minHeight: "auto",
                     padding: "0",
+                    backgroundColor: "#f8f9fa", // Added to indicate read-only
+                    cursor: "default", // Added to indicate read-only
                   }}
+                  readOnly // Added to make field read-only
                 />
                 <Form.Control
                   type="text"
                   value={formData.companyPhone}
-                  onChange={(e) =>
-                    handleChange("companyPhone", e.target.value)
-                  }
+                  onChange={(e) => handleChange("companyPhone", e.target.value)}
                   placeholder="Phone No........"
                   className="form-control-no-border"
                   style={{
@@ -1148,7 +1442,10 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                     lineHeight: "1.5",
                     minHeight: "auto",
                     padding: "0",
+                    backgroundColor: "#f8f9fa", // Added to indicate read-only
+                    cursor: "default", // Added to indicate read-only
                   }}
+                  readOnly // Added to make field read-only
                 />
               </div>
             </Col>
@@ -1183,39 +1480,8 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
           <Row className="mb-4 d-flex justify-content-between">
             <Col md={8}>
               <h5>Quotation From</h5>
-              <Form.Group className="mb-2">
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <Form.Control
-                    type="text"
-                    value={formData.vendorName}
-                    onChange={(e) =>
-                      handleChange("vendorName", e.target.value)
-                    }
-                    placeholder=" Enter Vendor Name....."
-                    className="form-control-no-border"
-                    style={{
-                      fontSize: "1rem",
-                      lineHeight: "1.5",
-                      minHeight: "auto",
-                      padding: "0",
-                      marginRight: "5px",
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => navigate("/Company/vendorscreditors")}
-                    title="Add Vendor"
-                    style={{
-                      backgroundColor: "#53b2a5",
-                      border: "none",
-                      padding: "6px 12px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Add Vendor
-                  </Button>
-                </div>
-              </Form.Group>
+              {renderVendorSearch()}
+              
               <Form.Group className="mb-2">
                 <Form.Control
                   type="text"
@@ -1237,9 +1503,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                 <Form.Control
                   type="email"
                   value={formData.vendorEmail}
-                  onChange={(e) =>
-                    handleChange("vendorEmail", e.target.value)
-                  }
+                  onChange={(e) => handleChange("vendorEmail", e.target.value)}
                   placeholder="Email"
                   className="form-control-no-border"
                   style={{
@@ -1254,9 +1518,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                 <Form.Control
                   type="text"
                   value={formData.vendorPhone}
-                  onChange={(e) =>
-                    handleChange("vendorPhone", e.target.value)
-                  }
+                  onChange={(e) => handleChange("vendorPhone", e.target.value)}
                   placeholder="Phone"
                   className="form-control-no-border"
                   style={{
@@ -1274,8 +1536,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                 <Form.Control
                   type="text"
                   value={
-                    formData.referenceId ||
-                    generateReferenceId("quotation")
+                    formData.referenceId || generateReferenceId("quotation")
                   }
                   readOnly
                   style={{
@@ -1302,9 +1563,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                 <Form.Control
                   type="text"
                   value={formData.manualRefNo}
-                  onChange={(e) =>
-                    handleChange("manualRefNo", e.target.value)
-                  }
+                  onChange={(e) => handleChange("manualRefNo", e.target.value)}
                   placeholder="e.g. PUR-PO-001"
                   style={{
                     border: "1px solid #495057",
@@ -1321,9 +1580,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                 <Form.Control
                   type="text"
                   value={formData.quotationNo}
-                  onChange={(e) =>
-                    handleChange("quotationNo", e.target.value)
-                  }
+                  onChange={(e) => handleChange("quotationNo", e.target.value)}
                   placeholder="e.g. PQ-001"
                   style={{ border: "1px solid #495057" }}
                 />
@@ -1344,9 +1601,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                 <Form.Control
                   type="date"
                   value={formData.validDate}
-                  onChange={(e) =>
-                    handleChange("validDate", e.target.value)
-                  }
+                  onChange={(e) => handleChange("validDate", e.target.value)}
                   style={{ border: "1px solid #495057" }}
                 />
               </Form.Group>
@@ -1397,8 +1652,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                             (parseFloat(item.rate) || 0) *
                             (parseInt(item.qty) || 0);
                           return (
-                            sum +
-                            (subtotal * (parseFloat(item.tax) || 0)) / 100
+                            sum + (subtotal * (parseFloat(item.tax) || 0)) / 100
                           );
                         }, 0)
                         .toFixed(2)}
@@ -1409,8 +1663,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                     <td>
                       $                       {formData.items
                         .reduce(
-                          (sum, item) =>
-                            sum + (parseFloat(item.discount) || 0),
+                          (sum, item) => sum + (parseFloat(item.discount) || 0),
                           0
                         )
                         .toFixed(2)}
@@ -1419,9 +1672,9 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                   <tr>
                     <td className="fw-bold">Total:</td>
                     <td className="fw-bold">
-                      $                       {calculateTotalWithTaxAndDiscount(
-                        formData.items
-                      ).toFixed(2)}
+                      $                       {calculateTotalWithTaxAndDiscount(formData.items).toFixed(
+                        2
+                      )}
                     </td>
                   </tr>
                 </tbody>
