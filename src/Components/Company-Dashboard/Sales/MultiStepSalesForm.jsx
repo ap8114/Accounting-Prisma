@@ -1,19 +1,39 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Tabs, Tab, Form, Button, Table, Row, Col, Modal, InputGroup, FormControl, Dropdown } from 'react-bootstrap';
-import html2pdf from 'html2pdf.js';
-import * as XLSX from 'xlsx';
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Tabs,
+  Tab,
+  Form,
+  Button,
+  Table,
+  Row,
+  Col,
+  Modal,
+  InputGroup,
+  FormControl,
+  Dropdown,
+} from "react-bootstrap";
+import html2pdf from "html2pdf.js";
+import * as XLSX from "xlsx";
 import "./MultiStepSalesForm.css";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUpload, faTrash, faEye, faEdit, faPlus, faSearch, faUserPlus } from '@fortawesome/free-solid-svg-icons';
-import { useNavigate } from 'react-router-dom';
-import AddProductModal from '../Inventory/AddProductModal';
-import QuotationTab from './MultiStepSalesForm/QuotationTab';
-import SalesOrderTab from './MultiStepSalesForm/SalesOrderTab';
-import DeliveryChallanTab from './MultiStepSalesForm/DeliveryChallanTab';
-import InvoiceTab from './MultiStepSalesForm/InvoiceTab';
-import PaymentTab from './MultiStepSalesForm/PaymentTab';
-import GetCompanyId from '../../../Api/GetCompanyId';
-import axiosInstance from '../../../Api/axiosInstance';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faUpload,
+  faTrash,
+  faEye,
+  faEdit,
+  faPlus,
+  faSearch,
+  faUserPlus,
+} from "@fortawesome/free-solid-svg-icons";
+import { useNavigate } from "react-router-dom";
+import AddProductModal from "../Inventory/AddProductModal";
+import QuotationTab from "./MultiStepSalesForm/QuotationTab";
+import SalesOrderTab from "./MultiStepSalesForm/SalesOrderTab";
+import DeliveryChallanTab from "./MultiStepSalesForm/DeliveryChallanTab";
+import InvoiceTab from "./MultiStepSalesForm/InvoiceTab";
+import PaymentTab from "./MultiStepSalesForm/PaymentTab";
+import GetCompanyId from "../../../Api/GetCompanyId";
+import axiosInstance from "../../../Api/axiosInstance";
 
 const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   const companyId = GetCompanyId();
@@ -22,7 +42,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     name: "",
     serviceDescription: "",
     price: "",
-    tax: ""
+    tax: "",
   });
 
   // Add state for company details
@@ -40,7 +60,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
 
       if (data.success) {
         // Find the company with matching ID
-        const company = data.data.find(c => c.id === parseInt(companyId));
+        const company = data.data.find((c) => c.id === parseInt(companyId));
         if (company) {
           setCompanyDetails(company);
 
@@ -53,16 +73,16 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             companyLogo: company.branding?.company_logo_url || "",
             companyDarkLogo: company.branding?.company_dark_logo_url || "",
             companyIcon: company.branding?.company_icon_url || "",
-            companyFavicon: company.branding?.favicon_url || ""
+            companyFavicon: company.branding?.favicon_url || "",
           };
 
           // Update all tabs with company info
-          setFormData(prev => ({
+          setFormData((prev) => ({
             quotation: { ...prev.quotation, ...companyInfo },
             salesOrder: { ...prev.salesOrder, ...companyInfo },
             deliveryChallan: { ...prev.deliveryChallan, ...companyInfo },
             invoice: { ...prev.invoice, ...companyInfo },
-            payment: { ...prev.payment, ...companyInfo }
+            payment: { ...prev.payment, ...companyInfo },
           }));
         }
       }
@@ -80,9 +100,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
 
   const handleServiceInput = (e) => {
     const { name, value } = e.target;
-    setServiceForm(prev => ({
+    setServiceForm((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -99,27 +119,32 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       tax: serviceForm.tax || 0,
       discount: 0,
       description: serviceForm.serviceDescription,
-      warehouse: ''
+      warehouse: "",
     };
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [key]: {
         ...prev[key],
-        items: [...prev[key].items, serviceItem]
-      }
+        items: [...prev[key].items, serviceItem],
+      },
     }));
 
     setServiceForm({
       name: "",
       serviceDescription: "",
       price: "",
-      tax: ""
+      tax: "",
     });
     setShowServiceModal(false);
   };
-  const [key, setKey] = useState(initialStep || 'quotation');
-  const tabsWithItems = ['quotation', 'salesOrder', 'deliveryChallan', 'invoice'];
+  const [key, setKey] = useState(initialStep || "quotation");
+  const tabsWithItems = [
+    "quotation",
+    "salesOrder",
+    "deliveryChallan",
+    "invoice",
+  ];
   const navigate = useNavigate();
   const formRef = useRef();
   const pdfRef = useRef();
@@ -127,7 +152,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   // --- Form Data State ---
   const [formData, setFormData] = useState(() => ({
     quotation: {
-      referenceId: '',
+      referenceId: "",
       manualRefNo: "", // Optional manual ref
       companyName: "",
       companyAddress: "",
@@ -144,29 +169,41 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       billToAddress: "",
       billToEmail: "",
       billToPhone: "",
-      items: [{ name: '', description: '', qty: '', rate: '', tax: 0, discount: 0, sellingPrice: 0, uom: 'PCS', warehouse: '' }],
-      terms: '',
-      signature: '',
-      photo: '',
+      items: [
+        {
+          name: "",
+          description: "",
+          qty: "",
+          rate: "",
+          tax: 0,
+          discount: 0,
+          sellingPrice: 0,
+          uom: "PCS",
+          warehouse: "",
+        },
+      ],
+      terms: "",
+      signature: "",
+      photo: "",
       files: [],
-      footerNote: "Thank you!"
+      footerNote: "Thank you!",
     },
     salesOrder: {
-      referenceId: '',
-      salesOrderNo: '', // Auto-generated SO No
+      referenceId: "",
+      salesOrderNo: "", // Auto-generated SO No
       manualOrderRef: "", // Manual SO Ref
       manualQuotationRef: "",
-      manualRefNo: '',
-      orderDate: '',
-      customerName: '',
-      customerAddress: '',
-      customerEmail: '',
-      customerPhone: '',
-      customerNo: '',
-      companyName: '',
-      companyAddress: '',
-      companyEmail: '',
-      companyPhone: '',
+      manualRefNo: "",
+      orderDate: "",
+      customerName: "",
+      customerAddress: "",
+      customerEmail: "",
+      customerPhone: "",
+      customerNo: "",
+      companyName: "",
+      companyAddress: "",
+      companyEmail: "",
+      companyPhone: "",
       companyLogo: "", // Added company logo
       companyDarkLogo: "", // Added company dark logo
       companyIcon: "", // Added company icon
@@ -175,34 +212,36 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       billToAddress: "",
       billToEmail: "",
       billToPhone: "",
-      shipToName: '',
-      shipToAddress: '',
-      shipToEmail: '',
-      shipToPhone: '',
-      items: [{ name: '', qty: '', rate: '', tax: 0, discount: 0, warehouse: '' }],
-      terms: '',
-      signature: '',
-      photo: '',
+      shipToName: "",
+      shipToAddress: "",
+      shipToEmail: "",
+      shipToPhone: "",
+      items: [
+        { name: "", qty: "", rate: "", tax: 0, discount: 0, warehouse: "" },
+      ],
+      terms: "",
+      signature: "",
+      photo: "",
       files: [],
       footerNote: "Thank you!",
       // 👉 Quotation No (Auto + Manual)
       quotationNo: "", // Auto-generated QUO No
-      manualQuotationRef: "" // Manual QUO Ref
+      manualQuotationRef: "", // Manual QUO Ref
     },
     deliveryChallan: {
-      referenceId: '',
-      challanNo: '', // Auto-generated DC No
+      referenceId: "",
+      challanNo: "", // Auto-generated DC No
       manualRefNo: "", // Manual DC Ref
-      challanDate: '',
-      vehicleNo: '',
-      driverName: '',
-      driverPhone: '',
-      salesOrderNo: '', // Auto-generated SO No
+      challanDate: "",
+      vehicleNo: "",
+      driverName: "",
+      driverPhone: "",
+      salesOrderNo: "", // Auto-generated SO No
       manualSalesOrderRef: "", // Manual SO Ref
-      companyName: '',
-      companyAddress: '',
-      companyEmail: '',
-      companyPhone: '',
+      companyName: "",
+      companyAddress: "",
+      companyEmail: "",
+      companyPhone: "",
       companyLogo: "", // Added company logo
       companyDarkLogo: "", // Added company dark logo
       companyIcon: "", // Added company icon
@@ -211,81 +250,101 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       billToAddress: "",
       billToEmail: "",
       billToPhone: "",
-      shipToName: '',
-      shipToAddress: '',
-      shipToEmail: '',
-      shipToPhone: '',
-      items: [{ name: '', qty: '', deliveredQty: '', rate: '', tax: 0, discount: 0, warehouse: '' }],
-      terms: '',
-      signature: '',
-      photo: '',
+      shipToName: "",
+      shipToAddress: "",
+      shipToEmail: "",
+      shipToPhone: "",
+      items: [
+        {
+          name: "",
+          qty: "",
+          deliveredQty: "",
+          rate: "",
+          tax: 0,
+          discount: 0,
+          warehouse: "",
+        },
+      ],
+      terms: "",
+      signature: "",
+      photo: "",
       files: [],
-      footerNote: "Thank you!"
+      footerNote: "Thank you!",
     },
     invoice: {
-      referenceId: '',
-      invoiceNo: '', // Auto-generated INV No
+      referenceId: "",
+      invoiceNo: "", // Auto-generated INV No
       manualRefNo: "", // Manual INV Ref
-      invoiceDate: '',
-      dueDate: '',
-      challanNo: '', // Auto-generated DC No
+      invoiceDate: "",
+      dueDate: "",
+      challanNo: "", // Auto-generated DC No
       manualChallanRef: "", // Manual DC Ref
       manualChallanNo: "",
       manualInvoiceNo: "",
-      companyName: '',
-      companyAddress: '',
-      companyEmail: '',
-      companyPhone: '',
+      companyName: "",
+      companyAddress: "",
+      companyEmail: "",
+      companyPhone: "",
       companyLogo: "", // Added company logo
       companyDarkLogo: "", // Added company dark logo
       companyIcon: "", // Added company icon
       companyFavicon: "", // Added company favicon
-      customerName: '',
-      customerAddress: '',
-      customerEmail: '',
-      customerPhone: '',
-      shipToName: '',
-      shipToAddress: '',
-      shipToEmail: '',
-      shipToPhone: '',
-      items: [{ description: '', rate: '', qty: '', tax: '', discount: '', amount: '', warehouse: '' }],
-      paymentStatus: '',
-      paymentMethod: '',
-      note: '',
-      terms: '',
-      signature: '',
-      photo: '',
+      customerName: "",
+      customerAddress: "",
+      customerEmail: "",
+      customerPhone: "",
+      shipToName: "",
+      shipToAddress: "",
+      shipToEmail: "",
+      shipToPhone: "",
+      items: [
+        {
+          description: "",
+          rate: "",
+          qty: "",
+          tax: "",
+          discount: "",
+          amount: "",
+          warehouse: "",
+        },
+      ],
+      paymentStatus: "",
+      paymentMethod: "",
+      note: "",
+      terms: "",
+      signature: "",
+      photo: "",
       files: [],
-      footerNote: "Thank you!"
+      footerNote: "Thank you!",
     },
     payment: {
-      referenceId: '',
-      paymentNo: '', // Auto-generated PAY No
+      referenceId: "",
+      paymentNo: "", // Auto-generated PAY No
       manualRefNo: "", // Manual PAY Ref
-      paymentDate: '',
-      amount: '',
-      paymentMethod: '',
-      paymentStatus: '',
-      note: '',
-      invoiceNo: '', // Auto-generated INV No
+      paymentDate: "",
+      amount: "",
+      paymentMethod: "",
+      paymentStatus: "",
+      note: "",
+      invoiceNo: "", // Auto-generated INV No
       manualInvoiceRef: "", // Manual INV Ref
-      customerName: '',
-      customerAddress: '',
-      customerEmail: '',
-      customerPhone: '',
-      companyName: '',
-      companyAddress: '',
-      companyEmail: '',
-      companyPhone: '',
+      customerName: "",
+      customerAddress: "",
+      customerEmail: "",
+      customerPhone: "",
+      companyName: "",
+      companyAddress: "",
+      companyEmail: "",
+      companyPhone: "",
       companyLogo: "", // Added company logo
       companyDarkLogo: "", // Added company dark logo
       companyIcon: "", // Added company icon
       companyFavicon: "", // Added company favicon
-      signature: '',
-      photo: '',
+      signature: "",
+      photo: "",
       files: [],
-      footerNote: "Thank you!"
-    }
+      footerNote: "Thank you!",
+    },
   }));
 
   // Available items for search
@@ -302,24 +361,23 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       const data = response.data;
 
       if (data.success) {
-        const formattedItems = data.data.map(product => ({
+        const formattedItems = data.data.map((product) => ({
           id: product.id,
           name: product.item_name,
-          category: product.item_category?.item_category_name || '',
+          category: product.item_category?.item_category_name || "",
           price: parseFloat(product.sale_price) || 0,
           tax: parseFloat(product.tax_account) || 0,
-          hsn: product.hsn || '',
-          uom: product.unit_detail?.uom_id || 'PCS',
-          description: product.description || '',
-          sku: product.sku || '',
-          barcode: product.barcode || '',
-          warehouses: product.warehouses || []
+          hsn: product.hsn || "",
+          uom: product.unit_detail?.uom_id || "PCS",
+          description: product.description || "",
+          sku: product.sku || "",
+          barcode: product.barcode || "",
+          warehouses: product.warehouses || [], // This is crucial
         }));
         setAvailableItems(formattedItems);
       }
     } catch (error) {
       console.error("Error fetching products:", error);
-      // Fallback to default items
     } finally {
       setLoadingItems(false);
     }
@@ -334,7 +392,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
 
     setLoadingWarehouses(true);
     try {
-      const response = await axiosInstance.get(`warehouses/company/${companyId}`);
+      const response = await axiosInstance.get(
+        `warehouses/company/${companyId}`
+      );
       const data = response.data;
 
       if (data.success) {
@@ -377,18 +437,21 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   // Search state for each row
   const [rowSearchTerms, setRowSearchTerms] = useState({});
   const [showRowSearch, setShowRowSearch] = useState({});
+  // Search state for each row's warehouse
+  const [warehouseSearchTerms, setWarehouseSearchTerms] = useState({});
+  const [showWarehouseSearch, setShowWarehouseSearch] = useState({});
 
   const [savedRecords, setSavedRecords] = useState([]);
   const [currentRecordId, setCurrentRecordId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [newItem, setNewItem] = useState({
-    name: '',
-    category: '',
-    hsn: '',
+    name: "",
+    category: "",
+    hsn: "",
     tax: 0,
     sellingPrice: 0,
-    uom: 'PCS'
+    uom: "PCS",
   });
 
   const generateReferenceId = (tabKey) => {
@@ -397,7 +460,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       salesOrder: "SO",
       deliveryChallan: "DC",
       invoice: "INV",
-      payment: "PAY"
+      payment: "PAY",
     };
     const prefix = prefixes[tabKey] || "REF";
     const year = new Date().getFullYear();
@@ -408,14 +471,26 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   useEffect(() => {
     // ============= QUOTATION =============
     if (!formData.quotation.referenceId) {
-      handleChange("quotation", "referenceId", generateReferenceId("quotation"));
+      handleChange(
+        "quotation",
+        "referenceId",
+        generateReferenceId("quotation")
+      );
     }
 
     if (!formData.quotation.quotationNo) {
       if (formData.quotation.manualQuotationRef) {
-        handleChange("quotation", "quotationNo", formData.quotation.manualQuotationRef);
+        handleChange(
+          "quotation",
+          "quotationNo",
+          formData.quotation.manualQuotationRef
+        );
       } else {
-        handleChange("quotation", "quotationNo", generateReferenceId("quotation"));
+        handleChange(
+          "quotation",
+          "quotationNo",
+          generateReferenceId("quotation")
+        );
       }
     }
 
@@ -424,19 +499,35 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       formData.quotation.manualQuotationRef &&
       formData.quotation.manualQuotationRef !== formData.quotation.quotationNo
     ) {
-      handleChange("quotation", "quotationNo", formData.quotation.manualQuotationRef);
+      handleChange(
+        "quotation",
+        "quotationNo",
+        formData.quotation.manualQuotationRef
+      );
     }
 
     // ============= SALES ORDER =============
     if (!formData.salesOrder.referenceId) {
-      handleChange("salesOrder", "referenceId", generateReferenceId("salesOrder"));
+      handleChange(
+        "salesOrder",
+        "referenceId",
+        generateReferenceId("salesOrder")
+      );
     }
 
     if (!formData.salesOrder.salesOrderNo) {
       if (formData.salesOrder.manualOrderRef) {
-        handleChange("salesOrder", "salesOrderNo", formData.salesOrder.manualOrderRef);
+        handleChange(
+          "salesOrder",
+          "salesOrderNo",
+          formData.salesOrder.manualOrderRef
+        );
       } else {
-        handleChange("salesOrder", "salesOrderNo", generateReferenceId("salesOrder"));
+        handleChange(
+          "salesOrder",
+          "salesOrderNo",
+          generateReferenceId("salesOrder")
+        );
       }
     }
 
@@ -444,7 +535,11 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       formData.salesOrder.manualOrderRef &&
       formData.salesOrder.manualOrderRef !== formData.salesOrder.salesOrderNo
     ) {
-      handleChange("salesOrder", "salesOrderNo", formData.salesOrder.manualOrderRef);
+      handleChange(
+        "salesOrder",
+        "salesOrderNo",
+        formData.salesOrder.manualOrderRef
+      );
     }
 
     // Auto-fill quotationNo from Quotation
@@ -454,27 +549,51 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
 
     // ============= DELIVERY CHALLAN =============
     if (!formData.deliveryChallan.referenceId) {
-      handleChange("deliveryChallan", "referenceId", generateReferenceId("deliveryChallan"));
+      handleChange(
+        "deliveryChallan",
+        "referenceId",
+        generateReferenceId("deliveryChallan")
+      );
     }
 
     if (!formData.deliveryChallan.challanNo) {
       if (formData.deliveryChallan.manualRefNo) {
-        handleChange("deliveryChallan", "challanNo", formData.deliveryChallan.manualRefNo);
+        handleChange(
+          "deliveryChallan",
+          "challanNo",
+          formData.deliveryChallan.manualRefNo
+        );
       } else {
-        handleChange("deliveryChallan", "challanNo", generateReferenceId("deliveryChallan"));
+        handleChange(
+          "deliveryChallan",
+          "challanNo",
+          generateReferenceId("deliveryChallan")
+        );
       }
     }
 
     if (
       formData.deliveryChallan.manualRefNo &&
-      formData.deliveryChallan.manualRefNo !== formData.deliveryChallan.challanNo
+      formData.deliveryChallan.manualRefNo !==
+        formData.deliveryChallan.challanNo
     ) {
-      handleChange("deliveryChallan", "challanNo", formData.deliveryChallan.manualRefNo);
+      handleChange(
+        "deliveryChallan",
+        "challanNo",
+        formData.deliveryChallan.manualRefNo
+      );
     }
 
     // Auto-fill salesOrderNo
-    if (!formData.deliveryChallan.salesOrderNo && formData.salesOrder.salesOrderNo) {
-      handleChange("deliveryChallan", "salesOrderNo", formData.salesOrder.salesOrderNo);
+    if (
+      !formData.deliveryChallan.salesOrderNo &&
+      formData.salesOrder.salesOrderNo
+    ) {
+      handleChange(
+        "deliveryChallan",
+        "salesOrderNo",
+        formData.salesOrder.salesOrderNo
+      );
     }
 
     // ============= INVOICE =============
@@ -543,7 +662,11 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       formData.salesOrder.manualQuotationRef &&
       formData.salesOrder.manualQuotationRef !== formData.salesOrder.quotationNo
     ) {
-      handleChange("salesOrder", "quotationNo", formData.salesOrder.manualQuotationRef);
+      handleChange(
+        "salesOrder",
+        "quotationNo",
+        formData.salesOrder.manualQuotationRef
+      );
     }
     // Use manualChallanNo if provided
     if (
@@ -552,7 +675,6 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     ) {
       handleChange("invoice", "challanNo", formData.invoice.manualChallanNo);
     }
-
   }, [
     // Dependencies: Track all auto/manual fields
     formData.quotation.referenceId,
@@ -586,7 +708,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
 
   // --- Handlers ---
   const handleChange = (tab, field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [tab]: { ...prev[tab], [field]: value },
     }));
@@ -595,24 +717,24 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   const handleItemChange = (tab, index, field, value) => {
     const updatedItems = [...formData[tab].items];
     updatedItems[index][field] = value;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [tab]: { ...prev[tab], items: updatedItems },
     }));
   };
 
   const handleProductChange = (field, value) => {
-    setNewItem(prev => ({ ...prev, [field]: value }));
+    setNewItem((prev) => ({ ...prev, [field]: value }));
   };
 
   const addItem = (tab) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [tab]: {
         ...prev[tab],
         items: [
           ...prev[tab].items,
-          { name: '', qty: '', rate: '', tax: 0, discount: 0, warehouse: '' }
+          { name: "", qty: "", rate: "", tax: 0, discount: 0, warehouse: "" },
         ],
       },
     }));
@@ -621,16 +743,16 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   const removeItem = (tab, index) => {
     const updatedItems = [...formData[tab].items];
     updatedItems.splice(index, 1);
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [tab]: { ...prev[tab], items: updatedItems },
     }));
   };
 
   const handleRowSearchChange = (tab, index, value) => {
-    setRowSearchTerms(prev => ({
+    setRowSearchTerms((prev) => ({
       ...prev,
-      [`${tab}-${index}`]: value
+      [`${tab}-${index}`]: value,
     }));
   };
 
@@ -643,39 +765,74 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       tax: item.tax,
       hsn: item.hsn,
       uom: item.uom,
-      description: item.description || '',
-      sku: item.sku || '',
-      barcode: item.barcode || ''
+      description: item.description || "",
+      sku: item.sku || "",
+      barcode: item.barcode || "",
+      warehouses: item.warehouses || [], // IMPORTANT: Save warehouse info with the item
     };
 
-    // If the item has warehouse information, set the first warehouse as default
+    // Auto-select the first available warehouse if any exist
     if (item.warehouses && item.warehouses.length > 0) {
       updatedItems[index].warehouse = item.warehouses[0].warehouse_name;
+    } else {
+      updatedItems[index].warehouse = ""; // Clear if no warehouses
     }
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [tab]: { ...prev[tab], items: updatedItems }
+      [tab]: { ...prev[tab], items: updatedItems },
     }));
 
     // Hide search for this row
-    setShowRowSearch(prev => ({
+    setShowRowSearch((prev) => ({
       ...prev,
-      [`${tab}-${index}`]: false
+      [`${tab}-${index}`]: false,
     }));
 
     // Clear search term
-    setRowSearchTerms(prev => ({
+    setRowSearchTerms((prev) => ({
       ...prev,
-      [`${tab}-${index}`]: ''
+      [`${tab}-${index}`]: "",
     }));
   };
 
   const toggleRowSearch = (tab, index) => {
     const rowKey = `${tab}-${index}`;
-    setShowRowSearch(prev => ({
+    setShowRowSearch((prev) => ({
       ...prev,
-      [rowKey]: !prev[rowKey]
+      [rowKey]: !prev[rowKey],
+    }));
+  };
+
+  // --- Warehouse Search Handlers ---
+  const handleWarehouseSearchChange = (tab, index, value) => {
+    setWarehouseSearchTerms((prev) => ({
+      ...prev,
+      [`${tab}-${index}`]: value,
+    }));
+  };
+
+  const handleSelectSearchedWarehouse = (tab, index, warehouse) => {
+    handleItemChange(tab, index, "warehouse", warehouse.warehouse_name);
+
+    // Hide search for this row's warehouse
+    setShowWarehouseSearch((prev) => ({
+      ...prev,
+      [`${tab}-${index}`]: false,
+    }));
+
+    // Clear search term
+    setWarehouseSearchTerms((prev) => ({
+      ...prev,
+      [`${tab}-${index}`]: "",
+    }));
+  };
+
+  const toggleWarehouseSearch = (tab, index) => {
+    const rowKey = `${tab}-${index}`;
+    setShowWarehouseSearch((prev) => ({
+      ...prev,
+      [rowKey]: !prev[rowKey],
     }));
   };
 
@@ -684,7 +841,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     return items.reduce((total, item) => {
       const rate = parseFloat(item.rate) || 0;
       const qty = parseInt(item.qty) || 0;
-      return total + (rate * qty);
+      return total + rate * qty;
     }, 0);
   };
 
@@ -712,69 +869,69 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     // Mock Arabic translation
     const getArabicText = (text) => {
       const translations = {
-        'PURCHASE QUOTATION': 'عرض شراء',
-        'PURCHASE ORDER': 'طلب شراء',
-        'GOODS RECEIPT NOTE': 'مذكرة استلام البضاعة',
-        'PURCHASE BILL': 'فاتورة شراء',
-        'PAYMENT RECEIPT': 'إيصال الدفع',
-        'Company Name': 'اسم الشركة',
-        'Vendor': 'المورد',
-        'Quotation No.': 'رقم العرض',
-        'Order No.': 'رقم الطلب',
-        'Receipt No.': 'رقم الإيصال',
-        'Bill No.': 'رقم الفاتورة',
-        'Payment No.': 'رقم الدفعة',
-        'Date': 'التاريخ',
-        'Item Name': 'اسم الصنف',
-        'Qty': 'الكمية',
-        'Rate': 'السعر',
-        'Amount': 'المبلغ',
-        'Total': 'الإجمالي',
-        'Attachments': 'المرفقات',
-        'Signature': 'التوقيع',
-        'Photo': 'الصورة',
-        'Files': 'الملفات',
-        'Terms & Conditions': 'الشروط والأحكام',
-        'Thank you for your business!': 'شكرًا لتعاملكم معنا!',
-        'Driver Details': 'تفاصيل السائق',
-        'Vehicle No.': 'رقم المركبة',
-        'Delivery Date': 'تاريخ التسليم',
-        'Due Date': 'تاريخ الاستحقاق',
-        'Payment Method': 'طريقة الدفع',
+        "PURCHASE QUOTATION": "عرض شراء",
+        "PURCHASE ORDER": "طلب شراء",
+        "GOODS RECEIPT NOTE": "مذكرة استلام البضاعة",
+        "PURCHASE BILL": "فاتورة شراء",
+        "PAYMENT RECEIPT": "إيصال الدفع",
+        "Company Name": "اسم الشركة",
+        Vendor: "المورد",
+        "Quotation No.": "رقم العرض",
+        "Order No.": "رقم الطلب",
+        "Receipt No.": "رقم الإيصال",
+        "Bill No.": "رقم الفاتورة",
+        "Payment No.": "رقم الدفعة",
+        Date: "التاريخ",
+        "Item Name": "اسم الصنف",
+        Qty: "الكمية",
+        Rate: "السعر",
+        Amount: "المبلغ",
+        Total: "الإجمالي",
+        Attachments: "المرفقات",
+        Signature: "التوقيع",
+        Photo: "الصورة",
+        Files: "الملفات",
+        "Terms & Conditions": "الشروط والأحكام",
+        "Thank you for your business!": "شكرًا لتعاملكم معنا!",
+        "Driver Details": "تفاصيل السائق",
+        "Vehicle No.": "رقم المركبة",
+        "Delivery Date": "تاريخ التسليم",
+        "Due Date": "تاريخ الاستحقاق",
+        "Payment Method": "طريقة الدفع",
       };
       return translations[text] || text;
     };
 
     // Clone the content for modification
     const clone = printContent.cloneNode(true);
-    const elements = clone.querySelectorAll('*');
+    const elements = clone.querySelectorAll("*");
 
-    if (lang === 'arabic' || lang === 'both') {
-      clone.style.direction = 'rtl';
+    if (lang === "arabic" || lang === "both") {
+      clone.style.direction = "rtl";
       clone.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
-      elements.forEach(el => {
-        el.style.textAlign = 'right';
+      elements.forEach((el) => {
+        el.style.textAlign = "right";
       });
     }
 
     // Bilingual mode: add Arabic below English
-    if (lang === 'both') {
-      elements.forEach(el => {
+    if (lang === "both") {
+      elements.forEach((el) => {
         const text = el.innerText.trim();
-        if (text && !el.querySelector('img') && !el.querySelector('input')) {
+        if (text && !el.querySelector("img") && !el.querySelector("input")) {
           const arabic = getArabicText(text);
           if (arabic !== text) {
-            const arSpan = document.createElement('div');
+            const arSpan = document.createElement("div");
             arSpan.innerText = arabic;
-            arSpan.style.color = '#0066cc';
-            arSpan.style.marginTop = '4px';
-            arSpan.style.fontSize = '0.9em';
+            arSpan.style.color = "#0066cc";
+            arSpan.style.marginTop = "4px";
+            arSpan.style.fontSize = "0.9em";
             el.appendChild(arSpan);
           }
         }
       });
-    } else if (lang === 'arabic') {
-      elements.forEach(el => {
+    } else if (lang === "arabic") {
+      elements.forEach((el) => {
         const text = el.innerText.trim();
         const arabic = getArabicText(text);
         if (arabic !== text) {
@@ -783,9 +940,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       });
     }
 
-    const printWindow = window.open('', '', 'height=800,width=1000');
-    printWindow.document.write('<html><head><title>Print</title>');
-    printWindow.document.write('<style>');
+    const printWindow = window.open("", "", "height=800,width=1000");
+    printWindow.document.write("<html><head><title>Print</title>");
+    printWindow.document.write("<style>");
     printWindow.document.write(`
       body { font-family: Arial, sans-serif; margin: 20px; }
       table { width: 100%; border-collapse: collapse; margin: 20px 0; }
@@ -796,9 +953,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       h2, h4, h5 { color: #28a745; }
       .attachment-img { max-width: 150px; max-height: 100px; object-fit: contain; margin: 5px 0; }
     `);
-    printWindow.document.write('</style></head><body>');
+    printWindow.document.write("</style></head><body>");
     printWindow.document.write(clone.outerHTML);
-    printWindow.document.write('</body></html>');
+    printWindow.document.write("</body></html>");
     printWindow.document.close();
     printWindow.focus();
     printWindow.onload = () => {
@@ -816,34 +973,39 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       .from(element)
       .set({
         margin: 10,
-        filename: `${key}-${formData[key].quotationNo || formData[key].invoiceNo || 'document'}.pdf`,
-        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' },
+        filename: `${key}-${
+          formData[key].quotationNo || formData[key].invoiceNo || "document"
+        }.pdf`,
+        jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
         html2canvas: { scale: 3 },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
       })
       .save();
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem('purchaseFormRecords');
+    const saved = localStorage.getItem("purchaseFormRecords");
     if (saved) setSavedRecords(JSON.parse(saved));
   }, []);
 
   const handleDownloadExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(formData.quotation.items);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Quotation');
-    XLSX.writeFile(workbook, `quotation-${formData.quotation.quotationNo || 'draft'}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Quotation");
+    XLSX.writeFile(
+      workbook,
+      `quotation-${formData.quotation.quotationNo || "draft"}.xlsx`
+    );
   };
 
   // --- Navigation Buttons ---
   const handleSkip = () => {
-    setKey(prev => {
-      if (prev === 'quotation') return 'salesOrder';
-      if (prev === 'salesOrder') return 'deliveryChallan';
-      if (prev === 'deliveryChallan') return 'invoice';
-      if (prev === 'invoice') return 'payment';
-      return 'quotation';
+    setKey((prev) => {
+      if (prev === "quotation") return "salesOrder";
+      if (prev === "salesOrder") return "deliveryChallan";
+      if (prev === "deliveryChallan") return "invoice";
+      if (prev === "invoice") return "payment";
+      return "quotation";
     });
   };
 
@@ -852,9 +1014,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   const handleSaveNext = () => {
     handleSaveDraft();
 
-    setKey(prev => {
-      if (prev === 'quotation') {
-        setFormData(prevData => ({
+    setKey((prev) => {
+      if (prev === "quotation") {
+        setFormData((prevData) => ({
           ...prevData,
           salesOrder: {
             ...prevData.salesOrder,
@@ -872,24 +1034,25 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             companyDarkLogo: prevData.quotation.companyDarkLogo,
             companyIcon: prevData.quotation.companyIcon,
             companyFavicon: prevData.quotation.companyFavicon,
-            items: prevData.quotation.items.map(item => ({
+            items: prevData.quotation.items.map((item) => ({
               name: item.name,
               qty: item.qty,
               rate: item.rate,
-              warehouse: item.warehouse || ''
+              warehouse: item.warehouse || "",
+              warehouses: item.warehouses || [], // Preserve warehouses
             })),
           },
         }));
-        return 'salesOrder';
+        return "salesOrder";
       }
 
-      if (prev === 'salesOrder') {
-        setFormData(prevData => ({
+      if (prev === "salesOrder") {
+        setFormData((prevData) => ({
           ...prevData,
           deliveryChallan: {
             ...prevData.deliveryChallan,
             salesOrderNo: prevData.salesOrder.orderNo,
-            challanDate: new Date().toISOString().split('T')[0],
+            challanDate: new Date().toISOString().split("T")[0],
             companyName: prevData.salesOrder.companyName,
             companyAddress: prevData.salesOrder.companyAddress,
             companyEmail: prevData.salesOrder.companyEmail,
@@ -906,27 +1069,30 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             shipToAddress: prevData.salesOrder.shipToAddress,
             shipToEmail: prevData.salesOrder.shipToEmail,
             shipToPhone: prevData.salesOrder.shipToPhone,
-            items: prevData.salesOrder.items.map(item => ({
+            items: prevData.salesOrder.items.map((item) => ({
               name: item.name,
               qty: item.qty,
               deliveredQty: item.qty,
               rate: item.rate,
-              warehouse: item.warehouse || ''
+              warehouse: item.warehouse || "",
+              warehouses: item.warehouses || [], // Preserve warehouses
             })),
           },
         }));
-        return 'deliveryChallan';
+        return "deliveryChallan";
       }
 
-      if (prev === 'deliveryChallan') {
-        setFormData(prevData => ({
+      if (prev === "deliveryChallan") {
+        setFormData((prevData) => ({
           ...prevData,
           invoice: {
             ...prevData.invoice,
             orderNo: prevData.salesOrder.orderNo,
             invoiceNo: `INV-${Date.now().toString().slice(-6)}`,
-            invoiceDate: new Date().toISOString().split('T')[0],
-            dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            invoiceDate: new Date().toISOString().split("T")[0],
+            dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .split("T")[0],
             customerName: prevData.deliveryChallan.billToName,
             customerAddress: prevData.deliveryChallan.billToAddress,
             customerEmail: prevData.deliveryChallan.billToEmail,
@@ -939,29 +1105,32 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             companyDarkLogo: prevData.deliveryChallan.companyDarkLogo,
             companyIcon: prevData.deliveryChallan.companyIcon,
             companyFavicon: prevData.deliveryChallan.companyFavicon,
-            items: prevData.deliveryChallan.items.map(item => ({
+            items: prevData.deliveryChallan.items.map((item) => ({
               description: item.name,
               qty: item.deliveredQty,
               rate: item.rate,
               tax: 0,
               discount: 0,
               amount: item.rate * item.deliveredQty,
-              warehouse: item.warehouse || ''
+              warehouse: item.warehouse || "",
+              warehouses: item.warehouses || [], // Preserve warehouses
             })),
           },
         }));
-        return 'invoice';
+        return "invoice";
       }
 
-      if (prev === 'invoice') {
-        setFormData(prevData => ({
+      if (prev === "invoice") {
+        setFormData((prevData) => ({
           ...prevData,
           payment: {
             ...prevData.payment,
             invoiceNo: prevData.invoice.invoiceNo,
-            paymentDate: new Date().toISOString().split('T')[0],
-            totalAmount: calculateTotalAmount(prevData.invoice.items).toFixed(2),
-            amount: '',
+            paymentDate: new Date().toISOString().split("T")[0],
+            totalAmount: calculateTotalAmount(prevData.invoice.items).toFixed(
+              2
+            ),
+            amount: "",
             customerName: prevData.invoice.customerName,
             customerAddress: prevData.invoice.customerAddress,
             customerEmail: prevData.invoice.customerEmail,
@@ -976,20 +1145,20 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             companyFavicon: prevData.invoice.companyFavicon,
           },
         }));
-        return 'payment';
+        return "payment";
       }
 
-      return 'quotation';
+      return "quotation";
     });
   };
 
   const handleNext = () => {
-    setKey(prev => {
-      if (prev === 'quotation') return 'salesOrder';
-      if (prev === 'salesOrder') return 'deliveryChallan';
-      if (prev === 'deliveryChallan') return 'invoice';
-      if (prev === 'invoice') return 'payment';
-      return 'quotation';
+    setKey((prev) => {
+      if (prev === "quotation") return "salesOrder";
+      if (prev === "salesOrder") return "deliveryChallan";
+      if (prev === "deliveryChallan") return "invoice";
+      if (prev === "invoice") return "payment";
+      return "quotation";
     });
   };
 
@@ -1001,15 +1170,20 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     };
 
     if (currentRecordId) {
-      setSavedRecords(prev => {
-        const updated = prev.map(r => r.id === currentRecordId ? newRecord : r);
-        localStorage.setItem('purchaseFormRecords', JSON.stringify(updated));
+      setSavedRecords((prev) => {
+        const updated = prev.map((r) =>
+          r.id === currentRecordId ? newRecord : r
+        );
+        localStorage.setItem("purchaseFormRecords", JSON.stringify(updated));
         return updated;
       });
     } else {
       const updatedRecords = [...savedRecords, newRecord];
       setSavedRecords(updatedRecords);
-      localStorage.setItem('purchaseFormRecords', JSON.stringify(updatedRecords));
+      localStorage.setItem(
+        "purchaseFormRecords",
+        JSON.stringify(updatedRecords)
+      );
     }
 
     setCurrentRecordId(null);
@@ -1017,28 +1191,28 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   };
 
   const handleEditRecord = (id) => {
-    const record = savedRecords.find(r => r.id === id);
+    const record = savedRecords.find((r) => r.id === id);
     if (record) {
       setFormData(record.data);
       setCurrentRecordId(id);
 
       if (record.data.payment?.invoiceNo) {
-        setKey('payment');
+        setKey("payment");
       } else if (record.data.invoice?.invoiceNo) {
-        setKey('invoice');
+        setKey("invoice");
       } else if (record.data.deliveryChallan?.challanNo) {
-        setKey('deliveryChallan');
+        setKey("deliveryChallan");
       } else if (record.data.salesOrder?.orderNo) {
-        setKey('salesOrder');
+        setKey("salesOrder");
       } else {
-        setKey('quotation');
+        setKey("quotation");
       }
     }
   };
 
   const handleDeleteRecord = (id) => {
     if (window.confirm("Are you sure you want to delete this record?")) {
-      setSavedRecords(prev => prev.filter(r => r.id !== id));
+      setSavedRecords((prev) => prev.filter((r) => r.id !== id));
       if (currentRecordId === id) {
         setCurrentRecordId(null);
       }
@@ -1051,7 +1225,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        handleChange(tab, 'signature', reader.result);
+        handleChange(tab, "signature", reader.result);
       };
       reader.readAsDataURL(file);
     }
@@ -1062,7 +1236,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        handleChange(tab, 'photo', reader.result);
+        handleChange(tab, "photo", reader.result);
       };
       reader.readAsDataURL(file);
     }
@@ -1072,18 +1246,18 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     const files = Array.from(e.target.files);
     const newFiles = [];
 
-    files.forEach(file => {
+    files.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         newFiles.push({
           name: file.name,
           type: file.type,
           size: file.size,
-          base64: reader.result
+          base64: reader.result,
         });
 
         if (newFiles.length === files.length) {
-          handleChange(tab, 'files', [...formData[tab].files, ...newFiles]);
+          handleChange(tab, "files", [...formData[tab].files, ...newFiles]);
         }
       };
       reader.readAsDataURL(file);
@@ -1093,7 +1267,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   const removeFile = (tab, index) => {
     const updatedFiles = [...formData[tab].files];
     updatedFiles.splice(index, 1);
-    handleChange(tab, 'files', updatedFiles);
+    handleChange(tab, "files", updatedFiles);
   };
 
   const handleAddItem = () => {
@@ -1109,25 +1283,25 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       discount: 0,
       hsn: newItem.hsn,
       uom: newItem.uom,
-      warehouse: ''
+      warehouse: "",
     };
 
     const tab = key;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [tab]: {
         ...prev[tab],
-        items: [...prev[tab].items, itemToAdd]
-      }
+        items: [...prev[tab].items, itemToAdd],
+      },
     }));
 
     setNewItem({
-      name: '',
-      category: '',
-      hsn: '',
+      name: "",
+      category: "",
+      hsn: "",
       tax: 0,
       sellingPrice: 0,
-      uom: 'PCS'
+      uom: "PCS",
     });
     setShowAdd(false);
   };
@@ -1140,9 +1314,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   const handleAddCategory = (e) => {
     e.preventDefault();
     if (newCategory && !categories.includes(newCategory)) {
-      setCategories(prev => [...prev, newCategory]);
-      setNewItem(prev => ({ ...prev, category: newCategory }));
-      setNewCategory('');
+      setCategories((prev) => [...prev, newCategory]);
+      setNewItem((prev) => ({ ...prev, category: newCategory }));
+      setNewCategory("");
     }
     setShowAddCategoryModal(false);
   };
@@ -1153,56 +1327,73 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     const handleItemChange = (index, field, value) => {
       const updatedItems = [...items];
       updatedItems[index][field] = value;
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [tab]: { ...prev[tab], items: updatedItems }
+        [tab]: { ...prev[tab], items: updatedItems },
       }));
     };
 
     const addItem = () => {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [tab]: {
           ...prev[tab],
-          items: [...items, { name: '', qty: '', rate: '', tax: 0, discount: 0, warehouse: '' }]
-        }
+          items: [
+            ...items,
+            { name: "", qty: "", rate: "", tax: 0, discount: 0, warehouse: "" },
+          ],
+        },
       }));
     };
 
     const removeItem = (idx) => {
       const updatedItems = items.filter((_, index) => index !== idx);
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [tab]: { ...prev[tab], items: updatedItems }
+        [tab]: { ...prev[tab], items: updatedItems },
       }));
     };
 
     // Filter items based on search term for each row
     const getFilteredItems = (index) => {
-      const searchTerm = rowSearchTerms[`${tab}-${index}`] || '';
-      if (!searchTerm) return availableItems; // Return all available items if search term is empty
+      const searchTerm = rowSearchTerms[`${tab}-${index}`] || "";
+      if (!searchTerm) return availableItems;
 
-      return availableItems.filter(item =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (item.barcode && item.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
+      return availableItems.filter(
+        (item) =>
+          item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (item.sku &&
+            item.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (item.barcode &&
+            item.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     };
 
-    // Get available warehouses for a specific item
-    const getAvailableWarehousesForItem = (item) => {
-      if (!item || !item.name) return warehouses;
-
-      // Find the product in availableItems
-      const product = availableItems.find(p => p.name === item.name);
-
-      if (!product || !product.warehouses || product.warehouses.length === 0) {
-        return [];
+    // Get warehouses to display in the dropdown for a specific row
+    const getWarehousesForDropdown = (item) => {
+      // If an item is selected and has warehouse data, use that
+      if (item.name && item.warehouses && item.warehouses.length > 0) {
+        return item.warehouses;
       }
+      // Otherwise, return all company warehouses (fallback)
+      return warehouses.map((wh) => ({ ...wh, stock_qty: null })); // Add null stock for fallback
+    };
 
-      // Return only warehouses where this product is available
-      return product.warehouses.map(w => w.warehouse_name);
+    // Filter warehouses based on search term for each row
+    const getFilteredWarehouses = (index) => {
+      const item = items[index];
+      const searchTerm = warehouseSearchTerms[`${tab}-${index}`] || "";
+      const warehousesToFilter = getWarehousesForDropdown(item);
+
+      if (!searchTerm) return warehousesToFilter;
+
+      return warehousesToFilter.filter(
+        (wh) =>
+          wh.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (wh.location &&
+            wh.location.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
     };
 
     return (
@@ -1212,21 +1403,38 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             <Button
               size="sm"
               onClick={addItem}
-              style={{ backgroundColor: "#53b2a5", border: "none", padding: "6px 12px", fontWeight: "500", marginRight: "5px" }}
+              style={{
+                backgroundColor: "#53b2a5",
+                border: "none",
+                padding: "6px 12px",
+                fontWeight: "500",
+                marginRight: "5px",
+              }}
             >
               <FontAwesomeIcon icon={faPlus} /> Add Row
             </Button>
             <Button
               size="sm"
               onClick={() => setShowAdd(true)}
-              style={{ backgroundColor: "#53b2a5", border: "none", padding: "6px 12px", fontWeight: "500", marginRight: "5px" }}
+              style={{
+                backgroundColor: "#53b2a5",
+                border: "none",
+                padding: "6px 12px",
+                fontWeight: "500",
+                marginRight: "5px",
+              }}
             >
               + Add Product
             </Button>
             <Button
               size="sm"
               onClick={() => setShowServiceModal(true)}
-              style={{ backgroundColor: "#53b2a5", border: "none", padding: "6px 12px", fontWeight: "500" }}
+              style={{
+                backgroundColor: "#53b2a5",
+                border: "none",
+                padding: "6px 12px",
+                fontWeight: "500",
+              }}
             >
               + Add Service
             </Button>
@@ -1254,7 +1462,11 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
         />
 
         {/* Service Modal */}
-        <Modal show={showServiceModal} onHide={() => setShowServiceModal(false)} centered>
+        <Modal
+          show={showServiceModal}
+          onHide={() => setShowServiceModal(false)}
+          centered
+        >
           <Modal.Header closeButton className="bg-light">
             <Modal.Title>Add Service</Modal.Title>
           </Modal.Header>
@@ -1309,10 +1521,16 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             </Form>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowServiceModal(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowServiceModal(false)}
+            >
               Cancel
             </Button>
-            <Button style={{ backgroundColor: '#53b2a5', borderColor: '#53b2a5' }} onClick={handleAddService}>
+            <Button
+              style={{ backgroundColor: "#53b2a5", borderColor: "#53b2a5" }}
+              onClick={handleAddService}
+            >
               Add Service
             </Button>
           </Modal.Footer>
@@ -1322,9 +1540,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           <thead className="bg-light">
             <tr>
               <th>Item Name</th>
+              <th>Warehouse (Stock)</th>
               <th>Qty</th>
-              <th>Warehouse</th>
-              {tab === 'deliveryChallan' && <th>Delivered Qty</th>}
+              {tab === "deliveryChallan" && <th>Delivered Qty</th>}
               <th>Rate</th>
               <th>Tax %</th>
               <th>Discount</th>
@@ -1334,28 +1552,36 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           </thead>
           <tbody>
             {items.map((item, idx) => {
-              const qty = tab === 'deliveryChallan' ? (parseInt(item.deliveredQty) || 0) : (parseInt(item.qty) || 0);
+              const qty =
+                tab === "deliveryChallan"
+                  ? parseInt(item.deliveredQty) || 0
+                  : parseInt(item.qty) || 0;
               const amount = (parseFloat(item.rate) || 0) * qty;
-              const rowKey = `${tab}-${idx}`;
+              const itemRowKey = `${tab}-${idx}`;
               const filteredItems = getFilteredItems(idx);
-              const isSearchVisible = showRowSearch[rowKey];
-              const availableWarehouses = getAvailableWarehousesForItem(item);
+              const isItemSearchVisible = showRowSearch[itemRowKey];
+
+              const warehouseRowKey = `${tab}-${idx}`;
+              const filteredWarehouses = getFilteredWarehouses(idx);
+              const isWarehouseSearchVisible =
+                showWarehouseSearch[warehouseRowKey];
 
               return (
                 <tr key={idx}>
-                  <td style={{ position: 'relative' }}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                  {/* Item Name Cell with Search */}
+                  <td style={{ position: "relative" }}>
+                    <div style={{ display: "flex", alignItems: "center" }}>
                       <Form.Control
                         type="text"
                         size="sm"
                         value={item.name}
                         onChange={(e) => {
-                          handleItemChange(idx, 'name', e.target.value);
+                          handleItemChange(idx, "name", e.target.value);
                           handleRowSearchChange(tab, idx, e.target.value);
                         }}
                         onFocus={() => toggleRowSearch(tab, idx)}
                         placeholder="Click to search products"
-                        style={{ marginRight: '5px' }}
+                        style={{ marginRight: "5px" }}
                       />
                       <Button
                         variant="outline-secondary"
@@ -1366,44 +1592,211 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                         <FontAwesomeIcon icon={faSearch} />
                       </Button>
                     </div>
-                    {isSearchVisible && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
+                    {isItemSearchVisible && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          right: 0,
+                          zIndex: 10,
+                          backgroundColor: "white",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                        }}
+                      >
                         <InputGroup size="sm">
                           <InputGroup.Text>
                             <FontAwesomeIcon icon={faSearch} />
                           </InputGroup.Text>
                           <FormControl
                             placeholder="Search items..."
-                            value={rowSearchTerms[rowKey] || ''}
-                            onChange={(e) => handleRowSearchChange(tab, idx, e.target.value)}
+                            value={rowSearchTerms[itemRowKey] || ""}
+                            onChange={(e) =>
+                              handleRowSearchChange(tab, idx, e.target.value)
+                            }
                             autoFocus
                           />
                         </InputGroup>
                         {loadingItems ? (
-                          <div style={{ padding: '8px', textAlign: 'center', color: '#666' }}>
+                          <div
+                            style={{
+                              padding: "8px",
+                              textAlign: "center",
+                              color: "#666",
+                            }}
+                          >
                             Loading products...
                           </div>
                         ) : filteredItems.length > 0 ? (
-                          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                            {filteredItems.map(filteredItem => (
+                          <div
+                            style={{ maxHeight: "200px", overflowY: "auto" }}
+                          >
+                            {filteredItems.map((filteredItem) => (
                               <div
                                 key={filteredItem.id}
-                                style={{ padding: '8px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
-                                onClick={() => handleSelectSearchedItem(tab, idx, filteredItem)}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                                style={{
+                                  padding: "8px",
+                                  cursor: "pointer",
+                                  borderBottom: "1px solid #eee",
+                                }}
+                                onClick={() =>
+                                  handleSelectSearchedItem(
+                                    tab,
+                                    idx,
+                                    filteredItem
+                                  )
+                                }
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.backgroundColor =
+                                    "#f0f0f0")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.backgroundColor =
+                                    "white")
+                                }
                               >
-                                <div><strong>{filteredItem.name}</strong></div>
-                                <div style={{ fontSize: '0.8rem', color: '#666' }}>
-                                  {filteredItem.category} - ${filteredItem.price.toFixed(2)}
-                                  {filteredItem.sku && <span> | SKU: {filteredItem.sku}</span>}
+                                <div>
+                                  <strong>{filteredItem.name}</strong>
+                                </div>
+                                <div
+                                  style={{ fontSize: "0.8rem", color: "#666" }}
+                                >
+                                  {filteredItem.category} - $
+                                  {filteredItem.price.toFixed(2)}
+                                  {filteredItem.sku && (
+                                    <span> | SKU: {filteredItem.sku}</span>
+                                  )}
                                 </div>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <div style={{ padding: '8px', textAlign: 'center', color: '#666' }}>
+                          <div
+                            style={{
+                              padding: "8px",
+                              textAlign: "center",
+                              color: "#666",
+                            }}
+                          >
                             No items found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  {/* Warehouse Cell with Search */}
+                  <td style={{ position: "relative" }}>
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <Form.Control
+                        type="text"
+                        size="sm"
+                        value={item.warehouse || ""}
+                        onChange={(e) =>
+                          handleWarehouseSearchChange(tab, idx, e.target.value)
+                        }
+                        onFocus={() => toggleWarehouseSearch(tab, idx)}
+                        placeholder="Click to search warehouses"
+                        style={{ marginRight: "5px" }}
+                        readOnly
+                      />
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={() => toggleWarehouseSearch(tab, idx)}
+                        title="Search Warehouses"
+                      >
+                        <FontAwesomeIcon icon={faSearch} />
+                      </Button>
+                    </div>
+                    {isWarehouseSearchVisible && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          right: 0,
+                          zIndex: 9,
+                          backgroundColor: "white",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                        }}
+                      >
+                        <InputGroup size="sm">
+                          <InputGroup.Text>
+                            <FontAwesomeIcon icon={faSearch} />
+                          </InputGroup.Text>
+                          <FormControl
+                            placeholder="Search warehouses..."
+                            value={warehouseSearchTerms[warehouseRowKey] || ""}
+                            onChange={(e) =>
+                              handleWarehouseSearchChange(
+                                tab,
+                                idx,
+                                e.target.value
+                              )
+                            }
+                            autoFocus
+                          />
+                        </InputGroup>
+                        {loadingWarehouses ? (
+                          <div
+                            style={{
+                              padding: "8px",
+                              textAlign: "center",
+                              color: "#666",
+                            }}
+                          >
+                            Loading warehouses...
+                          </div>
+                        ) : filteredWarehouses.length > 0 ? (
+                          <div
+                            style={{ maxHeight: "200px", overflowY: "auto" }}
+                          >
+                            {filteredWarehouses.map((wh) => (
+                              <div
+                                key={wh.warehouse_id || wh.warehouse_name} // Use name as fallback if id is not there
+                                style={{
+                                  padding: "8px",
+                                  cursor: "pointer",
+                                  borderBottom: "1px solid #eee",
+                                }}
+                                onClick={() =>
+                                  handleSelectSearchedWarehouse(tab, idx, wh)
+                                }
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.backgroundColor =
+                                    "#f0f0f0")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.backgroundColor =
+                                    "white")
+                                }
+                              >
+                                <div>
+                                  <strong>{wh.warehouse_name}</strong>
+                                </div>
+                                <div
+                                  style={{ fontSize: "0.8rem", color: "#666" }}
+                                >
+                                  {wh.stock_qty !== null
+                                    ? `Stock: ${wh.stock_qty}`
+                                    : wh.location || "General Warehouse"}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              padding: "8px",
+                              textAlign: "center",
+                              color: "#666",
+                            }}
+                          >
+                            No warehouses found
                           </div>
                         )}
                       </div>
@@ -1414,39 +1807,21 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                       type="number"
                       size="sm"
                       value={item.qty}
-                      onChange={(e) => handleItemChange(idx, 'qty', e.target.value)}
+                      onChange={(e) =>
+                        handleItemChange(idx, "qty", e.target.value)
+                      }
                       placeholder="Qty"
                     />
                   </td>
-                  <td>
-                    <Form.Select
-                      size="sm"
-                      value={item.warehouse || ""}
-                      onChange={(e) => handleItemChange(idx, 'warehouse', e.target.value)}
-                    >
-                      <option value="">Select Warehouse</option>
-                      {warehouses.map((w, i) => {
-                        const isAvailable = availableWarehouses.includes(w.warehouse_name);
-                        return (
-                          <option
-                            key={i}
-                            value={w.warehouse_name}
-                            disabled={!isAvailable}
-                            style={!isAvailable ? { color: '#999' } : {}}
-                          >
-                            {w.warehouse_name} {!isAvailable ? '(Not Available)' : ''}
-                          </option>
-                        );
-                      })}
-                    </Form.Select>
-                  </td>
-                  {tab === 'deliveryChallan' && (
+                  {tab === "deliveryChallan" && (
                     <td>
                       <Form.Control
                         type="number"
                         size="sm"
                         value={item.deliveredQty}
-                        onChange={(e) => handleItemChange(idx, 'deliveredQty', e.target.value)}
+                        onChange={(e) =>
+                          handleItemChange(idx, "deliveredQty", e.target.value)
+                        }
                         placeholder="Delivered Qty"
                       />
                     </td>
@@ -1457,7 +1832,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                       step="0.01"
                       size="sm"
                       value={item.rate}
-                      onChange={(e) => handleItemChange(idx, 'rate', e.target.value)}
+                      onChange={(e) =>
+                        handleItemChange(idx, "rate", e.target.value)
+                      }
                       placeholder="Rate"
                     />
                   </td>
@@ -1467,7 +1844,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                       step="0.01"
                       size="sm"
                       value={item.tax}
-                      onChange={(e) => handleItemChange(idx, 'tax', e.target.value)}
+                      onChange={(e) =>
+                        handleItemChange(idx, "tax", e.target.value)
+                      }
                       placeholder="Tax %"
                     />
                   </td>
@@ -1477,7 +1856,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                       step="0.01"
                       size="sm"
                       value={item.discount}
-                      onChange={(e) => handleItemChange(idx, 'discount', e.target.value)}
+                      onChange={(e) =>
+                        handleItemChange(idx, "discount", e.target.value)
+                      }
                       placeholder="Discount"
                     />
                   </td>
@@ -1488,11 +1869,15 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                       size="sm"
                       value={amount.toFixed(2)}
                       readOnly
-                      style={{ backgroundColor: '#f8f9fa', fontWeight: 'bold' }}
+                      style={{ backgroundColor: "#f8f9fa", fontWeight: "bold" }}
                     />
                   </td>
                   <td>
-                    <Button variant="danger" size="sm" onClick={() => removeItem(idx)}>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => removeItem(idx)}
+                    >
                       Delete
                     </Button>
                   </td>
@@ -1507,108 +1892,236 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
 
   const renderPDFView = () => {
     const currentTab = formData[key];
-    const hasItems = tabsWithItems.includes(key) && Array.isArray(currentTab.items);
+    const hasItems =
+      tabsWithItems.includes(key) && Array.isArray(currentTab.items);
 
     return (
-      <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px', backgroundColor: 'white' }}>
+      <div
+        style={{
+          fontFamily: "Arial, sans-serif",
+          padding: "20px",
+          backgroundColor: "white",
+        }}
+      >
         {/* Header: Logo + Title */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: "20px",
+          }}
+        >
           <div
             style={{
-              border: '2px dashed #28a745',
-              padding: '10px',
-              width: '120px',
-              height: '120px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textAlign: 'center',
+              border: "2px dashed #28a745",
+              padding: "10px",
+              width: "120px",
+              height: "120px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
             }}
           >
             {currentTab.company_logo_url ? (
-              <img src={currentTab.company_logo_url} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100px' }} />
+              <img
+                src={currentTab.company_logo_url}
+                alt="Logo"
+                style={{ maxWidth: "100%", maxHeight: "100px" }}
+              />
             ) : (
-              'Logo'
+              "Logo"
             )}
           </div>
-          <div style={{ textAlign: 'center', color: '#28a745' }}>
+          <div style={{ textAlign: "center", color: "#28a745" }}>
             <h2>
-              {key === 'quotation' && 'SALES QUOTATION'}
-              {key === 'salesOrder' && 'SALES ORDER'}
-              {key === 'deliveryChallan' && 'DELIVERY CHALLAN'}
-              {key === 'invoice' && 'INVOICE'}
-              {key === 'payment' && 'PAYMENT RECEIPT'}
+              {key === "quotation" && "SALES QUOTATION"}
+              {key === "salesOrder" && "SALES ORDER"}
+              {key === "deliveryChallan" && "DELIVERY CHALLAN"}
+              {key === "invoice" && "INVOICE"}
+              {key === "payment" && "PAYMENT RECEIPT"}
             </h2>
           </div>
         </div>
-        <hr style={{ border: '2px solid #28a745', margin: '15px 0' }} />
+        <hr style={{ border: "2px solid #28a745", margin: "15px 0" }} />
 
         {/* Company Info */}
-        <div style={{ marginBottom: '15px' }}>
+        <div style={{ marginBottom: "15px" }}>
           <h4>{currentTab.companyName}</h4>
           <p>{currentTab.companyAddress}</p>
-          <p>Email: {currentTab.companyEmail} | Phone: {currentTab.companyPhone}</p>
+          <p>
+            Email: {currentTab.companyEmail} | Phone: {currentTab.companyPhone}
+          </p>
         </div>
 
         {/* Customer Info */}
         {currentTab.billToName && (
-          <div style={{ marginBottom: '15px' }}>
+          <div style={{ marginBottom: "15px" }}>
             <h5>BILL TO</h5>
             <p>{currentTab.billToName}</p>
             <p>{currentTab.billToAddress}</p>
-            <p>Email: {currentTab.billToEmail} | Phone: {currentTab.billToPhone}</p>
+            <p>
+              Email: {currentTab.billToEmail} | Phone: {currentTab.billToPhone}
+            </p>
           </div>
         )}
 
         {/* Ship To */}
         {currentTab.shipToName && (
-          <div style={{ marginBottom: '15px' }}>
+          <div style={{ marginBottom: "15px" }}>
             <h5>SHIP TO</h5>
             <p>{currentTab.shipToName}</p>
             <p>{currentTab.shipToAddress}</p>
-            <p>Email: {currentTab.shipToEmail} | Phone: {currentTab.shipToPhone}</p>
+            <p>
+              Email: {currentTab.shipToEmail} | Phone: {currentTab.shipToPhone}
+            </p>
           </div>
         )}
 
         {/* Driver & Vehicle (Delivery Challan) */}
-        {key === 'deliveryChallan' && (
-          <div style={{ marginBottom: '15px' }}>
+        {key === "deliveryChallan" && (
+          <div style={{ marginBottom: "15px" }}>
             <h5>DRIVER DETAILS</h5>
-            <p>{currentTab.driverName} | {currentTab.driverPhone}</p>
-            <p><strong>Vehicle No.:</strong> {currentTab.vehicleNo}</p>
+            <p>
+              {currentTab.driverName} | {currentTab.driverPhone}
+            </p>
+            <p>
+              <strong>Vehicle No.:</strong> {currentTab.vehicleNo}
+            </p>
           </div>
         )}
 
         {/* Document Numbers */}
-        <div style={{ marginBottom: '15px' }}>
+        <div style={{ marginBottom: "15px" }}>
           <strong>Ref ID:</strong> {currentTab.referenceId} |
-          {key === 'quotation' && <><strong>Quotation No.:</strong> {currentTab.quotationNo} | </>}
-          {key === 'salesOrder' && <><strong>Order No.:</strong> {currentTab.salesOrderNo} | </>}
-          {key === 'deliveryChallan' && <><strong>Challan No.:</strong> {currentTab.challanNo} | </>}
-          {key === 'invoice' && <><strong>Invoice No.:</strong> {currentTab.invoiceNo} | </>}
-          {key === 'payment' && <><strong>Payment No.:</strong> {currentTab.paymentNo} | </>}
-          <strong>Date:</strong> {currentTab[`${key}Date`] || currentTab.date || new Date().toISOString().split('T')[0]}
-          {key === 'quotation' && currentTab.validDate && <> | <strong>Valid Till:</strong> {currentTab.validDate}</>}
-          {key === 'invoice' && currentTab.dueDate && <> | <strong>Due Date:</strong> {currentTab.dueDate}</>}
+          {key === "quotation" && (
+            <>
+              <strong>Quotation No.:</strong> {currentTab.quotationNo} |{" "}
+            </>
+          )}
+          {key === "salesOrder" && (
+            <>
+              <strong>Order No.:</strong> {currentTab.salesOrderNo} |{" "}
+            </>
+          )}
+          {key === "deliveryChallan" && (
+            <>
+              <strong>Challan No.:</strong> {currentTab.challanNo} |{" "}
+            </>
+          )}
+          {key === "invoice" && (
+            <>
+              <strong>Invoice No.:</strong> {currentTab.invoiceNo} |{" "}
+            </>
+          )}
+          {key === "payment" && (
+            <>
+              <strong>Payment No.:</strong> {currentTab.paymentNo} |{" "}
+            </>
+          )}
+          <strong>Date:</strong>{" "}
+          {currentTab[`${key}Date`] ||
+            currentTab.date ||
+            new Date().toISOString().split("T")[0]}
+          {key === "quotation" && currentTab.validDate && (
+            <>
+              {" "}
+              | <strong>Valid Till:</strong> {currentTab.validDate}
+            </>
+          )}
+          {key === "invoice" && currentTab.dueDate && (
+            <>
+              {" "}
+              | <strong>Due Date:</strong> {currentTab.dueDate}
+            </>
+          )}
         </div>
 
         {/* Items Table */}
         {hasItems && (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
-            <thead style={{ backgroundColor: '#f8f9fa' }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              marginBottom: "20px",
+            }}
+          >
+            <thead style={{ backgroundColor: "#f8f9fa" }}>
               <tr>
-                <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Item Name</th>
-                <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Qty</th>
-                {key === 'deliveryChallan' && <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Delivered Qty</th>}
-                <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Rate</th>
-                <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Tax %</th>
-                <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Discount</th>
-                <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Amount</th>
+                <th
+                  style={{
+                    border: "1px solid #000",
+                    padding: "8px",
+                    textAlign: "left",
+                  }}
+                >
+                  Item Name
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #000",
+                    padding: "8px",
+                    textAlign: "left",
+                  }}
+                >
+                  Qty
+                </th>
+                {key === "deliveryChallan" && (
+                  <th
+                    style={{
+                      border: "1px solid #000",
+                      padding: "8px",
+                      textAlign: "left",
+                    }}
+                  >
+                    Delivered Qty
+                  </th>
+                )}
+                <th
+                  style={{
+                    border: "1px solid #000",
+                    padding: "8px",
+                    textAlign: "left",
+                  }}
+                >
+                  Rate
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #000",
+                    padding: "8px",
+                    textAlign: "left",
+                  }}
+                >
+                  Tax %
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #000",
+                    padding: "8px",
+                    textAlign: "left",
+                  }}
+                >
+                  Discount
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #000",
+                    padding: "8px",
+                    textAlign: "left",
+                  }}
+                >
+                  Amount
+                </th>
               </tr>
             </thead>
             <tbody>
               {currentTab.items.map((item, idx) => {
-                const qty = key === 'deliveryChallan' ? (parseInt(item.deliveredQty) || 0) : (parseInt(item.qty) || 0);
+                const qty =
+                  key === "deliveryChallan"
+                    ? parseInt(item.deliveredQty) || 0
+                    : parseInt(item.qty) || 0;
                 const rate = parseFloat(item.rate) || 0;
                 const tax = parseFloat(item.tax) || 0;
                 const discount = parseFloat(item.discount) || 0;
@@ -1617,24 +2130,57 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                 const amount = subtotal + taxAmount - discount;
                 return (
                   <tr key={idx}>
-                    <td style={{ border: '1px solid #000', padding: '8px' }}>{item.name}</td>
-                    <td style={{ border: '1px solid #000', padding: '8px' }}>{item.qty}</td>
-                    {key === 'deliveryChallan' && <td style={{ border: '1px solid #000', padding: '8px' }}>{item.deliveredQty}</td>}
-                    <td style={{ border: '1px solid #000', padding: '8px' }}>${rate.toFixed(2)}</td>
-                    <td style={{ border: '1px solid #000', padding: '8px' }}>{tax}%</td>
-                    <td style={{ border: '1px solid #000', padding: '8px' }}>${discount.toFixed(2)}</td>
-                    <td style={{ border: '1px solid #000', padding: '8px' }}>${amount.toFixed(2)}</td>
+                    <td style={{ border: "1px solid #000", padding: "8px" }}>
+                      {item.name}
+                    </td>
+                    <td style={{ border: "1px solid #000", padding: "8px" }}>
+                      {item.qty}
+                    </td>
+                    {key === "deliveryChallan" && (
+                      <td style={{ border: "1px solid #000", padding: "8px" }}>
+                        {item.deliveredQty}
+                      </td>
+                    )}
+                    <td style={{ border: "1px solid #000", padding: "8px" }}>
+                      ${rate.toFixed(2)}
+                    </td>
+                    <td style={{ border: "1px solid #000", padding: "8px" }}>
+                      {tax}%
+                    </td>
+                    <td style={{ border: "1px solid #000", padding: "8px" }}>
+                      ${discount.toFixed(2)}
+                    </td>
+                    <td style={{ border: "1px solid #000", padding: "8px" }}>
+                      ${amount.toFixed(2)}
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={key === 'deliveryChallan' ? 6 : 5} style={{ textAlign: 'right', fontWeight: 'bold', border: '1px solid #000', padding: '8px' }}>
+                <td
+                  colSpan={key === "deliveryChallan" ? 6 : 5}
+                  style={{
+                    textAlign: "right",
+                    fontWeight: "bold",
+                    border: "1px solid #000",
+                    padding: "8px",
+                  }}
+                >
                   Total:
                 </td>
-                <td style={{ fontWeight: 'bold', border: '1px solid #000', padding: '8px' }}>
-                  ${calculateTotalWithTaxAndDiscount(currentTab.items).toFixed(2)}
+                <td
+                  style={{
+                    fontWeight: "bold",
+                    border: "1px solid #000",
+                    padding: "8px",
+                  }}
+                >
+                  $
+                  {calculateTotalWithTaxAndDiscount(currentTab.items).toFixed(
+                    2
+                  )}
                 </td>
               </tr>
             </tfoot>
@@ -1642,45 +2188,71 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
         )}
 
         {/* Payment Details (Payment Tab) */}
-        {key === 'payment' && (
-          <div style={{ marginBottom: '15px' }}>
+        {key === "payment" && (
+          <div style={{ marginBottom: "15px" }}>
             <h5>PAYMENT DETAILS</h5>
-            <p><strong>Amount Paid:</strong> ${parseFloat(currentTab.amount || 0).toFixed(2)}</p>
-            <p><strong>Payment Method:</strong> {currentTab.paymentMethod}</p>
-            <p><strong>Status:</strong> {currentTab.paymentStatus}</p>
+            <p>
+              <strong>Amount Paid:</strong> $
+              {parseFloat(currentTab.amount || 0).toFixed(2)}
+            </p>
+            <p>
+              <strong>Payment Method:</strong> {currentTab.paymentMethod}
+            </p>
+            <p>
+              <strong>Status:</strong> {currentTab.paymentStatus}
+            </p>
           </div>
         )}
 
         {/* Terms & Conditions */}
         {currentTab.terms && (
-          <div style={{ marginBottom: '15px' }}>
+          <div style={{ marginBottom: "15px" }}>
             <h5>TERMS & CONDITIONS</h5>
             <p>{currentTab.terms}</p>
           </div>
         )}
 
         {/* Attachments */}
-        <div style={{ marginBottom: '15px' }}>
+        <div style={{ marginBottom: "15px" }}>
           {currentTab.signature && (
-            <div style={{ marginBottom: '10px' }}>
+            <div style={{ marginBottom: "10px" }}>
               <strong>SIGNATURE</strong>
               <br />
-              <img src={currentTab.signature} alt="Signature" style={{ maxWidth: '150px', maxHeight: '80px', marginTop: '5px' }} />
+              <img
+                src={currentTab.signature}
+                alt="Signature"
+                style={{
+                  maxWidth: "150px",
+                  maxHeight: "80px",
+                  marginTop: "5px",
+                }}
+              />
             </div>
           )}
           {currentTab.photo && (
-            <div style={{ marginBottom: '10px' }}>
+            <div style={{ marginBottom: "10px" }}>
               <strong>PHOTO</strong>
               <br />
-              <img src={currentTab.photo} alt="Photo" style={{ maxWidth: '150px', maxHeight: '150px', objectFit: 'cover', marginTop: '5px' }} />
+              <img
+                src={currentTab.photo}
+                alt="Photo"
+                style={{
+                  maxWidth: "150px",
+                  maxHeight: "150px",
+                  objectFit: "cover",
+                  marginTop: "5px",
+                }}
+              />
             </div>
           )}
           {currentTab.files && currentTab.files.length > 0 && (
             <div>
               <strong>FILES</strong>
-              <ul style={{ listStyle: 'none', padding: 0, marginTop: '5px' }}>
+              <ul style={{ listStyle: "none", padding: 0, marginTop: "5px" }}>
                 {currentTab.files.map((file, i) => (
-                  <li key={i}>{file.name} ({(file.size / 1024).toFixed(1)} KB)</li>
+                  <li key={i}>
+                    {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                  </li>
                 ))}
               </ul>
             </div>
@@ -1688,7 +2260,14 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
         </div>
 
         {/* Footer Note */}
-        <p style={{ textAlign: 'center', fontWeight: 'bold', marginTop: '30px', fontSize: '1.1em' }}>
+        <p
+          style={{
+            textAlign: "center",
+            fontWeight: "bold",
+            marginTop: "30px",
+            fontSize: "1.1em",
+          }}
+        >
           {currentTab.footerNote || "Thank you for your business!"}
         </p>
       </div>
@@ -1714,7 +2293,11 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                   <img
                     src={formData[tab].signature}
                     alt="Signature"
-                    style={{ width: '100px', height: '50px', objectFit: 'contain' }}
+                    style={{
+                      width: "100px",
+                      height: "50px",
+                      objectFit: "contain",
+                    }}
                   />
                 </div>
               )}
@@ -1733,7 +2316,11 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                   <img
                     src={formData[tab].photo}
                     alt="Photo"
-                    style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                    style={{
+                      width: "100px",
+                      height: "100px",
+                      objectFit: "cover",
+                    }}
                   />
                 </div>
               )}
@@ -1751,7 +2338,10 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                 <div className="mt-2">
                   <ul className="list-unstyled">
                     {formData[tab].files.map((file, index) => (
-                      <li key={index} className="d-flex justify-content-between align-items-center">
+                      <li
+                        key={index}
+                        className="d-flex justify-content-between align-items-center"
+                      >
                         <span>{file.name}</span>
                         <Button
                           variant="danger"
@@ -1779,13 +2369,16 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
 
         {/* Top Action Buttons */}
         <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
-
           {/* Print English */}
           <Button
             variant="warning"
-            onClick={() => handlePrint('english')}
+            onClick={() => handlePrint("english")}
             className="flex-fill flex-sm-grow-0"
-            style={{ minWidth: "130px", fontSize: "0.95rem", padding: "6px 10px" }}
+            style={{
+              minWidth: "130px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+            }}
           >
             Print (English)
           </Button>
@@ -1793,9 +2386,15 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           {/* Print Arabic */}
           <Button
             variant="warning"
-            onClick={() => handlePrint('arabic')}
+            onClick={() => handlePrint("arabic")}
             className="flex-fill flex-sm-grow-0"
-            style={{ minWidth: "130px", fontSize: "0.95rem", padding: "6px 10px", backgroundColor: '#d39e00', borderColor: '#c49200' }}
+            style={{
+              minWidth: "130px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+              backgroundColor: "#d39e00",
+              borderColor: "#c49200",
+            }}
           >
             طباعة (العربية)
           </Button>
@@ -1803,9 +2402,15 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           {/* Print Both */}
           <Button
             variant="warning"
-            onClick={() => handlePrint('both')}
+            onClick={() => handlePrint("both")}
             className="flex-fill flex-sm-grow-0"
-            style={{ minWidth: "150px", fontSize: "0.95rem", padding: "6px 10px", backgroundColor: '#c87f0a', borderColor: '#b87409' }}
+            style={{
+              minWidth: "150px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+              backgroundColor: "#c87f0a",
+              borderColor: "#b87409",
+            }}
           >
             Print Both (EN + AR)
           </Button>
@@ -1815,7 +2420,12 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             variant="info"
             onClick={handleSend}
             className="flex-fill flex-sm-grow-0"
-            style={{ color: 'white', minWidth: "110px", fontSize: "0.95rem", padding: "6px 10px" }}
+            style={{
+              color: "white",
+              minWidth: "110px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+            }}
           >
             Send
           </Button>
@@ -1825,7 +2435,11 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
             variant="success"
             onClick={handleDownloadPDF}
             className="flex-fill flex-sm-grow-0"
-            style={{ minWidth: "130px", fontSize: "0.95rem", padding: "6px 10px" }}
+            style={{
+              minWidth: "130px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+            }}
           >
             Download PDF
           </Button>
@@ -1833,9 +2447,13 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
           {/* View Bills */}
           <Button
             variant="primary"
-            onClick={() => navigate('/company/viewinvoicee')}
+            onClick={() => navigate("/company/viewinvoicee")}
             className="flex-fill flex-sm-grow-0"
-            style={{ minWidth: "130px", fontSize: "0.95rem", padding: "6px 10px" }}
+            style={{
+              minWidth: "130px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+            }}
           >
             View Bills
           </Button>
@@ -1853,7 +2471,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
               renderItemsTable={renderItemsTable}
               renderAttachmentFields={renderAttachmentFields}
               calculateTotalAmount={calculateTotalAmount}
-              calculateTotalWithTaxAndDiscount={calculateTotalWithTaxAndDiscount}
+              calculateTotalWithTaxAndDiscount={
+                calculateTotalWithTaxAndDiscount
+              }
               handleSkip={handleSkip}
               handleSaveDraft={handleSaveDraft}
               handleSaveNext={handleSaveNext}
@@ -2013,15 +2633,17 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
         </Tabs>
 
         {/* Hidden PDF View - Only for PDF generation and printing */}
-        <div style={{
-          visibility: 'hidden',
-          position: 'absolute',
-          left: '-9999px',
-          top: '-9999px',
-          width: '210mm',
-          padding: '15mm',
-          boxSizing: 'border-box',
-        }}>
+        <div
+          style={{
+            visibility: "hidden",
+            position: "absolute",
+            left: "-9999px",
+            top: "-9999px",
+            width: "210mm",
+            padding: "15mm",
+            boxSizing: "border-box",
+          }}
+        >
           <div id="pdf-view" ref={pdfRef}>
             {renderPDFView()}
           </div>
