@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useLocation } from "react-router-dom";
+import GetCompanyId from "../../../Api/GetCompanyId";
+import axiosInstance from "../../../Api/axiosInstance";
 import {
   FaCalendarAlt,
   FaSearch,
@@ -25,35 +27,18 @@ const Ledgervendor = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState("all");
+  const companyId = GetCompanyId();
 
-  const defaultVendor = {
-    name: "Unknown Vendor",
-    nameArabic: "",
-    companyName: "N/A",
-    email: "N/A",
-    phone: "N/A",
-    address: "N/A",
-    shippingAddress: "Same as above",
-    country: "India",
-    state: "N/A",
-    pincode: "N/A",
-    stateCode: "N/A",
-    gstin: "N/A",
-    payable: 0,
-    accountName: "Sundry Creditors",
-    openingBalance: 0,
-    creditPeriod: "30",
-    bankAccountNumber: "N/A",
-    bankIFSC: "N/A",
-    bankName: "N/A",
-    creationDate: new Date().toISOString().split("T")[0],
-    companyLocation: "",
-  };
+  // State for API data
+  const [vendorData, setVendorData] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const passedVendor = location.state?.vendor;
-  const vendor = passedVendor || defaultVendor;
 
-  // State
+  // State for filters and UI
   const [fromDate, setFromDate] = useState("2025-04-01");
   const [toDate, setToDate] = useState("2025-04-30");
   const [balanceType, setBalanceType] = useState("all");
@@ -62,149 +47,170 @@ const Ledgervendor = () => {
   const [voucherTypeFilter, setVoucherTypeFilter] = useState("all");
   const [expandedRows, setExpandedRows] = useState({});
   const [showConfirmLetter, setShowConfirmLetter] = useState(false);
-  const [allVouchers, setAllVouchers] = useState([]);
   const [letterType, setLetterType] = useState("vendor");
 
-  const ledgerData = [
-    {
-      id: 1,
-      date: "2025-04-01",
-      particulars: "Opening Balance",
-      narration: "Initial opening balance carried forward",
-      voucherNo: "--",
-      voucherType: "Opening",
-      debit: 0,
-      credit: parseFloat(vendor.openingBalance || 0),
-      items: [],
-    },
-    {
-      id: 2,
-      date: "2025-04-03",
-      particulars: "Purchase Invoice INV501",
-      narration: "Raw material purchased from Sharma Suppliers",
-      voucherNo: "INV501",
-      voucherType: "Invoice",
-      debit: 0,
-      credit: 12000,
-      items: [
-        {
-          item: "SNB CH 58 LOT WHITE",
-          quantity: "100.00 yds",
-          rate: "0.400",
-          discount: "0.000",
-          tax: "0.000",
-          taxAmt: "0.000",
-          value: "40.00",
-          description: "4 PCS",
-        },
-      ],
-    },
-    {
-      id: 3,
-      date: "2025-04-07",
-      particulars: "Payment Made",
-      narration: "Payment made for purchase",
-      voucherNo: "PY001",
-      voucherType: "Payment",
-      debit: 10000,
-      credit: 0,
-      items: [],
-    },
-    {
-      id: 4,
-      date: "2025-04-12",
-      particulars: "Purchase Return",
-      narration: "Returned damaged goods",
-      voucherNo: "DN001",
-      voucherType: "Return",
-      debit: 2000,
-      credit: 0,
-      items: [
-        {
-          item: "SNB CH 58 LOT WHITE",
-          quantity: "50.00 yds",
-          rate: "0.400",
-          discount: "0.000",
-          tax: "0.000",
-          taxAmt: "0.000",
-          value: "20.00",
-          description: "2 PCS",
-        },
-      ],
-    },
-    {
-      id: 5,
-      date: "2025-04-15",
-      particulars: "Purchase Invoice INV502",
-      narration: "Second purchase of cotton fabric",
-      voucherNo: "INV502",
-      voucherType: "Invoice",
-      debit: 0,
-      credit: 8500,
-      items: [
-        {
-          item: "COTTON BLUE 600GSM",
-          quantity: "250.00 mtrs",
-          rate: "0.300",
-          discount: "0.000",
-          tax: "0.000",
-          taxAmt: "0.000",
-          value: "75.00",
-          description: "10 ROLLS",
-        },
-      ],
-    },
-    {
-      id: 6,
-      date: "2025-04-18",
-      particulars: "Payment Made",
-      narration: "Partial payment for INV502",
-      voucherNo: "PY002",
-      voucherType: "Payment",
-      debit: 5000,
-      credit: 0,
-      items: [],
-    },
-  ];
+  // Fetch data from API
+  useEffect(() => {
+    const fetchVendorLedger = async () => {
+      if (!companyId) {
+        setError("Company ID not found");
+        setLoading(false);
+        return;
+      }
 
+      if (!passedVendor || !passedVendor.id) {
+        setError("Vendor ID not found");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await axiosInstance.get(`/vendorCustomer/vendor-ledger/${passedVendor.id}/${companyId}`);
+        const result = response.data;
+
+        if (result.success) {
+          setVendorData(result.vendor);
+          setSummary(result.summary);
+          // Initialize items array for each transaction if not present
+          const transactionsWithItems = result.transactions.map(t => ({
+            ...t,
+            items: t.items || [] // Ensure items array exists, default to empty
+          }));
+          setTransactions(transactionsWithItems);
+        } else {
+          setError(result.message || "Failed to fetch vendor ledger data");
+        }
+      } catch (err) {
+        console.error("Error fetching vendor ledger:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVendorLedger();
+  }, [companyId, passedVendor]);
+
+  // Use API data if available, fallback to dummy data if needed during development
+  const currentVendor = vendorData || {
+    name: "Unknown Vendor",
+    company_name: "N/A",
+    email: "N/A",
+    phone: "N/A",
+    address: "N/A",
+    shipping_address: "Same as above",
+    country: "India",
+    state: "N/A",
+    pincode: "N/A",
+    state_code: "N/A",
+    gstin: "N/A",
+    payable: 0,
+    account_name: "Sundry Creditors",
+    opening_balance: 0,
+    credit_period: "30",
+    bank_account_number: "N/A",
+    bank_ifsc: "N/A",
+    bank_name: "N/A",
+    creation_date: new Date().toISOString().split("T")[0],
+    company_location: "",
+  };
+
+  // Use API summary or fallback
+  const currentSummary = summary || {
+    total_payments: 0,
+    total_purchases: 0,
+    outstanding_balance: 0,
+    balance_type: "Cr",
+  };
+
+  // Process transactions from API or fallback to dummy data structure
   const processedData = useMemo(() => {
-    let filtered = [...ledgerData];
-    if (fromDate) filtered = filtered.filter((e) => e.date >= fromDate);
-    if (toDate) filtered = filtered.filter((e) => e.date <= toDate);
+    if (!transactions || transactions.length === 0) {
+      return [];
+    }
+
+    let filtered = [...transactions];
+
+    // Apply date filters
+    if (fromDate) {
+      filtered = filtered.filter((e) => e.date >= fromDate);
+    }
+    if (toDate) {
+      filtered = filtered.filter((e) => e.date <= toDate);
+    }
+
+    // Apply search query
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter((e) =>
         e.particulars.toLowerCase().includes(q) ||
         (e.narration && e.narration.toLowerCase().includes(q)) ||
-        e.voucherNo.toLowerCase().includes(q) ||
+        e.vch_no.toLowerCase().includes(q) ||
         (e.items && e.items.some((i) => i.item.toLowerCase().includes(q)))
       );
     }
+
+    // Apply balance type filter
     if (balanceType !== "all") {
       filtered = filtered.filter((e) =>
-        balanceType === "debit" ? e.debit > 0 : e.credit > 0
+        balanceType === "debit" ? parseFloat(e.debit || 0) > 0 : parseFloat(e.credit || 0) > 0
       );
     }
+
+    // Apply voucher type filter
     if (voucherTypeFilter !== "all") {
-      filtered = filtered.filter((e) => e.voucherType === voucherTypeFilter);
+      filtered = filtered.filter((e) => e.vch_type === voucherTypeFilter);
     }
-    let runningBalance = 8000;
-    return filtered.map((entry) => {
-      runningBalance += (entry.credit || 0) - (entry.debit || 0);
-      const isCredit = runningBalance >= 0;
+
+    // Calculate running balance based on filtered data
+    // Start from the first transaction's balance or use opening balance if available
+    let runningBalance = 0;
+    // Try to get the starting balance from the first transaction or summary
+    if (filtered.length > 0) {
+      // If the first transaction has a balance, we can use that to calculate
+      // Otherwise, we need to calculate from scratch based on filtered data
+      // For simplicity here, we'll recalculate the running balance from scratch for the filtered set
+      // We assume the opening balance is part of the initial dataset if relevant
+      // A more robust solution would involve fetching the balance before fromDate
+      // For now, we'll just ensure the balance is calculated consistently for the filtered data
+      runningBalance = 0; // Reset for filtered calculation
+    }
+
+    // Calculate running balance for filtered transactions
+    // This is a simplified approach - in a real app, you'd want to fetch the balance at the start date
+    return filtered.map((entry, index) => {
+      // For the first entry, we might need to get the balance from the API or calculate from all data
+      // For simplicity, we'll assume the balance in the data is correct and just pass it through
+      // Or recalculate based on previous entries in the filtered set
+      // Since the API provides the balance, we'll use the provided balance field
+      // But if we need to recalculate, we can do so:
+      // runningBalance += parseFloat(entry.credit || 0) - parseFloat(entry.debit || 0);
+
+      // Use the balance from the API response if available, otherwise calculate
+      const calculatedBalanceValue = runningBalance + (parseFloat(entry.credit || 0) - parseFloat(entry.debit || 0));
+      runningBalance = calculatedBalanceValue;
+
+      const isCredit = calculatedBalanceValue >= 0;
       const balanceTypeLabel = isCredit ? "Cr" : "Dr";
+      const formattedBalance = `${Math.abs(calculatedBalanceValue).toLocaleString('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+      })} ${balanceTypeLabel}`;
+
       return {
+        id: index, // Use index as ID for the processed list
         ...entry,
-        balance: `${Math.abs(runningBalance).toLocaleString('en-IN', {
-          style: 'currency',
-          currency: 'INR',
-        })} ${balanceTypeLabel}`,
-        balanceValue: runningBalance,
-        balanceType: balanceTypeLabel,
+        balance: entry.balance || formattedBalance, // Use API balance if available
+        balanceValue: calculatedBalanceValue,
+        balanceType: entry.balance_type || balanceTypeLabel,
+        debit: parseFloat(entry.debit || 0),
+        credit: parseFloat(entry.credit || 0),
       };
     });
-  }, [ledgerData, fromDate, toDate, balanceType, searchQuery, voucherTypeFilter]);
+  }, [transactions, fromDate, toDate, balanceType, searchQuery, voucherTypeFilter]);
 
+  // Calculate totals
   const totals = useMemo(() => {
     return processedData.reduce(
       (acc, e) => {
@@ -216,11 +222,13 @@ const Ledgervendor = () => {
     );
   }, [processedData]);
 
-  const currentBalance = processedData.length > 0
-    ? processedData[processedData.length - 1].balanceValue
-    : 0;
+  // Get current balance from summary or last processed transaction
+  const currentBalance = summary 
+    ? summary.outstanding_balance 
+    : (processedData.length > 0 ? processedData[processedData.length - 1].balanceValue : 0);
 
-  const hasItems = useMemo(() => processedData.some((e) => e.items.length > 0), [processedData]);
+  // Determine if any transaction has items
+  const hasItems = useMemo(() => processedData.some((e) => e.items && e.items.length > 0), [processedData]);
 
   // Auto-expand items when needed
   useEffect(() => {
@@ -253,6 +261,29 @@ const Ledgervendor = () => {
   const showNarration = activeTab === "all" || activeTab === "narration";
   const showCountTable = activeTab === "all" || activeTab === "countTable";
 
+  if (loading) {
+    return (
+      <div className="container mt-4">
+        <div className="text-center py-5">
+          <div className="spinner-border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-2">Loading vendor ledger...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger" role="alert">
+          Error: {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mt-4">
       {/* Top Bar */}
@@ -266,7 +297,7 @@ const Ledgervendor = () => {
           <span className="me-1">←</span> Back to Vendors
         </Button>
         <h4 className="fw-bold mb-0 text-dark text-center flex-grow-1">
-          Vendor Ledger - {vendor.name}
+          Vendor Ledger - {currentVendor.name}
         </h4>
       </div>
 
@@ -281,7 +312,7 @@ const Ledgervendor = () => {
                     Total Payments (Dr)
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
-                    {totals.totalDebit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                    {currentSummary.total_payments.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
                   </div>
                 </div>
                 <div className="col-auto">
@@ -300,7 +331,7 @@ const Ledgervendor = () => {
                     Total Purchases (Cr)
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
-                    {totals.totalCredit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                    {currentSummary.total_purchases.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
                   </div>
                 </div>
                 <div className="col-auto">
@@ -311,7 +342,7 @@ const Ledgervendor = () => {
           </Card>
         </Col>
         <Col md={4}>
-          <Card className={`border-left-${currentBalance >= 0 ? 'info' : 'danger'} shadow h-100 py-2`}>
+          <Card className={`border-left-${currentSummary.balance_type === 'Cr' ? 'info' : 'danger'} shadow h-100 py-2`}>
             <Card.Body>
               <div className="row align-items-center">
                 <div className="col">
@@ -319,12 +350,12 @@ const Ledgervendor = () => {
                     Outstanding Balance
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
-                    {Math.abs(currentBalance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} {currentBalance >= 0 ? "Cr" : "Dr"}
+                    {Math.abs(currentSummary.outstanding_balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} {currentSummary.balance_type}
                   </div>
                 </div>
                 <div className="col-auto">
-                  <div className={`btn-circle btn-sm btn-${currentBalance >= 0 ? 'info' : 'danger'}`}>
-                    {currentBalance >= 0 ? "Cr" : "Dr"}
+                  <div className={`btn-circle btn-sm btn-${currentSummary.balance_type === 'Cr' ? 'info' : 'danger'}`}>
+                    {currentSummary.balance_type}
                   </div>
                 </div>
               </div>
@@ -371,7 +402,7 @@ const Ledgervendor = () => {
               <Nav.Link eventKey="confirmLetter">Confirm Balance</Nav.Link>
             </Nav.Item>
             <button className="btn btn-success">
-                Send to Email
+              Send to Email
             </button>
           </Nav>
         </Card.Body>
@@ -392,15 +423,15 @@ const Ledgervendor = () => {
               </div>
               <div className="text-end">
                 <h5 className="mb-3 fw-bold text-success">Vendor Details</h5>
-                <p><strong>Name:</strong> Zhejiang Textile</p>
-                <p><strong>Company:</strong> Zhejiang Co. LTD</p>
-                <p><strong>Email:</strong> zhejiang@email.com</p>
-                <p><strong>Phone:</strong> +86 123456789</p>
-                <p><strong>GSTIN:</strong> 09AAAPA1234A1Z5</p>
+                <p><strong>Name:</strong> {currentVendor.name}</p>
+                <p><strong>Company:</strong> {currentVendor.company_name || "N/A"}</p>
+                <p><strong>Email:</strong> {currentVendor.email || "N/A"}</p>
+                <p><strong>Phone:</strong> {currentVendor.phone || "N/A"}</p>
+                <p><strong>GSTIN:</strong> {currentVendor.gstin || "N/A"}</p>
               </div>
             </div>
             <hr />
-            <h6 className="mb-3">Dear Zhejiang Textile,</h6>
+            <h6 className="mb-3">Dear {currentVendor.name},</h6>
             <p>This is to confirm that as per our records, your account stands at the following balance:</p>
             <Table bordered size="sm" className="mb-4">
               <thead className="table-light">
@@ -412,19 +443,19 @@ const Ledgervendor = () => {
               <tbody>
                 <tr>
                   <td>Opening Balance</td>
-                  <td>{parseFloat(vendor.openingBalance || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
+                  <td>{(currentVendor.opening_balance || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
                 </tr>
                 <tr>
                   <td>Total Purchases (Cr)</td>
-                  <td>120,000.00</td>
+                  <td>{currentSummary.total_purchases.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
                 </tr>
                 <tr>
                   <td>Total Payments (Dr)</td>
-                  <td>90,000.00</td>
+                  <td>{currentSummary.total_payments.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
                 </tr>
                 <tr className="table-info fw-bold">
                   <td>Current Balance</td>
-                  <td>{parseFloat(vendor.payable || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} Cr</td>
+                  <td>{Math.abs(currentSummary.outstanding_balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} {currentSummary.balance_type}</td>
                 </tr>
               </tbody>
             </Table>
@@ -444,7 +475,7 @@ const Ledgervendor = () => {
                 <p><strong>For Vendor</strong></p>
                 <div style={{ height: "40px", borderBottom: "1px solid #000" }}></div>
                 <p className="mt-2">
-                  <strong>Name:</strong> Zhejiang Textile<br />
+                  <strong>Name:</strong> {currentVendor.name}<br />
                   <strong>Signature:</strong><br />
                   <strong>Date:</strong> _______________
                 </p>
@@ -482,14 +513,14 @@ const Ledgervendor = () => {
                         <p><strong>Address:</strong> 123, Textile Market, Indore, MP 452001</p>
                         <p><strong>Contact:</strong> +91 98765 43210</p>
                       </div>
-                      <h3>Dear Zhejiang Textile,</h3>
+                      <h3>Dear ${currentVendor.name},</h3>
                       <p>This is to confirm that as per our records, your account stands at the following balance:</p>
                       <table class="table">
                         <tr><th>Description</th><th>Amount (₹)</th></tr>
-                        <tr><td>Opening Balance</td><td>${parseFloat(vendor.openingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
-                        <tr><td>Total Purchases (Cr)</td><td>120,000.00</td></tr>
-                        <tr><td>Total Payments (Dr)</td><td>90,000.00</td></tr>
-                        <tr><td><strong>Current Balance</strong></td><td><strong>${parseFloat(vendor.payable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} Cr</strong></td></tr>
+                        <tr><td>Opening Balance</td><td>${(currentVendor.opening_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
+                        <tr><td>Total Purchases (Cr)</td><td>${currentSummary.total_purchases.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
+                        <tr><td>Total Payments (Dr)</td><td>${currentSummary.total_payments.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
+                        <tr><td><strong>Current Balance</strong></td><td><strong>${Math.abs(currentSummary.outstanding_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${currentSummary.balance_type}</strong></td></tr>
                       </table>
                       <p>We hereby confirm the above balance as correct.</p>
                       <div class="signature"><p><strong>For the Company</strong></p><div class="signature-line"></div>
@@ -499,7 +530,7 @@ const Ledgervendor = () => {
                         <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
                       </div>
                       <div class="signature"><p><strong>For Vendor</strong></p><div class="signature-line"></div>
-                        <p><strong>Name:</strong> Zhejiang Textile</p>
+                        <p><strong>Name:</strong> ${currentVendor.name}</p>
                         <p><strong>Signature:</strong></p>
                         <p><strong>Date:</strong> ___________________</p>
                       </div>
@@ -534,32 +565,32 @@ const Ledgervendor = () => {
               <Col md={4}>
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Personal Info</h6>
-                  <p className="mb-2"><i className="bi bi-person text-success me-2"></i><strong>Name:</strong> {vendor.name}</p>
-                  <p className="mb-2"><i className="bi bi-building text-success me-2"></i><strong>Company:</strong> {vendor.companyName || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-telephone text-success me-2"></i><strong>Phone:</strong> {vendor.phone}</p>
-                  <p className="mb-0"><i className="bi bi-envelope text-success me-2"></i><strong>Email:</strong> {vendor.email}</p>
+                  <p className="mb-2"><i className="bi bi-person text-success me-2"></i><strong>Name:</strong> {currentVendor.name}</p>
+                  <p className="mb-2"><i className="bi bi-building text-success me-2"></i><strong>Company:</strong> {currentVendor.company_name || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-telephone text-success me-2"></i><strong>Phone:</strong> {currentVendor.phone || "N/A"}</p>
+                  <p className="mb-0"><i className="bi bi-envelope text-success me-2"></i><strong>Email:</strong> {currentVendor.email || "N/A"}</p>
                   <p className="mb-0 d-flex align-items-center">
                     <FaGlobe className="me-2" style={{ color: "#53b2a5" }} />
-                    <span><strong>Location:</strong> <a href={vendor.companyLocation} target="_blank" rel="noopener noreferrer" style={{ color: "#007bff" }}>Click Location</a></span>
+                    <span><strong>Location:</strong> <a href={currentVendor.company_location} target="_blank" rel="noopener noreferrer" style={{ color: "#007bff" }}>Click Location</a></span>
                   </p>
                 </div>
               </Col>
               <Col md={4}>
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Address Info</h6>
-                  <p className="mb-2"><i className="bi bi-geo-alt text-success me-2"></i><strong>Address:</strong> {vendor.address}</p>
-                  <p className="mb-2"><i className="bi bi-truck text-success me-2"></i><strong>Shipping:</strong> {vendor.shippingAddress || "Same as above"}</p>
-                  <p className="mb-2"><i className="bi bi-globe text-success me-2"></i><strong>Country:</strong> {vendor.country || "India"}</p>
-                  <p className="mb-0"><i className="bi bi-flag text-success me-2"></i><strong>State:</strong> {vendor.state || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-geo-alt text-success me-2"></i><strong>Address:</strong> {currentVendor.address || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-truck text-success me-2"></i><strong>Shipping:</strong> {currentVendor.shipping_address || "Same as above"}</p>
+                  <p className="mb-2"><i className="bi bi-globe text-success me-2"></i><strong>Country:</strong> {currentVendor.country || "India"}</p>
+                  <p className="mb-0"><i className="bi bi-flag text-success me-2"></i><strong>State:</strong> {currentVendor.state || "N/A"}</p>
                 </div>
               </Col>
               <Col md={4}>
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Financial Info</h6>
-                  <p className="mb-2"><i className="bi bi-hash text-success me-2"></i><strong>Pincode:</strong> {vendor.pincode || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-file-earmark-text text-success me-2"></i><strong>GSTIN:</strong> {vendor.gstin || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-calendar text-success me-2"></i><strong>Credit Period:</strong> {vendor.creditPeriod || "N/A"} days</p>
-                  <p className="mb-0"><i className="bi bi-cash-stack text-success me-2"></i><strong>Balance:</strong> ₹{parseFloat(vendor.payable || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+                  <p className="mb-2"><i className="bi bi-hash text-success me-2"></i><strong>Pincode:</strong> {currentVendor.pincode || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-file-earmark-text text-success me-2"></i><strong>GSTIN:</strong> {currentVendor.gstin || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-calendar text-success me-2"></i><strong>Credit Period:</strong> {currentVendor.credit_period || "N/A"} days</p>
+                  <p className="mb-0"><i className="bi bi-cash-stack text-success me-2"></i><strong>Balance:</strong> ₹{Math.abs(currentSummary.outstanding_balance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
                 </div>
               </Col>
             </Row>
@@ -590,7 +621,6 @@ const Ledgervendor = () => {
             </div>
             <Badge bg="warning" text="dark">Vendor Ledger</Badge>
           </div>
-
           {showFilters && (
             <Card className="mb-4 bg-light">
               <Card.Body>
@@ -631,6 +661,8 @@ const Ledgervendor = () => {
                         <option value="Invoice">Purchase</option>
                         <option value="Payment">Payment</option>
                         <option value="Return">Purchase Return</option>
+                        <option value="Expense">Expense</option>
+                        <option value="Opening">Opening</option>
                       </Form.Select>
                     </Form.Group>
                   </Col>
@@ -654,7 +686,6 @@ const Ledgervendor = () => {
               </Card.Body>
             </Card>
           )}
-
           <div className="table-responsive">
             <Table striped hover bordered className="shadow-sm align-middle">
               <thead className="table-light border">
@@ -697,24 +728,32 @@ const Ledgervendor = () => {
                             <span>{entry.particulars}</span>
                           </div>
                         </td>
-                        <td>{entry.voucherNo}</td>
+                        <td>{entry.vch_no}</td>
                         <td>
                           <Badge
                             bg={
-                              entry.voucherType === "Invoice"
+                              entry.vch_type === "Invoice"
                                 ? "primary"
-                                : entry.voucherType === "Payment"
+                                : entry.vch_type === "Payment"
                                   ? "success"
-                                  : entry.voucherType === "Return"
+                                  : entry.vch_type === "Return"
                                     ? "warning"
-                                    : "secondary"
+                                    : entry.vch_type === "Expense"
+                                      ? "info"
+                                      : entry.vch_type === "Opening"
+                                        ? "secondary"
+                                        : "dark"
                             }
                           >
-                            {entry.voucherType === "Invoice"
+                            {entry.vch_type === "Invoice"
                               ? "Purchase"
-                              : entry.voucherType === "Return"
+                              : entry.vch_type === "Return"
                                 ? "Return"
-                                : entry.voucherType}
+                                : entry.vch_type === "Expense"
+                                  ? "Expense"
+                                  : entry.vch_type === "Opening"
+                                    ? "Opening"
+                                    : entry.vch_type}
                           </Badge>
                         </td>
                         <td className="text-end">
@@ -755,11 +794,11 @@ const Ledgervendor = () => {
                                     <tr key={idx}>
                                       <td className="fw-bold">{item.item}</td>
                                       <td>{item.quantity}</td>
-                                      <td>{parseFloat(item.rate).toFixed(3)}</td>
+                                      <td>{parseFloat(item.rate || 0).toFixed(3)}</td>
                                       <td>{item.discount}%</td>
                                       <td>{item.tax}%</td>
-                                      <td>₹{parseFloat(item.taxAmt).toFixed(2)}</td>
-                                      <td>₹{parseFloat(item.value).toFixed(2)}</td>
+                                      <td>₹{parseFloat(item.taxAmt || 0).toFixed(2)}</td>
+                                      <td>₹{parseFloat(item.value || 0).toFixed(2)}</td>
                                       <td className="text-muted">{item.description}</td>
                                     </tr>
                                   ))}
@@ -785,7 +824,7 @@ const Ledgervendor = () => {
                   <td className="text-end fw-bold">{totals.totalDebit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
                   <td className="text-end fw-bold">{totals.totalCredit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</td>
                   <td className="text-end fw-bold">
-                    {Math.abs(currentBalance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} {currentBalance >= 0 ? "Cr" : "Dr"}
+                    {Math.abs(currentBalance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} {summary?.balance_type || (currentBalance >= 0 ? "Cr" : "Dr")}
                   </td>
                 </tr>
               </tfoot>
@@ -795,7 +834,6 @@ const Ledgervendor = () => {
       </Card>
 
       {/* Transaction Count Table */}
-      
       {showCountTable && (
         <Card className="mt-3 mb-3">
           <Card.Body>
@@ -815,10 +853,11 @@ const Ledgervendor = () => {
                       Invoice: "Purchase",
                       Payment: "Payment",
                       Return: "Purchase Return",
+                      Expense: "Expense",
                       Opening: "Opening Balance",
                     };
                     processedData.forEach((entry) => {
-                      const displayType = typeMap[entry.voucherType] || entry.voucherType;
+                      const displayType = typeMap[entry.vch_type] || entry.vch_type;
                       voucherTypeCounts[displayType] = (voucherTypeCounts[displayType] || 0) + 1;
                     });
                     const allTypes = [
@@ -826,6 +865,7 @@ const Ledgervendor = () => {
                       "Purchase",
                       "Payment",
                       "Purchase Return",
+                      "Expense",
                       "Receipt",
                       "Sales Return",
                       "Manufacturing",
