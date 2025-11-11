@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Tabs, Tab, Form, Button, Table, Row, Col, Modal, InputGroup, FormControl, Dropdown } from 'react-bootstrap';
 import html2pdf from 'html2pdf.js';
@@ -14,6 +13,7 @@ import DeliveryChallanTab from './MultiStepSalesForm/DeliveryChallanTab';
 import InvoiceTab from './MultiStepSalesForm/InvoiceTab';
 import PaymentTab from './MultiStepSalesForm/PaymentTab';
 import GetCompanyId from '../../../Api/GetCompanyId'; 
+import axiosInstance from '../../../Api/axiosInstance';
 
 const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   const companyId = GetCompanyId();
@@ -87,7 +87,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       billToAddress: "",
       billToEmail: "",
       billToPhone: "",
-  items: [{ name: '', description: '', qty: '', rate: '', tax: 0, discount: 0, sellingPrice: 0, uom: 'PCS', warehouse: '' }],
+      items: [{ name: '', description: '', qty: '', rate: '', tax: 0, discount: 0, sellingPrice: 0, uom: 'PCS', warehouse: '' }],
       terms: '',
       signature: '',
       photo: '',
@@ -118,7 +118,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       shipToAddress: '',
       shipToEmail: '',
       shipToPhone: '',
-  items: [{ name: '', qty: '', rate: '', tax: 0, discount: 0, warehouse: '' }],
+      items: [{ name: '', qty: '', rate: '', tax: 0, discount: 0, warehouse: '' }],
       terms: '',
       signature: '',
       photo: '',
@@ -150,7 +150,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       shipToAddress: '',
       shipToEmail: '',
       shipToPhone: '',
-  items: [{ name: '', qty: '', deliveredQty: '', rate: '', tax: 0, discount: 0, warehouse: '' }],
+      items: [{ name: '', qty: '', deliveredQty: '', rate: '', tax: 0, discount: 0, warehouse: '' }],
       terms: '',
       signature: '',
       photo: '',
@@ -179,7 +179,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       shipToAddress: '',
       shipToEmail: '',
       shipToPhone: '',
-  items: [{ description: '', rate: '', qty: '', tax: '', discount: '', amount: '', warehouse: '' }],
+      items: [{ description: '', rate: '', qty: '', tax: '', discount: '', amount: '', warehouse: '' }],
       paymentStatus: '',
       paymentMethod: '',
       note: '',
@@ -216,18 +216,70 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
   }));
 
   // Available items for search
-  const [availableItems, setAvailableItems] = useState([
-    { id: 1, name: "Laptop", category: "Electronics", price: 50000, tax: 18, hsn: "8471", uom: "PCS" },
-    { id: 2, name: "Office Chair", category: "Furniture", price: 5000, tax: 12, hsn: "9401", uom: "PCS" },
-    { id: 3, name: "T-Shirt", category: "Apparel", price: 500, tax: 5, hsn: "6109", uom: "PCS" },
-    { id: 4, name: "Coffee Table", category: "Furniture", price: 8000, tax: 12, hsn: "9403", uom: "PCS" },
-    { id: 5, name: "Smartphone", category: "Electronics", price: 20000, tax: 18, hsn: "8517", uom: "PCS" },
-    { id: 6, name: "Notebook", category: "Stationery", price: 100, tax: 5, hsn: "4820", uom: "PCS" },
-    { id: 7, name: "Water Bottle", category: "Other", price: 200, tax: 5, hsn: "3924", uom: "PCS" },
-    { id: 8, name: "Desk Lamp", category: "Furniture", price: 1500, tax: 12, hsn: "9405", uom: "PCS" },
-  ]);
-  // Warehouse options
-  const [warehouses, setWarehouses] = useState(["Main Warehouse", "Warehouse A", "Warehouse B"]);
+  const [availableItems, setAvailableItems] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+  
+  // Fetch products from API using Axios
+  const fetchProducts = async () => {
+    if (!companyId) return;
+    
+    setLoadingItems(true);
+    try {
+      const response = await axiosInstance.get(`products/company/${companyId}`);
+      const data = response.data;
+      
+      if (data.success) {
+        const formattedItems = data.data.map(product => ({
+          id: product.id,
+          name: product.item_name,
+          category: product.item_category?.item_category_name || '',
+          price: parseFloat(product.sale_price) || 0,
+          tax: parseFloat(product.tax_account) || 0,
+          hsn: product.hsn || '',
+          uom: product.unit_detail?.uom_id || 'PCS',
+          description: product.description || '',
+          sku: product.sku || '',
+          barcode: product.barcode || '',
+          warehouses: product.warehouses || []
+        }));
+        setAvailableItems(formattedItems);
+      } 
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      // Fallback to default items
+    } finally {
+      setLoadingItems(false);
+    }
+  };
+
+  // Fetch warehouses from API using Axios
+  const [warehouses, setWarehouses] = useState([]);
+  const [loadingWarehouses, setLoadingWarehouses] = useState(false);
+  
+  const fetchWarehouses = async () => {
+    if (!companyId) return;
+    
+    setLoadingWarehouses(true);
+    try {
+      const response = await axiosInstance.get(`warehouses/company/${companyId}`);
+      const data = response.data;
+      
+      if (data.success) {
+        setWarehouses(data.data);
+      } 
+    } catch (error) {
+      console.error("Error fetching warehouses:", error);
+    } finally {
+      setLoadingWarehouses(false);
+    }
+  };
+
+  // Fetch products and warehouses when component mounts or companyId changes
+  useEffect(() => {
+    fetchProducts();
+    fetchWarehouses();
+  }, [companyId]);
+
   const [showUOMModal, setShowUOMModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
@@ -517,8 +569,16 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       rate: item.price,
       tax: item.tax,
       hsn: item.hsn,
-      uom: item.uom
+      uom: item.uom,
+      description: item.description || '',
+      sku: item.sku || '',
+      barcode: item.barcode || ''
     };
+
+    // If the item has warehouse information, set the first warehouse as default
+    if (item.warehouses && item.warehouses.length > 0) {
+      updatedItems[index].warehouse = item.warehouses[0].warehouse_name;
+    }
 
     setFormData(prev => ({
       ...prev,
@@ -1031,12 +1091,29 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     // Filter items based on search term for each row
     const getFilteredItems = (index) => {
       const searchTerm = rowSearchTerms[`${tab}-${index}`] || '';
-      if (!searchTerm) return [];
+      if (!searchTerm) return availableItems; // Return all available items if search term is empty
 
       return availableItems.filter(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchTerm.toLowerCase())
+        item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.barcode && item.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
       );
+    };
+
+    // Get available warehouses for a specific item
+    const getAvailableWarehousesForItem = (item) => {
+      if (!item || !item.name) return warehouses;
+      
+      // Find the product in availableItems
+      const product = availableItems.find(p => p.name === item.name);
+      
+      if (!product || !product.warehouses || product.warehouses.length === 0) {
+        return [];
+      }
+      
+      // Return only warehouses where this product is available
+      return product.warehouses.map(w => w.warehouse_name);
     };
 
     return (
@@ -1173,6 +1250,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
               const rowKey = `${tab}-${idx}`;
               const filteredItems = getFilteredItems(idx);
               const isSearchVisible = showRowSearch[rowKey];
+              const availableWarehouses = getAvailableWarehousesForItem(item);
 
               return (
                 <tr key={idx}>
@@ -1182,8 +1260,12 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                         type="text"
                         size="sm"
                         value={item.name}
-                        onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                        placeholder="Item Name"
+                        onChange={(e) => {
+                          handleItemChange(idx, 'name', e.target.value);
+                          handleRowSearchChange(tab, idx, e.target.value);
+                        }}
+                        onFocus={() => toggleRowSearch(tab, idx)}
+                        placeholder="Click to search products"
                         style={{ marginRight: '5px' }}
                       />
                       <Button
@@ -1208,7 +1290,11 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                             autoFocus
                           />
                         </InputGroup>
-                        {filteredItems.length > 0 ? (
+                        {loadingItems ? (
+                          <div style={{ padding: '8px', textAlign: 'center', color: '#666' }}>
+                            Loading products...
+                          </div>
+                        ) : filteredItems.length > 0 ? (
                           <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                             {filteredItems.map(filteredItem => (
                               <div
@@ -1221,6 +1307,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                                 <div><strong>{filteredItem.name}</strong></div>
                                 <div style={{ fontSize: '0.8rem', color: '#666' }}>
                                   {filteredItem.category} - ${filteredItem.price.toFixed(2)}
+                                  {filteredItem.sku && <span> | SKU: {filteredItem.sku}</span>}
                                 </div>
                               </div>
                             ))}
@@ -1249,9 +1336,19 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                       onChange={(e) => handleItemChange(idx, 'warehouse', e.target.value)}
                     >
                       <option value="">Select Warehouse</option>
-                      {warehouses.map((w, i) => (
-                        <option key={i} value={w}>{w}</option>
-                      ))}
+                      {warehouses.map((w, i) => {
+                        const isAvailable = availableWarehouses.includes(w.warehouse_name);
+                        return (
+                          <option 
+                            key={i} 
+                            value={w.warehouse_name}
+                            disabled={!isAvailable}
+                            style={!isAvailable ? { color: '#999' } : {}}
+                          >
+                            {w.warehouse_name} {!isAvailable ? '(Not Available)' : ''}
+                          </option>
+                        );
+                      })}
                     </Form.Select>
                   </td>
                   {tab === 'deliveryChallan' && (
