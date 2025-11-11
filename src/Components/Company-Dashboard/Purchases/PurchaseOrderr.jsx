@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Table, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap';
-import MultiStepPurchaseForms from './MultiStepPurchaseForms';
+import React, { useState, useMemo } from "react";
+import { Table, Button, Badge, Modal, Form, Row, Col } from "react-bootstrap";
+import MultiStepPurchaseForms from "./MultiStepPurchaseForms";
 import { FaArrowRight } from "react-icons/fa";
 
 const initialOrders = [];
@@ -8,17 +8,17 @@ const initialOrders = [];
 const statusBadge = (status) => {
   let variant;
   switch (status) {
-    case 'Done':
-      variant = 'success';
+    case "Done":
+      variant = "success";
       break;
-    case 'Pending':
-      variant = 'secondary';
+    case "Pending":
+      variant = "secondary";
       break;
-    case 'Cancelled':
-      variant = 'danger';
+    case "Cancelled":
+      variant = "danger";
       break;
     default:
-      variant = 'warning';
+      variant = "warning";
   }
   return <Badge bg={variant}>{status}</Badge>;
 };
@@ -29,18 +29,19 @@ const PurchaseOrderr = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   // Filter states (updated)
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [searchOrderNo, setSearchOrderNo] = useState('');
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [searchOrderNo, setSearchOrderNo] = useState("");
 
   // Alag-alag status filters
   // Alag-alag status filters
-  const [purchaseQuotationStatusFilter, setPurchaseQuotationStatusFilter] = useState('');
-  const [purchaseOrderStatusFilter, setPurchaseOrderStatusFilter] = useState('');
-  const [goodsReceiptStatusFilter, setGoodsReceiptStatusFilter] = useState('');
-  const [billStatusFilter, setBillStatusFilter] = useState('');
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
-
+  const [purchaseQuotationStatusFilter, setPurchaseQuotationStatusFilter] =
+    useState("");
+  const [purchaseOrderStatusFilter, setPurchaseOrderStatusFilter] =
+    useState("");
+  const [goodsReceiptStatusFilter, setGoodsReceiptStatusFilter] = useState("");
+  const [billStatusFilter, setBillStatusFilter] = useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
 
   const handleCreateNewPurchase = (order = null) => {
     setSelectedOrder(order);
@@ -52,22 +53,30 @@ const PurchaseOrderr = () => {
     setSelectedOrder(null);
   };
 
-  const handleFormSubmit = (formData, lastStep = 'quotation') => {
+  const handleFormSubmit = (formData, lastStep = "quotation") => {
     const isEdit = selectedOrder?.id;
-    const newOrderNo = orders.length ? Math.max(...orders.map(o => o.orderNo)) + 1 : 2045;
-    const today = new Date().toISOString().split('T')[0];
+    const newOrderNo = orders.length
+      ? Math.max(...orders.map((o) => o.orderNo)) + 1
+      : 2045;
+    const today = new Date().toISOString().split("T")[0];
 
     // Statuses based on form data
-    const purchaseQuotationStatus = formData.quotation?.quotationNo ? 'Done' : 'Pending';
-    const purchaseOrderStatus = formData.salesOrder?.orderNo ? 'Done' : 'Pending';
-    const goodsReceiptStatus = formData.goodsReceipt?.receiptNo ? 'Done' : 'Pending'; // Goods Receipt
-    const billStatus = formData.invoice?.invoiceNo ? 'Done' : 'Pending'; // Bill = Invoice
-    const paymentStatus = formData.payment?.amount ? 'Done' : 'Pending';
+    const purchaseQuotationStatus = formData.quotation?.quotationNo
+      ? "Done"
+      : "Pending";
+    const purchaseOrderStatus = formData.salesOrder?.orderNo
+      ? "Done"
+      : "Pending";
+    const goodsReceiptStatus = formData.goodsReceipt?.receiptNo
+      ? "Done"
+      : "Pending"; // Goods Receipt
+    const billStatus = formData.invoice?.invoiceNo ? "Done" : "Pending"; // Bill = Invoice
+    const paymentStatus = formData.payment?.amount ? "Done" : "Pending";
 
     const newOrder = {
       id: isEdit ? selectedOrder.id : Date.now(),
       orderNo: isEdit ? selectedOrder.orderNo : newOrderNo,
-      vendor: formData.quotation.customer || '',
+      vendor: formData.quotation.customer || "",
       date: today,
       amount: `$ ${formData.payment?.amount || 0}`,
       quotation: formData.quotation,
@@ -85,19 +94,17 @@ const PurchaseOrderr = () => {
       draftStep: lastStep,
     };
 
-    setOrders(prev =>
+    setOrders((prev) =>
       isEdit
-        ? prev.map(o => (o.id === selectedOrder.id ? newOrder : o))
+        ? prev.map((o) => (o.id === selectedOrder.id ? newOrder : o))
         : [newOrder, ...prev]
     );
 
     handleCloseModal();
   };
 
-
-
   const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
+    return orders.filter((order) => {
       // Order No filter
       const matchesOrderNo =
         !searchOrderNo ||
@@ -113,13 +120,16 @@ const PurchaseOrderr = () => {
 
       // Individual status filters
       const matchesPurchaseQuotationStatus =
-        !purchaseQuotationStatusFilter || order.purchaseQuotationStatus === purchaseQuotationStatusFilter;
+        !purchaseQuotationStatusFilter ||
+        order.purchaseQuotationStatus === purchaseQuotationStatusFilter;
 
       const matchesPurchaseOrderStatus =
-        !purchaseOrderStatusFilter || order.purchaseOrderStatus === purchaseOrderStatusFilter;
+        !purchaseOrderStatusFilter ||
+        order.purchaseOrderStatus === purchaseOrderStatusFilter;
 
       const matchesGoodsReceiptStatus =
-        !goodsReceiptStatusFilter || order.goodsReceiptStatus === goodsReceiptStatusFilter;
+        !goodsReceiptStatusFilter ||
+        order.goodsReceiptStatus === goodsReceiptStatusFilter;
 
       const matchesBillStatus =
         !billStatusFilter || order.billStatus === billStatusFilter;
@@ -152,20 +162,25 @@ const PurchaseOrderr = () => {
 
   return (
     <div className="p-4">
-      <div className="d-flex align-items-center gap-2 mb-4">
-        <FaArrowRight size={20} color="red" />
-        <h5 className="mb-0">Purchase Workflow</h5>
+      <div className="d-flex justify-content-between">
+        <div className="d-flex align-items-center gap-2 mb-4">
+          <FaArrowRight size={20} color="red" />
+          <h5 className="mb-0">Purchase Workflow</h5>
+        </div>
+
+        <Button
+          variant="primary"
+          className="mb-3"
+          onClick={() => handleCreateNewPurchase()}
+          style={{
+            backgroundColor: "#53b2a5",
+            border: "none",
+            padding: "8px 16px",
+          }}
+        >
+          + Create New Purchase
+        </Button>
       </div>
-
-      <Button
-        variant="primary"
-        className="mb-3"
-        onClick={() => handleCreateNewPurchase()}
-        style={{ backgroundColor: "#53b2a5", border: "none", padding: "8px 16px" }}
-      >
-        + Create New Purchase
-      </Button>
-
       <Row className="mb-4 g-3">
         <Col md={3}>
           <Form.Group>
@@ -284,14 +299,14 @@ const PurchaseOrderr = () => {
           <Button
             variant="secondary"
             onClick={() => {
-              setSearchOrderNo('');
-              setFromDate('');
-              setToDate('');
-              setPurchaseQuotationStatusFilter('');
-              setPurchaseOrderStatusFilter('');
-              setGoodsReceiptStatusFilter('');
-              setBillStatusFilter('');
-              setPaymentStatusFilter('');
+              setSearchOrderNo("");
+              setFromDate("");
+              setToDate("");
+              setPurchaseQuotationStatusFilter("");
+              setPurchaseOrderStatusFilter("");
+              setGoodsReceiptStatusFilter("");
+              setBillStatusFilter("");
+              setPaymentStatusFilter("");
             }}
           >
             Clear
@@ -321,13 +336,14 @@ const PurchaseOrderr = () => {
           {filteredOrders.map((order, idx) => (
             <tr key={order.id}>
               <td>{idx + 1}</td>
-              <td>{order.invoice?.invoiceNo || order.orderNo || '-'}</td>
+              <td>{order.invoice?.invoiceNo || order.orderNo || "-"}</td>
               <td>{order.vendor}</td>
-              <td>{order.payment?.voucherType || '-'}</td>
-              <td>{order.payment?.voucherNo || '-'}</td>
+              <td>{order.payment?.voucherType || "-"}</td>
+              <td>{order.payment?.voucherNo || "-"}</td>
               <td>{order.date}</td>
               <td>{order.amount}</td>
-              <td>{statusBadge(order.purchaseQuotationStatus)}</td> {/* Updated */}
+              <td>{statusBadge(order.purchaseQuotationStatus)}</td>{" "}
+              {/* Updated */}
               <td>{statusBadge(order.purchaseOrderStatus)}</td> {/* Updated */}
               <td>{statusBadge(order.goodsReceiptStatus)}</td> {/* Updated */}
               <td>{statusBadge(order.billStatus)}</td> {/* Updated */}
@@ -348,7 +364,9 @@ const PurchaseOrderr = () => {
 
       <Modal show={stepModal} onHide={handleCloseModal} size="xl" centered>
         <Modal.Header closeButton>
-          <Modal.Title>{selectedOrder ? 'Continue Purchase' : 'Create Purchase'}</Modal.Title>
+          <Modal.Title>
+            {selectedOrder ? "Continue Purchase" : "Create Purchase"}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <MultiStepPurchaseForms
