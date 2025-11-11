@@ -99,22 +99,21 @@ const Company = () => {
   }, []);
 
   // Fetch plans data
-  // Fetch plans data
-useEffect(() => {
-  const fetchPlans = async () => {
-    try {
-      const response = await axios.get(`${BaseUrl}plans`);
-      // The API returns plans in response.data.data as an array
-      const plansData = response.data.data || [];
-      setPlans(Array.isArray(plansData) ? plansData : []);
-    } catch (err) {
-      console.error("Error fetching plans:", err);
-      // Set empty plans array when API fails
-      setPlans([]);
-    }
-  };
-  fetchPlans();
-}, [companyId]); // Add companyId as dependency// Add companyId as dependency
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await axios.get(`${BaseUrl}plans`);
+        // The API returns plans in response.data.data as an array
+        const plansData = response.data.data || [];
+        setPlans(Array.isArray(plansData) ? plansData : []);
+      } catch (err) {
+        console.error("Error fetching plans:", err);
+        // Set empty plans array when API fails
+        setPlans([]);
+      }
+    };
+    fetchPlans();
+  }, [companyId]); // Add companyId as dependency
 
   // Fetch company users when viewUserIndex changes
   useEffect(() => {
@@ -198,11 +197,11 @@ useEffect(() => {
       name: company.name,
       email: company.email,
       plan_id: company.user_plans?.[0]?.plan?.id || "",
-      plan_type: company.user_plans?.[0]?.planType || "",
+      plan_type: company.user_plans?.[0]?.planType || "Monthly", // Default to Monthly if not available
       start_date: company.startDate?.split("T")[0] || "",
       expire_date: company.expireDate?.split("T")[0] || "",
       logo: null,
-      logoPreview: company.profile || "",
+      logoPreview: company.branding?.company_logo_url || "",
     });
     setEditIndex(index);
     setActiveMenuIndex(null);
@@ -294,7 +293,10 @@ useEffect(() => {
         }],
         startDate: editCompany.start_date,
         expireDate: editCompany.expire_date,
-        profile: editCompany.logoPreview,
+        branding: {
+          ...updatedCompanies[editIndex].branding,
+          company_logo_url: editCompany.logoPreview
+        },
       };
       setCompanies(updatedCompanies);
 
@@ -759,7 +761,7 @@ useEffect(() => {
                   <div className="d-flex align-items-center gap-3 mb-2">
                     <img
                       src={
-                        company.profile ||
+                        company.branding?.company_logo_url ||
                         "https://i.ibb.co/Pzr45DCB/image5.jpg"
                       }
                       alt={company.name}
@@ -784,7 +786,7 @@ useEffect(() => {
                       {company.user_plans?.[0]?.planType
                         ? company.user_plans[0].planType.charAt(0).toUpperCase() +
                           company.user_plans[0].planType.slice(1)
-                        : "N/A"}
+                        : "Monthly"} {/* Default to Monthly if not available */}
                     </div>
                     <div className="mb-1 d-flex align-items-center">
                       <BsCalendarEvent className="me-3 text-primary" />
@@ -874,7 +876,7 @@ useEffect(() => {
                         <td>
                           <img
                             src={
-                              company.profile ||
+                              company.branding?.company_logo_url ||
                               "https://i.ibb.co/Pzr45DCB/image5.jpg"
                             }
                             alt={company.name}
