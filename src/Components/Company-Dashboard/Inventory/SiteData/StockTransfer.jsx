@@ -14,6 +14,8 @@ import BaseUrl from "../../../../Api/BaseUrl";
 import GetCompanyId from "../../../../Api/GetCompanyId";
 import axiosInstance from "../../../../Api/axiosInstance";
 import { CurrencyContext } from "../../../../hooks/CurrencyContext";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function StockTransfer() {
   // All transfers list
@@ -341,12 +343,19 @@ function StockTransfer() {
         setShowModal(false);
         resetForm();
         setEditTransfer(null);
-        alert(editTransfer ? "Stock transfer updated successfully!" : "Stock transfer created successfully!");
+        
+        // Show toast notification based on operation type
+        if (editTransfer) {
+          toast.success("Stock transfer updated successfully!");
+        } else {
+          toast.success("Stock transfer created successfully!");
+        }
       } else {
         throw new Error("Failed to save transfer");
       }
     } catch (err) {
       setError(err.message || "Failed to save stock transfer");
+      toast.error("Failed to save stock transfer");
     } finally {
       setLoading(false);
     }
@@ -371,9 +380,9 @@ function StockTransfer() {
       try {
         await axios.delete(`${BaseUrl}stocktransfer/${id}`);
         await fetchStockTransfers();
-        alert("Deleted successfully!");
+        toast.success("Stock transfer deleted successfully!");
       } catch (err) {
-        alert("Failed to delete");
+        toast.error("Failed to delete stock transfer");
       }
     }
   };
@@ -414,6 +423,9 @@ function StockTransfer() {
 
   return (
     <div className="container mt-4">
+      {/* Toast Container */}
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h3>Stock Transfer Records</h3>
@@ -498,6 +510,15 @@ function StockTransfer() {
                         >
                           <FontAwesomeIcon icon={faEdit} />
                         </button>
+                        {/* Delete button */}
+                        {/* <button 
+                          className="btn btn-sm p-2" 
+                          style={{ backgroundColor: "#dc3545", borderColor: "#dc3545", color: "white", width: "36px", height: "36px", padding: "0", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px" }} 
+                          onClick={() => handleDeleteTransfer(t.id)} 
+                          title="Delete Transfer"
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button> */}
                       </td>
                     </tr>
                   ))}
