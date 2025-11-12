@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Form, Button, Container, Image, Nav, Tab, Alert } from 'react-bootstrap';
-import { FaBuilding, FaImage, FaMapMarkerAlt, FaFileInvoice } from 'react-icons/fa';
-import axiosInstance from '../../../Api/axiosInstance';
-import GetCompanyId from '../../../Api/GetCompanyId';
+import React, { useState } from 'react';
+import { Form, Button, Container, Image, Nav, Tab } from 'react-bootstrap';
+import { FaBuilding, FaImage, FaMapMarkerAlt, FaGlobe, FaFileInvoice } from 'react-icons/fa';
+import { CurrencySetting } from './CurrencySetting';
 
 const CompanyInfo = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const companyId = GetCompanyId();
+  const [printLanguage, setPrintLanguage] = useState('en');
+
   const [formData, setFormData] = useState({
     // === Company Info ===
     companyName: '',
@@ -63,8 +60,119 @@ const CompanyInfo = () => {
     purchaseIcon: null
   });
 
+  // Translations
+  const translations = {
+    en: {
+      settings: "Settings",
+      manageSettings: "Manage your settings on portal.",
+      companySettings: "Company Settings",
+      invoiceSettings: "Invoice Settings",
+      companyInformation: "Company Information",
+      companyName: "Company Name *",
+      companyEmail: "Company Email Address *",
+      phoneNumber: "Phone Number *",
+      companyImages: "Company Images",
+      companyIcon: "Company Icon",
+      favicon: "Favicon",
+      companyLogo: "Company Logo",
+      companyDarkLogo: "Company Dark Logo",
+      chooseFile: "Choose File",
+      uploadInstruction: "Upload {field} of your company",
+      addressInformation: "Address Information",
+      address: "Address *",
+      country: "Country *",
+      city: "City *",
+      state: "State *",
+      portalCode: "Portal Code *",
+      currency: "Currency *",
+      cancel: "Cancel",
+      saveChanges: "Save Changes",
+      select: "Select",
+      pageDescription: "This page allows you to manage company settings including general info, upload logos/icons, and configure address details like country, city, and postal code.",
+      // Invoice Settings
+      invoiceTemplate: "Invoice Template",
+
+      purchases: "Purchases",
+      receipts: "Receipts",
+      salesInvoice: "Sales Invoice",
+      cashInvoice: "Cash Invoice",
+      deliveryNote: "Delivery Note",
+      headerText: "Header Text",
+      footerText: "Footer Text",
+      termsConditions: "Terms & Conditions",
+      note: "Note",
+      bankDetails: "Bank Details",
+      customizeFields: "Customize Fields",
+      description: "Description",
+      itemName: "Item Name (ATM)",
+      price: "Price",
+      quantity: "Quantity",
+      total: "Total",
+      saveSettings: "Save Settings"
+    },
+    ar: {
+      settings: "الإعدادات",
+      manageSettings: "إدارة إعداداتك على البوابة.",
+      companySettings: "إعدادات الشركة",
+      invoiceSettings: "إعدادات الفاتورة",
+      companyInformation: "معلومات الشركة",
+      companyName: "اسم الشركة *",
+      companyEmail: "البريد الإلكتروني للشركة *",
+      phoneNumber: "رقم الهاتف *",
+      companyImages: "صور الشركة",
+      companyIcon: "أيقونة الشركة",
+      favicon: "favicon",
+      companyLogo: "شعار الشركة",
+      companyDarkLogo: "شعار الشركة الداكن",
+      chooseFile: "اختر ملف",
+      uploadInstruction: "تحميل {field} لشركتك",
+      addressInformation: "معلومات العنوان",
+      address: "العنوان *",
+      country: "البلد *",
+      city: "المدينة *",
+      state: "الولاية *",
+      portalCode: "الرمز البريدي *",
+      currency: "العملة *",
+      cancel: "إلغاء",
+      saveChanges: "حفظ التغييرات",
+      select: "اختر",
+      pageDescription: "تسمح لك هذه الصفحة بإدارة إعدادات الشركة بما في ذلك المعلومات العامة وتحميل الشعارات/الأيقونات وتكوين تفاصيل العنوان مثل البلد والمدينة والرمز البريدي.",
+      // Invoice Settings
+      invoiceTemplate: "نموذج الفاتورة",
+      purchases: "المشتريات",
+      receipts: "الإيصالات",
+      salesInvoice: "فاتورة مبيعات",
+      cashInvoice: "فاتورة نقدية",
+      deliveryNote: "مذكرة تسليم",
+      headerText: "نص العنوان",
+      footerText: "نص التذييل",
+      termsConditions: "الشروط والأحكام",
+      note: "ملاحظة",
+      bankDetails: "تفاصيل البنك",
+      customizeFields: "تخصيص الحقول",
+      description: "الوصف",
+      itemName: "اسم الصنف (ATM)",
+      price: "السعر",
+      quantity: "الكمية",
+      total: "الإجمالي",
+      saveSettings: "حفظ الإعدادات"
+    }
+  };
+
+  const t = (key) => {
+    if (printLanguage === 'both') {
+      return (
+        <>
+          <div>{translations.en[key]}</div>
+          <div>{translations.ar[key]}</div>
+        </>
+      );
+    }
+    return translations[printLanguage][key];
+  };
+
   const currencyOptions = [
-    { value: '', label: 'Select' },
+    { value: '', label: printLanguage === 'both' ? <><div>{translations.en.select}</div><div>{translations.ar.select}</div></> : translations[printLanguage].select },
     { value: 'USD', label: 'USD - US Dollar' },
     { value: 'EUR', label: 'EUR - Euro' },
     { value: 'GBP', label: 'GBP - British Pound' },
@@ -75,7 +183,7 @@ const CompanyInfo = () => {
   ];
 
   const countryOptions = [
-    { value: '', label: 'Select' },
+    { value: '', label: printLanguage === 'both' ? <><div>{translations.en.select}</div><div>{translations.ar.select}</div></> : translations[printLanguage].select },
     { value: 'USA', label: 'USA' },
     { value: 'India', label: 'India' },
     { value: 'UAE', label: 'UAE' },
@@ -84,7 +192,7 @@ const CompanyInfo = () => {
   ];
 
   const stateOptions = [
-    { value: '', label: 'Select' },
+    { value: '', label: printLanguage === 'both' ? <><div>{translations.en.select}</div><div>{translations.ar.select}</div></> : translations[printLanguage].select },
     { value: 'Alaska', label: 'Alaska' },
     { value: 'California', label: 'California' },
     { value: 'Tamil Nadu', label: 'Tamil Nadu' },
@@ -92,120 +200,31 @@ const CompanyInfo = () => {
   ];
 
   const cityOptions = [
-    { value: '', label: 'Select' },
+    { value: '', label: printLanguage === 'both' ? <><div>{translations.en.select}</div><div>{translations.ar.select}</div></> : translations[printLanguage].select },
     { value: 'New York', label: 'New York' },
     { value: 'Mumbai', label: 'Mumbai' },
     { value: 'Dubai', label: 'Dubai' },
     { value: 'Paris', label: 'Paris' }
   ];
 
-  // Function to get company data from API
-  const fetchCompanyData = async () => {
-    try {
-      setLoading(true);
-      const response = await axiosInstance.get(`/auth/Company/${companyId}`);
-      const companyData = response.data.data;
-
-      // Update form data with fetched company data
-      setFormData(prev => ({
-        ...prev,
-        companyName: companyData.name || '',
-        companyEmail: companyData.email || '',
-        phoneNumber: companyData.phone || '',
-        address: companyData.address || '',
-        country: companyData.country || '',
-        city: companyData.city || '',
-        state: companyData.state || '',
-        portalCode: companyData.postal_code || '',
-        currency: companyData.currency || ''
-      }));
-
-      // Set image URLs as preview if they exist in branding
-      if (companyData.branding) {
-        setPreviewImages(prev => ({
-          ...prev,
-          companyIcon: companyData.branding.company_icon_url || prev.companyIcon,
-          favicon: companyData.branding.favicon_url || prev.favicon,
-          companyLogo: companyData.branding.company_logo_url || prev.companyLogo,
-          companyDarkLogo: companyData.branding.company_dark_logo_url || prev.companyDarkLogo
-        }));
-      }
-    } catch (err) {
-      setError('Failed to load company data');
-      console.error('Error fetching company ', err);
-    } finally {
-      setLoading(false);
-    }
+  // Subunit mapping per currency
+  const currencySubunits = {
+    INR: { major: 'Rupees', minor: 'Paise' },
+    AED: { major: 'Dirhams', minor: 'Fils' },
+    USD: { major: 'Dollars', minor: 'Cents' },
+    EUR: { major: 'Euros', minor: 'Cents' },
+    default: { major: 'Units', minor: 'Subunits' }
   };
 
-  // Function to save company data
-  const saveCompanyData = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      setSuccess('');
+  const getSubunitLabels = (currency) => {
+    return currencySubunits[currency] || currencySubunits.default;
+  };
 
-      // Prepare form data for API
-      const payload = {
-        name: formData.companyName,
-        email: formData.companyEmail,
-        phone: formData.phoneNumber,
-        address: formData.address,
-        country: formData.country,
-        city: formData.city,
-        state: formData.state,
-        postal_code: formData.portalCode,
-        currency: formData.currency
-      };
-
-      // Create FormData object for file uploads
-      const formDataToSend = new FormData();
-      Object.keys(payload).forEach(key => {
-        formDataToSend.append(key, payload[key]);
-      });
-
-      // Add file fields to FormData
-      if (formData.companyIcon) {
-        formDataToSend.append('companyIcon', formData.companyIcon);
-      }
-      if (formData.favicon) {
-        formDataToSend.append('favicon', formData.favicon);
-      }
-      if (formData.companyLogo) {
-        formDataToSend.append('companyLogo', formData.companyLogo);
-      }
-      if (formData.companyDarkLogo) {
-        formDataToSend.append('companyDarkLogo', formData.companyDarkLogo);
-      }
-
-      // Make API call
-      const response = await axiosInstance.put(`/auth/Company/${companyId}`, formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      if (response.data.success) {
-        setSuccess('✅ Company updated successfully');
-        // Update preview images with new URLs if returned in response
-        if (response.data.data && response.data.data.branding) {
-          setPreviewImages(prev => ({
-            ...prev,
-            companyIcon: response.data.data.branding.company_icon_url || prev.companyIcon,
-            favicon: response.data.data.branding.favicon_url || prev.favicon,
-            companyLogo: response.data.data.branding.company_logo_url || prev.companyLogo,
-            companyDarkLogo: response.data.data.branding.company_dark_logo_url || prev.companyDarkLogo
-          }));
-        }
-      } else {
-        setError(response.data.message || 'Failed to update company');
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred while updating company');
-      console.error('Error updating company:', err);
-    } finally {
-      setLoading(false);
-    }
+  // Template header mapping
+  const headerLabels = {
+    sales_invoice: printLanguage === 'ar' ? 'رقم الفاتورة' : 'Invoice No.',
+    cash_invoice: printLanguage === 'ar' ? 'رقم الفاتورة النقدية' : 'Cash Invoice No.',
+    delivery_note: printLanguage === 'ar' ? 'رقم مذكرة التسليم' : 'Delivery Note No.'
   };
 
   const handleChange = (e) => {
@@ -225,6 +244,14 @@ const CompanyInfo = () => {
     } else {
       setFormData({ ...formData, [name]: value });
     }
+  };
+
+  const handleTemplateChange = (template) => {
+    setFormData(prev => ({
+      ...prev,
+      invoiceTemplate: template,
+      headerLabel: headerLabels[template]
+    }));
   };
 
   const uploadButtonStyle = {
@@ -247,227 +274,571 @@ const CompanyInfo = () => {
     padding: '4px'
   };
 
-  // Fetch company data on component mount
-  useEffect(() => {
-    if (companyId) {
-      fetchCompanyData();
-    }
-  }, [companyId]);
+  const langButtonStyle = (isActive) => ({
+    padding: '6px 12px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    border: '1px solid #002d4d',
+    backgroundColor: isActive ? '#002d4d' : 'white',
+    color: isActive ? 'white' : '#002d4d',
+    marginRight: '8px',
+    fontSize: '14px',
+    fontWeight: isActive ? '600' : '400'
+  });
 
   return (
     <div
       style={{
         backgroundColor: '#f8f9fa',
         minHeight: '100vh',
-        padding: '20px 0'
+        padding: '20px 0',
+        direction: printLanguage === 'ar' ? 'rtl' : 'ltr',
+        fontFamily: printLanguage === 'ar' ? '"Segoe UI", Tahoma, sans-serif' : 'system-ui'
       }}
     >
-      <div className="p-4" style={{ maxWidth: '100%' }}>
+      <CurrencySetting />
+      <Container className="p-4" style={{ maxWidth: '100%' }}>
+        {/* Language Toggle Buttons */}
+        <div className="d-flex justify-content-end mb-3 flex-wrap gap-2">
+          <Button style={langButtonStyle(printLanguage === 'en')} onClick={() => setPrintLanguage('en')} size="sm">English</Button>
+          <Button style={langButtonStyle(printLanguage === 'ar')} onClick={() => setPrintLanguage('ar')} size="sm">العربية</Button>
+          <Button style={langButtonStyle(printLanguage === 'both')} onClick={() => setPrintLanguage('both')} size="sm">
+            <div>English</div>
+            <div>العربية</div>
+          </Button>
+        </div>
+
         {/* Page Title */}
         <h1 className="mb-3" style={{ fontSize: '24px', fontWeight: '600' }}>
-          Settings
+          {t('settings')}
         </h1>
-        <p className="mb-4 text-muted">Manage your settings on portal.</p>
+        <p className="mb-4 text-muted">{t('manageSettings')}</p>
 
-        {/* Error/Success Messages */}
-        {error && <Alert variant="danger">{error}</Alert>}
-        {success && <Alert variant="success">{success}</Alert>}
+        {/* Tabs: Company & Invoice Settings */}
+        <Tab.Container defaultActiveKey="company">
+          <Nav variant="tabs" className="mb-4">
+            <Nav.Item>
+              <Nav.Link eventKey="company" style={{ fontWeight: '500' }}>
+                <FaBuilding /> {t('companySettings')}
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link eventKey="invoice" style={{ fontWeight: '500' }}>
+                <FaFileInvoice /> {t('invoiceSettings')}
+              </Nav.Link>
+            </Nav.Item>
+          </Nav>
 
-        {/* Loading indicator */}
-        {loading && <Alert variant="info">Loading...</Alert>}
+          <Tab.Content>
+            {/* === COMPANY SETTINGS === */}
+            <Tab.Pane eventKey="company">
+              <div className="bg-white p-4 rounded shadow-sm">
+                <h2 className="mb-4" style={{ fontSize: '20px', fontWeight: '600' }}>
+                  {t('companyInformation')}
+                </h2>
 
-
-        <div>
-          {/* === COMPANY SETTINGS === */}
-          <div eventKey="company">
-            <div className="bg-white p-4 rounded shadow-sm">
-              <h2 className="mb-4" style={{ fontSize: '20px', fontWeight: '600' }}>
-                Company Information
-              </h2>
-
-              <Form.Group className="mb-4">
-                <Form.Control
-                  type="text"
-                  placeholder="Company Name *"
-                  className="mb-3"
-                  name="companyName"
-                  value={formData.companyName}
-                  onChange={handleChange}
-                />
-                <Form.Control
-                  type="email"
-                  placeholder="Company Email Address *"
-                  className="mb-3"
-                  name="companyEmail"
-                  value={formData.companyEmail}
-                  onChange={handleChange}
-                />
-                <Form.Control
-                  type="tel"
-                  placeholder="Phone Number *"
-                  className="mb-3"
-                  name="phoneNumber"
-                  value={formData.phoneNumber}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-
-              <hr className="my-4" />
-
-              <div className="d-flex align-items-center mb-3">
-                <FaImage className="me-2" style={{ color: '#002d4d' }} />
-                <h5 style={{ marginBottom: 0 }}>Company Images</h5>
-              </div>
-
-              {["companyIcon", "favicon", "companyLogo", "companyDarkLogo"].map((field) => (
-                <Form.Group className="mb-4" key={field}>
-                  <Form.Label className="fw-bold d-block mb-2">{field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')}</Form.Label>
-                  <div className="d-flex align-items-center">
-                    <Button as="label" htmlFor={`${field}-upload`} style={uploadButtonStyle}>
-                      Choose File
-                      <Form.Control
-                        type="file"
-                        id={`${field}-upload`}
-                        className="d-none"
-                        name={field}
-                        onChange={handleChange}
-                        accept="image/*"
-                      />
-                    </Button>
-                    {previewImages[field] && (
-                      <Image src={previewImages[field]} alt={`${field} Preview`} style={previewImageStyle} />
-                    )}
-                  </div>
-                  <Form.Text className="text-muted">
-                    Upload {field.toLowerCase()} of your company
-                  </Form.Text>
-                </Form.Group>
-              ))}
-
-              <hr className="my-4" />
-
-              <div className="d-flex align-items-center mb-3">
-                <FaMapMarkerAlt className="me-2" style={{ color: '#002d4d' }} />
-                <h5 style={{ marginBottom: 0 }}>Address Information</h5>
-              </div>
-
-              <Form.Group className="mb-4">
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  placeholder="Address *"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-
-              <div className="row mb-4">
-                <div className="col-md-6 mb-3 mb-md-0">
-                  <Form.Label className="fw-bold">Country *</Form.Label>
-                  <Form.Select
-                    name="country"
-                    value={formData.country}
-                    onChange={handleChange}
-                  >
-                    {countryOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </div>
-                <div className="col-md-6">
-                  <Form.Label className="fw-bold">City *</Form.Label>
-                  <Form.Select
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                  >
-                    {cityOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </div>
-              </div>
-
-              <div className="row mb-4">
-                <div className="col-md-6 mb-3 mb-md-0">
-                  <Form.Label className="fw-bold">State *</Form.Label>
-                  <Form.Select
-                    name="state"
-                    value={formData.state}
-                    onChange={handleChange}
-                  >
-                    {stateOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </div>
-                <div className="col-md-6">
-                  <Form.Label className="fw-bold">Portal Code *</Form.Label>
+                <Form.Group className="mb-4">
                   <Form.Control
                     type="text"
-                    name="portalCode"
-                    value={formData.portalCode}
+                    placeholder={t('companyName')}
+                    className="mb-3"
+                    name="companyName"
+                    value={formData.companyName}
                     onChange={handleChange}
                   />
-                </div>
-              </div>
-
-              <div className="row mb-4">
-                <div className="col-md-6">
-                  <Form.Label className="fw-bold">Currency *</Form.Label>
-                  <Form.Select
-                    name="currency"
-                    value={formData.currency}
+                  <Form.Control
+                    type="email"
+                    placeholder={t('companyEmail')}
+                    className="mb-3"
+                    name="companyEmail"
+                    value={formData.companyEmail}
                     onChange={handleChange}
+                  />
+                  <Form.Control
+                    type="tel"
+                    placeholder={t('phoneNumber')}
+                    className="mb-3"
+                    name="phoneNumber"
+                    value={formData.phoneNumber}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+
+                <hr className="my-4" />
+
+                <div className="d-flex align-items-center mb-3">
+                  <FaImage className="me-2" style={{ color: '#002d4d' }} />
+                  <h5 style={{ marginBottom: 0 }}>{t('companyImages')}</h5>
+                </div>
+
+                {["companyIcon", "favicon", "companyLogo", "companyDarkLogo"].map((field) => (
+                  <Form.Group className="mb-4" key={field}>
+                    <Form.Label className="fw-bold d-block mb-2">{t(field)}</Form.Label>
+                    <div className="d-flex align-items-center">
+                      <Button as="label" htmlFor={`${field}-upload`} style={uploadButtonStyle}>
+                        {t('chooseFile')}
+                        <Form.Control
+                          type="file"
+                          id={`${field}-upload`}
+                          className="d-none"
+                          name={field}
+                          onChange={handleChange}
+                          accept="image/*"
+                        />
+                      </Button>
+                      {previewImages[field] && (
+                        <Image src={previewImages[field]} alt={`${field} Preview`} style={previewImageStyle} />
+                      )}
+                    </div>
+                    <Form.Text className="text-muted">
+                      {t('uploadInstruction').replace('{field}', t(field).toLowerCase())}
+                    </Form.Text>
+                  </Form.Group>
+                ))}
+
+                <hr className="my-4" />
+
+                <div className="d-flex align-items-center mb-3">
+                  <FaMapMarkerAlt className="me-2" style={{ color: '#002d4d' }} />
+                  <h5 style={{ marginBottom: 0 }}>{t('addressInformation')}</h5>
+                </div>
+
+                <Form.Group className="mb-4">
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    placeholder={t('address')}
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+
+                <div className="row mb-4">
+                  <div className="col-md-6 mb-3 mb-md-0">
+                    <Form.Label className="fw-bold">{t('country')}</Form.Label>
+                    <Form.Select
+                      name="country"
+                      value={formData.country}
+                      onChange={handleChange}
+                    >
+                      {countryOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Label className="fw-bold">{t('city')}</Form.Label>
+                    <Form.Select
+                      name="city"
+                      value={formData.city}
+                      onChange={handleChange}
+                    >
+                      {cityOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </div>
+                </div>
+
+                <div className="row mb-4">
+                  <div className="col-md-6 mb-3 mb-md-0">
+                    <Form.Label className="fw-bold">{t('state')}</Form.Label>
+                    <Form.Select
+                      name="state"
+                      value={formData.state}
+                      onChange={handleChange}
+                    >
+                      {stateOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Label className="fw-bold">{t('portalCode')}</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="portalCode"
+                      value={formData.portalCode}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="row mb-4">
+                  <div className="col-md-6">
+                    <Form.Label className="fw-bold">
+                      {printLanguage === 'both' ? (
+                        <>
+                          <div>Currency *</div>
+                          <div>العملة *</div>
+                        </>
+                      ) : printLanguage === 'ar' ? 'العملة *' : 'Currency *'}
+                    </Form.Label>
+                    <Form.Select
+                      name="currency"
+                      value={formData.currency}
+                      onChange={handleChange}
+                    >
+                      {currencyOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </div>
+                </div>
+
+                <div className="d-flex justify-content-end mt-4">
+                  <Button variant="outline-secondary" className="me-3 px-4 py-2">
+                    {t('cancel')}
+                  </Button>
+                  <Button
+                    className="px-4 py-2"
+                    style={{
+                      borderRadius: '4px',
+                      backgroundColor: '#002d4d',
+                      borderColor: '#002d4d',
+                      border: 'none',
+                      color: '#fff'
+                    }}
                   >
-                    {currencyOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Form.Select>
+                    {t('saveChanges')}
+                  </Button>
                 </div>
               </div>
+            </Tab.Pane>
 
-              <div className="d-flex justify-content-end mt-4">
-                <Button
-                  variant="outline-secondary"
-                  className="me-3 px-4 py-2"
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="px-4 py-2"
-                  style={{
-                    borderRadius: '4px',
-                    backgroundColor: '#002d4d',
-                    borderColor: '#002d4d',
-                    border: 'none',
-                    color: '#fff'
-                  }}
-                  onClick={saveCompanyData}
-                  disabled={loading}
-                >
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </Button>
+
+            {/* === INVOICE SETTINGS === */}
+            <Tab.Pane eventKey="invoice">
+              <div className=" p-4 card">
+                <h2 className="mb-4" style={{ fontSize: '20px', fontWeight: '600' }}>
+                  {t('invoiceSettings')}
+                </h2>
+
+                {/* Nested Tabs: Invoices, Purchases, Receipts */}
+                <Tab.Container defaultActiveKey="invoices">
+                  <Nav variant="tabs" className="mb-4">
+                    <Nav.Item>
+                      <Nav.Link eventKey="invoices">Invoices</Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="purchases">{t('purchases')}</Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="receipts">{t('receipts')}</Nav.Link>
+                    </Nav.Item>
+                  </Nav>
+
+                  <Tab.Content>
+                    {/* ========= INVOICES TAB ========= */}
+                    <Tab.Pane eventKey="invoices">
+
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">{t('invoiceTemplate')}</Form.Label>
+                        <div className="row g-3 mt-3 p-4">
+                          {[
+                            { id: 'template1', name: 'General Invoice 1', img: '/templates/inv1.png' },
+                            { id: 'template2', name: 'General Invoice 2', img: '/templates/inv2.png' },
+                            { id: 'template3', name: 'General Invoice 3', img: '/templates/inv3.png' },
+
+                          ].map((tmpl) => (
+                            <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
+                              <div
+                                className={`border rounded overflow-hidden shadow-sm cursor-pointer ${formData.invoiceTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
+                                  }`}
+                                onClick={() => setFormData(prev => ({ ...prev, invoiceTemplateId: tmpl.id }))}
+                                style={{ transition: 'all 0.2s' }}
+                              >
+                                <img
+                                  src={tmpl.img}
+                                  alt={tmpl.name}
+                                  className="w-100"
+                                  style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
+                                />
+                                <div className="p-2 bg-light d-flex justify-content-between align-items-center">
+                                  <small className="text-dark fw-medium">{tmpl.name}</small>
+                                  <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
+                                    ☆
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Form.Group>
+                    </Tab.Pane>
+
+                    {/* ========= PURCHASES TAB ========= */}
+                    <Tab.Pane eventKey="purchases">
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">{t('purchases')}</Form.Label>
+                        <div className="row g-3 mt-3">
+                          {[
+                            { id: 'purchase1', name: 'General Purchase 1', img: '/templates/purchase1.png' },
+                            { id: 'purchase2', name: 'General Purchase 2', img: '/templates/purchase2.png' },
+                            { id: 'purchase3', name: 'General Purchase 3', img: '/templates/purchase3.png' },
+
+                          ].map((tmpl) => (
+                            <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
+                              <div
+                                className={`border rounded overflow-hidden shadow-sm cursor-pointer ${formData.purchaseTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
+                                  }`}
+                                onClick={() => setFormData(prev => ({ ...prev, purchaseTemplateId: tmpl.id }))}
+                                style={{ transition: 'all 0.2s' }}
+                              >
+                                <img
+                                  src={tmpl.img}
+                                  alt={tmpl.name}
+                                  className="w-100"
+                                  style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
+                                />
+                                <div className="p-2 bg-light d-flex justify-content-between align-items-center">
+                                  <small className="text-dark fw-medium">{tmpl.name}</small>
+                                  <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
+                                    ☆
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Form.Group>
+                    </Tab.Pane>
+
+                    {/* ========= RECEIPTS TAB ========= */}
+                    <Tab.Pane eventKey="receipts">
+
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">{t('receipts')}</Form.Label>
+                        <div className="row g-3 mt-3">
+                          {[
+                            { id: 'receipt1', name: 'General Receipt 1', img: '/templates/receipt1.png' },
+                            { id: 'receipt2', name: 'General Receipt 2', img: '/templates/receipt2.png' },
+                            { id: 'receipt3', name: 'General Receipt 3', img: '/templates/receipt3.png' },
+
+                          ].map((tmpl) => (
+                            <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
+                              <div
+                                className={`border rounded overflow-hidden shadow-sm cursor-pointer ${formData.receiptTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
+                                  }`}
+                                onClick={() => setFormData(prev => ({ ...prev, receiptTemplateId: tmpl.id }))}
+                                style={{ transition: 'all 0.2s' }}
+                              >
+                                <img
+                                  src={tmpl.img}
+                                  alt={tmpl.name}
+                                  className="w-100"
+                                  style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
+                                />
+                                <div className="p-2 bg-light d-flex justify-content-between align-items-center">
+                                  <small className="text-dark fw-medium">{tmpl.name}</small>
+                                  <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
+                                    ☆
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Form.Group>
+
+                    </Tab.Pane>
+
+
+                  </Tab.Content>
+                </Tab.Container>
+
+
+                {/* Dynamic Header Label */}
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-bold">{t('headerText')}</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="headerLabel"
+                    value={formData.headerLabel}
+                    onChange={handleChange}
+                    placeholder="e.g., Invoice No."
+                  />
+                </Form.Group>
+
+                {/* Footer Fields */}
+                <Form.Group className="mb-4 mt-4">
+                  <Form.Label className="fw-bold">{t('footerText')}</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    name="footerTerms"
+                    value={formData.footerTerms}
+                    onChange={handleChange}
+                    placeholder={t('termsConditions')}
+                    className="mb-2"
+                  />
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    name="footerNote"
+                    value={formData.footerNote}
+                    onChange={handleChange}
+                    placeholder={t('note')}
+                    className="mb-2"
+                  />
+                  <Form.Label className="fw-bold">{t('bankDetails')}</Form.Label>
+                  <div className="row g-2">
+                    <div className="col-md-6">
+                      <Form.Control
+                        type="text"
+                        name="bank_name"
+                        value={formData.bank_name}
+                        onChange={handleChange}
+                        placeholder="Bank Name"
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <Form.Control
+                        type="text"
+                        name="account_no"
+                        value={formData.account_no}
+                        onChange={handleChange}
+                        placeholder="Account No."
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <Form.Control
+                        type="text"
+                        name="account_holder"
+                        value={formData.account_holder}
+                        onChange={handleChange}
+                        placeholder="Account Holder"
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <Form.Control
+                        type="text"
+                        name="ifsc_code"
+                        value={formData.ifsc_code}
+                        onChange={handleChange}
+                        placeholder="IFSC Code"
+                      />
+                    </div>
+                  </div>
+                </Form.Group>
+
+                {/* Field Visibility Toggles */}
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-bold">{t('customizeFields')}</Form.Label>
+                  <div className="d-flex flex-column gap-2">
+                    <Form.Check
+                      type="checkbox"
+                      label={t('description')}
+                      name="showDescription"
+                      checked={formData.showDescription}
+                      onChange={handleChange}
+                    />
+                    <Form.Check
+                      type="checkbox"
+                      label={t('itemName')}
+                      name="showItemName"
+                      checked={formData.showItemName}
+                      onChange={handleChange}
+                    />
+                    <Form.Check
+                      type="checkbox"
+                      label={t('price')}
+                      name="showPrice"
+                      checked={formData.showPrice}
+                      onChange={handleChange}
+                    />
+                    <Form.Check
+                      type="checkbox"
+                      label={t('quantity')}
+                      name="showQuantity"
+                      checked={formData.showQuantity}
+                      onChange={handleChange}
+                    />
+                    <Form.Check
+                      type="checkbox"
+                      label={t('total')}
+                      name="showTotal"
+                      checked={formData.showTotal}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </Form.Group>
+
+                {/* Currency Subunit Info */}
+                {formData.currency && (
+                  <Form.Group className="mb-4">
+                    <Form.Label className="fw-bold">
+                      {printLanguage === 'both' ? (
+                        <>
+                          <div>Currency Format</div>
+                          <div>تنسيق العملة</div>
+                        </>
+                      ) : printLanguage === 'ar' ? 'تنسيق العملة' : 'Currency Format'}
+                    </Form.Label>
+                    <div className="alert alert-info mb-0">
+                      {printLanguage === 'ar'
+                        ? `العملة: ${getSubunitLabels(formData.currency).major}، الوحدة الفرعية: ${getSubunitLabels(formData.currency).minor}`
+                        : `Major Unit: ${getSubunitLabels(formData.currency).major}, Minor Unit: ${getSubunitLabels(formData.currency).minor}`}
+                    </div>
+                  </Form.Group>
+                )}
+
+                <div className="d-flex justify-content-end mt-4">
+                  <Button variant="outline-secondary" className="me-3 px-4 py-2">
+                    {t('cancel')}
+                  </Button>
+                  <Button
+                    className="px-4 py-2"
+                    style={{
+                      borderRadius: '4px',
+                      backgroundColor: '#002d4d',
+                      borderColor: '#002d4d',
+                      border: 'none',
+                      color: '#fff'
+                    }}
+                  >
+                    {t('saveSettings')}
+                  </Button>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
+            </Tab.Pane>
+
+
+
+
+
+
+
+          </Tab.Content>
+
+
+
+
+
+
+
+        </Tab.Container>
+
+
+
+
+      </Container>
 
       <p className="text-muted text-center mt-3">
-        Manage your company and invoice settings.
+        {typeof t('pageDescription') === 'object'
+          ? 'Manage your company and invoice settings in both languages.'
+          : t('pageDescription')}
       </p>
-    </div >
+    </div>
   );
 };
 
