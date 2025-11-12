@@ -1297,7 +1297,7 @@ const PointOfSale = () => {
   );
 
   return (
-    <Container fluid className="mt-4 p-3 rounded-4 bg-white">
+    <div className="p-4">
       <Row>
         {/* Left Side */}
         <Col md={8}>
@@ -1693,7 +1693,7 @@ const PointOfSale = () => {
         handleAddCategory={handleAddCategory}
         companyId={companyId}
       />
-    </Container>
+    </div>
   );
 };
 

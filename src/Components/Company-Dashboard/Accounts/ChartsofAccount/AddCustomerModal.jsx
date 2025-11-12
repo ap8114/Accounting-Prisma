@@ -1,109 +1,116 @@
-  import React, { useState } from "react";
-  import { Modal, Form, Button, Row, Col } from "react-bootstrap";
-  import axios from "axios";
-  import BaseUrl from "../../../../Api/BaseUrl";
-  import axiosInstance from "../../../../Api/axiosInstance";
-  import GetCompanyId from "../../../../Api/GetCompanyId";
+import React, { useState } from "react";
+import { Modal, Form, Button, Row, Col } from "react-bootstrap";
+import axios from "axios";
+import BaseUrl from "../../../../Api/BaseUrl";
+import axiosInstance from "../../../../Api/axiosInstance";
+import GetCompanyId from "../../../../Api/GetCompanyId";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-  const AddCustomerModal = ({ show, onHide, onSave, customerFormData, setCustomerFormData }) => {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const companyId = GetCompanyId();
+const AddCustomerModal = ({ show, onHide, onSave, customerFormData, setCustomerFormData }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const companyId = GetCompanyId();
 
-
-
-    const handleSave = async () => {
-      setIsSubmitting(true);
-      try {
-        // Create FormData object to handle file uploads
-        const formData = new FormData();
-        
-        // Add all form fields to FormData with updated field names
-        formData.append('company_id', companyId);
-        formData.append('name_english', customerFormData.name || '');
-        formData.append('name_arabic', customerFormData.nameArabic || '');
-        formData.append('company_name', customerFormData.companyName || '');
-        formData.append('google_location', customerFormData.companyLocation || ''); // Changed field name
-        formData.append('account_type', 'Sundry Debtors');
-        formData.append('balance_type', 'Debit');
-        formData.append('account_name', customerFormData.accountName || '');
-        formData.append('account_balance', customerFormData.accountBalance || '0.00');
-        formData.append('creation_date', customerFormData.creationDate || '');
-        formData.append('bank_account_number', customerFormData.bankAccountNumber || '');
-        formData.append('bank_ifsc', customerFormData.bankIFSC || '');
-        formData.append('bank_name_branch', customerFormData.bankName || ''); // Changed field name
-        formData.append('country', customerFormData.country || '');
-        formData.append('state', customerFormData.state || '');
-        formData.append('pincode', customerFormData.pincode || '');
-        formData.append('address', customerFormData.address || '');
-        formData.append('state_code', customerFormData.stateCode || '');
-        formData.append('shipping_address', customerFormData.shippingAddress || '');
-        formData.append('phone', customerFormData.phone || '');
-        formData.append('email', customerFormData.email || '');
-        formData.append('credit_period_days', customerFormData.creditPeriod || ''); // Changed field name
-        formData.append('enable_gst', customerFormData.gstEnabled); // Changed field name
-        formData.append('gstIn', customerFormData.gstin || ''); // Changed field name
-        formData.append('type', 'customer'); // Added default type
-        
-        // Add files if they exist
-        if (customerFormData.idCardImage) {
-          formData.append('id_card_image', customerFormData.idCardImage);
-        }
-        
-        if (customerFormData.extraFile) {
-          formData.append('any_file', customerFormData.extraFile); // Changed field name
-        }
-
-        // Make API call
-        const response = await axiosInstance.post(`${BaseUrl}vendorCustomer`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-
-        // Call onSave callback with response data
-        onSave(response.data);
-        
-        // Reset form after successful submission
-        setCustomerFormData({
-          name: '',
-          nameArabic: '',
-          companyName: '',
-          companyLocation: '',
-          accountName: '',
-          accountBalance: '0.00',
-          creationDate: '',
-          bankAccountNumber: '',
-          bankIFSC: '',
-          bankName: '',
-          country: '',
-          state: '',
-          pincode: '',
-          address: '',
-          stateCode: '',
-          shippingAddress: '',
-          phone: '',
-          email: '',
-          creditPeriod: '',
-          gstEnabled: false,
-          gstin: '',
-          idCardImage: null,
-          extraFile: null,
-        });
-        
-        // Close modal
-        onHide();
-        
-      } catch (error) {
-        console.error('Error saving customer:', error);
-        // You might want to show an error message to the user here
-      } finally {
-        setIsSubmitting(false);
+  const handleSave = async () => {
+    setIsSubmitting(true);
+    try {
+      // Create FormData object to handle file uploads
+      const formData = new FormData();
+      
+      // Add all form fields to FormData with updated field names
+      formData.append('company_id', companyId);
+      formData.append('name_english', customerFormData.name || '');
+      formData.append('name_arabic', customerFormData.nameArabic || '');
+      formData.append('company_name', customerFormData.companyName || '');
+      formData.append('google_location', customerFormData.companyLocation || ''); // Changed field name
+      formData.append('account_type', 'Sundry Debtors');
+      formData.append('balance_type', 'Debit');
+      formData.append('account_name', customerFormData.accountName || '');
+      formData.append('account_balance', customerFormData.accountBalance || '0.00');
+      formData.append('creation_date', customerFormData.creationDate || '');
+      formData.append('bank_account_number', customerFormData.bankAccountNumber || '');
+      formData.append('bank_ifsc', customerFormData.bankIFSC || '');
+      formData.append('bank_name_branch', customerFormData.bankName || ''); // Changed field name
+      formData.append('country', customerFormData.country || '');
+      formData.append('state', customerFormData.state || '');
+      formData.append('pincode', customerFormData.pincode || '');
+      formData.append('address', customerFormData.address || '');
+      formData.append('state_code', customerFormData.stateCode || '');
+      formData.append('shipping_address', customerFormData.shippingAddress || '');
+      formData.append('phone', customerFormData.phone || '');
+      formData.append('email', customerFormData.email || '');
+      formData.append('credit_period_days', customerFormData.creditPeriod || ''); // Changed field name
+      formData.append('enable_gst', customerFormData.gstEnabled); // Changed field name
+      formData.append('gstIn', customerFormData.gstin || ''); // Changed field name
+      formData.append('type', 'customer'); // Added default type
+      
+      // Add files if they exist
+      if (customerFormData.idCardImage) {
+        formData.append('id_card_image', customerFormData.idCardImage);
       }
-    };
+      
+      if (customerFormData.extraFile) {
+        formData.append('any_file', customerFormData.extraFile); // Changed field name
+      }
 
-    
+      // Make API call
+      const response = await axiosInstance.post(`${BaseUrl}vendorCustomer`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-    return (
+      // Call onSave callback with response data
+      onSave(response.data);
+      
+      // Show success toast
+      toast.success('Customer added successfully!');
+      
+      // Reset form after successful submission
+      setCustomerFormData({
+        name: '',
+        nameArabic: '',
+        companyName: '',
+        companyLocation: '',
+        accountName: '',
+        accountBalance: '0.00',
+        creationDate: '',
+        bankAccountNumber: '',
+        bankIFSC: '',
+        bankName: '',
+        country: '',
+        state: '',
+        pincode: '',
+        address: '',
+        stateCode: '',
+        shippingAddress: '',
+        phone: '',
+        email: '',
+        creditPeriod: '',
+        gstEnabled: false,
+        gstin: '',
+        idCardImage: null,
+        extraFile: null,
+      });
+      
+      // Close modal
+      onHide();
+      
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      // Show error toast
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error('Failed to add customer. Please try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <>
       <Modal
         show={show}
         onHide={onHide}
@@ -544,7 +551,21 @@
           </Button>
         </Modal.Footer>
       </Modal>
-    );
-  };
+      
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+    </>
+  );
+};
 
-  export default AddCustomerModal;
+export default AddCustomerModal;
