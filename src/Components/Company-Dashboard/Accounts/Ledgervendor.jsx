@@ -797,7 +797,8 @@ const Ledgervendor = () => {
                         voucherTypeCounts[snakeCaseKey] = (voucherTypeCounts[snakeCaseKey] || 0) + 1;
                       });
                       // Define the order for the fallback table
-                      const fallbackOrder = ["opening_balance", "purchase", "payment", "purchase_return", "expense", "receipt", "sales_return", "manufacturing", "stock_journal", "stock_adjustment", "banking", "journal"];
+                      // const fallbackOrder = ["opening_balance", "purchase", "payment", "purchase_return", "expense", "receipt", "sales_return", "manufacturing", "stock_journal", "stock_adjustment", "banking", "journal"];
+                      const fallbackOrder = ["opening_balance", "purchase", "purchase_return", "receipt", "sales_return",];
                       return fallbackOrder.map((type) => {
                         const count = voucherTypeCounts[type] || 0;
                         const displayLabel = type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
@@ -810,7 +811,8 @@ const Ledgervendor = () => {
                       });
                     } else {
                       // Use the fetched transactionSummary data with the specified snake_case keys
-                      const apiKeysOrder = ["opening_balance", "purchase", "payment", "purchase_return", "expense", "receipt", "sales_return", "manufacturing", "stock_journal", "stock_adjustment", "banking", "journal"];
+                      // const apiKeysOrder = ["opening_balance", "purchase", "payment", "purchase_return", "expense", "receipt", "sales_return", "manufacturing", "stock_journal", "stock_adjustment", "banking", "journal"];
+                      const apiKeysOrder = ["opening_balance", "purchase", "purchase_return", "receipt", "sales_return",];
                       return apiKeysOrder.map((key) => {
                         const count = countsToUse[key] || 0;
                         const displayLabel = key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
