@@ -5,6 +5,8 @@ import { FaEye, FaEdit, FaTrash, FaFileSignature, FaCamera, FaTimes, FaSearch, F
 import AddProductModal from "./AddProductModal";
 import GetCompanyId from "../../../Api/GetCompanyId";
 import axiosInstance from "../../../Api/axiosInstance";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // ✅ Constants
 const VOUCHER_TYPES = [
@@ -600,7 +602,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
     if (!voucherType) return;
     if (voucherType === "Contra") {
       if (!formData.fromAccount || !formData.toAccount || !formData.transferAmount || formData.transferAmount <= 0) {
-        alert("Please fill From Account, To Account, and Transfer Amount.");
+        toast.error("Please fill From Account, To Account, and Transfer Amount.");
         return;
       }
     }
@@ -608,7 +610,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
       const balanceType = voucherType === "Current balance" ? "currentBalance"
         : voucherType === "Closing balance" ? "closingBalance" : "openingBalance";
       if (!formData.accountType || !formData.accountName || formData[balanceType] <= 0) {
-        alert("Please fill Account Type, Account Name, and Balance.");
+        toast.error("Please fill Account Type, Account Name, and Balance.");
         return;
       }
     }
@@ -900,7 +902,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
   const handlePrint = () => {
     const printContent = pdfRef.current;
     if (!printContent) {
-      alert("No content to print!");
+      toast.error("No content to print!");
       return;
     }
     const printWindow = window.open('', '', 'height=800,width=1000');
@@ -942,7 +944,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
       case "Expense": return printLanguage === "both" ? <>{printLabels.ar.expenseVoucher}<br />{printLabels.en.expenseVoucher}</> : printLabels[printLanguage].expenseVoucher;
       case "Contra": return printLanguage === "both" ? <>{printLabels.ar.contraVoucher}<br />{printLabels.en.contraVoucher}</> : printLabels[printLanguage].contraVoucher;
       case "Income": return printLanguage === "both" ? <>{printLabels.ar.incomeVoucher}<br />{printLabels.en.incomeVoucher}</> : printLabels[printLanguage].incomeVoucher;
-      default: return printLanguage === "both" ? <>سند<br />VOUCHER</> : printLanguage === "ar" ? "سند" : "VOUCHER";
+      default: return printLanguage === "both" ? <>سند<br />VOUCHER</> : printLabels === "ar" ? "سند" : "VOUCHER";
     }
   };
 
@@ -966,7 +968,7 @@ const CreateVoucherModal = ({ show, onHide, onSave, editData, companyId }) => {
 
   const handleAddItem = () => {
     if (!newItem.name || !newItem.category) {
-      alert("Product name and category are required!");
+      toast.error("Product name and category are required!");
       return;
     }
     const itemToAdd = {
@@ -1662,7 +1664,7 @@ const CreateVoucher = () => {
           updated[editVoucher] = { ...voucher, id: voucherId };
           return updated;
         });
-        alert("Voucher updated successfully!");
+        toast.success("Voucher updated successfully!");
       } else {
         const payload = mapLocalToApiPayload(voucher, companyId, vendors, customers, accounts);
         const res = await axiosInstance.post(`/voucher`, payload, {
@@ -1673,13 +1675,13 @@ const CreateVoucher = () => {
           id: res.data.data?.id || Date.now(),
         };
         setVouchers(prev => [...prev, newVoucher]);
-        alert("Voucher created successfully!");
+        toast.success("Voucher created successfully!");
       }
       setShowModal(false);
       setEditVoucher(null);
     } catch (error) {
       console.error("Error saving voucher:", error);
-      alert("Failed to save voucher. Please try again.");
+      toast.error("Failed to save voucher. Please try again.");
     }
   };
 
@@ -1689,10 +1691,10 @@ const CreateVoucher = () => {
       const voucherId = vouchers[idx].id;
       await axiosInstance.delete(`/voucher/${voucherId}`);
       setVouchers(vouchers.filter((_, i) => i !== idx));
-      alert("Voucher deleted successfully!");
+      toast.success("Voucher deleted successfully!");
     } catch (error) {
       console.error("Error deleting voucher:", error);
-      alert("Failed to delete voucher.");
+      toast.error("Failed to delete voucher.");
     }
   };
 
@@ -1708,6 +1710,9 @@ const CreateVoucher = () => {
 
   return (
     <div className="container py-4">
+      {/* Toast Container */}
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h4>Vouchers</h4>
         <Button
