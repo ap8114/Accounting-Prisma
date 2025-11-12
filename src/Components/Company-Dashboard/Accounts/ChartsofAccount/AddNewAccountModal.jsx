@@ -3,6 +3,8 @@ import { Modal, Form, Button, Row, Col, Alert, Dropdown } from "react-bootstrap"
 import BaseUrl from "../../../../Api/BaseUrl";
 import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const companyId = GetCompanyId();
 
@@ -121,6 +123,9 @@ const AddNewAccountModal = ({
       const response = await axiosInstance.delete(`${BaseUrl}account/sub-of-subgroup/${id}`);
       
       if (response.data.success) {
+        // Show success toast
+        toast.success('Account deleted successfully');
+        
         // Refresh sub of subgroups list
         const selectedSubgroup = subgroups.find(sub => sub.subgroup_name === newAccountData.subgroup);
         if (selectedSubgroup) {
@@ -136,13 +141,16 @@ const AddNewAccountModal = ({
         }
       } else {
         setAccountError('Failed to delete sub of subgroup. Please try again.');
+        toast.error('Failed to delete account');
       }
     } catch (error) {
       console.error('Error deleting sub of subgroup:', error);
       if (error.response?.data?.message) {
         setAccountError(error.response.data.message);
+        toast.error(error.response.data.message);
       } else {
         setAccountError('Failed to delete sub of subgroup. Please try again.');
+        toast.error('Failed to delete account');
       }
     }
   };
@@ -165,6 +173,9 @@ const AddNewAccountModal = ({
       // Call handleAddNewParent callback with response data
       handleAddNewParent(response.data);
       
+      // Show success toast
+      toast.success('Parent account added successfully');
+      
       // Reset form after successful submission
       setParentAccountForm({
         mainCategory: '',
@@ -181,8 +192,10 @@ const AddNewAccountModal = ({
       console.error('Error saving parent account:', error);
       if (error.response?.data?.message) {
         setParentError(error.response.data.message);
+        toast.error(error.response.data.message);
       } else {
         setParentError('Failed to add parent account. Please try again.');
+        toast.error('Failed to add parent account');
       }
     } finally {
       setIsSubmitting(false);
@@ -213,6 +226,9 @@ const AddNewAccountModal = ({
       // Call onSave callback with response data
       onSave(response.data);
       
+      // Show success toast
+      toast.success('Account saved successfully');
+      
       // Close modal
       onHide();
 
@@ -226,8 +242,10 @@ const AddNewAccountModal = ({
       console.error('Error saving account:', error);
       if (error.response?.data?.message) {
         setAccountError(error.response.data.message);
+        toast.error(error.response.data.message);
       } else {
         setAccountError('Failed to save account. Please try again.');
+        toast.error('Failed to save account');
       }
     } finally {
       setIsAccountSubmitting(false);
@@ -244,6 +262,7 @@ const AddNewAccountModal = ({
       
       if (!selectedSubgroup) {
         setSubOfSubgroupError('Please select a subgroup first');
+        toast.error('Please select a subgroup first');
         return;
       }
       
@@ -256,6 +275,9 @@ const AddNewAccountModal = ({
       // Make API call using new endpoint
       const response = await axiosInstance.post(`${BaseUrl}account/sub-of-subgroup`, payload);
 
+      // Show success toast
+      toast.success('Sub of subgroup added successfully');
+      
       // Reset form after successful submission
       setSubOfSubgroupForm({
         name: ''
@@ -271,8 +293,10 @@ const AddNewAccountModal = ({
       console.error('Error saving sub of subgroup:', error);
       if (error.response?.data?.message) {
         setSubOfSubgroupError(error.response.data.message);
+        toast.error(error.response.data.message);
       } else {
         setSubOfSubgroupError('Failed to add sub of subgroup. Please try again.');
+        toast.error('Failed to add sub of subgroup');
       }
     } finally {
       setIsSubOfSubgroupSubmitting(false);
@@ -704,6 +728,19 @@ const AddNewAccountModal = ({
           </Button>
         </Modal.Footer>
       </Modal>
+      
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </>
   );
 };
