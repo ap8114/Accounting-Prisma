@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import axiosInstance from '../../../Api/axiosInstance';
 import GetCompanyId from '../../../Api/GetCompanyId';
 import { CurrencyContext } from '../../../hooks/CurrencyContext';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function InventoryAdjustment() {
   const companyId = GetCompanyId();
@@ -304,7 +306,7 @@ function InventoryAdjustment() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!companyId || !voucherNo || !voucherDate) {
-      alert('Company ID, Voucher Number, and Voucher Date are required.');
+      toast.error('Company ID, Voucher Number, and Voucher Date are required.');
       return;
     }
 
@@ -332,7 +334,7 @@ function InventoryAdjustment() {
     );
 
     if (itemsPayload.length === 0) {
-      alert('Please add at least one item with valid warehouse, quantity, and rate.');
+      toast.error('Please add at least one item with valid warehouse, quantity, and rate.');
       setIsSubmitting(false);
       return;
     }
@@ -352,8 +354,10 @@ function InventoryAdjustment() {
     try {
       if (editingAdjustment) {
         await axiosInstance.put(`/inventoryadjustment/${editingAdjustment.id}`, payload);
+        toast.success('Inventory adjustment updated successfully!');
       } else {
         await axiosInstance.post('/inventoryadjustment', payload);
+        toast.success('Inventory adjustment created successfully!');
       }
 
       await fetchItems();
@@ -363,7 +367,7 @@ function InventoryAdjustment() {
       resetForm();
     } catch (error) {
       console.error('Error saving adjustment:', error);
-      alert('Failed to save inventory adjustment. Please check your data and try again.');
+      toast.error('Failed to save inventory adjustment. Please check your data and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -397,9 +401,10 @@ function InventoryAdjustment() {
     try {
       await axiosInstance.delete(`/inventoryadjustment/${adjustmentToDelete.id}`);
       setAdjustments(adjustments.filter(adj => adj.id !== adjustmentToDelete.id));
+      toast.success('Inventory adjustment deleted successfully!');
     } catch (error) {
       console.error('Error deleting adjustment:', error);
-      alert('Failed to delete.');
+      toast.error('Failed to delete inventory adjustment.');
     } finally {
       setShowDeleteWarning(false);
       setAdjustmentToDelete(null);
@@ -416,6 +421,9 @@ function InventoryAdjustment() {
 
   return (
     <div className="container py-4">
+      {/* Toast Container */}
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      
       {/* Page Title */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h3 className="text-dark">Inventory Adjustment Records</h3>

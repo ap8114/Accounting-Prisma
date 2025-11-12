@@ -8,6 +8,8 @@ import Spinner from "react-bootstrap/Spinner";
 import Table from "react-bootstrap/Table";
 import axiosInstance from "../../../Api/axiosInstance";
 import GetCompanyId from "../../../Api/GetCompanyId";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const AddProductModal = ({
   showAdd,
@@ -392,7 +394,13 @@ const AddProductModal = ({
 
   // Add new category
   const handleAddCategoryApi = async () => {
-    if (!newCategory.trim()) return;
+    if (!newCategory.trim()) {
+      toast.error("Please enter a category name", {
+        toastId: 'category-name-error',
+        autoClose: 3000
+      });
+      return;
+    }
     setIsAddingCategory(true);
     try {
       await axiosInstance.post("item-categories", {
@@ -425,9 +433,16 @@ const AddProductModal = ({
 
       setNewCategory("");
       setShowAddCategoryModal(false);
+      toast.success("Category added successfully", {
+        toastId: 'category-add-success',
+        autoClose: 3000
+      });
     } catch (error) {
       console.error("Error adding category:", error);
-      alert("Failed to add category. Please try again.");
+      toast.error("Failed to add category. Please try again.", {
+        toastId: 'category-add-error',
+        autoClose: 3000
+      });
     } finally {
       setIsAddingCategory(false);
     }
@@ -437,12 +452,18 @@ const AddProductModal = ({
   const handleAddProductApi = async () => {
     // Validate required fields
     if (!localNewItem.itemName.trim()) {
-      alert("Please enter an item name.");
+      toast.error("Please enter an item name", {
+        toastId: 'item-name-error',
+        autoClose: 3000
+      });
       return;
     }
 
     if (localNewItem.productWarehouses.length === 0) {
-      alert("Please select at least one warehouse.");
+      toast.error("Please select at least one warehouse", {
+        toastId: 'warehouse-select-error',
+        autoClose: 3000
+      });
       return;
     }
 
@@ -451,9 +472,10 @@ const AddProductModal = ({
       (w) => w.stock_qty > 0
     );
     if (!hasValidQuantity) {
-      alert(
-        "Please enter a quantity greater than 0 for at least one warehouse."
-      );
+      toast.error("Please enter a quantity greater than 0 for at least one warehouse", {
+        toastId: 'quantity-error',
+        autoClose: 3000
+      });
       return;
     }
 
@@ -506,12 +528,22 @@ const AddProductModal = ({
         resetLocalForm();
         setShowAdd(false);
         if (onSuccess) onSuccess();
+        toast.success("Product added successfully", {
+          toastId: 'product-add-success',
+          autoClose: 3000
+        });
       } else {
-        alert("Failed to add product. Please try again.");
+        toast.error("Failed to add product. Please try again.", {
+          toastId: 'product-add-error',
+          autoClose: 3000
+        });
       }
     } catch (error) {
       console.error("Error adding product:", error);
-      alert("An error occurred while adding the product: " + error.message);
+      toast.error("An error occurred while adding the product: " + error.message, {
+        toastId: 'product-add-api-error',
+        autoClose: 3000
+      });
     } finally {
       setIsAddingProduct(false);
     }
@@ -526,12 +558,18 @@ const AddProductModal = ({
 
     // Validate required fields
     if (!localNewItem.itemName.trim()) {
-      alert("Please enter an item name.");
+      toast.error("Please enter an item name", {
+        toastId: 'item-name-edit-error',
+        autoClose: 3000
+      });
       return;
     }
 
     if (localNewItem.productWarehouses.length === 0) {
-      alert("Please select at least one warehouse.");
+      toast.error("Please select at least one warehouse", {
+        toastId: 'warehouse-select-edit-error',
+        autoClose: 3000
+      });
       return;
     }
 
@@ -540,9 +578,10 @@ const AddProductModal = ({
       (w) => w.stock_qty > 0
     );
     if (!hasValidQuantity) {
-      alert(
-        "Please enter a quantity greater than 0 for at least one warehouse."
-      );
+      toast.error("Please enter a quantity greater than 0 for at least one warehouse", {
+        toastId: 'quantity-edit-error',
+        autoClose: 3000
+      });
       return;
     }
 
@@ -599,12 +638,22 @@ const AddProductModal = ({
         resetLocalForm();
         setShowEdit(false);
         if (onSuccess) onSuccess();
+        toast.success("Product updated successfully", {
+          toastId: 'product-update-success',
+          autoClose: 3000
+        });
       } else {
-        alert("Failed to update product. Please try again.");
+        toast.error("Failed to update product. Please try again.", {
+          toastId: 'product-update-error',
+          autoClose: 3000
+        });
       }
     } catch (error) {
       console.error("Error updating product:", error);
-      alert("An error occurred while updating the product: " + error.message);
+      toast.error("An error occurred while updating the product: " + error.message, {
+        toastId: 'product-update-api-error',
+        autoClose: 3000
+      });
     } finally {
       setIsUpdatingProduct(false);
     }
@@ -1173,6 +1222,20 @@ const AddProductModal = ({
           </Button>
         </Modal.Footer>
       </Modal>
+      
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        limit={3}
+      />
     </>
   );
 };

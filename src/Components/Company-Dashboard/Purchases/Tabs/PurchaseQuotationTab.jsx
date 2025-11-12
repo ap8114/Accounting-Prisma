@@ -461,9 +461,8 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
       .from(element)
       .set({
         margin: 10,
-        filename: `purchase-quotation-${
-          formData.quotationNo || "document"
-        }.pdf`,
+        filename: `purchase-quotation-${formData.quotationNo || "document"
+          }.pdf`,
         jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
         html2canvas: { scale: 3 },
         pagebreak: { mode: ["avoid-all", "css", "legacy"] },
@@ -781,12 +780,12 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                                     handleSelectSearchedItem(idx, filteredItem);
                                   }}
                                   onMouseEnter={(e) =>
-                                    (e.currentTarget.style.backgroundColor =
-                                      "#f0f0f0")
+                                  (e.currentTarget.style.backgroundColor =
+                                    "#f0f0f0")
                                   }
                                   onMouseLeave={(e) =>
-                                    (e.currentTarget.style.backgroundColor =
-                                      "white")
+                                  (e.currentTarget.style.backgroundColor =
+                                    "white")
                                   }
                                 >
                                   <div>
@@ -1210,7 +1209,20 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                         key={index}
                         className="d-flex justify-content-between align-items-center"
                       >
-                        <span>{file.name}</span>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            maxWidth: "150px",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            verticalAlign: "middle",
+                            marginBottom: "12px"
+                          }}
+                        >
+                          {file.name}
+                        </span>
+
                         <Button
                           variant="danger"
                           size="sm"
@@ -1645,7 +1657,7 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
                           (sum, item) =>
                             sum +
                             (parseFloat(item.rate) || 0) *
-                              (parseInt(item.qty) || 0),
+                            (parseInt(item.qty) || 0),
                           0
                         )
                         .toFixed(2)}
@@ -1794,16 +1806,16 @@ const PurchaseQuotationTab = ({ onSubmit, initialData }) => {
 
           {/* Navigation */}
           <div className="d-flex justify-content-between mt-5">
-            <Button variant="secondary" onClick={() => {}}>
+            <Button variant="secondary" onClick={() => { }}>
               Skip
             </Button>
             <Button variant="warning" onClick={handleSaveDraft}>
               Save
             </Button>
-            <Button variant="primary" onClick={() => {}}>
+            <Button variant="primary" onClick={() => { }}>
               Save & Next
             </Button>
-            <Button variant="success" onClick={() => {}}>
+            <Button variant="success" onClick={() => { }}>
               Next
             </Button>
           </div>
