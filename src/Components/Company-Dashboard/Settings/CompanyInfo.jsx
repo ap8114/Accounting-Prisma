@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Button, Container, Image, Nav, Tab } from 'react-bootstrap';
+import { Form, Button, Container, Image, Nav, Tab, Card, Row, Col } from 'react-bootstrap';
 import { FaBuilding, FaImage, FaMapMarkerAlt, FaGlobe, FaFileInvoice } from 'react-icons/fa';
 import { CurrencySetting } from './CurrencySetting';
 
@@ -43,6 +43,7 @@ const CompanyInfo = () => {
     purchaseLogo: null,
     purchaseDarkLogo: null,
     purchaseIcon: null,
+    invoiceImage: null, // New field for invoice image
     showDescription: true,
     showItemName: true,
     showPrice: true,
@@ -57,7 +58,8 @@ const CompanyInfo = () => {
     companyDarkLogo: null,
     purchaseLogo: null,
     purchaseDarkLogo: null,
-    purchaseIcon: null
+    purchaseIcon: null,
+    invoiceImage: null // New field for invoice image preview
   });
 
   // Translations
@@ -91,7 +93,7 @@ const CompanyInfo = () => {
       pageDescription: "This page allows you to manage company settings including general info, upload logos/icons, and configure address details like country, city, and postal code.",
       // Invoice Settings
       invoiceTemplate: "Invoice Template",
-
+      invoiceImage: "Invoice Image",
       purchases: "Purchases",
       receipts: "Receipts",
       salesInvoice: "Sales Invoice",
@@ -139,6 +141,7 @@ const CompanyInfo = () => {
       pageDescription: "تسمح لك هذه الصفحة بإدارة إعدادات الشركة بما في ذلك المعلومات العامة وتحميل الشعارات/الأيقونات وتكوين تفاصيل العنوان مثل البلد والمدينة والرمز البريدي.",
       // Invoice Settings
       invoiceTemplate: "نموذج الفاتورة",
+      invoiceImage: "صورة الفاتورة",
       purchases: "المشتريات",
       receipts: "الإيصالات",
       salesInvoice: "فاتورة مبيعات",
@@ -296,7 +299,13 @@ const CompanyInfo = () => {
         fontFamily: printLanguage === 'ar' ? '"Segoe UI", Tahoma, sans-serif' : 'system-ui'
       }}
     >
+
+
+      {/* currency setting component call */}
       <CurrencySetting />
+
+
+
       <Container className="p-4" style={{ maxWidth: '100%' }}>
         {/* Language Toggle Buttons */}
         <div className="d-flex justify-content-end mb-3 flex-wrap gap-2">
@@ -316,18 +325,30 @@ const CompanyInfo = () => {
 
         {/* Tabs: Company & Invoice Settings */}
         <Tab.Container defaultActiveKey="company">
-          <Nav variant="tabs" className="mb-4">
-            <Nav.Item>
-              <Nav.Link eventKey="company" style={{ fontWeight: '500' }}>
-                <FaBuilding /> {t('companySettings')}
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="invoice" style={{ fontWeight: '500' }}>
-                <FaFileInvoice /> {t('invoiceSettings')}
-              </Nav.Link>
-            </Nav.Item>
-          </Nav>
+      <Nav variant="tabs" className="mb-4">
+  <Nav.Item>
+    <Nav.Link
+      eventKey="company"
+      className="d-flex align-items-center gap-2 p-2"
+      style={{ fontWeight: '500' }}
+    >
+      <FaBuilding className="fs-5" />
+      <span>{t('companySettings')}</span>
+    </Nav.Link>
+  </Nav.Item>
+
+  <Nav.Item>
+    <Nav.Link
+      eventKey="invoice"
+      className="d-flex align-items-center gap-2 p-2"
+      style={{ fontWeight: '500' }}
+    >
+      <FaFileInvoice className="fs-5" />
+      <span>{t('invoiceSettings')}</span>
+    </Nav.Link>
+  </Nav.Item>
+</Nav>
+
 
           <Tab.Content>
             {/* === COMPANY SETTINGS === */}
@@ -515,159 +536,16 @@ const CompanyInfo = () => {
               </div>
             </Tab.Pane>
 
-
             {/* === INVOICE SETTINGS === */}
             <Tab.Pane eventKey="invoice">
-              <div className=" p-4 card">
+              <div className="p-4 card">
                 <h2 className="mb-4" style={{ fontSize: '20px', fontWeight: '600' }}>
                   {t('invoiceSettings')}
                 </h2>
 
-                {/* Nested Tabs: Invoices, Purchases, Receipts */}
-                <Tab.Container defaultActiveKey="invoices">
-                  <Nav variant="tabs" className="mb-4">
-                    <Nav.Item>
-                      <Nav.Link eventKey="invoices">Invoices</Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                      <Nav.Link eventKey="purchases">{t('purchases')}</Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                      <Nav.Link eventKey="receipts">{t('receipts')}</Nav.Link>
-                    </Nav.Item>
-                  </Nav>
+            
 
-                  <Tab.Content>
-                    {/* ========= INVOICES TAB ========= */}
-                    <Tab.Pane eventKey="invoices">
-
-                      <Form.Group className="mb-4">
-                        <Form.Label className="fw-bold">{t('invoiceTemplate')}</Form.Label>
-                        <div className="row g-3 mt-3 p-4">
-                          {[
-                            { id: 'template1', name: 'General Invoice 1', img: '/templates/inv1.png' },
-                            { id: 'template2', name: 'General Invoice 2', img: '/templates/inv2.png' },
-                            { id: 'template3', name: 'General Invoice 3', img: '/templates/inv3.png' },
-
-                          ].map((tmpl) => (
-                            <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
-                              <div
-                                className={`border rounded overflow-hidden shadow-sm cursor-pointer ${formData.invoiceTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
-                                  }`}
-                                onClick={() => setFormData(prev => ({ ...prev, invoiceTemplateId: tmpl.id }))}
-                                style={{ transition: 'all 0.2s' }}
-                              >
-                                <img
-                                  src={tmpl.img}
-                                  alt={tmpl.name}
-                                  className="w-100"
-                                  style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
-                                />
-                                <div className="p-2 bg-light d-flex justify-content-between align-items-center">
-                                  <small className="text-dark fw-medium">{tmpl.name}</small>
-                                  <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
-                                    ☆
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </Form.Group>
-                    </Tab.Pane>
-
-                    {/* ========= PURCHASES TAB ========= */}
-                    <Tab.Pane eventKey="purchases">
-                      <Form.Group className="mb-4">
-                        <Form.Label className="fw-bold">{t('purchases')}</Form.Label>
-                        <div className="row g-3 mt-3">
-                          {[
-                            { id: 'purchase1', name: 'General Purchase 1', img: '/templates/purchase1.png' },
-                            { id: 'purchase2', name: 'General Purchase 2', img: '/templates/purchase2.png' },
-                            { id: 'purchase3', name: 'General Purchase 3', img: '/templates/purchase3.png' },
-
-                          ].map((tmpl) => (
-                            <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
-                              <div
-                                className={`border rounded overflow-hidden shadow-sm cursor-pointer ${formData.purchaseTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
-                                  }`}
-                                onClick={() => setFormData(prev => ({ ...prev, purchaseTemplateId: tmpl.id }))}
-                                style={{ transition: 'all 0.2s' }}
-                              >
-                                <img
-                                  src={tmpl.img}
-                                  alt={tmpl.name}
-                                  className="w-100"
-                                  style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
-                                />
-                                <div className="p-2 bg-light d-flex justify-content-between align-items-center">
-                                  <small className="text-dark fw-medium">{tmpl.name}</small>
-                                  <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
-                                    ☆
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </Form.Group>
-                    </Tab.Pane>
-
-                    {/* ========= RECEIPTS TAB ========= */}
-                    <Tab.Pane eventKey="receipts">
-
-                      <Form.Group className="mb-4">
-                        <Form.Label className="fw-bold">{t('receipts')}</Form.Label>
-                        <div className="row g-3 mt-3">
-                          {[
-                            { id: 'receipt1', name: 'General Receipt 1', img: '/templates/receipt1.png' },
-                            { id: 'receipt2', name: 'General Receipt 2', img: '/templates/receipt2.png' },
-                            { id: 'receipt3', name: 'General Receipt 3', img: '/templates/receipt3.png' },
-
-                          ].map((tmpl) => (
-                            <div key={tmpl.id} className="col-12 col-md-6 col-lg-4">
-                              <div
-                                className={`border rounded overflow-hidden shadow-sm cursor-pointer ${formData.receiptTemplateId === tmpl.id ? 'border-primary border-2' : 'border-secondary'
-                                  }`}
-                                onClick={() => setFormData(prev => ({ ...prev, receiptTemplateId: tmpl.id }))}
-                                style={{ transition: 'all 0.2s' }}
-                              >
-                                <img
-                                  src={tmpl.img}
-                                  alt={tmpl.name}
-                                  className="w-100"
-                                  style={{ height: '180px', objectFit: 'cover', backgroundColor: '#f8f9fa' }}
-                                />
-                                <div className="p-2 bg-light d-flex justify-content-between align-items-center">
-                                  <small className="text-dark fw-medium">{tmpl.name}</small>
-                                  <Button variant="outline-secondary" size="sm" style={{ fontSize: '12px' }}>
-                                    ☆
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </Form.Group>
-
-                    </Tab.Pane>
-
-
-                  </Tab.Content>
-                </Tab.Container>
-
-
-                {/* Dynamic Header Label */}
-                <Form.Group className="mb-4">
-                  <Form.Label className="fw-bold">{t('headerText')}</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="headerLabel"
-                    value={formData.headerLabel}
-                    onChange={handleChange}
-                    placeholder="e.g., Invoice No."
-                  />
-                </Form.Group>
+           
 
                 {/* Footer Fields */}
                 <Form.Group className="mb-4 mt-4">
@@ -731,47 +609,7 @@ const CompanyInfo = () => {
                   </div>
                 </Form.Group>
 
-                {/* Field Visibility Toggles */}
-                <Form.Group className="mb-4">
-                  <Form.Label className="fw-bold">{t('customizeFields')}</Form.Label>
-                  <div className="d-flex flex-column gap-2">
-                    <Form.Check
-                      type="checkbox"
-                      label={t('description')}
-                      name="showDescription"
-                      checked={formData.showDescription}
-                      onChange={handleChange}
-                    />
-                    <Form.Check
-                      type="checkbox"
-                      label={t('itemName')}
-                      name="showItemName"
-                      checked={formData.showItemName}
-                      onChange={handleChange}
-                    />
-                    <Form.Check
-                      type="checkbox"
-                      label={t('price')}
-                      name="showPrice"
-                      checked={formData.showPrice}
-                      onChange={handleChange}
-                    />
-                    <Form.Check
-                      type="checkbox"
-                      label={t('quantity')}
-                      name="showQuantity"
-                      checked={formData.showQuantity}
-                      onChange={handleChange}
-                    />
-                    <Form.Check
-                      type="checkbox"
-                      label={t('total')}
-                      name="showTotal"
-                      checked={formData.showTotal}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </Form.Group>
+               
 
                 {/* Currency Subunit Info */}
                 {formData.currency && (
@@ -811,26 +649,8 @@ const CompanyInfo = () => {
                 </div>
               </div>
             </Tab.Pane>
-
-
-
-
-
-
-
           </Tab.Content>
-
-
-
-
-
-
-
         </Tab.Container>
-
-
-
-
       </Container>
 
       <p className="text-muted text-center mt-3">
