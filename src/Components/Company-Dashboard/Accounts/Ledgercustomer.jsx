@@ -239,7 +239,7 @@ const Ledgercustomer = () => {
               <p className="mb-0 d-flex align-items-center">
                 <FaGlobe className="me-2" style={{ color: "#53b2a5" }} />
                 <span>
-                  <strong>Location:</strong> 
+                  <strong>Location:</strong>
                   <a
                     href={customer.companyLocation}
                     target="_blank"
@@ -621,23 +621,6 @@ const Ledgercustomer = () => {
 
   const NarrationTab = () => (
     <div>
-      <Card className="mb-4 shadow-sm">
-        <Card.Header className="bg-light">
-          <h5 className="mb-0">Narrations</h5>
-        </Card.Header>
-        <Card.Body>
-          <ul className="list-group">
-            {filteredData.map((entry) => (
-              <li key={entry.id} className="list-group-item d-flex justify-content-between align-items-start">
-                <div>
-                  <strong>{entry.particulars}</strong> ({entry.date})
-                </div>
-                <small className="text-muted">{entry.narration || "—"} </small>
-              </li>
-            ))}
-          </ul>
-        </Card.Body>
-      </Card>
       {/* Ledger Table — Always Visible */}
       <Card className="mb-4 shadow-sm">
         <Card className="mb-4 border-0 shadow-sm rounded-4">
@@ -927,7 +910,7 @@ const Ledgercustomer = () => {
               <p><strong>Company:</strong> {customer.companyName || "N/A"}</p>
               <p><strong>Email:</strong> {customer.email}</p>
               <p><strong>Phone:</strong> {customer.phone}</p>
-              <p><strong>Location:</strong> 
+              <p><strong>Location:</strong>
                 <a
                   href={customer.companyLocation}
                   target="_blank"
@@ -1008,57 +991,247 @@ const Ledgercustomer = () => {
               onClick={() => {
                 const printWindow = window.open("", "_blank");
                 printWindow.document.write(`
-                  <html>
-                    <head>
-                      <style>
-                        body { font-family: Arial, sans-serif; padding: 40px; }
-                        .header { text-align: center; margin-bottom: 30px; }
-                        .company-info { text-align: right; margin-bottom: 20px; }
-                        .table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                        .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                        .table th { background-color: #f2f2f2; }
-                        .signature-line { border-bottom: 1px solid black; width: 200px; margin: 10px auto; }
-                        .footer { text-align: center; margin-top: 50px; font-size: 0.9em; }
-                      </style>
-                    </head>
-                    <body>
-                      <div class="header">
-                        <h2>Balance Confirmation Letter</h2>
-                        <p>Date: ${new Date().toLocaleDateString()}</p>
+              <html>
+                <head>
+                  <title>Balance Confirmation Letter</title>
+                  <style>
+                    @page {
+                      size: A4;
+                      margin: 0.5in;
+                    }
+                    body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                      padding: 15px;
+                      margin: 0;
+                      color: #212529;
+                      font-size: 12px;
+                      line-height: 1.4;
+                    }
+                    .card {
+                      border: 1px solid rgba(0,0,0,.125);
+                      border-radius: 0.375rem;
+                      box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075);
+                      background-color: #fff;
+                      margin-bottom: 1.5rem;
+                    }
+                    .card-header {
+                      padding: 0.75rem 1.25rem;
+                      margin-bottom: 0;
+                      background-color: #f8f9fa;
+                      border-bottom: 1px solid rgba(0,0,0,.125);
+                      border-top-left-radius: calc(0.375rem - 1px);
+                      border-top-right-radius: calc(0.375rem - 1px);
+                    }
+                    .card-body {
+                      padding: 1rem;
+                    }
+                    .mb-4 {
+                      margin-bottom: 1rem !important;
+                    }
+                    .mb-0 {
+                      margin-bottom: 0 !important;
+                    }
+                    .mb-3 {
+                      margin-bottom: 0.75rem !important;
+                    }
+                    .mb-2 {
+                      margin-bottom: 0.5rem !important;
+                    }
+                    .mt-5 {
+                      margin-top: 1.5rem !important;
+                    }
+                    .mt-2 {
+                      margin-top: 0.5rem !important;
+                    }
+                    .mt-4 {
+                      margin-top: 1rem !important;
+                    }
+                    .fw-bold {
+                      font-weight: 700 !important;
+                    }
+                    .text-success {
+                      color: #198754 !important;
+                    }
+                    .text-primary {
+                      color: #0d6efd !important;
+                    }
+                    .text-center {
+                      text-align: center !important;
+                    }
+                    .text-right {
+                      text-align: right !important;
+                    }
+                    .d-flex {
+                      display: flex !important;
+                    }
+                    .justify-content-between {
+                      justify-content: space-between !important;
+                    }
+                    .align-items-start {
+                      align-items: flex-start !important;
+                    }
+                    .table {
+                      width: 100%;
+                      margin-bottom: 1rem;
+                      color: #212529;
+                      vertical-align: top;
+                      border-color: #dee2e6;
+                      font-size: 11px;
+                    }
+                    .table-bordered {
+                      border: 1px solid #dee2e6;
+                    }
+                    .table-bordered > :not(caption) > * {
+                      border-width: 1px;
+                    }
+                    .table-sm > :not(caption) > * > * {
+                      padding: 0.2rem 0.25rem;
+                    }
+                    .table-light {
+                      background-color: #f8f9fa;
+                    }
+                    .table-info {
+                      background-color: #cff4fc;
+                    }
+                    .table th,
+                    .table td {
+                      padding: 0.25rem;
+                      vertical-align: top;
+                      border-top: 1px solid #dee2e6;
+                      border-color: #dee2e6;
+                    }
+                    .table thead th {
+                      vertical-align: bottom;
+                      border-bottom: 2px solid #dee2e6;
+                    }
+                    .table-light th,
+                    .table-light td,
+                    .table-light thead th {
+                      background-color: #f8f9fa;
+                      border-color: #dee2e6;
+                    }
+                    hr {
+                      margin: 0.75rem 0;
+                      color: inherit;
+                      border: 0;
+                      border-top: 1px solid;
+                      opacity: .25;
+                    }
+                    strong {
+                      font-weight: bolder;
+                    }
+                    p {
+                      margin-top: 0;
+                      margin-bottom: 0.5rem;
+                    }
+                    h5 {
+                      font-size: 1rem;
+                      margin-bottom: 0.5rem;
+                    }
+                    h6 {
+                      font-size: 0.9rem;
+                      margin-bottom: 0.5rem;
+                    }
+                    a {
+                      color: #0d6efd;
+                      text-decoration: none;
+                    }
+                    .signature-line {
+                      height: 30px;
+                      border-bottom: 1px solid #000;
+                      margin: 8px 0;
+                    }
+                    .company-info, .customer-info {
+                      flex: 1;
+                      min-width: 0;
+                    }
+                    .signature-section {
+                      page-break-inside: avoid;
+                    }
+                  </style>
+                </head>
+                <body>
+                  <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-light">
+                      <h5 class="mb-0">Balance Confirmation Letter</h5>
+                    </div>
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div class="company-info">
+                          <h5 class="mb-3 fw-bold text-success">Our Company</h5>
+                          <p><strong>Company Name:</strong> ABC Textiles Pvt Ltd</p>
+                          <p><strong>Address:</strong> 123, Textile Market, Indore, MP 452001</p>
+                          <p><strong>Contact:</strong> +91 98765 43210</p>
+                          <p><strong>GSTIN:</strong> 23AABCCDD123E1Z</p>
+                          <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                        </div>
+                        <div class="customer-info text-right">
+                          <h5 class="mb-3 fw-bold text-primary">Customer Details</h5>
+                          <p><strong>Name:</strong> ${customer.name}</p>
+                          <p><strong>Company:</strong> ${customer.companyName || "N/A"}</p>
+                          <p><strong>Email:</strong> ${customer.email}</p>
+                          <p><strong>Phone:</strong> ${customer.phone}</p>
+                          <p><strong>Location:</strong> Click Location</p>
+                        </div>
                       </div>
-                      <div class="company-info">
-                        <p><strong>Company Name:</strong> ABC Textiles Pvt Ltd</p>
-                        <p><strong>Address:</strong> 123, Textile Market, Indore, MP 452001</p>
-                        <p><strong>Contact:</strong> +91 98765 43210</p>
-                      </div>
-                      <h3>Dear ${customer.name},</h3>
+                      <hr />
+                      <h6 class="mb-3">Dear ${customer.name},</h6>
                       <p>This is to confirm that as per our records, your account stands at the following balance:</p>
-                      <table class="table">
-                        <tr><th>Description</th><th>Amount (₹)</th></tr>
-                        <tr><td>Opening Balance</td><td>${customer.openingBalance.toLocaleString('en-IN')}</td></tr>
-                        <tr><td>Total Sales (Dr)</td><td>${totals.totalDebit.toLocaleString('en-IN')}</td></tr>
-                        <tr><td>Total Payments (Cr)</td><td>${totals.totalCredit.toLocaleString('en-IN')}</td></tr>
-                        <tr class="table-info"><td>Current Balance</td><td>${Math.abs(currentBalance).toLocaleString('en-IN')} ${currentBalance >= 0 ? "Dr" : "Cr"}</td></tr>
+                      <table class="table table-bordered table-sm mb-4">
+                        <thead class="table-light">
+                          <tr>
+                            <th>Description</th>
+                            <th>Amount (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>Opening Balance</td>
+                            <td>${customer.openingBalance.toLocaleString('en-IN')}</td>
+                          </tr>
+                          <tr>
+                            <td>Total Sales (Dr)</td>
+                            <td>${totals.totalDebit.toLocaleString('en-IN')}</td>
+                          </tr>
+                          <tr>
+                            <td>Total Payments (Cr)</td>
+                            <td>${totals.totalCredit.toLocaleString('en-IN')}</td>
+                          </tr>
+                          <tr class="table-info fw-bold">
+                            <td>Current Balance</td>
+                            <td>
+                              ${Math.abs(currentBalance).toLocaleString('en-IN')} ${currentBalance >= 0 ? "Dr" : "Cr"}
+                            </td>
+                          </tr>
+                        </tbody>
                       </table>
-                      <p>We hereby confirm the above balance as correct.</p>
-                      <div class="signature">
-                        <p><strong>For the Company</strong></p>
-                        <div class="signature-line"></div>
-                        <p><strong>Name:</strong> Rajesh Sharma</p>
-                        <p><strong>Designation:</strong> Accountant</p>
-                        <p><strong>Place:</strong> Indore</p>
-                        <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                      <p class="fw-bold">We hereby confirm the above balance as correct.</p>
+                      <div class="d-flex justify-content-between mt-5 signature-section">
+                        <div>
+                          <p><strong>For the Company</strong></p>
+                          <div class="signature-line"></div>
+                          <p class="mt-2">
+                            <strong>Name:</strong> Rajesh Sharma<br />
+                            <strong>Designation:</strong> Accountant<br />
+                            <strong>Place:</strong> Indore<br />
+                            <strong>Date:</strong> ${new Date().toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div>
+                          <p><strong>For Customer</strong></p>
+                          <div class="signature-line"></div>
+                          <p class="mt-2">
+                            <strong>Name:</strong> ${customer.name}<br />
+                            <strong>Signature:</strong><br />
+                            <strong>Date:</strong> _______________
+                          </p>
+                        </div>
                       </div>
-                      <div class="signature">
-                        <p><strong>For Customer</strong></p>
-                        <div class="signature-line"></div>
-                        <p><strong>Name:</strong> ${customer.name}</p>
-                        <p><strong>Signature:</strong></p>
-                        <p><strong>Date:</strong> _______________</p>
-                      </div>
-                    </body>
-                  </html>
-                `);
+                    </div>
+                  </div>
+                </body>
+              </html>
+            `);
                 printWindow.document.close();
                 printWindow.focus();
                 printWindow.print();
@@ -1066,270 +1239,6 @@ const Ledgercustomer = () => {
             >
               Print Confirmation
             </Button>
-          </div>
-        </Card.Body>
-      </Card>
-      {/* Ledger Table — Always Visible */}
-      <Card className="mb-4 shadow-sm">
-        <Card className="mb-4 border-0 shadow-sm rounded-4">
-          <Card.Header className="bg-white border-0 py-3 px-4 d-flex flex-wrap justify-content-between align-items-center custom-ledger-header">
-            <div className="d-flex align-items-center gap-2 mb-2 mb-md-0">
-              <h5 className="mb-0 fw-semibold text-primary">Ledger Transactions</h5>
-            </div>
-
-            <div className="d-flex gap-2">
-              <Button
-                variant="outline-primary"
-                size="sm"
-                className="rounded-pill fw-medium px-3 py-1 custom-btn"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                {showFilters ? "Hide Filters" : "Show Filters"}
-              </Button>
-
-              <Button
-                variant="outline-danger"
-                size="sm"
-                className="rounded-pill fw-medium px-3 py-1 custom-btn"
-                onClick={resetFilters}
-              >
-                Reset
-              </Button>
-            </div>
-          </Card.Header>
-
-          {showFilters && (
-            <Card.Body className="pt-3 pb-4 px-4 bg-light border-top">
-              <Row className="g-3">
-                <Col xs={12} sm={6} md={4}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold text-secondary">From Date</Form.Label>
-                    <InputGroup>
-                      <InputGroup.Text className="bg-white">
-                        <FaCalendarAlt className="text-primary" />
-                      </InputGroup.Text>
-                      <Form.Control
-                        type="date"
-                        value={fromDate}
-                        onChange={(e) => setFromDate(e.target.value)}
-                        className="shadow-sm"
-                      />
-                    </InputGroup>
-                  </Form.Group>
-                </Col>
-
-                <Col xs={12} sm={6} md={4}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold text-secondary">To Date</Form.Label>
-                    <InputGroup>
-                      <InputGroup.Text className="bg-white">
-                        <FaCalendarAlt className="text-primary" />
-                      </InputGroup.Text>
-                      <Form.Control
-                        type="date"
-                        value={toDate}
-                        onChange={(e) => setToDate(e.target.value)}
-                        className="shadow-sm"
-                      />
-                    </InputGroup>
-                  </Form.Group>
-                </Col>
-
-                <Col xs={12} sm={6} md={4}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold text-secondary">Balance Type</Form.Label>
-                    <Form.Select
-                      value={balanceType}
-                      onChange={(e) => setBalanceType(e.target.value)}
-                      className="shadow-sm"
-                    >
-                      <option value="all">All Transactions</option>
-                      <option value="debit">Debit Only</option>
-                      <option value="credit">Credit Only</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-
-                <Col xs={12} sm={6} md={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold text-secondary">Voucher Type</Form.Label>
-                    <Form.Select
-                      value={voucherTypeFilter}
-                      onChange={(e) => setVoucherTypeFilter(e.target.value)}
-                      className="shadow-sm"
-                    >
-                      <option value="all">All Types</option>
-                      <option value="Invoice">Invoice</option>
-                      <option value="Payment">Payment</option>
-                      <option value="Return">Return</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-
-                <Col xs={12} sm={6} md={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold text-secondary">Search</Form.Label>
-                    <InputGroup>
-                      <InputGroup.Text className="bg-white">
-                        <FaSearch className="text-primary" />
-                      </InputGroup.Text>
-                      <Form.Control
-                        type="text"
-                        placeholder="Search by particulars, voucher no, or item..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="shadow-sm"
-                      />
-                    </InputGroup>
-                  </Form.Group>
-                </Col>
-              </Row>
-            </Card.Body>
-          )}
-        </Card>
-        <Card.Body>
-          <div className="table-responsive">
-            <Table striped hover className="align-middle">
-              <thead className="table-light text-black">
-                <tr>
-                  <th>Date</th>
-                  <th>Particulars</th>
-                  <th>VCH NO</th>
-                  <th>VCH TYPE</th>
-                  <th className="text-end">Debit (Dr)</th>
-                  <th className="text-end">Credit (Cr)</th>
-                  <th className="text-end">Running Balance</th>
-                  {(activeTab === "narration" || activeTab === "all") && <th>Narration</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.map((entry) => (
-                  <React.Fragment key={entry.id}>
-                    <tr>
-                      <td>{entry.date}</td>
-                      <td>
-                        <div
-                          className="d-flex align-items-center cursor-pointer"
-                          onClick={() => {
-                            if (entry.items && entry.items.length > 0) {
-                              setExpandedRows((prev) => ({
-                                ...prev,
-                                [entry.id]: !prev[entry.id],
-                              }));
-                            }
-                          }}
-                          style={{ minWidth: "120px" }}
-                        >
-                          <span className="me-2">
-                            {entry.items && entry.items.length > 0 ? (expandedRows[entry.id] ? "▼" : "▶") : " "}
-                          </span>
-                          <span>{entry.particulars}</span>
-                        </div>
-                      </td>
-                      <td>{entry.voucherNo}</td>
-                      <td>
-                        <Badge
-                          bg={
-                            entry.voucherType === "Invoice"
-                              ? "primary"
-                              : entry.voucherType === "Payment"
-                                ? "success"
-                                : entry.voucherType === "Return"
-                                  ? "warning"
-                                  : "secondary"
-                          }
-                        >
-                          {entry.voucherType === "Invoice"
-                            ? "Sales"
-                            : entry.voucherType === "Payment"
-                              ? "Receipt"
-                              : entry.voucherType === "Return"
-                                ? "Sales Return"
-                                : entry.voucherType}
-                        </Badge>
-                      </td>
-                      <td className="text-end">
-                        {entry.debit
-                          ? entry.debit.toLocaleString("en-IN", {
-                            style: "currency",
-                            currency: "INR",
-                          })
-                          : ""}
-                      </td>
-                      <td className="text-end">
-                        {entry.credit
-                          ? entry.credit.toLocaleString("en-IN", {
-                            style: "currency",
-                            currency: "INR",
-                          })
-                          : ""}
-                      </td>
-                      <td className={`text-end ${entry.balanceType === "Dr" ? "text-primary" : "text-success"}`}>
-                        {entry.balance}
-                      </td>
-                      {(activeTab === "narration" || activeTab === "all") && (
-                        <td className="text-muted small" style={{ maxWidth: "200px", whiteSpace: "normal" }}>
-                          {entry.narration || "—"}
-                        </td>
-                      )}
-                    </tr>
-                    {entry.items && entry.items.length > 0 && expandedRows[entry.id] && (
-                      <tr>
-                        <td colSpan={(activeTab === "narration" || activeTab === "all") ? 8 : 7} className="p-0" style={{ backgroundColor: "#f9f9f9" }}>
-                          <div className="p-2 ps-4 bg-light border-top">
-                            <Table size="sm" bordered className="mb-0 bg-white shadow-sm" style={{ fontSize: "0.85rem" }}>
-                              <thead className="table-light">
-                                <tr>
-                                  <th>Item / Material</th>
-                                  <th>Qty</th>
-                                  <th>Rate (₹)</th>
-                                  <th>Disc (%)</th>
-                                  <th>Tax (%)</th>
-                                  <th>Tax Amt (₹)</th>
-                                  <th>Value (₹)</th>
-                                  <th>Description</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {entry.items.map((item, idx) => (
-                                  <tr key={idx}>
-                                    <td className="fw-bold">{item.item}</td>
-                                    <td>{item.quantity}</td>
-                                    <td>{parseFloat(item.rate).toFixed(3)}</td>
-                                    <td>{item.discount}</td>
-                                    <td>{item.tax}</td>
-                                    <td>₹{parseFloat(item.taxAmt).toFixed(2)}</td>
-                                    <td>₹{parseFloat(item.value).toFixed(2)}</td>
-                                    <td className="text-muted">{item.description}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </Table>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-              <tfoot className="table-light">
-                <tr>
-                  <td colSpan={(activeTab === "narration" || activeTab === "all") ? "5" : "4"} className="text-end fw-bold">
-                    Total
-                  </td>
-                  <td className="text-end fw-bold">
-                    {totals.totalDebit.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
-                  </td>
-                  <td className="text-end fw-bold">
-                    {totals.totalCredit.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
-                  </td>
-                  <td className="text-end fw-bold">
-                    {Math.abs(currentBalance).toLocaleString("en-IN", { style: "currency", currency: "INR" })}{" "}
-                    {currentBalance >= 0 ? "Dr" : "Cr"}
-                  </td>
-                </tr>
-              </tfoot>
-            </Table>
           </div>
         </Card.Body>
       </Card>
@@ -1345,7 +1254,7 @@ const Ledgercustomer = () => {
             <CustomerDetailsTab />
             {/* <ItemsDetailsTab /> */}
             <CountTableTab />
-            {/* <NarrationTab /> */}
+            <NarrationTab />
             <ConfirmLetterTab />
           </>
         );
