@@ -20,6 +20,8 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min";
 import BaseUrl from "../../../Api/BaseUrl";
 import GetCompanyId from "../../../Api/GetCompanyId";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Expense = () => {
   const companyId = GetCompanyId();
@@ -266,7 +268,7 @@ const Expense = () => {
       const result = await response.json();
 
       if (result.status) { // Changed from result.success to result.status
-        alert("Voucher Created Successfully!");
+        toast.success("Voucher Created Successfully!");
         form.reset();
         setTableRows([{ id: 1, account: "", amount: "0.00", narration: "" }]);
         setNarration("");
@@ -275,11 +277,11 @@ const Expense = () => {
         setShowCreateModal(false);
         fetchExpenseVouchers();
       } else {
-        alert("Error creating voucher: " + (result.message || "Unknown error"));
+        toast.error("Error creating voucher: " + (result.message || "Unknown error"));
       }
     } catch (error) {
       console.error("Error creating voucher:", error);
-      alert("Error creating voucher. Please try again.");
+      toast.error("Error creating voucher. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -315,16 +317,16 @@ const Expense = () => {
       const result = await response.json();
 
       if (result.status) { // Changed from result.success to result.status
-        alert("Voucher Updated Successfully!");
+        toast.success("Voucher Updated Successfully!");
         setShowEditModal(false);
         setEditExpense(null);
         fetchExpenseVouchers();
       } else {
-        alert("Error updating voucher: " + (result.message || "Unknown error"));
+        toast.error("Error updating voucher: " + (result.message || "Unknown error"));
       }
     } catch (error) {
       console.error("Error updating voucher:", error);
-      alert("Error updating voucher. Please try again.");
+      toast.error("Error updating voucher. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -347,16 +349,16 @@ const Expense = () => {
         const result = await response.json();
 
         if (result.status) { // Changed from result.success to result.status
-          alert("Voucher Deleted Successfully!");
+          toast.success("Voucher Deleted Successfully!");
           setShowDeleteModal(false);
           setDeleteExpense(null);
           fetchExpenseVouchers();
         } else {
-          alert("Error deleting voucher: " + (result.message || "Unknown error"));
+          toast.error("Error deleting voucher: " + (result.message || "Unknown error"));
         }
       } catch (error) {
         console.error("Error deleting voucher:", error);
-        alert("Error deleting voucher. Please try again.");
+        toast.error("Error deleting voucher. Please try again.");
       } finally {
         setSubmitting(false);
       }
@@ -403,6 +405,9 @@ const Expense = () => {
 
   return (
     <div className="bg-light p-4 mt-1 product-header">
+      {/* Toast Container */}
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      
       {/* Header */}
       <div className="d-flex justify-content-between gap-4 mb-4">
         <div><h5 className="fw-bold mb-1">Expense Voucher</h5></div>
