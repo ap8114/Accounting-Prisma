@@ -634,6 +634,122 @@ const InventoryDetails = () => {
           <strong>Closing Inventory:</strong>{" "}
           <span className="font-medium">130.00 yds X 0.360 = 46.800</span>
         </div>
+
+        {/* Stock Transfer History */}
+        <div className="my-6">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-lg font-medium text-purple-700">
+              Stock Transfer History  
+            </h4>
+            <Badge bg="warning" text="dark" className="me-2">
+              Total Returns: ₹{totalReturns.toFixed(2)}
+            </Badge>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="table-responsive">
+              <table className="table table-bordered">
+                <thead className="bg-gray-200">
+                  <tr>
+                    <th>Voucher No</th>
+                    <th>Date</th>
+                    <th>Source</th>
+                    <th>Destination</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>VCH-001</td>
+                    <td>2025-11-10</td>
+                    <td>Main Warehouse</td>
+                    <td>Branch A</td>
+                    <td>5</td>
+                    <td>₹12,500</td>
+                  </tr>
+
+                  <tr>
+                    <td>VCH-002</td>
+                    <td>2025-11-11</td>
+                    <td>Branch A</td>
+                    <td>Branch B</td>
+                    <td>3</td>
+                    <td>₹7,800</td>
+                  </tr>
+
+                  <tr>
+                    <td>VCH-003</td>
+                    <td>2025-11-12</td>
+                    <td>Main Warehouse</td>
+                    <td>Retail Outlet</td>
+                    <td>8</td>
+                    <td>₹21,400</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Inventory Adjustments History */}
+        <div className="my-6">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-lg font-medium text-green-700">
+              Inventory Adjustments History
+            </h4>
+            <Badge bg="green" text="dark" className="me-2">
+              Total Returns: ₹{totalReturns.toFixed(2)}
+            </Badge>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="table-responsive">
+              <table className="table table-bordered">
+                <thead className="bg-green-100">
+                  <tr>
+                    <th>Auto Voucher No</th>
+                    <th>Manual Voucher No</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Source Warehouse</th>
+                    <th>Items</th>
+                    <th>Total Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>ADJ-001</td>
+                    <td>MV-101</td>
+                    <td>2025-11-10</td>
+                    <td>Addition</td>
+                    <td>Main Warehouse</td>
+                    <td>5 item(s)</td>
+                    <td>₹12,500</td>
+                  </tr>
+
+                  <tr>
+                    <td>ADJ-002</td>
+                    <td>-</td>
+                    <td>2025-11-11</td>
+                    <td>Deduction</td>
+                    <td>Branch A</td>
+                    <td>3 item(s)</td>
+                    <td>₹7,800</td>
+                  </tr>
+
+                  <tr>
+                    <td>ADJ-003</td>
+                    <td>MV-105</td>
+                    <td>2025-11-12</td>
+                    <td>Stock Correction</td>
+                    <td>Warehouse B</td>
+                    <td>8 item(s)</td>
+                    <td>₹21,400</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
