@@ -56,7 +56,15 @@ const QuotationTab = ({
     country: '',
     state: '',
     city: '',
-    postal_code: ''
+    postal_code: '',
+    bank_details: {
+      bank_name: '',
+      account_number: '',
+      account_holder: '',
+      ifsc_code: ''
+    },
+    notes: '',
+    terms_and_conditions: ''
   });
 
   // Fetch customers and company info
@@ -78,8 +86,6 @@ const QuotationTab = ({
       }
     }
 
-
-    // Inside the fetchCompanies function, update the state assignment:
     const fetchCompanies = async () => {
       try {
         const res = await axiosInstance.get(`${BaseUrl}auth/Company`);
@@ -93,13 +99,29 @@ const QuotationTab = ({
           setCompanyInfo({
             name: selected.name || '',
             email: selected.email || '',
-            company_logo_url: selected.branding?.company_logo_url || '', // Fixed: Access branding object
+            company_logo_url: selected.branding?.company_logo_url || '',
             address: selected.address || '',
             country: selected.country || '',
             state: selected.state || '',
             city: selected.city || '',
-            postal_code: selected.postal_code || ''
+            postal_code: selected.postal_code || '',
+            bank_details: {
+              bank_name: selected.bank_details?.bank_name || '',
+              account_number: selected.bank_details?.account_number || '',
+              account_holder: selected.bank_details?.account_holder || '',
+              ifsc_code: selected.bank_details?.ifsc_code || ''
+            },
+            notes: selected.notes || '',
+            terms_and_conditions: selected.terms_and_conditions || ''
           });
+
+          // Set the bank details and notes/terms to the form
+          handleChange("quotation", "bankName", selected.bank_details?.bank_name || '');
+          handleChange("quotation", "accountNo", selected.bank_details?.account_number || '');
+          handleChange("quotation", "accountHolder", selected.bank_details?.account_holder || '');
+          handleChange("quotation", "ifsc", selected.bank_details?.ifsc_code || '');
+          handleChange("quotation", "notes", selected.notes || '');
+          handleChange("quotation", "terms", selected.terms_and_conditions || '');
         }
       } catch (err) {
         console.error('Failed to fetch companies:', err);
@@ -156,21 +178,37 @@ const QuotationTab = ({
     };
   }, []);
 
-  // Optional: Handle save callback
+  // ✅ FIXED: Handle save callback and close modal on success
   const handleSave = (customerData, mode) => {
     console.log(`${mode === 'edit' ? 'Updated' : 'Added'} customer:`, customerData);
-    // Refresh customer list after adding/editing
-    const fetchCustomers = async () => {
-      try {
-        const response = await axiosInstance.get(`${BaseUrl}vendorCustomer/company/${company_id}?type=customer`);
-        if (response.data.success) {
-          setCustomerList(response.data.data);
-        }
-      } catch (err) {
-        console.error('Failed to refresh customers:', err);
+    
+    // Instead of making another API call, just update the local state
+    if (mode === 'add') {
+      // Add the new customer to the list
+      setCustomerList(prev => [...prev, customerData]);
+    } else {
+      // Update the existing customer in the list
+      setCustomerList(prev => 
+        prev.map(customer => 
+          customer.id === customerData.id ? customerData : customer
+        )
+      );
+    }
+    
+    // Also update the filtered list if needed
+    setFilteredCustomerList(prev => {
+      if (mode === 'add') {
+        return [...prev, customerData];
+      } else {
+        return prev.map(customer => 
+          customer.id === customerData.id ? customerData : customer
+        );
       }
-    };
-    fetchCustomers();
+    });
+
+    // ✅ NEW: Show success message and close the modal
+    toast.success(`Customer ${mode === 'edit' ? 'updated' : 'added'} successfully!`);
+    setShowModal(false); // This line closes the modal
   };
 
   // Handle customer selection
@@ -185,82 +223,157 @@ const QuotationTab = ({
     setShowCustomerDropdown(false);
   };
 
-  // 🚀 POST API Function - Save Quotation
+  // 🚀 Fixed POST API Function - Save Quotation
   const saveQuotation = async (status) => {
     try {
-      const fd = new FormData();
+      // Create a data object instead of FormData for JSON payload
+      const data = {
+        // Company Information
+        company_id: company_id,
+        company_name: companyInfo.name || '',
+        company_address: companyInfo.address || '',
+        company_email: companyInfo.email || '',
+        company_phone: formData.quotation.companyPhone || '',
+        logo_url: companyInfo.company_logo_url || '',
+        
+        // Customer Information
+        qoutation_to_customer_name: formData.quotation.billToName || '',
+        qoutation_to_customer_address: formData.quotation.billToAddress || '',
+        qoutation_to_customer_email: formData.quotation.billToEmail || '',
+        qoutation_to_customer_phone: formData.quotation.billToPhone || '',
+        
+        // Reference Numbers
+        ref_no: formData.quotation.referenceId || '',
+        Manual_ref_ro: '', // Not in your form
+        quotation_no: formData.quotation.quotationNo || '',
+        manual_quo_no: formData.quotation.manualQuotationRef || '',
+        quotation_date: formData.quotation.quotationDate || '',
+        valid_till: formData.quotation.validDate || '',
+        due_date: '', // Not in your form
+        
+        // Calculated Totals
+        subtotal: formData.quotation.items.reduce((sum, item) =>
+          sum + (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0), 0),
+        sub_total: formData.quotation.items.reduce((sum, item) =>
+          sum + (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0), 0),
+        tax: formData.quotation.items.reduce((sum, item) => {
+          const subtotalItem = (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0);
+          return sum + (subtotalItem * (parseFloat(item.tax) || 0)) / 100;
+        }, 0),
+        tax_total: formData.quotation.items.reduce((sum, item) => {
+          const subtotalItem = (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0);
+          return sum + (subtotalItem * (parseFloat(item.tax) || 0)) / 100;
+        }, 0),
+        discount: formData.quotation.items.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0),
+        discount_total: formData.quotation.items.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0),
+        total: calculateTotalWithTaxAndDiscount(formData.quotation.items),
+        grand_total: calculateTotalWithTaxAndDiscount(formData.quotation.items),
+        
+        // Bank Details
+        bank_name: formData.quotation.bankName || '',
+        account_no: formData.quotation.accountNo || '',
+        account_holder: formData.quotation.accountHolder || '',
+        ifsc_code: formData.quotation.ifsc || '',
+        bank_details: {
+          bank_name: formData.quotation.bankName || '',
+          account_no: formData.quotation.accountNo || '',
+          account_holder: formData.quotation.accountHolder || '',
+          ifsc_code: formData.quotation.ifsc || ''
+        },
+        
+        // Notes & Terms
+        notes: formData.quotation.notes || '',
+        terms: formData.quotation.terms || '',
+        terms_conditions: formData.quotation.terms || '',
+        
+        // URLs
+        signature_url: '',
+        photo_url: '',
+        attachment_url: '',
+        
+        // Bill To Information
+        bill_to_attention_name: '', // Not in your form
+        bill_to_company_name: formData.quotation.billToName || '',
+        bill_to_company_address: formData.quotation.billToAddress || '',
+        bill_to_company_phone: formData.quotation.billToPhone || '',
+        bill_to_company_email: formData.quotation.billToEmail || '',
+        bill_to_customer_name: formData.quotation.billToName || '',
+        bill_to_customer_address: formData.quotation.billToAddress || '',
+        bill_to_customer_email: formData.quotation.billToEmail || '',
+        bill_to_customer_phone: formData.quotation.billToPhone || '',
+        
+        // Ship To Information (using same as bill to for now)
+        ship_to_attention_name: '', // Not in your form
+        ship_to_company_name: formData.quotation.billToName || '',
+        ship_to_company_address: formData.quotation.billToAddress || '',
+        ship_to_company_phone: formData.quotation.billToPhone || '',
+        ship_to_company_email: formData.quotation.billToEmail || '',
+        ship_to_customer_name: formData.quotation.billToName || '',
+        ship_to_customer_address: formData.quotation.billToAddress || '',
+        ship_to_customer_email: formData.quotation.billToEmail || '',
+        ship_to_customer_phone: formData.quotation.billToPhone || '',
+        
+        // Payment Information
+        payment_received_customer_name: formData.quotation.billToName || '',
+        payment_received_customer_address: formData.quotation.billToAddress || '',
+        payment_received_customer_email: formData.quotation.billToEmail || '',
+        payment_received_customer_phone: formData.quotation.billToPhone || '',
+        
+        // Driver Information
+        driver_name: '', // Not in your form
+        driver_phone: '', // Not in your form
+        driver_details: {
+          driver_name: '', // Not in your form
+          driver_phone: '' // Not in your form
+        },
+        
+        // Payment Details
+        amount_received: 0,
+        total_amount: calculateTotalWithTaxAndDiscount(formData.quotation.items),
+        payment_status: 'Pending',
+        total_invoice: calculateTotalWithTaxAndDiscount(formData.quotation.items),
+        balance: calculateTotalWithTaxAndDiscount(formData.quotation.items),
+        payment_note: 'Payment pending',
+        
+        // Status
+        quotation_status: status === 'Draft' ? 'Draft' : 'Pending',
+        sales_order_status: 'Pending',
+        delivery_challan_status: 'Pending',
+        invoice_status: 'Pending',
+        draft_status: status === 'Draft' ? 'Draft' : 'Final',
+        
+        // Document Numbers
+        SO_no: '', // Not in your form
+        Manual_SO_ref: '', // Not in your form
+        Challan_no: '', // Not in your form
+        Manual_challan_no: '', // Not in your form
+        Manual_DC_no: '', // Not in your form
+        invoice_no: '', // Not in your form
+        Manual_invoice_no: '', // Not in your form
+        Payment_no: '', // Not in your form
+        Manual_payment_no: '', // Not in your form
+        customer_ref: formData.quotation.customerReference || '',
+        
+        // Items
+        items: formData.quotation.items.map(item => ({
+          item_name: item.item_name || '',
+          qty: parseInt(item.qty) || 0,
+          quantity: parseInt(item.qty) || 0,
+          rate: parseFloat(item.rate) || 0,
+          tax_percent: parseFloat(item.tax) || 0,
+          tax: parseFloat(item.tax) || 0,
+          discount: parseFloat(item.discount) || 0,
+          amount: (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0)
+        })),
+        
+        // Sales Order Items (empty for now)
+        salesorderitems: []
+      };
 
-      // Basic Fields
-      fd.append('company_id', company_id);
-      fd.append('customer_name', formData.quotation.billToName || '');
-      fd.append('customer_address', formData.quotation.billToAddress || '');
-      fd.append('customer_email', formData.quotation.billToEmail || '');
-      fd.append('customer_phone', formData.quotation.billToPhone || '');
-      fd.append('ref_no', formData.quotation.referenceId || '');
-      fd.append('customer_ref', formData.quotation.customerReference || '');
-      fd.append('quotation_no', formData.quotation.quotationNo || '');
-      fd.append('manual_quo_no', formData.quotation.manualQuotationRef || '');
-      fd.append('quotation_date', formData.quotation.quotationDate || '');
-      fd.append('valid_till', formData.quotation.validDate || '');
-
-      // Calculated Totals
-      const subtotal = formData.quotation.items.reduce((sum, item) =>
-        sum + (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0), 0);
-      const tax = formData.quotation.items.reduce((sum, item) => {
-        const subtotalItem = (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0);
-        return sum + (subtotalItem * (parseFloat(item.tax) || 0)) / 100;
-      }, 0);
-      const discount = formData.quotation.items.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0);
-      const total = calculateTotalWithTaxAndDiscount(formData.quotation.items);
-
-      fd.append('subtotal', subtotal.toFixed(2));
-      fd.append('tax', tax.toFixed(2));
-      fd.append('discount', discount.toFixed(2));
-      fd.append('total', total.toFixed(2));
-
-      // Bank Details
-      fd.append('bank_name', formData.quotation.bankName || '');
-      fd.append('account_no', formData.quotation.accountNo || '');
-      fd.append('account_holder', formData.quotation.accountHolder || '');
-      fd.append('ifsc', formData.quotation.ifsc || '');
-
-      // Notes & Terms
-      fd.append('notes', formData.quotation.notes || '');
-      fd.append('terms', formData.quotation.terms || '');
-
-      // Status (Draft / Final)
-      fd.append('status', status); // "Draft" or "Final"
-
-      // Items as JSON string
-      const itemsArray = formData.quotation.items.map(item => ({
-        item_name: item.item_name || '',
-        qty: parseInt(item.qty) || 0,
-        rate: parseFloat(item.rate) || 0,
-        tax_percent: parseFloat(item.tax) || 0,
-        discount: parseFloat(item.discount) || 0,
-        amount: (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0)
-      }));
-      fd.append('items', JSON.stringify(itemsArray));
-
-      // Files (if any)
-      if (formData.quotation.logo) fd.append('logo', formData.quotation.logo);
-      if (formData.quotation.signature) fd.append('signature', formData.quotation.signature);
-      if (formData.quotation.photo) fd.append('photo', formData.quotation.photo);
-      if (formData.quotation.attachment) {
-        // If multiple attachments, loop through them
-        if (Array.isArray(formData.quotation.attachment)) {
-          formData.quotation.attachment.forEach(file => {
-            fd.append('attachment', file);
-          });
-        } else {
-          fd.append('attachment', formData.quotation.attachment);
-        }
-      }
-
-      // Send POST request
-      const response = await axiosInstance.post('/salesorder/quotation', fd, {
+      // Send POST request with JSON payload
+      const response = await axiosInstance.post(`${BaseUrl}sales-order/create-sales-order`, data, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'application/json'
         }
       });
 
@@ -730,7 +843,7 @@ const QuotationTab = ({
         editMode={false}
         customerFormData={{}}
         setCustomerFormData={() => { }} // Will be initialized inside modal
-        onSave={handleSave}
+        onSave={handleSave} // ✅ This now handles closing the modal
         customerId={null}
         keyboard={false}
       />
