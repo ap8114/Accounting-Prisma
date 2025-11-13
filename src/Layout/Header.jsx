@@ -77,6 +77,7 @@ const Header = ({ onToggleSidebar }) => {
 
         <img
           src={newlogo}
+
           alt="Logo"
           className="img-fluid sidebar-logo"
           style={{
@@ -117,11 +118,15 @@ const Header = ({ onToggleSidebar }) => {
         <div className="d-flex align-items-center flex-grow-1 gap-3">
           <img
             src={newlogo}
+            // src="https://i.ibb.co/1tfX1Sfs/Wathiq-Official-Logo-002.jpg"
             alt="Logo"
             className="img-fluid sidebar-logo"
             style={{
-              height: "40px",
+              // height: "60px",
+              // width: "160px",
+               height: "40px",
               width: "202px",
+
               display: "block !important",
               visibility: "visible !important",
               opacity: "1 !important",

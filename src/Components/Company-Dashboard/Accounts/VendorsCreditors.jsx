@@ -61,6 +61,30 @@ const VendorsCustomers = () => {
     accountBalance: "",
   });
 
+  // Function to determine balance type based on account type
+  const getBalanceType = (accountType) => {
+    const debitTypes = [
+      "Sundry Debtors", "Current Assets", "Loans & Advances",
+      "Fixed Assets", "Investments", "Deposits (Assets)",
+      "Cash-in-hand", "Direct Expenses", "Indirect Expenses"
+    ];
+
+    return debitTypes.includes(accountType) ? "Debit" : "Credit";
+  };
+
+  // Handle account type change
+  const handleAccountTypeChange = (e) => {
+    const selectedType = e.target.value;
+    const balanceType = getBalanceType(selectedType);
+
+    setVendorFormData({
+      ...vendorFormData,
+      accountType: selectedType,
+      balanceType: balanceType
+    });
+  };
+
+  // Centralized fetch function with loading/error handling
   const fetchVendors = async () => {
     if (!CompanyId) {
       setError("Company ID not found. Please login again.");
@@ -121,11 +145,13 @@ const VendorsCustomers = () => {
 
   const handleAddClick = () => {
     const accountType = getAccountType(vendorType);
+    const balanceType = getBalanceType(accountType);
+
     setVendorFormData({
       name: "",
       accountType: accountType,
       accountName: "",
-      balanceType: "Credit",
+      balanceType: balanceType,
       payable: "",
       currentBalance: "",
       creationDate: "",
@@ -156,15 +182,17 @@ const VendorsCustomers = () => {
   };
 
   const handleEditClick = (vendor) => {
-    const accountType = getAccountType(vendorType);
+    const accountType = vendor.accountType || getAccountType(vendorType);
+    const balanceType = getBalanceType(accountType);
+
     setVendorFormData({
       name: vendor.name || "",
       nameArabic: vendor.nameArabic || "",
       companyName: vendor.companyName || "",
       companyLocation: vendor.companyLocation || "",
-      accountType: vendor.accountType || accountType,
+      accountType: accountType,
       accountName: vendor.accountName || "",
-      balanceType: "Credit",
+      balanceType: balanceType,
       payable: vendor.payable || "",
       accountBalance: vendor.payable?.toString() || "",
       creationDate: vendor.creationDate || "",
@@ -207,8 +235,8 @@ const VendorsCustomers = () => {
       formData.append("name_arabic", vendorFormData.nameArabic?.trim() || "");
       formData.append("company_name", vendorFormData.companyName?.trim() || "");
       formData.append("google_location", vendorFormData.companyLocation?.trim() || "");
-      formData.append("account_type", getAccountType(vendorType));
-      formData.append("balance_type", "Credit");
+      formData.append("account_type", vendorFormData.accountType);
+      formData.append("balance_type", vendorFormData.balanceType);
       formData.append("account_name", vendorFormData.accountName?.trim() || vendorFormData.name.trim());
       formData.append("account_balance", parseFloat(vendorFormData.accountBalance) || 0);
 
@@ -274,11 +302,13 @@ const VendorsCustomers = () => {
 
   const resetForm = () => {
     const accountType = getAccountType(vendorType);
+    const balanceType = getBalanceType(accountType);
+
     setVendorFormData({
       name: "",
       accountType: accountType,
       accountName: "",
-      balanceType: "Credit",
+      balanceType: balanceType,
       payable: "",
       currentBalance: "",
       creationDate: "",
@@ -980,12 +1010,37 @@ const VendorsCustomers = () => {
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Account Type</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={getAccountType(vendorType)}
-                    disabled
+                  <Form.Select
+                    value={vendorFormData.accountType}
+                    onChange={handleAccountTypeChange}
                     style={{ backgroundColor: "#fff" }}
-                  />
+                  >
+                    <option value="Cash-in-hand">Cash-in-hand</option>
+                    <option value="Bank A/Cs">Bank A/Cs</option>
+                    <option value="Sundry Debtors">Sundry Debtors</option>
+                    <option value="Sundry Creditors">Sundry Creditors</option>
+                    <option value="Purchases A/C">Purchases A/C</option>
+                    <option value="Purchases Return">Purchases Return</option>
+                    <option value="Sales A/C">Sales A/C</option>
+                    <option value="Sales Return">Sales Return</option>
+                    <option value="Capital A/C">Capital A/C</option>
+                    <option value="Direct Expenses">Direct Expenses</option>
+                    <option value="Indirect Expenses">Indirect Expenses</option>
+                    <option value="Direct Income">Direct Income</option>
+                    <option value="Indirect Income">Indirect Income</option>
+                    <option value="Current Assets">Current Assets</option>
+                    <option value="Current Liabilities">Current Liabilities</option>
+                    <option value="Misc. Expenses">Misc. Expenses</option>
+                    <option value="Misc. Income">Misc. Income</option>
+                    <option value="Loans (Liability)">Loans (Liability)</option>
+                    <option value="Loans & Advances">Loans & Advances</option>
+                    <option value="Fixed Assets">Fixed Assets</option>
+                    <option value="Investments">Investments</option>
+                    <option value="Bank OD A/C">Bank OD A/C</option>
+                    <option value="Deposits (Assets)">Deposits (Assets)</option>
+                    <option value="Provisions">Provisions</option>
+                    <option value="Reserves & Surplus">Reserves & Surplus</option>
+                  </Form.Select>
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -993,7 +1048,8 @@ const VendorsCustomers = () => {
                   <Form.Label>Balance Type</Form.Label>
                   <Form.Control
                     type="text"
-                    value="Credit"
+                    value={vendorFormData.balanceType}
+                    readOnly
                     disabled
                     style={{ backgroundColor: "#fff" }}
                   />

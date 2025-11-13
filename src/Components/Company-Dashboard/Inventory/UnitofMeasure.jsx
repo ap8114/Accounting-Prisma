@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Table, Modal, Button, Form } from "react-bootstrap";
 import { FaEdit, FaTrash } from "react-icons/fa";
-import * as XLSX from "xlsx";
 import GetCompanyId from '../../../Api/GetCompanyId';
-import BaseUrl from '../../../Api/BaseUrl'; // ✅ Import BaseUrl
-import axiosInstance from '../../../Api/axiosInstance'; // ✅ Import axiosInstance
+import BaseUrl from '../../../Api/BaseUrl';
+import axiosInstance from '../../../Api/axiosInstance';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import * as XLSX from 'xlsx';
 
 const companyId = GetCompanyId();
 
@@ -20,46 +20,70 @@ const UnitOfMeasure = () => {
 
   const [newUOM, setNewUOM] = useState("");
   const [showAddUOMModal, setShowAddUOMModal] = useState(false);
-  const [uoms, setUoms] = useState([]);
 
   // ✅ For Unit Details Modal
   const [showUOMModal, setShowUOMModal] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState("");
   const [weightPerUnit, setWeightPerUnit] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState('');
 
   // ✅ For Delete Confirmation Modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
+  // ✅ FIXED: Changed from direct assignment to useState hook
+  const [dynamicLabel, setDynamicLabel] = useState('Weight per Unit');
+
+  // Initialize uoms as an empty array
+  const [uoms, setUoms] = useState([]);
+
+  // Helper functions
+  const getUOMsForCategory = (category) => {
+    const uomCategories = {
+      weight: ['KG', 'G', 'LB', 'OZ', 'TON', 'MG', 'Tonne', 'Carat'],
+      area: ['SQM', 'SQFT', 'ACRE', 'HECTARE', 'SQKM', 'SQMILE', 'SQCM', 'SQMM'],
+      volume: ['L', 'ML', 'GAL', 'LTR', 'CUBIC M', 'CUBIC FT', 'CUBIC CM', 'CUBIC MM'],
+      length: ['M', 'CM', 'MM', 'FT', 'IN', 'YD', 'KM', 'MILE', 'MM', 'MICRON'],
+      count: ['PCS', 'NOS', 'UNIT', 'SET', 'PAIR', 'DOZEN', 'BUNDLE', 'KIT']
+    };
+
+    // Return empty array if no category is selected
+    if (!category) return [];
+    return uomCategories[category] || [];
+  };
+
+  const getLabelForCategory = (category) => {
+    const labels = {
+      weight: 'Weight per Unit',
+      area: 'Area per Unit',
+      volume: 'Volume per Unit',
+      length: 'Length per Unit',
+      count: 'Count per Unit'
+    };
+
+    return labels[category] || 'Measurement per Unit';
+  };
+
+  const getCategoryDefaultUnit = (category) => {
+    const defaultUnits = {
+      weight: 'KG',
+      area: 'SQM',
+      volume: 'L',
+      length: 'M',
+      count: 'PCS'
+    };
+
+    return defaultUnits[category] || 'KG';
+  };
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10; // Changed from 5 to 10
+  const itemsPerPage = 10;
 
   // Loading & Error States for API
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [uomLoading, setUomLoading] = useState(false); // Separate loading for UOM dropdown
-  const [unitsLoading, setUnitsLoading] = useState(false); // Loading for units table
-
-  // Fetch UOMs from API - NEW ENDPOINT: /api/uoms
-  const fetchUOMs = async () => {
-    setUomLoading(true);
-    try {
-      const response = await axiosInstance.get(`${BaseUrl}uoms`);
-      if (response.data.success) { // ✅ Changed from 'status' to 'success'
-        // Extract unique unit names from the response data
-        const uniqueUoms = [...new Set(response.data.data.map(item => item.unit_name))];
-        setUoms(uniqueUoms);
-      } else {
-        setError("Failed to fetch UOMs");
-      }
-    } catch (err) {
-      console.error("Fetch UOMs API Error:", err);
-      setError("Failed to fetch UOMs. Please try again.");
-    } finally {
-      setUomLoading(false);
-    }
-  };
+  const [unitsLoading, setUnitsLoading] = useState(false);
 
   // Fetch Units from API by company ID - using the specific endpoint
   const fetchUnits = async () => {
@@ -67,12 +91,16 @@ const UnitOfMeasure = () => {
     try {
       // ✅ NEW ENDPOINT: /api/unit-details/getUnitDetailsByCompanyId/{company_id}
       const response = await axiosInstance.get(`${BaseUrl}unit-details/getUnitDetailsByCompanyId/${companyId}`);
-      
+
       console.log("API Response:", response.data); // Debug log
-      
+
       if (response.data.success) { // ✅ Changed from 'status' to 'success'
         // The API already filters by company_id, so we can use the data directly
         setUnits(response.data.data);
+
+        // Extract unique UOM names from the response data
+        const uniqueUoms = [...new Set(response.data.data.map(item => item.uom_name))];
+        setUoms(uniqueUoms);
       } else {
         setError("Failed to fetch units");
       }
@@ -86,7 +114,6 @@ const UnitOfMeasure = () => {
 
   // Load data when component mounts
   useEffect(() => {
-    fetchUOMs();
     fetchUnits();
   }, []);
 
@@ -96,13 +123,31 @@ const UnitOfMeasure = () => {
     setUnitName("");
     setAbbreviation("");
     setEditId(null);
+    setWeightPerUnit("");
+    setSelectedCategory("");
+    setDynamicLabel("Weight per Unit");
   };
 
   const handleModalShow = (data = null) => {
+    console.log("handleModalShow called with data:", data); // Debug log
+
     if (data) {
+      console.log("Editing unit with ID:", data.id); // Debug log
       setEditId(data.id);
       setUnitName(data.uom_name || ""); // ✅ Changed from 'unit_name' to 'uom_name'
       setWeightPerUnit(data.weight_per_unit || "");
+      // Set category based on the category field in the data
+      if (data.category) {
+        const lowerCaseCategory = data.category.toLowerCase();
+        setSelectedCategory(lowerCaseCategory);
+        setDynamicLabel(getLabelForCategory(lowerCaseCategory));
+      }
+    } else {
+      setEditId(null);
+      setUnitName("");
+      setWeightPerUnit("");
+      setSelectedCategory("");
+      setDynamicLabel("Weight per Unit");
     }
     setShowModal(true);
   };
@@ -110,30 +155,35 @@ const UnitOfMeasure = () => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
-      // Find the UOM ID from the selected unit name
-      const uomResponse = await axiosInstance.get(`${BaseUrl}uoms`);
-      let uomId = null;
-      
-      if (uomResponse.data.success) { // ✅ Changed from 'status' to 'success'
-        const selectedUomData = uomResponse.data.data.find(item => item.unit_name === unitName);
-        if (selectedUomData) {
-          uomId = selectedUomData.id;
-        }
+      // Determine the category based on the selected unit name
+      let category = 'WEIGHT'; // Default
+      if (getUOMsForCategory('weight').includes(unitName.toUpperCase())) {
+        category = 'WEIGHT';
+      } else if (getUOMsForCategory('area').includes(unitName.toUpperCase())) {
+        category = 'AREA';
+      } else if (getUOMsForCategory('volume').includes(unitName.toUpperCase())) {
+        category = 'VOLUME';
+      } else if (getUOMsForCategory('length').includes(unitName.toUpperCase())) {
+        category = 'LENGTH';
+      } else if (getUOMsForCategory('count').includes(unitName.toUpperCase())) {
+        category = 'COUNT';
       }
 
       const unitData = {
         company_id: companyId,
-        uom_id: uomId,
+        uom_name: unitName, // Send the name, not ID
+        category: category,
         weight_per_unit: weightPerUnit,
       };
 
       if (editId) {
         // Update existing unit
+        console.log("Updating unit with ID:", editId, "Data:", unitData); // Debug log
         const response = await axiosInstance.put(`${BaseUrl}unit-details/${editId}`, unitData);
         if (response.data.success) { // ✅ Changed from 'status' to 'success'
-          setUnits(units.map(u => u.id === editId ? { ...u, ...unitData, uom_name: unitName } : u)); // ✅ Changed from 'unit_name' to 'uom_name'
+          setUnits(units.map(u => u.id === editId ? { ...u, ...unitData } : u));
           toast.success("Unit updated successfully!", {
             toastId: 'unit-update-success',
             autoClose: 3000
@@ -141,9 +191,9 @@ const UnitOfMeasure = () => {
         }
       } else {
         // Create new unit
-        const response = await axiosInstance.post(`${BaseUrl}unit-details`, unitData);
+        const response = await axiosInstance.post("unit-details", unitData);
         if (response.data.success) { // ✅ Changed from 'status' to 'success'
-          setUnits([...units, { ...response.data.data, uom_name: unitName }]); // ✅ Changed from 'unit_name' to 'uom_name'
+          setUnits([...units, { ...response.data.data, uom_name: unitName }]);
           toast.success("Unit created successfully!", {
             toastId: 'unit-create-success',
             autoClose: 3000
@@ -166,19 +216,25 @@ const UnitOfMeasure = () => {
 
   // Delete Unit - Show confirmation modal
   const handleDeleteClick = (id) => {
+    console.log("Delete clicked for ID:", id); // Debug log
     setDeleteId(id);
     setShowDeleteModal(true);
   };
 
   // Confirm Delete
   const handleConfirmDelete = async () => {
+    console.log("Confirming delete for ID:", deleteId); // Debug log
     setShowDeleteModal(false);
     setLoading(true);
-    
+
     try {
+      // Fixed: Changed from data to params for delete request
       const response = await axiosInstance.delete(`${BaseUrl}unit-details/${deleteId}`, {
-        data: { company_id: companyId }
+        params: { company_id: companyId }
       });
+
+      console.log("Delete response:", response.data); // Debug log
+
       if (response.data.success) { // ✅ Changed from 'status' to 'success'
         setUnits(units.filter(u => u.id !== deleteId));
         toast.success("Unit deleted successfully.", {
@@ -189,7 +245,6 @@ const UnitOfMeasure = () => {
       }
     } catch (err) {
       console.error("Delete Unit API Error:", err);
-      setError("Failed to delete unit. Please try again.");
       toast.error("Failed to delete unit. Please try again.", {
         toastId: 'unit-delete-error',
         autoClose: 3000
@@ -219,28 +274,32 @@ const UnitOfMeasure = () => {
         const workbook = XLSX.read(bstr, { type: "binary" });
         const sheetName = workbook.SheetNames[0];
         const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-        
+
         setLoading(true);
         const promises = data.map(async (item) => {
-          // Find UOM ID for the unit name
-          const uomResponse = await axiosInstance.get(`${BaseUrl}uoms`);
-          let uomId = null;
-          
-          if (uomResponse.data.success) { // ✅ Changed from 'status' to 'success'
-            const selectedUomData = uomResponse.data.data.find(u => u.unit_name === item["Unit Name"]);
-            if (selectedUomData) {
-              uomId = selectedUomData.id;
-            }
+          // Determine the category based on the unit name
+          let category = 'WEIGHT'; // Default
+          if (getUOMsForCategory('weight').includes(item["Unit Name"].toUpperCase())) {
+            category = 'WEIGHT';
+          } else if (getUOMsForCategory('area').includes(item["Unit Name"].toUpperCase())) {
+            category = 'AREA';
+          } else if (getUOMsForCategory('volume').includes(item["Unit Name"].toUpperCase())) {
+            category = 'VOLUME';
+          } else if (getUOMsForCategory('length').includes(item["Unit Name"].toUpperCase())) {
+            category = 'LENGTH';
+          } else if (getUOMsForCategory('count').includes(item["Unit Name"].toUpperCase())) {
+            category = 'COUNT';
           }
-          
+
           const newUnit = {
             company_id: companyId,
-            uom_id: uomId,
+            uom_name: item["Unit Name"],
+            category: category,
             weight_per_unit: item["Weight per Unit"] || "",
           };
           return axiosInstance.post(`${BaseUrl}unit-details`, newUnit);
         });
-        
+
         await Promise.all(promises);
         fetchUnits(); // Refresh the list after import
         toast.success("Units imported successfully!", {
@@ -263,9 +322,10 @@ const UnitOfMeasure = () => {
 
   // Export to Excel
   const handleExport = () => {
-    const exportData = units.map(({ uom_name, weight_per_unit }) => ({ // ✅ Changed from 'unit_name' to 'uom_name'
+    const exportData = units.map(({ uom_name, weight_per_unit, category }) => ({ // ✅ Changed from 'unit_name' to 'uom_name'
       "Unit Name": uom_name || "",
       "Weight per Unit": weight_per_unit || "",
+      "Category": category || ""
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -279,9 +339,10 @@ const UnitOfMeasure = () => {
 
   // Download Template
   const handleDownloadTemplate = () => {
-    const template = [{ 
+    const template = [{
       "Unit Name": "",
-      "Weight per Unit": "" 
+      "Weight per Unit": "",
+      "Category": ""
     }];
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
@@ -294,64 +355,9 @@ const UnitOfMeasure = () => {
     setCurrentPage(pageNumber);
   };
 
-  // ✅ POST: Add New UOM via API - NEW ENDPOINT: /api/uoms
-  const handleAddUOM = async () => {
-    const uomName = newUOM.trim();
-
-    if (!uomName) {
-      toast.error("Please enter a valid UOM name.", {
-        toastId: 'uom-name-validation-error',
-        autoClose: 3000
-      });
-      return;
-    }
-
-    if (uoms.includes(uomName)) {
-      toast.error("This UOM already exists.", {
-        toastId: 'uom-exists-error',
-        autoClose: 3000
-      });
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await axiosInstance.post(`${BaseUrl}uoms`, {
-        company_id: companyId,
-        unit_name: uomName,
-      });
-
-      // Assuming success returns 200/201 and you want to add to local list
-      if (response.status === 200 || response.status === 201) {
-        // Refresh UOMs list after adding new one
-        await fetchUOMs();
-        setSelectedUnit(uomName); // Optional: auto-select in parent modal
-        setNewUOM("");
-        setShowAddUOMModal(false);
-        toast.success("UOM added successfully!", {
-          toastId: 'uom-add-success',
-          autoClose: 3000
-        });
-      } else {
-        throw new Error("Failed to add UOM");
-      }
-    } catch (err) {
-      console.error("Add UOM API Error:", err);
-      setError("Failed to add UOM. Please try again.");
-      toast.error("Failed to add UOM. Please try again.", {
-        toastId: 'uom-add-error',
-        autoClose: 3000
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // ✅ POST: Submit Unit Details - NEW ENDPOINT: /api/unit-details
   const handleSubmitUnitDetails = async () => {
-    if (!selectedUnit || !weightPerUnit) {
+    if (!selectedUnit || !weightPerUnit || !selectedCategory) {
       toast.error("Please fill all fields", {
         toastId: 'unit-details-validation-error',
         autoClose: 3000
@@ -363,38 +369,30 @@ const UnitOfMeasure = () => {
     setError("");
 
     try {
-      // Find the UOM ID from the selected unit name
-      const uomResponse = await axiosInstance.get(`${BaseUrl}uoms`);
-      if (uomResponse.data.success) { // ✅ Changed from 'status' to 'success'
-        const selectedUomData = uomResponse.data.data.find(item => item.unit_name === selectedUnit);
-        
-        if (!selectedUomData) {
-          toast.error("Selected unit not found", {
-            toastId: 'unit-not-found-error',
-            autoClose: 3000
-          });
-          return;
-        }
+      // Determine the category based on the selected category
+      let category = selectedCategory.toUpperCase();
 
-        const response = await axiosInstance.post(`${BaseUrl}unit-details`, {
-          company_id: companyId,
-          uom_id: selectedUomData.id,
-          weight_per_unit: weightPerUnit
+      const response = await axiosInstance.post(`${BaseUrl}unit-details`, {
+        company_id: companyId,
+        uom_name: selectedUnit, // Send the name, not ID
+        category: category,
+        weight_per_unit: parseFloat(weightPerUnit)
+      });
+
+      if (response.data.success) {
+        toast.success("Unit details saved successfully!", {
+          toastId: 'unit-details-save-success',
+          autoClose: 3000
         });
-
-        if (response.status === 200 || response.status === 201) {
-          toast.success("Unit details saved successfully!", {
-            toastId: 'unit-details-save-success',
-            autoClose: 3000
-          });
-          setShowUOMModal(false);
-          setSelectedUnit("");
-          setWeightPerUnit("");
-          // Refresh the units list
-          fetchUnits();
-        } else {
-          throw new Error("Failed to save unit details");
-        }
+        setShowUOMModal(false);
+        setSelectedUnit("");
+        setWeightPerUnit("");
+        setSelectedCategory("");
+        setDynamicLabel("Weight per Unit");
+        // Refresh the units list
+        fetchUnits(); // Refresh data
+      } else {
+        throw new Error("Failed to save unit details");
       }
     } catch (err) {
       console.error("Save Unit Details API Error:", err);
@@ -459,7 +457,7 @@ const UnitOfMeasure = () => {
                 {loading ? (
                   <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                 ) : (
-                  <i className="fa fa-plus me-2"></i>
+                  <i className="fa fa-plus me-2" />
                 )}
                 Create Unit
               </Button>
@@ -474,6 +472,7 @@ const UnitOfMeasure = () => {
                 <tr>
                   <th>S.No</th>
                   <th>Unit Name</th>
+                  <th>Category</th>
                   <th>Weight per Unit</th>
                   <th>Actions</th>
                 </tr>
@@ -481,7 +480,7 @@ const UnitOfMeasure = () => {
               <tbody>
                 {unitsLoading ? (
                   <tr>
-                    <td colSpan="4" className="text-center">
+                    <td colSpan="5" className="text-center">
                       <div className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
                       Loading units...
                     </td>
@@ -491,7 +490,8 @@ const UnitOfMeasure = () => {
                     <tr key={u.id}>
                       <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
                       <td>{u.uom_name || ""}</td> {/* ✅ Changed from 'unit_name' to 'uom_name' */}
-                      <td>{u.weight_per_unit || ""}</td>
+                      <td>{u.category || ""}</td>
+                      <td>{u.weight_per_unit || ""} {u.uom_name || ""}</td>
                       <td>
                         <Button
                           variant="link"
@@ -514,7 +514,7 @@ const UnitOfMeasure = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="4" className="text-center">No units found</td>
+                    <td colSpan="5" className="text-center">No units found</td>
                   </tr>
                 )}
               </tbody>
@@ -579,31 +579,61 @@ const UnitOfMeasure = () => {
           <Modal.Body>
             <Form onSubmit={handleFormSubmit}>
               <Form.Group className="mb-3">
-                <Form.Label>Unit Name</Form.Label>
+                <div className="d-flex justify-content-between align-items-center">
+                  <Form.Label className="mb-0">Measurement Category</Form.Label>
+                </div>
                 <Form.Select
-                  value={unitName}
-                  onChange={(e) => setUnitName(e.target.value)}
+                  value={selectedCategory}
+                  onChange={(e) => {
+                    const selectedValue = e.target.value;
+                    setSelectedCategory(selectedValue);
+
+                    // Reset UOM selection when category changes
+                    setUnitName('');
+
+                    // Update label based on selected category
+                    if (selectedValue) {
+                      setDynamicLabel(getLabelForCategory(selectedValue));
+                    } else {
+                      setDynamicLabel('Weight per Unit');
+                    }
+                  }}
+                  className="mt-2"
+                  disabled={loading}
                   required
-                  disabled={loading || uomLoading}
                 >
-                  <option value="">Select Unit</option>
-                  {uomLoading ? (
-                    <option disabled>Loading units...</option>
-                  ) : (
-                    uoms.map((uom, idx) => (
-                      <option key={idx} value={uom}>
-                        {uom}
-                      </option>
-                    ))
-                  )}
+                  <option value="">Select Category</option>
+                  <option value="weight">Weight</option>
+                  <option value="area">Area</option>
+                  <option value="volume">Volume</option>
+                  <option value="length">Length</option>
+                  <option value="count">Count</option>
                 </Form.Select>
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Weight per Unit</Form.Label>
+                <Form.Label className="mb-0">Unit of Measurement (UOM)</Form.Label>
+                <Form.Select
+                  value={unitName}
+                  onChange={(e) => setUnitName(e.target.value)}
+                  className="mt-2"
+                  required
+                  disabled={loading || !selectedCategory}
+                >
+                  <option value="">Select Unit</option>
+                  {selectedCategory && getUOMsForCategory(selectedCategory).map((uom, idx) => (
+                    <option key={idx} value={uom}>
+                      {uom}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>{dynamicLabel}</Form.Label>
                 <Form.Control
                   type="text"
-                  placeholder="e.g. 0.5 KG"
+                  placeholder={`e.g. 0.5 ${unitName || getCategoryDefaultUnit(selectedCategory)}`}
                   value={weightPerUnit}
                   onChange={(e) => setWeightPerUnit(e.target.value)}
                   required
@@ -650,49 +680,63 @@ const UnitOfMeasure = () => {
             <Form>
               <Form.Group className="mb-3">
                 <div className="d-flex justify-content-between align-items-center">
-                  <Form.Label className="mb-0">Unit of Measurement (UOM)</Form.Label>
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    onClick={() => setShowAddUOMModal(true)}
-                    style={{
-                      backgroundColor: '#27b2b6',
-                      border: 'none',
-                      color: '#fff',
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                    }}
-                    disabled={loading}
-                  >
-                    + Add New
-                  </Button>
+                  <Form.Label className="mb-0">Measurement Category</Form.Label>
                 </div>
                 <Form.Select
-                  value={selectedUnit}
-                  onChange={(e) => setSelectedUnit(e.target.value)}
+                  value={selectedCategory}
+                  onChange={(e) => {
+                    const selectedValue = e.target.value;
+                    setSelectedCategory(selectedValue);
+
+                    // Reset UOM selection when category changes
+                    setSelectedUnit('');
+
+                    // Update label based on selected category
+                    if (selectedValue) {
+                      setDynamicLabel(getLabelForCategory(selectedValue));
+                    } else {
+                      setDynamicLabel('Weight per Unit');
+                    }
+                  }}
                   className="mt-2"
-                  disabled={loading || uomLoading}
+                  disabled={loading}
+                  required
                 >
-                  <option value="">Select Unit</option>
-                  {uomLoading ? (
-                    <option disabled>Loading units...</option>
-                  ) : (
-                    uoms.map((uom, idx) => (
-                      <option key={idx} value={uom}>
-                        {uom}
-                      </option>
-                    ))
-                  )}
+                  <option value="">Select Category</option>
+                  <option value="weight">Weight</option>
+                  <option value="area">Area</option>
+                  <option value="volume">Volume</option>
+                  <option value="length">Length</option>
+                  <option value="count">Count</option>
                 </Form.Select>
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Weight per Unit</Form.Label>
+                <Form.Label className="mb-0">Unit of Measurement (UOM)</Form.Label>
+                <Form.Select
+                  value={selectedUnit}
+                  onChange={(e) => setSelectedUnit(e.target.value)}
+                  className="mt-2"
+                  required
+                  disabled={loading || !selectedCategory}
+                >
+                  <option value="">Select Unit</option>
+                  {selectedCategory && getUOMsForCategory(selectedCategory).map((uom, idx) => (
+                    <option key={idx} value={uom}>
+                      {uom}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>{dynamicLabel}</Form.Label>
                 <Form.Control
                   type="text"
-                  placeholder="e.g. 0.5 KG"
+                  placeholder={`e.g. 0.5 ${selectedUnit || getCategoryDefaultUnit(selectedCategory)}`}
                   value={weightPerUnit}
                   onChange={(e) => setWeightPerUnit(e.target.value)}
+                  required
                   disabled={loading}
                 />
               </Form.Group>
@@ -727,47 +771,6 @@ const UnitOfMeasure = () => {
           </Modal.Footer>
         </Modal>
 
-        {/* ✅ Add New UOM Modal */}
-        <Modal show={showAddUOMModal} onHide={() => setShowAddUOMModal(false)}>
-          <Modal.Header closeButton>
-            <Modal.Title>Add New UOM</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Form.Group>
-              <Form.Label>Unit of Measurement</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="e.g. Pack, Dozen, Roll"
-                value={newUOM}
-                onChange={(e) => setNewUOM(e.target.value)}
-                disabled={loading}
-              />
-            </Form.Group>
-            {error && <div className="text-danger small mt-2">{error}</div>}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button
-              variant="secondary"
-              onClick={() => setShowAddUOMModal(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              style={{
-                backgroundColor: '#27b2b6',
-                border: 'none',
-                color: '#fff',
-                padding: '6px 16px',
-              }}
-              onClick={handleAddUOM}
-              disabled={loading}
-            >
-              {loading ? "Adding..." : "Add"}
-            </Button>
-          </Modal.Footer>
-        </Modal>
-
         {/* ✅ Delete Confirmation Modal */}
         <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
           <Modal.Header closeButton>
@@ -778,8 +781,7 @@ const UnitOfMeasure = () => {
             <p className="text-muted small">This action cannot be undone.</p>
           </Modal.Body>
           <Modal.Footer>
-            <Button
-              variant="secondary"
+            <Button variant="secondary"
               onClick={() => setShowDeleteModal(false)}
               disabled={loading}
             >
@@ -795,7 +797,7 @@ const UnitOfMeasure = () => {
           </Modal.Footer>
         </Modal>
       </div>
-      
+
       {/* Toast Container */}
       <ToastContainer
         position="top-right"
