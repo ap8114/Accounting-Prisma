@@ -94,10 +94,9 @@ const VendorsCustomers = () => {
 
     try {
       setLoading(true);
-      setError(null); // Clear previous errors
+      setError(null);
       const response = await axiosInstance.get(`/vendorCustomer/company/${CompanyId}?type=${vendorType}`);
 
-      // Check if response is successful and has data
       if (response.status === 200 && response.data && Array.isArray(response.data.data)) {
         const mappedVendors = response.data.data.map(vendor => ({
           id: vendor.id,
@@ -123,8 +122,8 @@ const VendorsCustomers = () => {
           gstEnabled: vendor.enable_gst === "1",
           companyLocation: vendor.google_location?.trim() || "",
           companyName: vendor.company_name?.trim() || "",
-          idCardImage: vendor.id_card_image || null, // Store file URLs
-          extraFile: vendor.any_file || null, // Store file URLs
+          idCardImage: vendor.id_card_image || null,
+          extraFile: vendor.any_file || null,
           raw: vendor
         }));
         setVendors(mappedVendors);
@@ -140,9 +139,8 @@ const VendorsCustomers = () => {
     }
   };
 
-  // Re-fetch data after any CRUD operation
   const refetchData = () => {
-    fetchVendors(); // This ensures fresh data is loaded
+    fetchVendors();
   };
 
   const handleAddClick = () => {
@@ -213,8 +211,8 @@ const VendorsCustomers = () => {
       gstin: vendor.gstin || "",
       gstType: vendor.gstType || "Registered",
       gstEnabled: vendor.gstEnabled !== undefined ? vendor.gstEnabled : true,
-      idCardImage: null, // Reset file inputs for editing
-      extraFile: null, // Reset file inputs for editing
+      idCardImage: null,
+      extraFile: null,
     });
     setSelectedVendor(vendor);
     setShowAddEditModal(true);
@@ -222,7 +220,7 @@ const VendorsCustomers = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    setError(null); // Clear previous errors
+    setError(null);
     try {
       const companyIdNum = parseInt(CompanyId, 10);
       if (isNaN(companyIdNum) || companyIdNum <= 0) {
@@ -242,7 +240,6 @@ const VendorsCustomers = () => {
       formData.append("account_name", vendorFormData.accountName?.trim() || vendorFormData.name.trim());
       formData.append("account_balance", parseFloat(vendorFormData.accountBalance) || 0);
 
-      // Format creation date properly
       formData.append("creation_date", vendorFormData.creationDate
         ? new Date(vendorFormData.creationDate).toISOString()
         : new Date().toISOString());
@@ -283,7 +280,6 @@ const VendorsCustomers = () => {
         });
       }
 
-      // Check if response is successful (status 200-299)
       if (response.status >= 200 && response.status < 300) {
         toast.success(selectedVendor
           ? `${vendorType === 'vender' ? 'Vendor' : 'Customer'} updated successfully!`
@@ -292,7 +288,6 @@ const VendorsCustomers = () => {
         setShowAddEditModal(false);
         setSelectedVendor(null);
         resetForm();
-        // Auto-reload data
         refetchData();
       } else {
         throw new Error(response.data?.message || 'Operation failed');
@@ -348,16 +343,14 @@ const VendorsCustomers = () => {
       return;
     }
     setDeleting(true);
-    setError(null); // Clear previous errors
+    setError(null);
     try {
       const response = await axiosInstance.delete(`/vendorCustomer/${selectedVendor.id}`);
 
-      // Check if response is successful (status 200-299)
       if (response.status >= 200 && response.status < 300) {
         toast.success(`${vendorType === 'vender' ? 'Vendor' : 'Customer'} deleted successfully!`);
         setShowDelete(false);
         setSelectedVendor(null);
-        // Auto-reload data
         refetchData();
       } else {
         throw new Error(response.data?.message || 'Failed to delete vendor');
@@ -370,13 +363,16 @@ const VendorsCustomers = () => {
     }
   };
 
-  const filteredVendors = vendors.filter((v) =>
-    v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (v.email && v.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (v.phone && v.phone.includes(searchTerm))
-  );
+  // 🔥 ENHANCED SEARCH LOGIC
+  const filteredVendors = vendors.filter((v) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      v.name.toLowerCase().includes(searchLower) ||
+      (v.nameArabic && v.nameArabic.toLowerCase().includes(searchLower)) ||
+      (v.phone && v.phone.includes(searchTerm))
+    );
+  });
 
-  // Export / Import / PDF logic unchanged
   const handleDownloadTemplate = () => {
     const doc = new jsPDF('p', 'mm', 'a4');
     let yPos = 20;
@@ -762,7 +758,6 @@ const VendorsCustomers = () => {
         <Modal.Body>
           {selectedVendor && (
             <>
-              {/* Profile Image and Name Section */}
               <div className="text-center mb-4">
                 {selectedVendor.idCardImage ? (
                   <Image
@@ -868,7 +863,6 @@ const VendorsCustomers = () => {
                 </Row>
               </div>
 
-              {/* File Display Section */}
               {(selectedVendor.idCardImage || selectedVendor.extraFile) && (
                 <div className="border rounded p-3 mb-4">
                   <h6 className="fw-semibold mb-3">Documents</h6>
@@ -1335,7 +1329,6 @@ const VendorsCustomers = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Page Description */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
           <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>

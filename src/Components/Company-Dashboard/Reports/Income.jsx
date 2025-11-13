@@ -14,6 +14,8 @@ import Swal from "sweetalert2";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min";
 import GetCompanyId from "../../../Api/GetCompanyId";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Income = () => {
   const companyId = GetCompanyId();
@@ -438,12 +440,7 @@ const Income = () => {
       .filter((entry) => entry.income_account && entry.amount > 0);
 
     if (entries.length === 0) {
-      Swal.fire({
-        icon: "warning",
-        title: "Warning!",
-        text: "Please add at least one valid income entry.",
-        confirmButtonColor: "#3daaaa",
-      });
+      toast.warning("Please add at least one valid income entry.");
       setLoading(false);
       return;
     }
@@ -463,23 +460,11 @@ const Income = () => {
     try {
       await axiosInstance.post("/income-vouchers", payload);
       await fetchIncomeVouchers();
-      Swal.fire({
-        icon: "success",
-        title: "Success!",
-        text: "Income voucher created successfully!",
-        confirmButtonColor: "#3daaaa",
-      }).then(() => {
-        setShowCreateModal(false);
-      });
+      toast.success("Income voucher created successfully!");
+      setShowCreateModal(false);
     } catch (error) {
       console.error("Error creating voucher:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error!",
-        text:
-          error.response?.data?.message || "Failed to create income voucher.",
-        confirmButtonColor: "#3daaaa",
-      });
+      toast.error(error.response?.data?.message || "Failed to create income voucher.");
     } finally {
       setLoading(false);
     }
@@ -511,22 +496,11 @@ const Income = () => {
     try {
       await axiosInstance.patch(`/income-vouchers/${editVoucher.id}`, payload);
       await fetchIncomeVouchers();
-      Swal.fire({
-        icon: "success",
-        title: "Success!",
-        text: "Income voucher updated successfully!",
-        confirmButtonColor: "#3daaaa",
-      }).then(() => {
-        setShowEditModal(false);
-      });
+      toast.success("Income voucher updated successfully!");
+      setShowEditModal(false);
     } catch (error) {
       console.error("Error updating voucher:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error!",
-        text: error.response?.data?.message || "Failed to update voucher.",
-        confirmButtonColor: "#3daaaa",
-      });
+      toast.error(error.response?.data?.message || "Failed to update voucher.");
     } finally {
       setLoading(false);
     }
@@ -538,22 +512,11 @@ const Income = () => {
     try {
       await axiosInstance.delete(`/income-vouchers/${deleteVoucher.id}`);
       await fetchIncomeVouchers();
-      Swal.fire({
-        icon: "success",
-        title: "Deleted!",
-        text: "Income voucher has been deleted.",
-        confirmButtonColor: "#3daaaa",
-      }).then(() => {
-        setShowDeleteModal(false);
-      });
+      toast.success("Income voucher deleted successfully!");
+      setShowDeleteModal(false);
     } catch (error) {
       console.error("Error deleting voucher:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error!",
-        text: error.response?.data?.message || "Failed to delete voucher.",
-        confirmButtonColor: "#3daaaa",
-      });
+      toast.error(error.response?.data?.message || "Failed to delete voucher.");
     } finally {
       setLoading(false);
     }
@@ -633,6 +596,9 @@ const Income = () => {
 
   return (
     <div className="bg-light p-4 mt-1 product-header">
+      {/* Toast Container */}
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      
       {/* Header */}
       <div className="d-flex justify-content-between gap-4 mb-4">
         <div>

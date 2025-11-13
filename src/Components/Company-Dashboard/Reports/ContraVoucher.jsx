@@ -11,8 +11,15 @@ import {
   Table,
   Modal,
 } from 'react-bootstrap';
+import {
+  FaEye,
+  FaEdit,
+  FaTrash,
+} from "react-icons/fa";
 import axiosInstance from '../../../Api/axiosInstance';
 import GetCompanyId from '../../../Api/GetCompanyId';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ContraVoucher = () => {
   // Modal state
@@ -311,7 +318,7 @@ const ContraVoucher = () => {
               : v
           )
         );
-        alert('Voucher updated successfully!');
+        toast.success('Voucher updated successfully!');
       } else {
         response = await axiosInstance.post('contravouchers', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -329,13 +336,17 @@ const ContraVoucher = () => {
           document: response.data?.document,
         };
         setContraVouchers((prev) => [newVoucher, ...prev]);
-        alert('Contra Voucher created successfully!');
+        toast.success('Contra Voucher created successfully!');
       }
 
       setShowModal(false);
     } catch (err) {
       console.error('API Error:', err);
       setError(
+        err.response?.data?.message ||
+        (isEditing ? 'Failed to update voucher.' : 'Failed to create voucher.')
+      );
+      toast.error(
         err.response?.data?.message ||
         (isEditing ? 'Failed to update voucher.' : 'Failed to create voucher.')
       );
@@ -350,15 +361,18 @@ const ContraVoucher = () => {
     try {
       await axiosInstance.delete(`contravouchers/${id}`);
       setContraVouchers((prev) => prev.filter((v) => v.id !== id));
-      alert('Voucher deleted successfully!');
+      toast.success('Voucher deleted successfully!');
     } catch (err) {
       console.error('Delete error:', err);
-      alert(err.response?.data?.message || 'Failed to delete voucher.');
+      toast.error(err.response?.data?.message || 'Failed to delete voucher.');
     }
   };
 
   return (
     <div className="p-3">
+      {/* Toast Container */}
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      
       <div>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h2 className="text-start m-0">Contra Voucher</h2>
@@ -448,7 +462,7 @@ const ContraVoucher = () => {
                             rel="noopener noreferrer"
                             className="btn btn-sm btn-outline-info"
                           >
-                            View
+                            <FaEye />
                           </a>
                         ) : (
                           '—'
@@ -461,14 +475,14 @@ const ContraVoucher = () => {
                           className="me-2"
                           onClick={() => handleEdit(voucher)}
                         >
-                          Edit
+                          <FaEdit />
                         </Button>
                         <Button
                           variant="outline-danger"
                           size="sm"
                           onClick={() => handleDelete(voucher.id)}
                         >
-                          Delete
+                          <FaTrash />
                         </Button>
                       </td>
                     </tr>
