@@ -91,12 +91,11 @@ const QuotationTab = ({
         const res = await axiosInstance.get(`${BaseUrl}auth/Company`);
         const companies = res?.data?.data || [];
 
-        // Try to find company by id from local storage; fall back to first company
         let selected = companies.find(c => String(c.id) === String(company_id));
         if (!selected && companies.length) selected = companies[0];
 
         if (selected) {
-          setCompanyInfo({
+          const info = {
             name: selected.name || '',
             email: selected.email || '',
             company_logo_url: selected.branding?.company_logo_url || '',
@@ -113,15 +112,16 @@ const QuotationTab = ({
             },
             notes: selected.notes || '',
             terms_and_conditions: selected.terms_and_conditions || ''
-          });
+          };
+          setCompanyInfo(info);
 
           // Set the bank details and notes/terms to the form
-          handleChange("quotation", "bankName", selected.bank_details?.bank_name || '');
-          handleChange("quotation", "accountNo", selected.bank_details?.account_number || '');
-          handleChange("quotation", "accountHolder", selected.bank_details?.account_holder || '');
-          handleChange("quotation", "ifsc", selected.bank_details?.ifsc_code || '');
-          handleChange("quotation", "notes", selected.notes || '');
-          handleChange("quotation", "terms", selected.terms_and_conditions || '');
+          handleChange("quotation", "bankName", info.bank_details.bank_name);
+          handleChange("quotation", "accountNo", info.bank_details.account_number);
+          handleChange("quotation", "accountHolder", info.bank_details.account_holder);
+          handleChange("quotation", "ifsc", info.bank_details.ifsc_code);
+          handleChange("quotation", "notes", info.notes);
+          handleChange("quotation", "terms", info.terms_and_conditions);
         }
       } catch (err) {
         console.error('Failed to fetch companies:', err);
@@ -141,20 +141,13 @@ const QuotationTab = ({
     }
 
     const lower = term.toLowerCase();
-    const digits = term.replace(/\D/g, ''); // digits-only for phone matching
+    const digits = term.replace(/\D/g, '');
 
     const filtered = customerList.filter(customer => {
       const nameMatch = (customer?.name_english || '').toString().toLowerCase().includes(lower);
       const companyMatch = (customer?.company_name || '').toString().toLowerCase().includes(lower);
       const emailMatch = (customer?.email || '').toString().toLowerCase().includes(lower);
-
-      // Check phone-like fields by comparing digit sequences
       const phoneFields = [customer?.phone, customer?.mobile, customer?.contact, customer?.phone_no, customer?.mobile_no];
-      const phoneDigits = phoneFields
-        .filter(Boolean)
-        .map(p => p.toString().replace(/\D/g, ''))
-        .join('|');
-
       const phoneMatch = digits ? phoneFields.some(p => p && p.toString().replace(/\D/g, '').includes(digits)) : false;
 
       return !!(nameMatch || companyMatch || emailMatch || phoneMatch);
@@ -178,16 +171,12 @@ const QuotationTab = ({
     };
   }, []);
 
-  // ✅ FIXED: Handle save callback and close modal on success
   const handleSave = (customerData, mode) => {
     console.log(`${mode === 'edit' ? 'Updated' : 'Added'} customer:`, customerData);
     
-    // Instead of making another API call, just update the local state
     if (mode === 'add') {
-      // Add the new customer to the list
       setCustomerList(prev => [...prev, customerData]);
     } else {
-      // Update the existing customer in the list
       setCustomerList(prev => 
         prev.map(customer => 
           customer.id === customerData.id ? customerData : customer
@@ -195,7 +184,6 @@ const QuotationTab = ({
       );
     }
     
-    // Also update the filtered list if needed
     setFilteredCustomerList(prev => {
       if (mode === 'add') {
         return [...prev, customerData];
@@ -206,12 +194,10 @@ const QuotationTab = ({
       }
     });
 
-    // ✅ NEW: Show success message and close the modal
     toast.success(`Customer ${mode === 'edit' ? 'updated' : 'added'} successfully!`);
-    setShowModal(false); // This line closes the modal
+    setShowModal(false);
   };
 
-  // Handle customer selection
   const handleCustomerSelect = (customer) => {
     setSelectedCustomer(customer);
     handleChange("quotation", "billToName", customer.name_english || '');
@@ -223,10 +209,24 @@ const QuotationTab = ({
     setShowCustomerDropdown(false);
   };
 
-  // 🚀 Fixed POST API Function - Save Quotation
+  // 🚀 UPDATED: POST API Function with new endpoint and payload structure
   const saveQuotation = async (status) => {
     try {
-      // Create a data object instead of FormData for JSON payload
+      // Calculate totals
+      const subtotal = formData.quotation.items.reduce((sum, item) =>
+        sum + (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0), 0);
+      
+      const taxTotal = formData.quotation.items.reduce((sum, item) => {
+        const subtotalItem = (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0);
+        return sum + (subtotalItem * (parseFloat(item.tax) || 0)) / 100;
+      }, 0);
+      
+      const discountTotal = formData.quotation.items.reduce((sum, item) => 
+        sum + (parseFloat(item.discount) || 0), 0);
+      
+      const grandTotal = calculateTotalWithTaxAndDiscount(formData.quotation.items);
+
+      // Create a data object with the required payload structure
       const data = {
         // Company Information
         company_id: company_id,
@@ -236,38 +236,54 @@ const QuotationTab = ({
         company_phone: formData.quotation.companyPhone || '',
         logo_url: companyInfo.company_logo_url || '',
         
+        // Quotation Information
+        quotation_no: formData.quotation.quotationNo || '',
+        manual_quo_no: formData.quotation.manualQuotationRef || '',
+        quotation_date: formData.quotation.quotationDate || '',
+        valid_till: formData.quotation.validDate || '',
+        due_date: formData.quotation.validDate || '', // Using valid date as due date
+        
+        // Reference Numbers
+        ref_no: formData.quotation.referenceId || '',
+        Manual_ref_ro: '', // Not in your form
+        
         // Customer Information
         qoutation_to_customer_name: formData.quotation.billToName || '',
         qoutation_to_customer_address: formData.quotation.billToAddress || '',
         qoutation_to_customer_email: formData.quotation.billToEmail || '',
         qoutation_to_customer_phone: formData.quotation.billToPhone || '',
         
-        // Reference Numbers
-        ref_no: formData.quotation.referenceId || '',
-        Manual_ref_ro: '', // Not in your form
-        quotation_no: formData.quotation.quotationNo || '',
-        manual_quo_no: formData.quotation.manualQuotationRef || '',
-        quotation_date: formData.quotation.quotationDate || '',
-        valid_till: formData.quotation.validDate || '',
-        due_date: '', // Not in your form
+        // Bill To Information
+        bill_to_attention_name: formData.quotation.billToName || '',
+        bill_to_company_name: formData.quotation.billToName || '',
+        bill_to_company_address: formData.quotation.billToAddress || '',
+        bill_to_company_phone: formData.quotation.billToPhone || '',
+        bill_to_company_email: formData.quotation.billToEmail || '',
+        bill_to_customer_name: formData.quotation.billToName || '',
+        bill_to_customer_address: formData.quotation.billToAddress || '',
+        bill_to_customer_email: formData.quotation.billToEmail || '',
+        bill_to_customer_phone: formData.quotation.billToPhone || '',
         
-        // Calculated Totals
-        subtotal: formData.quotation.items.reduce((sum, item) =>
-          sum + (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0), 0),
-        sub_total: formData.quotation.items.reduce((sum, item) =>
-          sum + (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0), 0),
-        tax: formData.quotation.items.reduce((sum, item) => {
-          const subtotalItem = (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0);
-          return sum + (subtotalItem * (parseFloat(item.tax) || 0)) / 100;
-        }, 0),
-        tax_total: formData.quotation.items.reduce((sum, item) => {
-          const subtotalItem = (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0);
-          return sum + (subtotalItem * (parseFloat(item.tax) || 0)) / 100;
-        }, 0),
-        discount: formData.quotation.items.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0),
-        discount_total: formData.quotation.items.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0),
-        total: calculateTotalWithTaxAndDiscount(formData.quotation.items),
-        grand_total: calculateTotalWithTaxAndDiscount(formData.quotation.items),
+        // Ship To Information (using same as bill to for now)
+        ship_to_attention_name: formData.quotation.billToName || '',
+        ship_to_company_name: formData.quotation.billToName || '',
+        ship_to_company_address: formData.quotation.billToAddress || '',
+        ship_to_company_phone: formData.quotation.billToPhone || '',
+        ship_to_company_email: formData.quotation.billToEmail || '',
+        ship_to_customer_name: formData.quotation.billToName || '',
+        ship_to_customer_address: formData.quotation.billToAddress || '',
+        ship_to_customer_email: formData.quotation.billToEmail || '',
+        ship_to_customer_phone: formData.quotation.billToPhone || '',
+        
+        // Notes & Terms
+        notes: formData.quotation.notes || '',
+        terms: formData.quotation.terms || '',
+        
+        // Totals
+        sub_total: subtotal,
+        tax: taxTotal,
+        discount: discountTotal,
+        total: grandTotal,
         
         // Bank Details
         bank_name: formData.quotation.bankName || '',
@@ -281,43 +297,10 @@ const QuotationTab = ({
           ifsc_code: formData.quotation.ifsc || ''
         },
         
-        // Notes & Terms
-        notes: formData.quotation.notes || '',
-        terms: formData.quotation.terms || '',
-        terms_conditions: formData.quotation.terms || '',
-        
-        // URLs
+        // URLs (empty for now)
         signature_url: '',
         photo_url: '',
-        attachment_url: '',
-        
-        // Bill To Information
-        bill_to_attention_name: '', // Not in your form
-        bill_to_company_name: formData.quotation.billToName || '',
-        bill_to_company_address: formData.quotation.billToAddress || '',
-        bill_to_company_phone: formData.quotation.billToPhone || '',
-        bill_to_company_email: formData.quotation.billToEmail || '',
-        bill_to_customer_name: formData.quotation.billToName || '',
-        bill_to_customer_address: formData.quotation.billToAddress || '',
-        bill_to_customer_email: formData.quotation.billToEmail || '',
-        bill_to_customer_phone: formData.quotation.billToPhone || '',
-        
-        // Ship To Information (using same as bill to for now)
-        ship_to_attention_name: '', // Not in your form
-        ship_to_company_name: formData.quotation.billToName || '',
-        ship_to_company_address: formData.quotation.billToAddress || '',
-        ship_to_company_phone: formData.quotation.billToPhone || '',
-        ship_to_company_email: formData.quotation.billToEmail || '',
-        ship_to_customer_name: formData.quotation.billToName || '',
-        ship_to_customer_address: formData.quotation.billToAddress || '',
-        ship_to_customer_email: formData.quotation.billToEmail || '',
-        ship_to_customer_phone: formData.quotation.billToPhone || '',
-        
-        // Payment Information
-        payment_received_customer_name: formData.quotation.billToName || '',
-        payment_received_customer_address: formData.quotation.billToAddress || '',
-        payment_received_customer_email: formData.quotation.billToEmail || '',
-        payment_received_customer_phone: formData.quotation.billToPhone || '',
+        attach_file_url: '',
         
         // Driver Information
         driver_name: '', // Not in your form
@@ -327,16 +310,16 @@ const QuotationTab = ({
           driver_phone: '' // Not in your form
         },
         
-        // Payment Details
+        // Payment Information
         amount_received: 0,
-        total_amount: calculateTotalWithTaxAndDiscount(formData.quotation.items),
+        total_amount: grandTotal,
         payment_status: 'Pending',
-        total_invoice: calculateTotalWithTaxAndDiscount(formData.quotation.items),
-        balance: calculateTotalWithTaxAndDiscount(formData.quotation.items),
-        payment_note: 'Payment pending',
+        total_invoice: grandTotal,
+        balance: grandTotal,
+        payment_note: '',
         
         // Status
-        quotation_status: status === 'Draft' ? 'Draft' : 'Pending',
+        quotation_status: status === 'Draft' ? 'Draft' : 'Completed',
         sales_order_status: 'Pending',
         delivery_challan_status: 'Pending',
         invoice_status: 'Pending',
@@ -344,73 +327,71 @@ const QuotationTab = ({
         
         // Document Numbers
         SO_no: '', // Not in your form
-        Manual_SO_ref: '', // Not in your form
+        manual_so: '', // Not in your form
         Challan_no: '', // Not in your form
-        Manual_challan_no: '', // Not in your form
+        manual_challan_no: '', // Not in your form
         Manual_DC_no: '', // Not in your form
         invoice_no: '', // Not in your form
-        Manual_invoice_no: '', // Not in your form
+        manual_invoice_no: '', // Not in your form
         Payment_no: '', // Not in your form
-        Manual_payment_no: '', // Not in your form
+        manual_pym_no: '', // Not in your form
         customer_ref: formData.quotation.customerReference || '',
         
         // Items
         items: formData.quotation.items.map(item => ({
           item_name: item.item_name || '',
-          qty: parseInt(item.qty) || 0,
-          quantity: parseInt(item.qty) || 0,
+          qty: parseFloat(item.qty) || 0,
           rate: parseFloat(item.rate) || 0,
           tax_percent: parseFloat(item.tax) || 0,
-          tax: parseFloat(item.tax) || 0,
           discount: parseFloat(item.discount) || 0,
-          amount: (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0)
+          amount: (parseFloat(item.rate) || 0) * (parseFloat(item.qty) || 0)
         })),
         
-        // Sales Order Items (empty for now)
+        // Sales Order Items (empty for quotation)
         salesorderitems: []
       };
 
-      // Send POST request with JSON payload
+      // Send POST request with JSON payload to the NEW API URL
       const response = await axiosInstance.post(`${BaseUrl}sales-order/create-sales-order`, data, {
         headers: {
           'Content-Type': 'application/json'
         }
       });
 
-      if (response.data.status) {
-        toast.success(`Quotation ${status} successfully!`);
+      if (response.data.status) { // Assuming your API returns a status field
+        toast.success(`Quotation saved as ${status} successfully!`);
         // Optionally reset form or redirect
         // navigate('/some-path');
       } else {
-        toast.error('Failed to save quotation.');
+        // Show more specific error message from API if available
+        const errorMessage = response.data.message || 'Failed to save quotation.';
+        toast.error(errorMessage);
       }
 
     } catch (error) {
       console.error("Error saving quotation:", error);
-      toast.error('Something went wrong while saving quotation.');
+      // Show more detailed error message
+      const errorMessage = error.response?.data?.message || error.message || 'Something went wrong while saving quotation.';
+      toast.error(errorMessage);
     }
   };
 
-  // ✅ Handle Save Draft
   const handleSaveDraft = async () => {
     await saveQuotation('Draft');
   };
 
-  // ✅ Handle Save & Next
   const handleSaveNext = async () => {
-    await saveQuotation('Draft'); // You can change to 'Final' if needed
+    await saveQuotation('Draft');
     // Call your existing next logic if needed
-    // handleNext(); // Uncomment if you want to auto-navigate after save
+    // handleNext();
   };
 
-  // ✅ Handle Next (Final Submit)
   const handleNext = async () => {
-    await saveQuotation('Final');
+    await saveQuotation('Final'); // This will set status to 'Completed'
     // Optionally navigate to next step
     // navigate('/next-step');
   };
 
-  // Format company address
   const formatCompanyAddress = () => {
     const parts = [
       companyInfo.address,
@@ -533,7 +514,6 @@ const QuotationTab = ({
                   }}
                   onFocus={() => {
                     setShowCustomerDropdown(true);
-                    // If search term is empty, show all customers
                     if (!customerSearchTerm) {
                       setFilteredCustomerList(customerList);
                     }
@@ -545,7 +525,6 @@ const QuotationTab = ({
                   style={{ cursor: 'pointer' }}
                   onClick={() => {
                     setShowCustomerDropdown(!showCustomerDropdown);
-                    // If dropdown is being opened and search term is empty, show all customers
                     if (!showCustomerDropdown && !customerSearchTerm) {
                       setFilteredCustomerList(customerList);
                     }
@@ -619,7 +598,7 @@ const QuotationTab = ({
               <Button
                 variant="outline-primary"
                 size="sm"
-                onClick={() => setShowModal(true)} // ✅ Open modal
+                onClick={() => setShowModal(true)}
                 title="Add Customer"
               >
                 Add Customer
@@ -629,8 +608,6 @@ const QuotationTab = ({
 
           <Col md={4} className="d-flex flex-column align-items-start">
             <div className="d-flex flex-column gap-2" style={{ maxWidth: "400px", width: "100%" }}>
-
-              {/* Quotation No */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
                   <Form.Label className="mb-0" style={{ fontSize: "0.9rem", color: "#6c757d", whiteSpace: "nowrap", flexShrink: 0, marginRight: "8px" }}>
@@ -657,7 +634,6 @@ const QuotationTab = ({
                 </div>
               </Form.Group>
 
-              {/* Manual QUO No */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
                   <Form.Label className="mb-0 flex-shrink-0 me-2" style={{ fontSize: "0.9rem", color: "#6c757d", whiteSpace: "nowrap" }}>
@@ -680,7 +656,6 @@ const QuotationTab = ({
                 </div>
               </Form.Group>
 
-              {/* Quotation Date */}
               <Row className="align-items-center g-2 mb-2">
                 <Col md="auto" className="p-0">
                   <Form.Label className="mb-0 flex-shrink-0 me-2" style={{ fontSize: "0.9rem", color: "#6c757d", whiteSpace: "nowrap" }}>
@@ -697,7 +672,6 @@ const QuotationTab = ({
                 </Col>
               </Row>
 
-              {/* Valid Till */}
               <Row className="align-items-center g-2 mb-2">
                 <Col md="auto" className="p-0">
                   <Form.Label className="mb-0 flex-shrink-0 me-2" style={{ fontSize: "0.9rem", color: "#6c757d", whiteSpace: "nowrap" }}>
@@ -839,11 +813,11 @@ const QuotationTab = ({
       {/* Modal */}
       <AddEditCustomerModal
         show={showModal}
-        onHide={() => setShowModal(false)} // ✅ Close modal
+        onHide={() => setShowModal(false)}
         editMode={false}
         customerFormData={{}}
-        setCustomerFormData={() => { }} // Will be initialized inside modal
-        onSave={handleSave} // ✅ This now handles closing the modal
+        setCustomerFormData={() => { }}
+        onSave={handleSave}
         customerId={null}
         keyboard={false}
       />

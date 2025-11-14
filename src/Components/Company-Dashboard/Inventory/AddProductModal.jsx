@@ -37,9 +37,7 @@ const AddProductModal = ({
     itemCategory: "",
     itemCategoryId: "",
     description: "",
-    quantity: "",
     sku: "",
-    minQty: "",
     date: new Date().toISOString().split("T")[0],
     taxAccount: "",
     cost: "",
@@ -91,13 +89,19 @@ const AddProductModal = ({
           ...updatedWarehouses[index],
           warehouse_id: selectedWarehouse.id,
           warehouse_name: selectedWarehouse.warehouse_name,
-          stock_qty: updatedWarehouses[index].stock_qty || 0,
+          quantity: updatedWarehouses[index].quantity || 0,
+          min_order_qty: updatedWarehouses[index].min_order_qty || 0,
         };
       }
-    } else if (field === "stock_qty") {
+    } else if (field === "quantity") {
       updatedWarehouses[index] = {
         ...updatedWarehouses[index],
-        stock_qty: parseInt(value) || 0,
+        quantity: parseInt(value) || 0,
+      };
+    } else if (field === "min_order_qty") {
+      updatedWarehouses[index] = {
+        ...updatedWarehouses[index],
+        min_order_qty: parseInt(value) || 0,
       };
     }
 
@@ -127,7 +131,8 @@ const AddProductModal = ({
           {
             warehouse_id: availableWarehouse.id,
             warehouse_name: availableWarehouse.warehouse_name,
-            stock_qty: 0,
+            quantity: 0,
+            min_order_qty: 0,
           },
         ],
       }));
@@ -157,9 +162,7 @@ const AddProductModal = ({
       itemCategory: "",
       itemCategoryId: "",
       description: "",
-      quantity: "",
       sku: "",
-      minQty: "",
       date: new Date().toISOString().split("T")[0],
       taxAccount: "",
       cost: "",
@@ -174,7 +177,8 @@ const AddProductModal = ({
               {
                 warehouse_id: warehouses[0].id,
                 warehouse_name: warehouses[0].warehouse_name,
-                stock_qty: 0,
+                quantity: 0,
+                min_order_qty: 0,
               },
             ]
           : [],
@@ -200,14 +204,16 @@ const AddProductModal = ({
           ? selectedItem.product_warehouses.map((pw) => ({
               warehouse_id: pw.warehouse.id,
               warehouse_name: pw.warehouse.warehouse_name,
-              stock_qty: pw.stock_qty,
+              quantity: pw.stock_qty || pw.quantity || 0,
+              min_order_qty: pw.min_order_qty || 0,
             }))
           : warehouses.length > 0
           ? [
               {
                 warehouse_id: warehouses[0].id,
                 warehouse_name: warehouses[0].warehouse_name,
-                stock_qty: 0,
+                quantity: 0,
+                min_order_qty: 0,
               },
             ]
           : [];
@@ -222,17 +228,7 @@ const AddProductModal = ({
           selectedItem.item_category_name || selectedItem.itemCategory || "",
         itemCategoryId: selectedItem.item_category_id || "",
         description: selectedItem.description || "",
-        quantity: (
-          selectedItem.initial_qty ||
-          selectedItem.quantity ||
-          ""
-        ).toString(),
         sku: selectedItem.sku || "",
-        minQty: (
-          selectedItem.min_order_qty ||
-          selectedItem.minQty ||
-          ""
-        ).toString(),
         date:
           selectedItem.as_of_date ||
           selectedItem.date ||
@@ -311,7 +307,8 @@ const AddProductModal = ({
                 {
                   warehouse_id: filteredWarehouses[0].id,
                   warehouse_name: filteredWarehouses[0].warehouse_name,
-                  stock_qty: 0,
+                  quantity: 0,
+                  min_order_qty: 0,
                 },
               ],
             }));
@@ -469,7 +466,7 @@ const AddProductModal = ({
 
     // Check if at least one warehouse has a quantity greater than 0
     const hasValidQuantity = localNewItem.productWarehouses.some(
-      (w) => w.stock_qty > 0
+      (w) => w.quantity > 0
     );
     if (!hasValidQuantity) {
       toast.error("Please enter a quantity greater than 0 for at least one warehouse", {
@@ -492,8 +489,6 @@ const AddProductModal = ({
       formData.append("barcode", localNewItem.barcode || "");
       formData.append("sku", localNewItem.sku || "");
       formData.append("description", localNewItem.description || "");
-      formData.append("initial_qty", localNewItem.quantity || "0");
-      formData.append("min_order_qty", localNewItem.minQty || "0");
       formData.append(
         "as_of_date",
         localNewItem.date || new Date().toISOString().split("T")[0]
@@ -513,7 +508,8 @@ const AddProductModal = ({
       // Add warehouses as JSON string
       const warehousesData = localNewItem.productWarehouses.map((w) => ({
         warehouse_id: w.warehouse_id,
-        stock_qty: w.stock_qty,
+        quantity: w.quantity,
+        min_order_qty: w.min_order_qty,
       }));
 
       formData.append("warehouses", JSON.stringify(warehousesData));
@@ -575,7 +571,7 @@ const AddProductModal = ({
 
     // Check if at least one warehouse has a quantity greater than 0
     const hasValidQuantity = localNewItem.productWarehouses.some(
-      (w) => w.stock_qty > 0
+      (w) => w.quantity > 0
     );
     if (!hasValidQuantity) {
       toast.error("Please enter a quantity greater than 0 for at least one warehouse", {
@@ -598,8 +594,6 @@ const AddProductModal = ({
       formData.append("barcode", localNewItem.barcode || "");
       formData.append("sku", localNewItem.sku || "");
       formData.append("description", localNewItem.description || "");
-      formData.append("initial_qty", localNewItem.quantity || "0");
-      formData.append("min_order_qty", localNewItem.minQty || "0");
       formData.append(
         "as_of_date",
         localNewItem.date || new Date().toISOString().split("T")[0]
@@ -619,7 +613,8 @@ const AddProductModal = ({
       // Add warehouses as JSON string
       const warehousesData = localNewItem.productWarehouses.map((w) => ({
         warehouse_id: w.warehouse_id,
-        stock_qty: w.stock_qty,
+        quantity: w.quantity,
+        min_order_qty: w.min_order_qty,
       }));
 
       formData.append("warehouses", JSON.stringify(warehousesData));
@@ -864,8 +859,10 @@ const AddProductModal = ({
                     <Table striped bordered hover responsive>
                       <thead>
                         <tr>
-                          <th style={{ width: "40%" }}>Warehouse</th>
-                          <th style={{ width: "40%" }}>Quantity</th>
+                          <th style={{ width: "30%" }}>Warehouse</th>
+                          <th style={{ width: "25%" }}>Quantity</th>
+                          <th style={{ width: "25%" }}>Minimum Order Quantity</th>
+                          <th style={{ width: "25%" }}>Initial Quantity On Hand</th>
                           <th style={{ width: "20%" }}>Action</th>
                         </tr>
                       </thead>
@@ -908,11 +905,42 @@ const AddProductModal = ({
                               <td>
                                 <Form.Control
                                   type="number"
-                                  value={warehouse.stock_qty}
+                                  value={warehouse.quantity}
                                   onChange={(e) =>
                                     handleWarehouseChange(
                                       index,
-                                      "stock_qty",
+                                      "quantity",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </td>
+                              <td>
+                                <Form.Control
+                                  type="number"
+                                  value={warehouse.min_order_qty}
+                                  onChange={(e) =>
+                                    handleWarehouseChange(
+                                      index,
+                                      "min_order_qty",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </td>
+
+                                   <td>
+                                <Form.Control
+                                  type="number"
+                                  value={warehouse.initial_qty || 0}
+                                  onChange={(e) =>
+                                    handleWarehouseChange(
+                                      index,
+                                      "initial_qty",
                                       e.target.value
                                     )
                                   }
@@ -953,35 +981,6 @@ const AddProductModal = ({
                     value={localNewItem.description}
                     onChange={handleChange}
                     placeholder="Enter item description"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Initial Quantity On Hand</Form.Label>
-                  <Form.Control
-                    name="quantity"
-                    type="number"
-                    value={localNewItem.quantity}
-                    onChange={handleChange}
-                    placeholder="0"
-                    min="0"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Minimum Order Quantity</Form.Label>
-                  <Form.Control
-                    name="minQty"
-                    type="number"
-                    value={localNewItem.minQty}
-                    onChange={handleChange}
-                    placeholder="0"
-                    min="0"
                   />
                 </Form.Group>
               </Col>
