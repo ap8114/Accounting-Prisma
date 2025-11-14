@@ -14,12 +14,8 @@ import 'react-toastify/dist/ReactToastify.css';
 const AddProductModal = ({
   showAdd,
   showEdit,
-  newCategory,
-  showAddCategoryModal,
   setShowAdd,
   setShowEdit,
-  setShowAddCategoryModal,
-  setNewCategory,
   formMode,
   selectedItem,
   companyId,
@@ -62,6 +58,10 @@ const AddProductModal = ({
   const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isLoadingUnitDetails, setIsLoadingUnitDetails] = useState(false); // Added for unit details loading
+
+  // Internal state for category modal
+  const [internalShowAddCategoryModal, setInternalShowAddCategoryModal] = useState(false);
+  const [internalNewCategory, setInternalNewCategory] = useState("");
 
   const fileInputRef = useRef(null);
   const isInitialMount = useRef(true);
@@ -391,7 +391,7 @@ const AddProductModal = ({
 
   // Add new category
   const handleAddCategoryApi = async () => {
-    if (!newCategory.trim()) {
+    if (!internalNewCategory.trim()) {
       toast.error("Please enter a category name", {
         toastId: 'category-name-error',
         autoClose: 3000
@@ -402,7 +402,7 @@ const AddProductModal = ({
     try {
       await axiosInstance.post("item-categories", {
         company_id: companyId,
-        item_category_name: newCategory.trim(),
+        item_category_name: internalNewCategory.trim(),
       });
 
       const res = await axiosInstance.get(
@@ -413,12 +413,12 @@ const AddProductModal = ({
         setFetchedCategories(names);
         setLocalNewItem((prev) => ({
           ...prev,
-          itemCategory: newCategory.trim(),
+          itemCategory: internalNewCategory.trim(),
         }));
 
         // Set the category ID
         const newCategoryObj = res.data.data.find(
-          (c) => c.item_category_name === newCategory.trim()
+          (c) => c.item_category_name === internalNewCategory.trim()
         );
         if (newCategoryObj) {
           setLocalNewItem((prev) => ({
@@ -428,8 +428,8 @@ const AddProductModal = ({
         }
       }
 
-      setNewCategory("");
-      setShowAddCategoryModal(false);
+      setInternalNewCategory("");
+      setInternalShowAddCategoryModal(false);
       toast.success("Category added successfully", {
         toastId: 'category-add-success',
         autoClose: 3000
@@ -748,7 +748,7 @@ const AddProductModal = ({
                     <Button
                       variant="outline-primary"
                       size="sm"
-                      onClick={() => setShowAddCategoryModal(true)}
+                      onClick={() => setInternalShowAddCategoryModal(true)}
                       style={{
                         backgroundColor: "#27b2b6",
                         border: "none",
@@ -1135,8 +1135,8 @@ const AddProductModal = ({
 
       {/* Add Category Modal */}
       <Modal
-        show={showAddCategoryModal}
-        onHide={() => setShowAddCategoryModal(false)}
+        show={internalShowAddCategoryModal}
+        onHide={() => setInternalShowAddCategoryModal(false)}
         centered
       >
         <Modal.Header closeButton>
@@ -1148,15 +1148,15 @@ const AddProductModal = ({
             <Form.Control
               type="text"
               placeholder="Enter new category name"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
+              value={internalNewCategory}
+              onChange={(e) => setInternalNewCategory(e.target.value)}
             />
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button
             variant="secondary"
-            onClick={() => setShowAddCategoryModal(false)}
+            onClick={() => setInternalShowAddCategoryModal(false)}
           >
             Cancel
           </Button>

@@ -33,6 +33,8 @@ const AddEditCustomerModal = ({
         anyFile: null,
         accountName: "",
         accountBalance: "0.00",
+        accountType: "Sundry Debtors", // Added account type
+        accountBalanceType: "Debit", // Added balance type
         creationDate: new Date().toISOString().split("T")[0],
         bankAccountNumber: "",
         bankIfsc: "",
@@ -72,6 +74,8 @@ const AddEditCustomerModal = ({
               anyFile: null,
               accountName: customer.account_name || "",
               accountBalance: customer.account_balance?.toString() || "0.00",
+              accountType: customer.account_type || "Sundry Debtors", // Added account type
+              accountBalanceType: customer.account_balance_type || "Debit", // Added balance type
               creationDate: customer.creation_date
                 ? new Date(customer.creation_date).toISOString().split("T")[0]
                 : new Date().toISOString().split("T")[0],
@@ -120,6 +124,8 @@ const AddEditCustomerModal = ({
       formData.append("google_location", customerFormData.googleLocation);
       formData.append("account_name", customerFormData.accountName);
       formData.append("account_balance", customerFormData.accountBalance);
+      formData.append("account_type", customerFormData.accountType); // Added account type
+      formData.append("account_balance_type", customerFormData.accountBalanceType); // Added balance type
 
       // ✅ FIX: Convert "YYYY-MM-DD" to ISO 8601 datetime string
       const creationDateISO = new Date(customerFormData.creationDate).toISOString();
@@ -261,6 +267,19 @@ const AddEditCustomerModal = ({
     }
   };
 
+  const handleAccountTypeChange = (e) => {
+    const selectedType = e.target.value;
+    setCustomerFormData({
+      ...customerFormData,
+      accountType: selectedType,
+      // Update balance type based on account type
+      accountBalanceType: selectedType === "Sundry Debtors" || selectedType === "Current Assets" || 
+                          selectedType === "Loans & Advances" || selectedType === "Fixed Assets" || 
+                          selectedType === "Investments" || selectedType === "Deposits (Assets)" 
+                          ? "Debit" : "Credit"
+    });
+  };
+
   return (
     <Modal show={show} onHide={onHide} size="xl" centered backdrop="static">
       <Modal.Header closeButton className="bg-light">
@@ -400,13 +419,37 @@ const AddEditCustomerModal = ({
             <Col md={6}>
               <Form.Group>
                 <Form.Label>Account Type</Form.Label>
-                <Form.Control
-                  type="text"
-                  value="Sundry Debtors"
-                  readOnly
-                  disabled
+                <Form.Select
+                  value={customerFormData.accountType}
+                  onChange={handleAccountTypeChange}
                   style={{ backgroundColor: "#fff" }}
-                />
+                >
+                  <option value="Cash-in-hand">Cash-in-hand</option>
+                  <option value="Bank A/Cs">Bank A/Cs</option>
+                  <option value="Sundry Debtors">Sundry Debtors</option>
+                  <option value="Sundry Creditors">Sundry Creditors</option>
+                  <option value="Purchases A/C">Purchases A/C</option>
+                  <option value="Purchases Return">Purchases Return</option>
+                  <option value="Sales A/C">Sales A/C</option>
+                  <option value="Sales Return">Sales Return</option>
+                  <option value="Capital A/C">Capital A/C</option>
+                  <option value="Direct Expenses">Direct Expenses</option>
+                  <option value="Indirect Expenses">Indirect Expenses</option>
+                  <option value="Direct Income">Direct Income</option>
+                  <option value="Indirect Income">Indirect Income</option>
+                  <option value="Current Assets">Current Assets</option>
+                  <option value="Current Liabilities">Current Liabilities</option>
+                  <option value="Misc. Expenses">Misc. Expenses</option>
+                  <option value="Misc. Income">Misc. Income</option>
+                  <option value="Loans (Liability)">Loans (Liability)</option>
+                  <option value="Loans & Advances">Loans & Advances</option>
+                  <option value="Fixed Assets">Fixed Assets</option>
+                  <option value="Investments">Investments</option>
+                  <option value="Bank OD A/C">Bank OD A/C</option>
+                  <option value="Deposits (Assets)">Deposits (Assets)</option>
+                  <option value="Provisions">Provisions</option>
+                  <option value="Reserves & Surplus">Reserves & Surplus</option>
+                </Form.Select>
               </Form.Group>
             </Col>
             <Col md={6}>
@@ -414,7 +457,7 @@ const AddEditCustomerModal = ({
                 <Form.Label>Balance Type</Form.Label>
                 <Form.Control
                   type="text"
-                  value="Debit"
+                  value={customerFormData.accountBalanceType}
                   readOnly
                   disabled
                   style={{ backgroundColor: "#fff" }}
@@ -723,8 +766,8 @@ const AddEditCustomerModal = ({
           {isSubmitting
             ? "Saving..."
             : editMode
-            ? "Update Customer"
-            : "Save Customer"}
+              ? "Update Customer"
+              : "Save Customer"}
         </Button>
       </Modal.Footer>
     </Modal>

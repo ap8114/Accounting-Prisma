@@ -114,49 +114,56 @@ const WareHouseDetail = () => {
   return (
     <div className="container py-5">
       {/* Header */}
-      <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-4 gap-3">
-        <div className="d-flex align-items-center">
-          <Button
-            variant="outline-dark"
-            onClick={() => navigate(-1)}
-            className="d-flex align-items-center rounded-pill px-3 shadow-sm me-3"
-          >
-            <FaArrowLeft className="me-2" />
-            Back
-          </Button>
-          <h3 className="fw-bold mb-0 text-primary-emphasis d-flex">
-            <FaBoxes className="me-2 text-warning" />
-            <span className="text-gradient">Stock by Warehouse</span>
-          </h3>
-        </div>
-        <Button
-          onClick={handleAddStockModal}
-          style={{ backgroundColor: "#3daaaa", borderColor: "#3daaaa" }}
-        >
-          Add New Product
-        </Button>
-        <AddProductModal
-          showAdd={showAdd}
-          showEdit={false}
-          newItem={{}}
-          categories={uniqueCategories}
-          newCategory={""}
-          showUOMModal={false}
-          showAddCategoryModal={false}
-          setShowAdd={setShowAdd}
-          setShowEdit={() => {}}
-          setShowUOMModal={() => {}}
-          setShowAddCategoryModal={() => {}}
-          setNewCategory={() => {}}
-          handleChange={() => {}}
-          handleAddItem={() => {}}
-          handleUpdateItem={() => {}}
-          handleAddCategory={() => {}}
-          selectedWarehouse={selectedWarehouse}
-          formMode="addStock"
-          companyId={companyId}
-        />
-      </div>
+<div className="d-flex justify-content-between align-items-center mb-4">
+  {/* Left Side: Back Button + Heading */}
+  <div className="d-flex align-items-center gap-3">
+    <Button
+      variant="outline-dark"
+      onClick={() => navigate(-1)}
+      className="d-flex align-items-center rounded-pill px-3 shadow-sm"
+    >
+      <FaArrowLeft className="me-2" />
+      Back
+    </Button>
+
+    <h3 className="fw-bold mb-0 text-primary-emphasis d-flex align-items-center">
+      <FaBoxes className="me-2 text-warning" />
+      <span className="text-gradient">Stock by Warehouse</span>
+    </h3>
+  </div>
+
+  {/* Right Side: Add Product Button */}
+  <Button
+    onClick={handleAddStockModal}
+    style={{ backgroundColor: "#3daaaa", borderColor: "#3daaaa" }}
+  >
+    Add New Product
+  </Button>
+
+  {/* Add Product Modal */}
+  <AddProductModal
+    showAdd={showAdd}
+    showEdit={false}
+    newItem={{}}
+    categories={uniqueCategories}
+    newCategory={""}
+    showUOMModal={false}
+    showAddCategoryModal={false}
+    setShowAdd={setShowAdd}
+    setShowEdit={() => {}}
+    setShowUOMModal={() => {}}
+    setShowAddCategoryModal={() => {}}
+    setNewCategory={() => {}}
+    handleChange={() => {}}
+    handleAddItem={() => {}}
+    handleUpdateItem={() => {}}
+    handleAddCategory={() => {}}
+    selectedWarehouse={selectedWarehouse}
+    formMode="addStock"
+    companyId={companyId}
+  />
+</div>
+
 
       {/* Warehouse Info */}
       {warehouse && summary ? (

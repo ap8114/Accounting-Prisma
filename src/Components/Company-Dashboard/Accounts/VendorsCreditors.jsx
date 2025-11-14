@@ -61,6 +61,29 @@ const VendorsCustomers = () => {
     accountBalance: "",
   });
 
+  // Function to determine balance type based on account type
+  const getBalanceType = (accountType) => {
+    const debitTypes = [
+      "Sundry Debtors", "Current Assets", "Loans & Advances",
+      "Fixed Assets", "Investments", "Deposits (Assets)",
+      "Cash-in-hand", "Direct Expenses", "Indirect Expenses"
+    ];
+
+    return debitTypes.includes(accountType) ? "Debit" : "Credit";
+  };
+
+  // Handle account type change
+  const handleAccountTypeChange = (e) => {
+    const selectedType = e.target.value;
+    const balanceType = getBalanceType(selectedType);
+
+    setVendorFormData({
+      ...vendorFormData,
+      accountType: selectedType,
+      balanceType: balanceType
+    });
+  };
+
   // Centralized fetch function with loading/error handling
   const fetchVendors = async () => {
     if (!CompanyId) {
@@ -71,10 +94,9 @@ const VendorsCustomers = () => {
 
     try {
       setLoading(true);
-      setError(null); // Clear previous errors
+      setError(null);
       const response = await axiosInstance.get(`/vendorCustomer/company/${CompanyId}?type=${vendorType}`);
 
-      // Check if response is successful and has data
       if (response.status === 200 && response.data && Array.isArray(response.data.data)) {
         const mappedVendors = response.data.data.map(vendor => ({
           id: vendor.id,
@@ -100,8 +122,8 @@ const VendorsCustomers = () => {
           gstEnabled: vendor.enable_gst === "1",
           companyLocation: vendor.google_location?.trim() || "",
           companyName: vendor.company_name?.trim() || "",
-          idCardImage: vendor.id_card_image || null, // Store file URLs
-          extraFile: vendor.any_file || null, // Store file URLs
+          idCardImage: vendor.id_card_image || null,
+          extraFile: vendor.any_file || null,
           raw: vendor
         }));
         setVendors(mappedVendors);
@@ -117,18 +139,19 @@ const VendorsCustomers = () => {
     }
   };
 
-  // Re-fetch data after any CRUD operation
   const refetchData = () => {
-    fetchVendors(); // This ensures fresh data is loaded
+    fetchVendors();
   };
 
   const handleAddClick = () => {
     const accountType = getAccountType(vendorType);
+    const balanceType = getBalanceType(accountType);
+
     setVendorFormData({
       name: "",
       accountType: accountType,
       accountName: "",
-      balanceType: "Credit",
+      balanceType: balanceType,
       payable: "",
       currentBalance: "",
       creationDate: "",
@@ -159,15 +182,17 @@ const VendorsCustomers = () => {
   };
 
   const handleEditClick = (vendor) => {
-    const accountType = getAccountType(vendorType);
+    const accountType = vendor.accountType || getAccountType(vendorType);
+    const balanceType = getBalanceType(accountType);
+
     setVendorFormData({
       name: vendor.name || "",
       nameArabic: vendor.nameArabic || "",
       companyName: vendor.companyName || "",
       companyLocation: vendor.companyLocation || "",
-      accountType: vendor.accountType || accountType,
+      accountType: accountType,
       accountName: vendor.accountName || "",
-      balanceType: "Credit",
+      balanceType: balanceType,
       payable: vendor.payable || "",
       accountBalance: vendor.payable?.toString() || "",
       creationDate: vendor.creationDate || "",
@@ -186,8 +211,8 @@ const VendorsCustomers = () => {
       gstin: vendor.gstin || "",
       gstType: vendor.gstType || "Registered",
       gstEnabled: vendor.gstEnabled !== undefined ? vendor.gstEnabled : true,
-      idCardImage: null, // Reset file inputs for editing
-      extraFile: null, // Reset file inputs for editing
+      idCardImage: null,
+      extraFile: null,
     });
     setSelectedVendor(vendor);
     setShowAddEditModal(true);
@@ -195,7 +220,7 @@ const VendorsCustomers = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    setError(null); // Clear previous errors
+    setError(null);
     try {
       const companyIdNum = parseInt(CompanyId, 10);
       if (isNaN(companyIdNum) || companyIdNum <= 0) {
@@ -210,12 +235,11 @@ const VendorsCustomers = () => {
       formData.append("name_arabic", vendorFormData.nameArabic?.trim() || "");
       formData.append("company_name", vendorFormData.companyName?.trim() || "");
       formData.append("google_location", vendorFormData.companyLocation?.trim() || "");
-      formData.append("account_type", getAccountType(vendorType));
-      formData.append("balance_type", "Credit");
+      formData.append("account_type", vendorFormData.accountType);
+      formData.append("balance_type", vendorFormData.balanceType);
       formData.append("account_name", vendorFormData.accountName?.trim() || vendorFormData.name.trim());
       formData.append("account_balance", parseFloat(vendorFormData.accountBalance) || 0);
 
-      // Format creation date properly
       formData.append("creation_date", vendorFormData.creationDate
         ? new Date(vendorFormData.creationDate).toISOString()
         : new Date().toISOString());
@@ -256,7 +280,6 @@ const VendorsCustomers = () => {
         });
       }
 
-      // Check if response is successful (status 200-299)
       if (response.status >= 200 && response.status < 300) {
         toast.success(selectedVendor
           ? `${vendorType === 'vender' ? 'Vendor' : 'Customer'} updated successfully!`
@@ -265,7 +288,6 @@ const VendorsCustomers = () => {
         setShowAddEditModal(false);
         setSelectedVendor(null);
         resetForm();
-        // Auto-reload data
         refetchData();
       } else {
         throw new Error(response.data?.message || 'Operation failed');
@@ -280,11 +302,13 @@ const VendorsCustomers = () => {
 
   const resetForm = () => {
     const accountType = getAccountType(vendorType);
+    const balanceType = getBalanceType(accountType);
+
     setVendorFormData({
       name: "",
       accountType: accountType,
       accountName: "",
-      balanceType: "Credit",
+      balanceType: balanceType,
       payable: "",
       currentBalance: "",
       creationDate: "",
@@ -319,16 +343,14 @@ const VendorsCustomers = () => {
       return;
     }
     setDeleting(true);
-    setError(null); // Clear previous errors
+    setError(null);
     try {
       const response = await axiosInstance.delete(`/vendorCustomer/${selectedVendor.id}`);
 
-      // Check if response is successful (status 200-299)
       if (response.status >= 200 && response.status < 300) {
         toast.success(`${vendorType === 'vender' ? 'Vendor' : 'Customer'} deleted successfully!`);
         setShowDelete(false);
         setSelectedVendor(null);
-        // Auto-reload data
         refetchData();
       } else {
         throw new Error(response.data?.message || 'Failed to delete vendor');
@@ -341,13 +363,16 @@ const VendorsCustomers = () => {
     }
   };
 
-  const filteredVendors = vendors.filter((v) =>
-    v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (v.email && v.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (v.phone && v.phone.includes(searchTerm))
-  );
+  // 🔥 ENHANCED SEARCH LOGIC
+  const filteredVendors = vendors.filter((v) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      v.name.toLowerCase().includes(searchLower) ||
+      (v.nameArabic && v.nameArabic.toLowerCase().includes(searchLower)) ||
+      (v.phone && v.phone.includes(searchTerm))
+    );
+  });
 
-  // Export / Import / PDF logic unchanged
   const handleDownloadTemplate = () => {
     const doc = new jsPDF('p', 'mm', 'a4');
     let yPos = 20;
@@ -733,7 +758,6 @@ const VendorsCustomers = () => {
         <Modal.Body>
           {selectedVendor && (
             <>
-              {/* Profile Image and Name Section */}
               <div className="text-center mb-4">
                 {selectedVendor.idCardImage ? (
                   <Image
@@ -839,7 +863,6 @@ const VendorsCustomers = () => {
                 </Row>
               </div>
 
-              {/* File Display Section */}
               {(selectedVendor.idCardImage || selectedVendor.extraFile) && (
                 <div className="border rounded p-3 mb-4">
                   <h6 className="fw-semibold mb-3">Documents</h6>
@@ -987,12 +1010,37 @@ const VendorsCustomers = () => {
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Account Type</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={getAccountType(vendorType)}
-                    disabled
+                  <Form.Select
+                    value={vendorFormData.accountType}
+                    onChange={handleAccountTypeChange}
                     style={{ backgroundColor: "#fff" }}
-                  />
+                  >
+                    <option value="Cash-in-hand">Cash-in-hand</option>
+                    <option value="Bank A/Cs">Bank A/Cs</option>
+                    <option value="Sundry Debtors">Sundry Debtors</option>
+                    <option value="Sundry Creditors">Sundry Creditors</option>
+                    <option value="Purchases A/C">Purchases A/C</option>
+                    <option value="Purchases Return">Purchases Return</option>
+                    <option value="Sales A/C">Sales A/C</option>
+                    <option value="Sales Return">Sales Return</option>
+                    <option value="Capital A/C">Capital A/C</option>
+                    <option value="Direct Expenses">Direct Expenses</option>
+                    <option value="Indirect Expenses">Indirect Expenses</option>
+                    <option value="Direct Income">Direct Income</option>
+                    <option value="Indirect Income">Indirect Income</option>
+                    <option value="Current Assets">Current Assets</option>
+                    <option value="Current Liabilities">Current Liabilities</option>
+                    <option value="Misc. Expenses">Misc. Expenses</option>
+                    <option value="Misc. Income">Misc. Income</option>
+                    <option value="Loans (Liability)">Loans (Liability)</option>
+                    <option value="Loans & Advances">Loans & Advances</option>
+                    <option value="Fixed Assets">Fixed Assets</option>
+                    <option value="Investments">Investments</option>
+                    <option value="Bank OD A/C">Bank OD A/C</option>
+                    <option value="Deposits (Assets)">Deposits (Assets)</option>
+                    <option value="Provisions">Provisions</option>
+                    <option value="Reserves & Surplus">Reserves & Surplus</option>
+                  </Form.Select>
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -1000,7 +1048,8 @@ const VendorsCustomers = () => {
                   <Form.Label>Balance Type</Form.Label>
                   <Form.Control
                     type="text"
-                    value="Credit"
+                    value={vendorFormData.balanceType}
+                    readOnly
                     disabled
                     style={{ backgroundColor: "#fff" }}
                   />
@@ -1280,7 +1329,6 @@ const VendorsCustomers = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Page Description */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
           <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
