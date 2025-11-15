@@ -75,10 +75,10 @@ const CompanyInfo = () => {
     try {
       const response = await fetch(`https://02x4fc84-8080.inc1.devtunnels.ms/api/v1/auth/Company/${companyId}`);
       const result = await response.json();
-      
+
       if (result.success) {
         const companyData = result.data;
-        
+
         // Update form data with API response
         setFormData(prev => ({
           ...prev,
@@ -143,7 +143,7 @@ const CompanyInfo = () => {
 
       // Create FormData for file uploads
       const formDataForUpload = new FormData();
-      
+
       // Add all the fields to FormData
       Object.keys(apiData).forEach(key => {
         formDataForUpload.append(key, apiData[key]);
@@ -167,9 +167,9 @@ const CompanyInfo = () => {
         method: 'PUT',
         body: formDataForUpload
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         alert('Company data saved successfully!');
         // Refresh data after save
@@ -381,11 +381,6 @@ const CompanyInfo = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    saveCompanyData();
-  };
-
   const uploadButtonStyle = {
     backgroundColor: '#002d4d',
     borderColor: '#002d4d',
@@ -417,6 +412,8 @@ const CompanyInfo = () => {
     fontSize: '14px',
     fontWeight: isActive ? '600' : '400'
   });
+
+  
 
   return (
     <div

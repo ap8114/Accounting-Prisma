@@ -12,7 +12,7 @@ import {
 import axios from "axios";
 import BaseUrl from "../../../../Api/BaseUrl";
 import GetCompanyId from "../../../../Api/GetCompanyId";
-import axiosInstance from "../../../../Api/axiosInstance";
+import axiosInstance from "../../../../Api/AxiosInstance";
 import { CurrencyContext } from "../../../../hooks/CurrencyContext";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';

@@ -426,23 +426,6 @@ const RolesPermissions = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
-        <Spinner animation="border" variant="primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 text-center">
-        <p className="text-danger">{error}</p>
-        <Button onClick={fetchRoles}>Retry</Button>
-      </div>
-    );
-  }
-
   return (
     <div className="p-4" style={{ background: "#f8f9fa", minHeight: "100vh" }}>
       {/* Header */}
@@ -460,7 +443,7 @@ const RolesPermissions = () => {
           </Button>
         </div>
       </div>
-
+z
       {/* Main Card */}
       <Card className="">
         <Card.Body>

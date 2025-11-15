@@ -5,7 +5,7 @@ import { FaEye, FaEdit, FaTrash, FaPlus, FaBook, FaFile } from 'react-icons/fa';
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import GetCompanyId from '../../../Api/GetCompanyId';
-import axiosInstance from '../../../Api/axiosInstance';
+import axiosInstance from '../../../Api/AxiosInstance';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import jsPDF from 'jspdf';
