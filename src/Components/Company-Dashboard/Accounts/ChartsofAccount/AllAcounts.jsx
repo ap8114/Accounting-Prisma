@@ -12,8 +12,6 @@ import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
 import { CurrencyContext } from "../../../../hooks/CurrencyContext";
 
-
-
 const companyId = GetCompanyId();
 
 const AllAccounts = () => {
