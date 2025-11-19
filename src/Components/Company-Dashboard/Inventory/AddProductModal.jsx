@@ -868,115 +868,114 @@ const AddProductModal = ({
                       <span className="ms-2">Loading warehouses...</span>
                     </div>
                   ) : (
-                    <Table striped bordered hover responsive>
-                      <thead>
-                        <tr>
-                          <th style={{ width: "30%" }}>Warehouse</th>
-                          <th style={{ width: "25%" }}>Quantity</th>
-                          <th style={{ width: "25%" }}>Minimum Order Quantity</th>
-                          <th style={{ width: "25%" }}>Initial Quantity On Hand</th>
-                          <th style={{ width: "20%" }}>Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {localNewItem.productWarehouses.map(
-                          (warehouse, index) => (
-                            <tr key={index}>
-                              <td>
-                                <Form.Select
-                                  value={warehouse.warehouse_id}
-                                  onChange={(e) =>
-                                    handleWarehouseChange(
-                                      index,
-                                      "warehouse_id",
-                                      e.target.value
-                                    )
-                                  }
-                                >
-                                  <option value="">Select Warehouse</option>
-                                  {warehouses
-                                    .filter((wh) => {
-                                      // Filter out warehouses that are already selected in other rows
-                                      const selectedWarehouseIds =
-                                        localNewItem.productWarehouses
-                                          .map((w, i) =>
-                                            i !== index ? w.warehouse_id : null
-                                          )
-                                          .filter((id) => id !== null);
-                                      return !selectedWarehouseIds.includes(
-                                        wh.id
-                                      );
-                                    })
-                                    .map((wh) => (
-                                      <option key={wh.id} value={wh.id}>
-                                        {wh.warehouse_name}
-                                      </option>
-                                    ))}
-                                </Form.Select>
-                              </td>
-                              <td>
-                                <Form.Control
-                                  type="number"
-                                  value={warehouse.quantity}
-                                  onChange={(e) =>
-                                    handleWarehouseChange(
-                                      index,
-                                      "quantity",
-                                      e.target.value
-                                    )
-                                  }
-                                  placeholder="0"
-                                  min="0"
-                                />
-                              </td>
-                              <td>
-                                <Form.Control
-                                  type="number"
-                                  value={warehouse.min_order_qty}
-                                  onChange={(e) =>
-                                    handleWarehouseChange(
-                                      index,
-                                      "min_order_qty",
-                                      e.target.value
-                                    )
-                                  }
-                                  placeholder="0"
-                                  min="0"
-                                />
-                              </td>
-
-                              <td>
-                                <Form.Control
-                                  type="number"
-                                  value={warehouse.initial_qty || 0}
-                                  onChange={(e) =>
-                                    handleWarehouseChange(
-                                      index,
-                                      "initial_qty",
-                                      e.target.value
-                                    )
-                                  }
-                                  placeholder="0"
-                                  min="0"
-                                />
-                              </td>
-                              <td className="text-center">
-                                <Button
-                                  variant="danger"
-                                  size="sm"
-                                  onClick={() => removeWarehouseRow(index)}
-                                  disabled={
-                                    localNewItem.productWarehouses.length <= 1
-                                  }
-                                >
-                                  Remove
-                                </Button>
-                              </td>
-                            </tr>
-                          )
-                        )}
-                      </tbody>
-                    </Table>
+<Table striped bordered hover responsive>
+  <thead>
+    <tr>
+      <th style={{ width: "30%" }}>Warehouse</th>
+      <th style={{ width: "25%" }}>Quantity</th>
+      <th style={{ width: "25%" }}>Minimum Order Quantity</th>
+      <th style={{ width: "25%" }}>Initial Quantity On Hand</th>
+      <th style={{ width: "20%" }}>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {localNewItem.productWarehouses.map(
+      (warehouse, index) => (
+        <tr key={index}>
+          <td>
+            <Form.Select
+              value={warehouse.warehouse_id}
+              onChange={(e) =>
+                handleWarehouseChange(
+                  index,
+                  "warehouse_id",
+                  e.target.value
+                )
+              }
+            >
+              <option value="">Select Warehouse</option>
+              {warehouses
+                .filter((wh) => {
+                  // Filter out warehouses that are already selected in other rows
+                  const selectedWarehouseIds =
+                    localNewItem.productWarehouses
+                      .map((w, i) =>
+                        i !== index ? w.warehouse_id : null
+                      )
+                      .filter((id) => id !== null);
+                  return !selectedWarehouseIds.includes(
+                    wh.id
+                  );
+                })
+                .map((wh) => (
+                  <option key={wh.id} value={wh.id}>
+                    {wh.warehouse_name}
+                  </option>
+                ))}
+            </Form.Select>
+          </td>
+          <td>
+            <Form.Control
+              type="number"
+              value={warehouse.quantity || ""}  // Changed: now shows empty string if undefined/null
+              onChange={(e) =>
+                handleWarehouseChange(
+                  index,
+                  "quantity",
+                  e.target.value
+                )
+              }
+              placeholder="0"
+              min="0"
+            />
+          </td>
+          <td>
+            <Form.Control
+              type="number"
+              value={warehouse.min_order_qty || ""}  // Changed: now shows empty string if undefined/null
+              onChange={(e) =>
+                handleWarehouseChange(
+                  index,
+                  "min_order_qty",
+                  e.target.value
+                )
+              }
+              placeholder="0"
+              min="0"
+            />
+          </td>
+          <td>
+            <Form.Control
+              type="number"
+              value={warehouse.initial_qty || ""}  // Changed: now shows empty string if undefined/null
+              onChange={(e) =>
+                handleWarehouseChange(
+                  index,
+                  "initial_qty",
+                  e.target.value
+                )
+              }
+              placeholder="0"
+              min="0"
+            />
+          </td>
+          <td className="text-center">
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => removeWarehouseRow(index)}
+              disabled={
+                localNewItem.productWarehouses.length <= 1
+              }
+            >
+              Remove
+            </Button>
+          </td>
+        </tr>
+      )
+    )}
+  </tbody>
+</Table>
                   )}
                 </Form.Group>
               </Col>
