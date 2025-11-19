@@ -1,23 +1,21 @@
-import React, { useState, useEffect, useRef, useCallback,useContext } from "react";
-import { Table, Container, Card, Button, Row,  Col,  Form,} from "react-bootstrap";
+import React, { useState, useEffect, useRef, useCallback, useContext } from "react";
+import { Table, Container, Card, Button, Row, Col, Form, } from "react-bootstrap";
 import { FaUserPlus, FaUserFriends } from "react-icons/fa";
 import { FaEye, FaEdit, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import AddCustomerModal from "./AddCustomerModal";
 import AddVendorModal from "./AddVendorModal";
 import AddNewAccountModal from "./AddNewAccountModal";
-import AccountActionModal from "./AccountActionModal";  
+import AccountActionModal from "./AccountActionModal";
 import BaseUrl from "../../../../Api/BaseUrl";
 import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
 import { CurrencyContext } from "../../../../hooks/CurrencyContext";
 
-const companyId = GetCompanyId();
-
 const AllAccounts = () => {
   // Get unique account types from accountData
   const navigate = useNavigate();
-  
+const companyId = GetCompanyId();
   // State declarations
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -31,20 +29,20 @@ const AllAccounts = () => {
   const [refreshData, setRefreshData] = useState(0); // Changed to counter
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
-    const { convertPrice, symbol, currency } = useContext(CurrencyContext);
-  
+
+  const { convertPrice, symbol, currency } = useContext(CurrencyContext);
+
   // Refs to prevent multiple API calls
   const isEditingRef = useRef(false);
   const isDeletingRef = useRef(false);
   const isSavingRef = useRef(false);
   const apiCallLock = useRef(false);
   const lastSaveTime = useRef(0); // For preventing double clicks
-  
+
   const options = accountData.flatMap((group) =>
     group.rows.map((row) => ({ value: row.name, label: row.name }))
   );
-  
+
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [actionModal, setActionModal] = useState({
     show: false,
@@ -80,7 +78,7 @@ const AllAccounts = () => {
     taxEnabled: true,
     taxNumber: "",
   });
-  
+
   const [customerFormData, setCustomerFormData] = useState({
     gstin: "",
     gstEnabled: true,
@@ -115,7 +113,7 @@ const AllAccounts = () => {
 
   const [newAccountData, setNewAccountData] = useState({
     type: "",
-    subgroup: "", 
+    subgroup: "",
     name: "",
     bankAccountNumber: "",
     bankIFSC: "",
@@ -134,33 +132,33 @@ const AllAccounts = () => {
       console.error("API data is not an array:", apiData);
       return [];
     }
-    
+
     // Group accounts by subgroup name
     const groupedData = {};
-    
+
     apiData.forEach(account => {
       // Use subgroup name from the parent_account object if available
       const subgroupName = account.parent_account?.subgroup_name || "Uncategorized";
-      
+
       if (!groupedData[subgroupName]) {
         groupedData[subgroupName] = {
           type: subgroupName,
           rows: []
         };
       }
-      
+
       // Convert has_bank_details to a readable format
       let hasBankDetails = "No";
       if (account.account_number && account.ifsc_code) {
         hasBankDetails = "Yes";
       }
-      
+
       // Use sub_of_subgroup.name as the account name if available, otherwise use account_name or fallback
       const accountName = account.sub_of_subgroup?.name || account.account_name || `Account ${account.id}`;
-      
+
       // Define subOfSubgroupName properly
       const subOfSubgroupName = account.sub_of_subgroup?.name || "";
-      
+
       groupedData[subgroupName].rows.push({
         name: accountName,
         bal: account.accountBalance || "0.00", // Use accountBalance from API
@@ -178,7 +176,7 @@ const AllAccounts = () => {
         sub_of_subgroup_name: subOfSubgroupName // Now properly defined
       });
     });
-    
+
     // Convert to array
     return Object.values(groupedData);
   }, []);
@@ -189,7 +187,7 @@ const AllAccounts = () => {
     try {
       const response = await axiosInstance.get(`${BaseUrl}account/company/${companyId}`);
       console.log("API Response:", response.data);
-      
+
       // Check if response has the expected structure
       if (response.data && response.data.success) {
         // Transform API data to match the component's expected format
@@ -218,7 +216,7 @@ const AllAccounts = () => {
     console.log("Vendor Saved:", vendorFormData);
     setShowVendorModal(false);
   };
-  
+
   const handleSaveCustomer = () => {
     console.log("Customer Saved:", customerFormData);
     setShowCustomerModal(false);
@@ -230,13 +228,13 @@ const AllAccounts = () => {
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
     // Check if API call is already in progress
     if (apiCallLock.current) {
       console.log("API call already in progress, ignoring duplicate call");
       return;
     }
-    
+
     // Prevent double clicks
     const now = Date.now();
     if (now - lastSaveTime.current < 2000) {
@@ -244,11 +242,11 @@ const AllAccounts = () => {
       return;
     }
     lastSaveTime.current = now;
-    
+
     // Lock API calls
     apiCallLock.current = true;
     isSavingRef.current = true;
-    
+
     try {
       const response = await axiosInstance.post(`${BaseUrl}account`, {
         subgroup_id: newAccountData.subgroup_id,
@@ -260,14 +258,14 @@ const AllAccounts = () => {
         bank_name_branch: newAccountData.bankNameBranch || "",
         sub_of_subgroup_id: newAccountData.sub_of_subgroup_id || "", // Include this field
       });
-      
+
       console.log("Account created:", response.data);
-      
+
       // Close the modal and reset the form
       setShowNewAccountModal(false);
       setNewAccountData({
         type: "",
-        subgroup: "", 
+        subgroup: "",
         name: "",
         bankAccountNumber: "",
         bankIFSC: "",
@@ -278,10 +276,10 @@ const AllAccounts = () => {
         email: "",
         isDefault: false,
       });
-      
+
       // Trigger data refresh
       setRefreshData(prev => prev + 1); // Increment counter
-      
+
     } catch (error) {
       console.error("Failed to save new account:", error);
     } finally {
@@ -296,7 +294,7 @@ const AllAccounts = () => {
       alert("Please select a main category");
       return;
     }
-  
+
     // Reset and close
     setSelectedMainCategory("");
     setShowAddParentModal(false);
@@ -323,7 +321,7 @@ const AllAccounts = () => {
     });
     setActionModal({ show: true, mode: 'view' });
   };
-  
+
   const handleEditAccount = (type, name) => {
     // Find the actual row to get the ID and other details
     const accountGroup = accountData.find((acc) => acc.type === type);
@@ -345,12 +343,12 @@ const AllAccounts = () => {
     });
     setActionModal({ show: true, mode: 'edit' });
   };
-  
+
   const handleDeleteAccount = async (type, name) => {
     try {
       setIsDeleting(true);
       isDeletingRef.current = true;
-      
+
       // Find the actual row to get the ID
       const accountGroup = accountData.find((acc) => acc.type === type);
       const row = accountGroup?.rows.find((r) => r.name === name || r.originalName === name);
@@ -363,7 +361,7 @@ const AllAccounts = () => {
       if (window.confirm(`Are you sure you want to delete the account "${name}"?`)) {
         // Make API call to delete the account
         await axiosInstance.delete(`${BaseUrl}account/${row.id}`);
-        
+
         // Trigger data refresh
         setRefreshData(prev => prev + 1); // Increment counter
       }
@@ -373,14 +371,14 @@ const AllAccounts = () => {
       setIsDeleting(false);
       isDeletingRef.current = false;
     }
-  };  
-  
+  };
+
   const handleViewLedger = (type, name) => {
     // Find the actual row to get the correct name
     const accountGroup = accountData.find((acc) => acc.type === type);
     const row = accountGroup?.rows.find((r) => r.name === name || r.originalName === name);
     const accountName = row ? (row.sub_of_subgroup_name || row.name) : name;
-    
+
     navigate("/company/ledgerpageaccount", {
       state: { accountName: accountName, accountType: type },
     });
@@ -392,7 +390,7 @@ const AllAccounts = () => {
       console.log("API call already in progress, ignoring duplicate call");
       return;
     }
-    
+
     // Prevent double clicks
     const now = Date.now();
     if (now - lastSaveTime.current < 2000) {
@@ -400,12 +398,12 @@ const AllAccounts = () => {
       return;
     }
     lastSaveTime.current = now;
-    
+
     // Lock API calls
     apiCallLock.current = true;
     isEditingRef.current = true;
     setIsEditing(true);
-    
+
     try {
       if (!selectedAccount || !selectedAccount.id) {
         console.error("No account selected for editing");
@@ -428,18 +426,18 @@ const AllAccounts = () => {
       }
 
       console.log("Edit payload:", payload);
-      
+
       // Make API call to update account
       const response = await axiosInstance.put(`${BaseUrl}account/${selectedAccount.id}`, payload);
-      
+
       console.log("Account updated:", response.data);
-        
+
       // Close modal
       setActionModal({ show: false, mode: null });
-      
+
       // Trigger data refresh
       setRefreshData(prev => prev + 1); // Increment counter
-      
+
     } catch (error) {
       console.error("Failed to update account:", error);
     } finally {
@@ -455,7 +453,7 @@ const AllAccounts = () => {
     if (isDeletingRef.current) return;
     isDeletingRef.current = true;
     setIsDeleting(true);
-    
+
     try {
       if (!selectedAccount || !selectedAccount.id) {
         console.error("No account selected for deletion");
@@ -464,15 +462,15 @@ const AllAccounts = () => {
       console.log("Deleting account with ID:", selectedAccount.id);
       // Make API call to delete account
       const response = await axiosInstance.delete(`${BaseUrl}account/${selectedAccount.id}`);
-      
+
       console.log("Account deleted:", response.data);
-      
+
       // Close modal
       setActionModal({ show: false, mode: null });
-      
+
       // Trigger data refresh
       setRefreshData(prev => prev + 1); // Increment counter
-      
+
     } catch (error) {
       console.error("Failed to delete account:", error);
     } finally {
@@ -487,13 +485,13 @@ const AllAccounts = () => {
     const typeMatches = accountGroup.type
       ?.toLowerCase()
       ?.includes(filterName.toLowerCase()) || false;
-     const nameMatches = accountGroup.rows.some((row) => {
+    const nameMatches = accountGroup.rows.some((row) => {
       const nameToCheck = row.sub_of_subgroup_name || row.name;
       return nameToCheck?.trim()?.toLowerCase()?.includes(filterName.toLowerCase()) || false;
     });
     return typeMatches || nameMatches;
   });
-   
+
   // Add this function to calculate total balance for each account type
   const calculateTotalBalance = (accountGroup) => {
     return accountGroup.rows
@@ -547,11 +545,11 @@ const AllAccounts = () => {
             <FaUserPlus size={18} />
             Add Vendor
           </Button>
-          <Button  
+          <Button
             style={{
               backgroundColor: "#53b2a5",
-              border: "none",  
-              padding: "8px 16px",    
+              border: "none",
+              padding: "8px 16px",
             }}
             className="d-flex align-items-center gap-2 text-white fw-semibold flex-shrink-0"
             onClick={() => setShowCustomerModal(true)}
@@ -573,7 +571,7 @@ const AllAccounts = () => {
             onChange={(e) => setFilterName(e.target.value)}
             style={{ minWidth: "200px" }}
           />
-        </Form.Group>                    
+        </Form.Group>
         <Button
           variant="secondary"
           onClick={() => {
@@ -584,16 +582,6 @@ const AllAccounts = () => {
           Clear
         </Button>
       </div>
-
-      {/* Loading and Error States */}
-      {loading && (
-        <div className="text-center my-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading....</span>
-          </div>
-          <p className="mt-2">Loading accounts.....</p>
-        </div>
-      )}
 
       {error && (
         <div className="alert alert-danger" role="alert">
@@ -607,12 +595,12 @@ const AllAccounts = () => {
           <Table bordered hover className="align-middle text-center mb-0">
             <thead
               className="table-light"
-              style={{ position: "sticky", top: 0, zIndex: 1}}>
+              style={{ position: "sticky", top: 0, zIndex: 1 }}>
               <tr>
                 <th>Account Type</th>
                 <th>Account Name</th>
                 <th>Account Balance</th>
-                <th>Actions</th> 
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -690,11 +678,11 @@ const AllAccounts = () => {
                           <td colSpan="2" className="text-end">
                             Total Balance
                           </td>
-                         <td className="text-end">
-  {totalBalance >= 0
-    ? `${symbol} ${convertPrice(totalBalance)}`
-    : `(${symbol} ${convertPrice(Math.abs(totalBalance))})`}
-</td>
+                          <td className="text-end">
+                            {totalBalance >= 0
+                              ? `${symbol} ${convertPrice(totalBalance)}`
+                              : `(${symbol} ${convertPrice(Math.abs(totalBalance))})`}
+                          </td>
 
                           <td></td> {/* Empty cell for Actions column */}
                         </tr>
@@ -770,7 +758,7 @@ const AllAccounts = () => {
           </h5>
           <ul
             className="text-muted fs-6 mb-0"
-            style={{ listStyleType: "disc", paddingLeft: "1.5rem"}}>
+            style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
             <li>Displays all financial accounts.</li>
             <li>Accounts are categorized by type.</li>
             <li>Helps in easy management and tracking.</li>
