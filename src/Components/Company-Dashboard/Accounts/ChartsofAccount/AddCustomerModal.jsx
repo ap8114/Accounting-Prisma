@@ -224,18 +224,40 @@ const AddCustomerModal = ({ show, onHide, onSave, customerFormData, setCustomerF
               </Col>
             </Row>
             <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Account Type</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value="Sundry Debtors"
-                    readOnly
-                    disabled
-                    style={{ backgroundColor: "#fff" }}
-                  />
-                </Form.Group>
-              </Col>
+                <Col md={6}>
+              <Form.Group>
+                <Form.Label>Account Type</Form.Label>
+                <Form.Select
+                  style={{ backgroundColor: "#fff" }}
+                >
+                  <option value="Cash-in-hand">Cash-in-hand</option>
+                  <option value="Bank A/Cs">Bank A/Cs</option>
+                  <option value="Sundry Debtors">Sundry Debtors</option>
+                  <option value="Sundry Creditors">Sundry Creditors</option>
+                  <option value="Purchases A/C">Purchases A/C</option>
+                  <option value="Purchases Return">Purchases Return</option>
+                  <option value="Sales A/C">Sales A/C</option>
+                  <option value="Sales Return">Sales Return</option>
+                  <option value="Capital A/C">Capital A/C</option>
+                  <option value="Direct Expenses">Direct Expenses</option>
+                  <option value="Indirect Expenses">Indirect Expenses</option>
+                  <option value="Direct Income">Direct Income</option>
+                  <option value="Indirect Income">Indirect Income</option>
+                  <option value="Current Assets">Current Assets</option>
+                  <option value="Current Liabilities">Current Liabilities</option>
+                  <option value="Misc. Expenses">Misc. Expenses</option>
+                  <option value="Misc. Income">Misc. Income</option>
+                  <option value="Loans (Liability)">Loans (Liability)</option>
+                  <option value="Loans & Advances">Loans & Advances</option>
+                  <option value="Fixed Assets">Fixed Assets</option>
+                  <option value="Investments">Investments</option>
+                  <option value="Bank OD A/C">Bank OD A/C</option>
+                  <option value="Deposits (Assets)">Deposits (Assets)</option>
+                  <option value="Provisions">Provisions</option>
+                  <option value="Reserves & Surplus">Reserves & Surplus</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Balance Type</Form.Label>

@@ -273,10 +273,10 @@ const AddEditCustomerModal = ({
       ...customerFormData,
       accountType: selectedType,
       // Update balance type based on account type
-      accountBalanceType: selectedType === "Sundry Debtors" || selectedType === "Current Assets" || 
-                          selectedType === "Loans & Advances" || selectedType === "Fixed Assets" || 
-                          selectedType === "Investments" || selectedType === "Deposits (Assets)" 
-                          ? "Debit" : "Credit"
+      accountBalanceType: selectedType === "Sundry Debtors" || selectedType === "Current Assets" ||
+        selectedType === "Loans & Advances" || selectedType === "Fixed Assets" ||
+        selectedType === "Investments" || selectedType === "Deposits (Assets)"
+        ? "Debit" : "Credit"
     });
   };
 

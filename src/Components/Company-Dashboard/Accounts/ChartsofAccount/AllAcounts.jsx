@@ -660,8 +660,8 @@ const AllAccounts = () => {
                             {totalBalance >= 0
                               ? `${symbol} ${convertPrice(totalBalance)}`
                               : `(${symbol} ${convertPrice(
-                                  Math.abs(totalBalance)
-                                )})`}
+                                Math.abs(totalBalance)
+                              )})`}
                           </td>
                           <td></td>
                         </tr>
