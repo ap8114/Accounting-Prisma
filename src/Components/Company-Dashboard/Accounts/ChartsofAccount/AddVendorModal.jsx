@@ -16,7 +16,7 @@ const AddVendorModal = ({ show, onHide, onSave, vendorFormData, setVendorFormDat
     try {
       // Create FormData object to handle file uploads
       const formData = new FormData();
-      
+
       // Add all form fields to FormData with updated field names
       formData.append('company_id', companyId);
       formData.append('name_english', vendorFormData.name || '');
@@ -43,12 +43,12 @@ const AddVendorModal = ({ show, onHide, onSave, vendorFormData, setVendorFormDat
       formData.append('enable_gst', vendorFormData.gstEnabled); // Changed field name
       formData.append('gstIn', vendorFormData.gstin || ''); // Changed field name
       formData.append('type', 'vender'); // Added default type
-      
+
       // Add files if they exist
       if (vendorFormData.idCardImage) {
         formData.append('id_card_image', vendorFormData.idCardImage);
       }
-      
+
       if (vendorFormData.extraFile) {
         formData.append('any_file', vendorFormData.extraFile); // Changed field name
       }
@@ -62,10 +62,10 @@ const AddVendorModal = ({ show, onHide, onSave, vendorFormData, setVendorFormDat
 
       // Call onSave callback with response data
       onSave(response.data);
-      
+
       // Show success toast
       toast.success('Vendor added successfully!');
-      
+
       // Reset form after successful submission
       setVendorFormData({
         name: '',
@@ -92,10 +92,10 @@ const AddVendorModal = ({ show, onHide, onSave, vendorFormData, setVendorFormDat
         idCardImage: null,
         extraFile: null,
       });
-      
+
       // Close modal
       onHide();
-      
+
     } catch (error) {
       console.error('Error saving vendor:', error);
       // Show error toast
@@ -229,12 +229,35 @@ const AddVendorModal = ({ show, onHide, onSave, vendorFormData, setVendorFormDat
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Account Type</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value="Current"  // Changed from "Sundry Creditors"
-                    disabled
+                  <Form.Select
                     style={{ backgroundColor: "#fff" }}
-                  />
+                  >
+                    <option value="Cash-in-hand">Cash-in-hand</option>
+                    <option value="Bank A/Cs">Bank A/Cs</option>
+                    <option value="Sundry Debtors">Sundry Debtors</option>
+                    <option value="Sundry Creditors">Sundry Creditors</option>
+                    <option value="Purchases A/C">Purchases A/C</option>
+                    <option value="Purchases Return">Purchases Return</option>
+                    <option value="Sales A/C">Sales A/C</option>
+                    <option value="Sales Return">Sales Return</option>
+                    <option value="Capital A/C">Capital A/C</option>
+                    <option value="Direct Expenses">Direct Expenses</option>
+                    <option value="Indirect Expenses">Indirect Expenses</option>
+                    <option value="Direct Income">Direct Income</option>
+                    <option value="Indirect Income">Indirect Income</option>
+                    <option value="Current Assets">Current Assets</option>
+                    <option value="Current Liabilities">Current Liabilities</option>
+                    <option value="Misc. Expenses">Misc. Expenses</option>
+                    <option value="Misc. Income">Misc. Income</option>
+                    <option value="Loans (Liability)">Loans (Liability)</option>
+                    <option value="Loans & Advances">Loans & Advances</option>
+                    <option value="Fixed Assets">Fixed Assets</option>
+                    <option value="Investments">Investments</option>
+                    <option value="Bank OD A/C">Bank OD A/C</option>
+                    <option value="Deposits (Assets)">Deposits (Assets)</option>
+                    <option value="Provisions">Provisions</option>
+                    <option value="Reserves & Surplus">Reserves & Surplus</option>
+                  </Form.Select>
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -533,8 +556,8 @@ const AddVendorModal = ({ show, onHide, onSave, vendorFormData, setVendorFormDat
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             onClick={onHide}
             disabled={isSubmitting}
           >
@@ -549,7 +572,7 @@ const AddVendorModal = ({ show, onHide, onSave, vendorFormData, setVendorFormDat
           </Button>
         </Modal.Footer>
       </Modal>
-      
+
       {/* Toast Container */}
       <ToastContainer
         position="top-right"
