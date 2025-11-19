@@ -62,7 +62,6 @@ const AddProductModal = ({
   // Internal state for category modal
   const [internalShowAddCategoryModal, setInternalShowAddCategoryModal] = useState(false);
   const [internalNewCategory, setInternalNewCategory] = useState("");
-
   const fileInputRef = useRef(null);
   const isInitialMount = useRef(true);
 
@@ -91,6 +90,7 @@ const AddProductModal = ({
           warehouse_name: selectedWarehouse.warehouse_name,
           quantity: updatedWarehouses[index].quantity || 0,
           min_order_qty: updatedWarehouses[index].min_order_qty || 0,
+          initial_qty: updatedWarehouses[index].initial_qty || 0, // Added this line
         };
       }
     } else if (field === "quantity") {
@@ -102,6 +102,11 @@ const AddProductModal = ({
       updatedWarehouses[index] = {
         ...updatedWarehouses[index],
         min_order_qty: parseInt(value) || 0,
+      };
+    } else if (field === "initial_qty") { // Added this condition
+      updatedWarehouses[index] = {
+        ...updatedWarehouses[index],
+        initial_qty: parseInt(value) || 0,
       };
     }
 
@@ -133,6 +138,7 @@ const AddProductModal = ({
             warehouse_name: availableWarehouse.warehouse_name,
             quantity: 0,
             min_order_qty: 0,
+            initial_qty: 0, // Added this line
           },
         ],
       }));
@@ -179,6 +185,7 @@ const AddProductModal = ({
                 warehouse_name: warehouses[0].warehouse_name,
                 quantity: 0,
                 min_order_qty: 0,
+                initial_qty: 0, // Added this line
               },
             ]
           : [],
@@ -206,6 +213,7 @@ const AddProductModal = ({
               warehouse_name: pw.warehouse.warehouse_name,
               quantity: pw.stock_qty || pw.quantity || 0,
               min_order_qty: pw.min_order_qty || 0,
+              initial_qty: pw.initial_qty || 0, // Added this line
             }))
           : warehouses.length > 0
           ? [
@@ -214,6 +222,7 @@ const AddProductModal = ({
                 warehouse_name: warehouses[0].warehouse_name,
                 quantity: 0,
                 min_order_qty: 0,
+                initial_qty: 0, // Added this line
               },
             ]
           : [];
@@ -309,6 +318,7 @@ const AddProductModal = ({
                   warehouse_name: filteredWarehouses[0].warehouse_name,
                   quantity: 0,
                   min_order_qty: 0,
+                  initial_qty: 0, // Added this line
                 },
               ],
             }));
@@ -510,6 +520,7 @@ const AddProductModal = ({
         warehouse_id: w.warehouse_id,
         quantity: w.quantity,
         min_order_qty: w.min_order_qty,
+        initial_qty: w.initial_qty, // Added this line
       }));
 
       formData.append("warehouses", JSON.stringify(warehousesData));
@@ -536,10 +547,10 @@ const AddProductModal = ({
       }
     } catch (error) {
       console.error("Error adding product:", error);
-      toast.error("An error occurred while adding the product: " + error.message, {
-        toastId: 'product-add-api-error',
-        autoClose: 3000
-      });
+      // toast.error("An error occurred while adding product: " + error.message, {
+      //   toastId: 'product-add-api-error',
+      //   autoClose: 3000
+      // });
     } finally {
       setIsAddingProduct(false);
     }
@@ -615,6 +626,7 @@ const AddProductModal = ({
         warehouse_id: w.warehouse_id,
         quantity: w.quantity,
         min_order_qty: w.min_order_qty,
+        initial_qty: w.initial_qty, // Added this line
       }));
 
       formData.append("warehouses", JSON.stringify(warehousesData));
@@ -645,7 +657,7 @@ const AddProductModal = ({
       }
     } catch (error) {
       console.error("Error updating product:", error);
-      toast.error("An error occurred while updating the product: " + error.message, {
+      toast.error("An error occurred while updating product: " + error.message, {
         toastId: 'product-update-api-error',
         autoClose: 3000
       });
@@ -933,7 +945,7 @@ const AddProductModal = ({
                                 />
                               </td>
 
-                                   <td>
+                              <td>
                                 <Form.Control
                                   type="number"
                                   value={warehouse.initial_qty || 0}
