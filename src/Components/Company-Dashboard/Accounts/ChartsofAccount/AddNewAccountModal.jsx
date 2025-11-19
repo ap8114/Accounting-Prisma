@@ -6,7 +6,6 @@ import GetCompanyId from "../../../../Api/GetCompanyId";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const companyId = GetCompanyId();
 
 const AddNewAccountModal = ({ 
   show, 
@@ -31,6 +30,7 @@ const AddNewAccountModal = ({
   });
   const [subgroups, setSubgroups] = useState([]);
   const [loadingSubgroups, setLoadingSubgroups] = useState(true);
+  const companyId = GetCompanyId();
   
   // Static categories
   const [categories] = useState([

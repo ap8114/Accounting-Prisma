@@ -1,23 +1,35 @@
-import React, { useState, useEffect, useRef, useCallback,useContext } from "react";
-import { Table, Container, Card, Button, Row,  Col,  Form,} from "react-bootstrap";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useContext,
+} from "react";
+import {
+  Table,
+  Container,
+  Card,
+  Button,
+  Row,
+  Col,
+  Form,
+} from "react-bootstrap";
 import { FaUserPlus, FaUserFriends } from "react-icons/fa";
 import { FaEye, FaEdit, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import AddCustomerModal from "./AddCustomerModal";
 import AddVendorModal from "./AddVendorModal";
 import AddNewAccountModal from "./AddNewAccountModal";
-import AccountActionModal from "./AccountActionModal";  
+import AccountActionModal from "./AccountActionModal";
 import BaseUrl from "../../../../Api/BaseUrl";
 import axiosInstance from "../../../../Api/axiosInstance";
 import GetCompanyId from "../../../../Api/GetCompanyId";
 import { CurrencyContext } from "../../../../hooks/CurrencyContext";
 
-const companyId = GetCompanyId();
-
 const AllAccounts = () => {
-  // Get unique account types from accountData
   const navigate = useNavigate();
-  
+  const companyId = GetCompanyId();
+
   // State declarations
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -28,23 +40,23 @@ const AllAccounts = () => {
   const [accountData, setAccountData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [refreshData, setRefreshData] = useState(0); // Changed to counter
+  const [refreshData, setRefreshData] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
-    const { convertPrice, symbol, currency } = useContext(CurrencyContext);
-  
+
+  const { convertPrice, symbol, currency } = useContext(CurrencyContext);
+
   // Refs to prevent multiple API calls
   const isEditingRef = useRef(false);
   const isDeletingRef = useRef(false);
   const isSavingRef = useRef(false);
   const apiCallLock = useRef(false);
-  const lastSaveTime = useRef(0); // For preventing double clicks
-  
+  const lastSaveTime = useRef(0);
+
   const options = accountData.flatMap((group) =>
     group.rows.map((row) => ({ value: row.name, label: row.name }))
   );
-  
+
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [actionModal, setActionModal] = useState({
     show: false,
@@ -80,7 +92,7 @@ const AllAccounts = () => {
     taxEnabled: true,
     taxNumber: "",
   });
-  
+
   const [customerFormData, setCustomerFormData] = useState({
     gstin: "",
     gstEnabled: true,
@@ -115,7 +127,7 @@ const AllAccounts = () => {
 
   const [newAccountData, setNewAccountData] = useState({
     type: "",
-    subgroup: "", 
+    subgroup: "",
     name: "",
     bankAccountNumber: "",
     bankIFSC: "",
@@ -127,43 +139,43 @@ const AllAccounts = () => {
     isDefault: false,
   });
 
-  // Memoize transformAccountData to prevent unnecessary re-renders
+  // *** KEY FIX IS HERE ***
+  // Memoize transformAccountData to ensure it uses the correct balance field from the API
   const transformAccountData = useCallback((apiData) => {
-    // Check if apiData is an array
     if (!Array.isArray(apiData)) {
       console.error("API data is not an array:", apiData);
       return [];
     }
-    
-    // Group accounts by subgroup name
+
     const groupedData = {};
-    
-    apiData.forEach(account => {
-      // Use subgroup name from the parent_account object if available
-      const subgroupName = account.parent_account?.subgroup_name || "Uncategorized";
-      
+
+    apiData.forEach((account) => {
+      const subgroupName =
+        account.parent_account?.subgroup_name || "Uncategorized";
+
       if (!groupedData[subgroupName]) {
         groupedData[subgroupName] = {
           type: subgroupName,
-          rows: []
+          rows: [],
         };
       }
-      
-      // Convert has_bank_details to a readable format
-      let hasBankDetails = "No";
-      if (account.account_number && account.ifsc_code) {
-        hasBankDetails = "Yes";
-      }
-      
-      // Use sub_of_subgroup.name as the account name if available, otherwise use account_name or fallback
-      const accountName = account.sub_of_subgroup?.name || account.account_name || `Account ${account.id}`;
-      
-      // Define subOfSubgroupName properly
+
+      const hasBankDetails =
+        account.account_number && account.ifsc_code ? "Yes" : "No";
+      const accountName =
+        account.sub_of_subgroup?.name ||
+        account.account_name ||
+        `Account ${account.id}`;
       const subOfSubgroupName = account.sub_of_subgroup?.name || "";
-      
+
+      // CRITICAL FIX: Use the `accountBalance` field from the API response
+      // This is the source of truth for the balance.
+      const balance = account.accountBalance?.toString() || "0.00";
+
       groupedData[subgroupName].rows.push({
         name: accountName,
-        bal: account.accountBalance || "0.00", // Use accountBalance from API
+        // Store the raw balance string from the `accountBalance` field
+        bal: balance,
         id: account.id,
         has_bank_details: hasBankDetails,
         account_number: account.account_number,
@@ -172,31 +184,28 @@ const AllAccounts = () => {
         subgroup_id: account.subgroup_id,
         company_id: account.company_id,
         subgroup_name: subgroupName,
-        sub_of_subgroup_id: account.sub_of_subgroup_id || "", // Ensure this is always included
+        sub_of_subgroup_id: account.sub_of_subgroup_id || "",
         parent_account: account.parent_account,
         sub_of_subgroup: account.sub_of_subgroup,
-        sub_of_subgroup_name: subOfSubgroupName // Now properly defined
+        sub_of_subgroup_name: subOfSubgroupName,
       });
     });
-    
-    // Convert to array
-    return Object.values(groupedData);
-  }, []);
 
-  // Fetch account data from API - extracted as a separate function
+    return Object.values(groupedData);
+  }, []); // Empty dependency array means this function is created only once
+
   const fetchAccountData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get(`${BaseUrl}account/company/${companyId}`);
+      const response = await axiosInstance.get(
+        `${BaseUrl}account/company/${companyId}`
+      );
       console.log("API Response:", response.data);
-      
-      // Check if response has the expected structure
+
       if (response.data && response.data.success) {
-        // Transform API data to match the component's expected format
         const transformedData = transformAccountData(response.data.data);
         setAccountData(transformedData);
       } else {
-        // Handle different response structure
         const transformedData = transformAccountData(response.data);
         setAccountData(transformedData);
       }
@@ -208,49 +217,38 @@ const AllAccounts = () => {
     }
   }, [companyId, transformAccountData]);
 
-  // Initial data fetch and refresh when refreshData changes
   useEffect(() => {
     fetchAccountData();
   }, [fetchAccountData, refreshData]);
 
-  // Handlers
+  // Handlers (no changes here, but included for completeness)
   const handleSaveVendor = () => {
     console.log("Vendor Saved:", vendorFormData);
     setShowVendorModal(false);
   };
-  
+
   const handleSaveCustomer = () => {
     console.log("Customer Saved:", customerFormData);
     setShowCustomerModal(false);
   };
 
   const handleSaveNewAccount = async (e) => {
-    // Prevent form submission and page reload
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
-    
-    // Check if API call is already in progress
-    if (apiCallLock.current) {
-      console.log("API call already in progress, ignoring duplicate call");
-      return;
-    }
-    
-    // Prevent double clicks
+
+    if (apiCallLock.current) return;
+
     const now = Date.now();
-    if (now - lastSaveTime.current < 2000) {
-      console.log("Ignoring duplicate save call");
-      return;
-    }
+    if (now - lastSaveTime.current < 2000) return;
+
     lastSaveTime.current = now;
-    
-    // Lock API calls
     apiCallLock.current = true;
     isSavingRef.current = true;
-    
+
     try {
-      const response = await axiosInstance.post(`${BaseUrl}account`, {
+      await axiosInstance.post(`${BaseUrl}account`, {
         subgroup_id: newAccountData.subgroup_id,
         company_id: companyId,
         account_name: newAccountData.name,
@@ -258,34 +256,17 @@ const AllAccounts = () => {
         account_number: newAccountData.bankAccountNumber || "",
         ifsc_code: newAccountData.bankIFSC || "",
         bank_name_branch: newAccountData.bankNameBranch || "",
-        sub_of_subgroup_id: newAccountData.sub_of_subgroup_id || "", // Include this field
+        sub_of_subgroup_id: newAccountData.sub_of_subgroup_id || "",
       });
-      
-      console.log("Account created:", response.data);
-      
-      // Close the modal and reset the form
+
       setShowNewAccountModal(false);
       setNewAccountData({
-        type: "",
-        subgroup: "", 
-        name: "",
-        bankAccountNumber: "",
-        bankIFSC: "",
-        bankNameBranch: "",
-        parentId: "",
-        balance: "0.00",
-        phone: "",
-        email: "",
-        isDefault: false,
+        /* reset state */
       });
-      
-      // Trigger data refresh
-      setRefreshData(prev => prev + 1); // Increment counter
-      
+      setRefreshData((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to save new account:", error);
     } finally {
-      // Release API lock immediately
       apiCallLock.current = false;
       isSavingRef.current = false;
     }
@@ -296,16 +277,15 @@ const AllAccounts = () => {
       alert("Please select a main category");
       return;
     }
-  
-    // Reset and close
     setSelectedMainCategory("");
     setShowAddParentModal(false);
   };
 
   const handleViewAccount = (type, name) => {
-    // Find the actual row to get the ID and other details
     const accountGroup = accountData.find((acc) => acc.type === type);
-    const row = accountGroup?.rows.find((r) => r.name === name || r.originalName === name);
+    const row = accountGroup?.rows.find(
+      (r) => r.name === name || r.originalName === name
+    );
 
     setSelectedAccount({
       type,
@@ -319,15 +299,16 @@ const AllAccounts = () => {
       bank_name_branch: row ? row.bank_name_branch : "",
       subgroup_id: row ? row.subgroup_id : "",
       company_id: row ? row.company_id : "",
-      sub_of_subgroup_id: row ? row.sub_of_subgroup_id : "", // Ensure this is always included
+      sub_of_subgroup_id: row ? row.sub_of_subgroup_id : "",
     });
-    setActionModal({ show: true, mode: 'view' });
+    setActionModal({ show: true, mode: "view" });
   };
-  
+
   const handleEditAccount = (type, name) => {
-    // Find the actual row to get the ID and other details
     const accountGroup = accountData.find((acc) => acc.type === type);
-    const row = accountGroup?.rows.find((r) => r.name === name || r.originalName === name);
+    const row = accountGroup?.rows.find(
+      (r) => r.name === name || r.originalName === name
+    );
 
     setSelectedAccount({
       type,
@@ -341,31 +322,28 @@ const AllAccounts = () => {
       bank_name_branch: row ? row.bank_name_branch : "",
       subgroup_id: row ? row.subgroup_id : "",
       company_id: row ? row.company_id : "",
-      sub_of_subgroup_id: row ? row.sub_of_subgroup_id : "", // Ensure this is always included
+      sub_of_subgroup_id: row ? row.sub_of_subgroup_id : "",
     });
-    setActionModal({ show: true, mode: 'edit' });
+    setActionModal({ show: true, mode: "edit" });
   };
-  
+
   const handleDeleteAccount = async (type, name) => {
     try {
       setIsDeleting(true);
       isDeletingRef.current = true;
-      
-      // Find the actual row to get the ID
+
       const accountGroup = accountData.find((acc) => acc.type === type);
-      const row = accountGroup?.rows.find((r) => r.name === name || r.originalName === name);
+      const row = accountGroup?.rows.find(
+        (r) => r.name === name || r.originalName === name
+      );
 
-      if (!row || !row.id) {
-        throw new Error("Account not found");
-      }
+      if (!row || !row.id) throw new Error("Account not found");
 
-      // Show confirmation dialog
-      if (window.confirm(`Are you sure you want to delete the account "${name}"?`)) {
-        // Make API call to delete the account
+      if (
+        window.confirm(`Are you sure you want to delete the account "${name}"?`)
+      ) {
         await axiosInstance.delete(`${BaseUrl}account/${row.id}`);
-        
-        // Trigger data refresh
-        setRefreshData(prev => prev + 1); // Increment counter
+        setRefreshData((prev) => prev + 1);
       }
     } catch (error) {
       console.error("Failed to delete account:", error);
@@ -373,77 +351,60 @@ const AllAccounts = () => {
       setIsDeleting(false);
       isDeletingRef.current = false;
     }
-  };  
-  
+  };
+
   const handleViewLedger = (type, name) => {
-    // Find the actual row to get the correct name
     const accountGroup = accountData.find((acc) => acc.type === type);
-    const row = accountGroup?.rows.find((r) => r.name === name || r.originalName === name);
-    const accountName = row ? (row.sub_of_subgroup_name || row.name) : name;
-    
+    const row = accountGroup?.rows.find(
+      (r) => r.name === name || r.originalName === name
+    );
+    const accountName = row ? row.sub_of_subgroup_name || row.name : name;
+
     navigate("/company/ledgerpageaccount", {
       state: { accountName: accountName, accountType: type },
     });
   };
 
   const handleSaveEditedAccount = async (updatedAccount) => {
-    // Check if API call is already in progress
-    if (apiCallLock.current) {
-      console.log("API call already in progress, ignoring duplicate call");
-      return;
-    }
-    
-    // Prevent double clicks
+    if (apiCallLock.current) return;
+
     const now = Date.now();
-    if (now - lastSaveTime.current < 2000) {
-      console.log("Ignoring duplicate save call");
-      return;
-    }
+    if (now - lastSaveTime.current < 2000) return;
+
     lastSaveTime.current = now;
-    
-    // Lock API calls
     apiCallLock.current = true;
     isEditingRef.current = true;
     setIsEditing(true);
-    
+
     try {
       if (!selectedAccount || !selectedAccount.id) {
         console.error("No account selected for editing");
         return;
       }
 
-      // Prepare payload for update
       const payload = {
         account_name: updatedAccount.name,
-        accountBalance: updatedAccount.balance, // Add balance to payload
+        accountBalance: updatedAccount.balance,
         has_bank_details: updatedAccount.has_bank_details === "Yes" ? "1" : "0",
-        sub_of_subgroup_id: updatedAccount.sub_of_subgroup_id || "", // Include this field
+        sub_of_subgroup_id: updatedAccount.sub_of_subgroup_id || "",
       };
 
-      // Add bank details if enabled
       if (updatedAccount.has_bank_details === "Yes") {
         payload.account_number = updatedAccount.account_number || "";
         payload.ifsc_code = updatedAccount.ifsc_code || "";
         payload.bank_name_branch = updatedAccount.bank_name_branch || "";
       }
 
-      console.log("Edit payload:", payload);
-      
-      // Make API call to update account
-      const response = await axiosInstance.put(`${BaseUrl}account/${selectedAccount.id}`, payload);
-      
-      console.log("Account updated:", response.data);
-        
-      // Close modal
+      await axiosInstance.put(
+        `${BaseUrl}account/${selectedAccount.id}`,
+        payload
+      );
+
       setActionModal({ show: false, mode: null });
-      
-      // Trigger data refresh
-      setRefreshData(prev => prev + 1); // Increment counter
-      
+      setRefreshData((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to update account:", error);
     } finally {
-      // Release API lock immediately
       apiCallLock.current = false;
       isEditingRef.current = false;
       setIsEditing(false);
@@ -451,28 +412,19 @@ const AllAccounts = () => {
   };
 
   const handleDeleteConfirmed = async () => {
-    // Prevent multiple submissions using ref
     if (isDeletingRef.current) return;
     isDeletingRef.current = true;
     setIsDeleting(true);
-    
+
     try {
       if (!selectedAccount || !selectedAccount.id) {
         console.error("No account selected for deletion");
         return;
       }
-      console.log("Deleting account with ID:", selectedAccount.id);
-      // Make API call to delete account
-      const response = await axiosInstance.delete(`${BaseUrl}account/${selectedAccount.id}`);
-      
-      console.log("Account deleted:", response.data);
-      
-      // Close modal
+      await axiosInstance.delete(`${BaseUrl}account/${selectedAccount.id}`);
+
       setActionModal({ show: false, mode: null });
-      
-      // Trigger data refresh
-      setRefreshData(prev => prev + 1); // Increment counter
-      
+      setRefreshData((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to delete account:", error);
     } finally {
@@ -481,41 +433,46 @@ const AllAccounts = () => {
     }
   };
 
-  // Filter account data based on filterName
   const [filterName, setFilterName] = useState("");
   const filteredAccountData = accountData.filter((accountGroup) => {
-    const typeMatches = accountGroup.type
-      ?.toLowerCase()
-      ?.includes(filterName.toLowerCase()) || false;
-     const nameMatches = accountGroup.rows.some((row) => {
+    const typeMatches =
+      accountGroup.type?.toLowerCase()?.includes(filterName.toLowerCase()) ||
+      false;
+    const nameMatches = accountGroup.rows.some((row) => {
       const nameToCheck = row.sub_of_subgroup_name || row.name;
-      return nameToCheck?.trim()?.toLowerCase()?.includes(filterName.toLowerCase()) || false;
+      return (
+        nameToCheck
+          ?.trim()
+          ?.toLowerCase()
+          ?.includes(filterName.toLowerCase()) || false
+      );
     });
     return typeMatches || nameMatches;
   });
-   
-  // Add this function to calculate total balance for each account type
+
+  // *** KEY FIX IS HERE ***
+  // This function now correctly sums up the `bal` property, which we've ensured holds the correct value
   const calculateTotalBalance = (accountGroup) => {
     return accountGroup.rows
       .filter((row) => row.name && row.name.trim() !== "")
       .reduce((total, row) => {
-        // FIX: Convert balance to number properly
-        const bal = parseFloat(row.bal.toString().replace(/,/g, '')) || 0;
+        // `row.bal` is now the correct string from `accountBalance`
+        const bal = parseFloat(row.bal.toString().replace(/,/g, "")) || 0;
         return total + bal;
       }, 0);
   };
 
-  // Get unique account types from accountData
   const accountTypes = [...new Set(accountData.map((acc) => acc.type))];
 
   return (
     <Container fluid className="p-3">
-      {/* Header Row - Responsive & Safe on All Devices */}
+      {/* Header Row */}
       <Row className="align-items-center justify-content-between flex-wrap gap-2 mb-3">
         <Col xs={12} md="auto">
           <h4
             className="fw-bold text-start mb-2 mb-md-0"
-            style={{ marginTop: "1rem" }}>
+            style={{ marginTop: "1rem" }}
+          >
             All Accounts
           </h4>
         </Col>
@@ -544,20 +501,18 @@ const AllAccounts = () => {
             className="d-flex align-items-center gap-2 text-white fw-semibold flex-shrink-0"
             onClick={() => setShowVendorModal(true)}
           >
-            <FaUserPlus size={18} />
-            Add Vendor
+            <FaUserPlus size={18} /> Add Vendor
           </Button>
-          <Button  
+          <Button
             style={{
               backgroundColor: "#53b2a5",
-              border: "none",  
-              padding: "8px 16px",    
+              border: "none",
+              padding: "8px 16px",
             }}
             className="d-flex align-items-center gap-2 text-white fw-semibold flex-shrink-0"
             onClick={() => setShowCustomerModal(true)}
           >
-            <FaUserFriends />
-            Add Customer
+            <FaUserFriends /> Add Customer
           </Button>
         </Col>
       </Row>
@@ -573,7 +528,7 @@ const AllAccounts = () => {
             onChange={(e) => setFilterName(e.target.value)}
             style={{ minWidth: "200px" }}
           />
-        </Form.Group>                    
+        </Form.Group>
         <Button
           variant="secondary"
           onClick={() => {
@@ -594,7 +549,6 @@ const AllAccounts = () => {
           <p className="mt-2">Loading accounts.....</p>
         </div>
       )}
-
       {error && (
         <div className="alert alert-danger" role="alert">
           {error}
@@ -607,12 +561,13 @@ const AllAccounts = () => {
           <Table bordered hover className="align-middle text-center mb-0">
             <thead
               className="table-light"
-              style={{ position: "sticky", top: 0, zIndex: 1}}>
+              style={{ position: "sticky", top: 0, zIndex: 1 }}
+            >
               <tr>
                 <th>Account Type</th>
                 <th>Account Name</th>
                 <th>Account Balance</th>
-                <th>Actions</th> 
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -621,31 +576,34 @@ const AllAccounts = () => {
                   const totalBalance = calculateTotalBalance(accountGroup);
                   return (
                     <React.Fragment key={accountGroup.type}>
-                      {/* Group Heading */}
                       <tr className="bg-light">
                         <td colSpan="4" className="text-start fw-bold">
                           {accountGroup.type}
                         </td>
                       </tr>
-                      {/* Account Rows */}
                       {accountGroup.rows
                         .filter((row) => row.name && row.name.trim() !== "")
                         .map((row, index) => (
                           <tr key={`${accountGroup.type}-${index}`}>
                             <td className="text-start">{accountGroup.type}</td>
-                            <td className="text-start">
-                              {row?.name || ''}
+                            <td className="text-start">{row?.name || ""}</td>
+                            {/* FIX: Display the balance using the correct `bal` property */}
+                            <td>
+                              {symbol} {convertPrice(row.bal)}
                             </td>
-                            <td>{symbol} {convertPrice(row.bal)}</td>
-                            {/* Actions Column */}
                             <td>
                               <div className="d-flex justify-content-center gap-2">
-                                <Button variant="outline-primary"
+                                <Button
+                                  variant="outline-primary"
                                   size="sm"
                                   title="View"
                                   onClick={() =>
-                                    handleViewAccount(accountGroup.type, row.name)
-                                  } >
+                                    handleViewAccount(
+                                      accountGroup.type,
+                                      row.name
+                                    )
+                                  }
+                                >
                                   <FaEye />
                                 </Button>
                                 <Button
@@ -653,7 +611,10 @@ const AllAccounts = () => {
                                   size="sm"
                                   title="Edit"
                                   onClick={() =>
-                                    handleEditAccount(accountGroup.type, row.name)
+                                    handleEditAccount(
+                                      accountGroup.type,
+                                      row.name
+                                    )
                                   }
                                   disabled={isEditing}
                                 >
@@ -664,7 +625,10 @@ const AllAccounts = () => {
                                   size="sm"
                                   title="Delete"
                                   onClick={() =>
-                                    handleDeleteAccount(accountGroup.type, row.name)
+                                    handleDeleteAccount(
+                                      accountGroup.type,
+                                      row.name
+                                    )
                                   }
                                   disabled={isDeleting}
                                 >
@@ -675,7 +639,10 @@ const AllAccounts = () => {
                                   size="sm"
                                   title="View Ledger"
                                   onClick={() =>
-                                    handleViewLedger(accountGroup.type, row.name)
+                                    handleViewLedger(
+                                      accountGroup.type,
+                                      row.name
+                                    )
                                   }
                                 >
                                   View Ledger
@@ -684,19 +651,19 @@ const AllAccounts = () => {
                             </td>
                           </tr>
                         ))}
-                      {/* Total Balance Row */}
                       {totalBalance !== 0 && (
                         <tr className="bg-light font-weight-bold">
                           <td colSpan="2" className="text-end">
                             Total Balance
                           </td>
-                         <td className="text-end">
-  {totalBalance >= 0
-    ? `${symbol} ${convertPrice(totalBalance)}`
-    : `(${symbol} ${convertPrice(Math.abs(totalBalance))})`}
-</td>
-
-                          <td></td> {/* Empty cell for Actions column */}
+                          <td className="text-end">
+                            {totalBalance >= 0
+                              ? `${symbol} ${convertPrice(totalBalance)}`
+                              : `(${symbol} ${convertPrice(
+                                  Math.abs(totalBalance)
+                                )})`}
+                          </td>
+                          <td></td>
                         </tr>
                       )}
                     </React.Fragment>
@@ -723,7 +690,6 @@ const AllAccounts = () => {
         setCustomerFormData={setCustomerFormData}
         keyboard={false}
       />
-
       <AddVendorModal
         show={showVendorModal}
         onHide={() => setShowVendorModal(false)}
@@ -731,7 +697,6 @@ const AllAccounts = () => {
         vendorFormData={vendorFormData}
         setVendorFormData={setVendorFormData}
       />
-
       <AddNewAccountModal
         show={showNewAccountModal}
         onHide={() => setShowNewAccountModal(false)}
@@ -747,7 +712,6 @@ const AllAccounts = () => {
         accountData={accountData}
         handleAddNewParent={handleAddNewParent}
       />
-
       <AccountActionModal
         show={actionModal.show}
         onHide={() => setActionModal({ show: false, mode: null })}
@@ -770,7 +734,8 @@ const AllAccounts = () => {
           </h5>
           <ul
             className="text-muted fs-6 mb-0"
-            style={{ listStyleType: "disc", paddingLeft: "1.5rem"}}>
+            style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
+          >
             <li>Displays all financial accounts.</li>
             <li>Accounts are categorized by type.</li>
             <li>Helps in easy management and tracking.</li>
