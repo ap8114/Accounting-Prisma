@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { FaEnvelopeOpenText } from "react-icons/fa";
+import { FaEnvelopeOpenText, FaCheck, FaTimes, FaEnvelope } from "react-icons/fa";
 import "./RequestPlan.css";
 import axios from "axios";
 import BaseUrl from "../../Api/BaseUrl";
@@ -11,6 +11,7 @@ const planMapping = {
   "Legacy Plan": { display: "Legacy", bgColor: "#b2dfdb" },
   Basic: { display: "Basic", bgColor: "#b2dfdb" },
   Silver: { display: "Silver", bgColor: "#c0c0c0" },
+  Golden: { display: "Gold", bgColor: "#ffd700" }, //    from "Gold" to "Golden"
   Gold: { display: "Gold", bgColor: "#ffd700" },
   Platinum: { display: "Platinum", bgColor: "#e5e4e2" }
 };
@@ -25,21 +26,15 @@ const RequestPlan = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const response = await axios.get(`${BaseUrl}requestforplan`);
+        const response = await axios.get(`${BaseUrl}planreq`);
 
-        let fetchedData = response.data?.data || response.data;
-
-        // ✅ Agar single object aaya hai to array me convert karo
-        if (fetchedData && !Array.isArray(fetchedData)) {
-          fetchedData = [fetchedData];
-        }
-
-        if (Array.isArray(fetchedData)) {
-          const formattedPlans = fetchedData.map(item => ({
-            id: item.id || item.company, // fallback agar id na ho
-            company: item.company,
-            email: item.email,
-            plan: item.plan,
+        // Check if response has the expected structure
+        if (response.data && response.data.success && Array.isArray(response.data.data)) {
+          const formattedPlans = response.data.data.map(item => ({
+            id: item.id,
+            company: item.company.name, // Extract company name from nested object
+            email: item.company.email, // Extract email from nested object
+            plan: item.plan.plan_name, // Extract plan name from nested object
             billing: item.billing_cycle,
             date: new Date(item.request_date).toISOString().split('T')[0],
             status: item.status
@@ -74,7 +69,7 @@ const RequestPlan = () => {
     setActionLoading(prev => ({ ...prev, [planId]: true }));
 
     try {
-      await axios.put(`${BaseUrl}requestforplan/${planId}`, {
+      await axios.put(`${BaseUrl}planreq/${planId}`, {
         status: newStatus
       });
       console.log(`Plan ID ${planId} updated to ${newStatus}`);
@@ -88,16 +83,25 @@ const RequestPlan = () => {
     }
   };
 
+  // ✅ Function to send email
+  const handleSendEmail = (plan) => {
+    const subject = `Your ${plan.plan} Plan Request has been Approved`;
+    const body = `Dear ${plan.company},\n\nWe are pleased to inform you that your request for the ${plan.plan} plan has been approved.\n\nPlan Details:\n- Plan: ${plan.plan}\n- Billing Cycle: ${plan.billing}\n- Request Date: ${plan.date}\n\nPlease contact us if you have any questions.\n\nThank you,\nYour Company Name`;
+    
+    // Open mailto link with pre-filled subject and body
+    window.location.href = `mailto:${plan.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case "Approved":
-        return <span className="badge bg-success px-2 px-sm-3 py-1 py-sm-2 rounded-pill">Approved</span>;
+        return <span className="badge bg-success px-1 px-sm-2 py-1 py-sm-2 rounded-pill">Approved</span>;
       case "Pending":
-        return <span className="badge bg-warning text-dark px-2 px-sm-3 py-1 py-sm-2 rounded-pill">Pending</span>;
+        return <span className="badge bg-warning text-dark px-1 px-sm-2 py-1 py-sm-2 rounded-pill">Pending</span>;
       case "Rejected":
-        return <span className="badge bg-danger px-2 px-sm-3 py-1 py-sm-2 rounded-pill">Rejected</span>;
+        return <span className="badge bg-danger px-1 px-sm-2 py-1 py-sm-2 rounded-pill">Rejected</span>;
       default:
-        return <span className="badge bg-secondary px-2 px-sm-3 py-1 py-sm-2 rounded-pill">{status}</span>;
+        return <span className="badge bg-secondary px-1 px-sm-2 py-1 py-sm-2 rounded-pill">{status}</span>;
     }
   };
 
@@ -105,27 +109,33 @@ const RequestPlan = () => {
     const isLoading = actionLoading[id];
 
     return (
-      <div className="d-flex gap-1 gap-sm-2 justify-content-center flex-wrap">
+      <div className="d-flex gap-2 justify-content-center flex-nowrap">
         <button
-          className="btn btn-outline-success btn-sm rounded-pill px-2 px-sm-3"
+          className={`btn ${status === "Approved" ? "btn-success" : "btn-outline-success"} btn-sm rounded-pill px-3 d-flex align-items-center justify-content-center`}
           disabled={status === "Approved" || isLoading}
           onClick={() => handleAction(index, "Approved")}
+          style={{ minWidth: "90px", height: "32px" }}
         >
           {isLoading ? (
             <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           ) : (
-            "Approve"
+            <>
+              <FaCheck className="me-1" size={12} /> Approve
+            </>
           )}
         </button>
         <button
-          className="btn btn-outline-danger btn-sm rounded-pill px-2 px-sm-3"
+          className={`btn ${status === "Rejected" ? "btn-danger" : "btn-outline-danger"} btn-sm rounded-pill px-3 d-flex align-items-center justify-content-center`}
           disabled={status === "Rejected" || isLoading}
           onClick={() => handleAction(index, "Rejected")}
+          style={{ minWidth: "90px", height: "32px" }}
         >
           {isLoading ? (
             <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           ) : (
-            "Reject"
+            <>
+              <FaTimes className="me-1" size={12} /> Reject
+            </>
           )}
         </button>
       </div>
@@ -206,7 +216,22 @@ const RequestPlan = () => {
                       <td className="d-none d-lg-table-cell">{user.billing}</td>
                       <td className="d-none d-md-table-cell">{user.date}</td>
                       <td>{getStatusBadge(user.status)}</td>
-                      <td>{renderActionButtons(user.status, idx, user.id)}</td>
+                      <td>
+                        <div className="d-flex gap-2 align-items-center">
+                          {renderActionButtons(user.status, idx, user.id)}
+                          {/* Show mail icon only when status is Approved */}
+                          {user.status === "Approved" && (
+                            <button
+                              className="btn btn-primary btn-sm rounded-circle d-flex align-items-center justify-content-center"
+                              onClick={() => handleSendEmail(user)}
+                              title="Send Email"
+                              style={{ width: "32px", height: "32px" }}
+                            >
+                              <FaEnvelope size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))
                 ) : (
