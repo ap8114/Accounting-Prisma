@@ -49,22 +49,19 @@ const QuotationTab = ({
   const searchRef = useRef(null);
   const dropdownRef = useRef(null);
   const [companyInfo, setCompanyInfo] = useState({
-    name: '',
-    email: '',
+    id: null,
+    company_id: null,
+    company_name: '',
+    company_address: '',
+    company_email: '',
+    company_phone: '',
     logo_url: null,
-    address: '',
-    country: '',
-    state: '',
-    city: '',
-    postal_code: '',
-    bank_details: {
-      bank_name: '',
-      account_number: '',
-      account_holder: '',
-      ifsc_code: ''
-    },
+    bank_name: '',
+    account_no: '',
+    account_holder: '',
+    ifsc_code: '',
     notes: '',
-    terms_and_conditions: ''
+    terms: ''
   });
 
   // Fetch customers and company info
@@ -84,7 +81,7 @@ const QuotationTab = ({
         console.error('Failed to fetch customers:', err);
         toast.error('Error fetching customers');
       }
-    }
+    };
 
     const fetchCompanies = async () => {
       try {
@@ -96,32 +93,28 @@ const QuotationTab = ({
 
         if (selected) {
           const info = {
-            name: selected.name || '',
-            email: selected.email || '',
-            company_logo_url: selected.branding?.company_logo_url || '',
-            address: selected.address || '',
-            country: selected.country || '',
-            state: selected.state || '',
-            city: selected.city || '',
-            postal_code: selected.postal_code || '',
-            bank_details: {
-              bank_name: selected.bank_details?.bank_name || '',
-              account_number: selected.bank_details?.account_number || '',
-              account_holder: selected.bank_details?.account_holder || '',
-              ifsc_code: selected.bank_details?.ifsc_code || ''
-            },
+            id: selected.id || null,
+            company_id: selected.id || null, // Assuming company ID is the same as the selected object's ID
+            company_name: selected.name || '',
+            company_email: selected.email || '',
+            logo_url: selected.branding?.company_logo_url || '',
+            company_address: selected.address || '',
+            bank_name: selected.bank_details?.bank_name || '',
+            account_no: selected.bank_details?.account_number || '',
+            account_holder: selected.bank_details?.account_holder || '',
+            ifsc_code: selected.bank_details?.ifsc_code || '',
             notes: selected.notes || '',
-            terms_and_conditions: selected.terms_and_conditions || ''
+            terms: selected.terms_and_conditions || ''
           };
           setCompanyInfo(info);
 
           // Set the bank details and notes/terms to the form
-          handleChange("quotation", "bankName", info.bank_details.bank_name);
-          handleChange("quotation", "accountNo", info.bank_details.account_number);
-          handleChange("quotation", "accountHolder", info.bank_details.account_holder);
-          handleChange("quotation", "ifsc", info.bank_details.ifsc_code);
+          handleChange("quotation", "bankName", info.bank_name);
+          handleChange("quotation", "accountNo", info.account_no);
+          handleChange("quotation", "accountHolder", info.account_holder);
+          handleChange("quotation", "ifsc", info.ifsc_code);
           handleChange("quotation", "notes", info.notes);
-          handleChange("quotation", "terms", info.terms_and_conditions);
+          handleChange("quotation", "terms", info.terms);
         }
       } catch (err) {
         console.error('Failed to fetch companies:', err);
@@ -173,22 +166,22 @@ const QuotationTab = ({
 
   const handleSave = (customerData, mode) => {
     console.log(`${mode === 'edit' ? 'Updated' : 'Added'} customer:`, customerData);
-    
+
     if (mode === 'add') {
       setCustomerList(prev => [...prev, customerData]);
     } else {
-      setCustomerList(prev => 
-        prev.map(customer => 
+      setCustomerList(prev =>
+        prev.map(customer =>
           customer.id === customerData.id ? customerData : customer
         )
       );
     }
-    
+
     setFilteredCustomerList(prev => {
       if (mode === 'add') {
         return [...prev, customerData];
       } else {
-        return prev.map(customer => 
+        return prev.map(customer =>
           customer.id === customerData.id ? customerData : customer
         );
       }
@@ -215,150 +208,239 @@ const QuotationTab = ({
       // Calculate totals
       const subtotal = formData.quotation.items.reduce((sum, item) =>
         sum + (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0), 0);
-      
+
       const taxTotal = formData.quotation.items.reduce((sum, item) => {
         const subtotalItem = (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0);
         return sum + (subtotalItem * (parseFloat(item.tax) || 0)) / 100;
       }, 0);
-      
-      const discountTotal = formData.quotation.items.reduce((sum, item) => 
+
+      const discountTotal = formData.quotation.items.reduce((sum, item) =>
         sum + (parseFloat(item.discount) || 0), 0);
-      
+
       const grandTotal = calculateTotalWithTaxAndDiscount(formData.quotation.items);
 
-      // Create a data object with the required payload structure
-      const data = {
-        // Company Information
-        company_id: company_id,
-        company_name: companyInfo.name || '',
-        company_address: companyInfo.address || '',
-        company_email: companyInfo.email || '',
-        company_phone: formData.quotation.companyPhone || '',
-        logo_url: companyInfo.company_logo_url || '',
-        
-        // Quotation Information
-        quotation_no: formData.quotation.quotationNo || '',
-        manual_quo_no: formData.quotation.manualQuotationRef || '',
-        quotation_date: formData.quotation.quotationDate || '',
-        valid_till: formData.quotation.validDate || '',
-        due_date: formData.quotation.validDate || '', // Using valid date as due date
-        
-        // Reference Numbers
-        ref_no: formData.quotation.referenceId || '',
-        Manual_ref_ro: '', // Not in your form
-        
-        // Customer Information
-        qoutation_to_customer_name: formData.quotation.billToName || '',
-        qoutation_to_customer_address: formData.quotation.billToAddress || '',
-        qoutation_to_customer_email: formData.quotation.billToEmail || '',
-        qoutation_to_customer_phone: formData.quotation.billToPhone || '',
-        
-        // Bill To Information
-        bill_to_attention_name: formData.quotation.billToName || '',
-        bill_to_company_name: formData.quotation.billToName || '',
-        bill_to_company_address: formData.quotation.billToAddress || '',
-        bill_to_company_phone: formData.quotation.billToPhone || '',
-        bill_to_company_email: formData.quotation.billToEmail || '',
-        bill_to_customer_name: formData.quotation.billToName || '',
-        bill_to_customer_address: formData.quotation.billToAddress || '',
-        bill_to_customer_email: formData.quotation.billToEmail || '',
-        bill_to_customer_phone: formData.quotation.billToPhone || '',
-        
-        // Ship To Information (using same as bill to for now)
-        ship_to_attention_name: formData.quotation.billToName || '',
-        ship_to_company_name: formData.quotation.billToName || '',
-        ship_to_company_address: formData.quotation.billToAddress || '',
-        ship_to_company_phone: formData.quotation.billToPhone || '',
-        ship_to_company_email: formData.quotation.billToEmail || '',
-        ship_to_customer_name: formData.quotation.billToName || '',
-        ship_to_customer_address: formData.quotation.billToAddress || '',
-        ship_to_customer_email: formData.quotation.billToEmail || '',
-        ship_to_customer_phone: formData.quotation.billToPhone || '',
-        
-        // Notes & Terms
-        notes: formData.quotation.notes || '',
-        terms: formData.quotation.terms || '',
-        
-        // Totals
-        sub_total: subtotal,
-        tax: taxTotal,
-        discount: discountTotal,
-        total: grandTotal,
-        
-        // Bank Details
-        bank_name: formData.quotation.bankName || '',
-        account_no: formData.quotation.accountNo || '',
-        account_holder: formData.quotation.accountHolder || '',
-        ifsc_code: formData.quotation.ifsc || '',
-        bank_details: {
-          bank_name: formData.quotation.bankName || '',
-          account_no: formData.quotation.accountNo || '',
-          account_holder: formData.quotation.accountHolder || '',
-          ifsc_code: formData.quotation.ifsc || ''
+      // Construct the payload according to the API response structure
+      const payload = {
+        company_id: company_id, // Top-level company_id for the record
+        company_info: {
+          id: companyInfo.id, // Assuming this comes from the fetched company details
+          company_id: companyInfo.company_id, // The ID associated with the company record
+          company_name: companyInfo.company_name,
+          company_address: companyInfo.company_address,
+          company_email: companyInfo.company_email,
+          company_phone: formData.quotation.companyPhone || '',
+          logo_url: companyInfo.logo_url,
+          bank_name: companyInfo.bank_name,
+          account_no: companyInfo.account_no,
+          account_holder: companyInfo.account_holder,
+          ifsc_code: companyInfo.ifsc_code,
+          // Add other company_info fields as needed, but avoid duplicates with top-level
         },
-        
-        // URLs (empty for now)
-        signature_url: '',
-        photo_url: '',
-        attach_file_url: '',
-        
-        // Driver Information
-        driver_name: '', // Not in your form
-        driver_phone: '', // Not in your form
-        driver_details: {
-          driver_name: '', // Not in your form
-          driver_phone: '' // Not in your form
-        },
-        
-        // Payment Information
-        amount_received: 0,
-        total_amount: grandTotal,
-        payment_status: 'Pending',
-        total_invoice: grandTotal,
-        balance: grandTotal,
-        payment_note: '',
-        
-        // Status
-        quotation_status: status === 'Draft' ? 'Draft' : 'Completed',
-        sales_order_status: 'Pending',
-        delivery_challan_status: 'Pending',
-        invoice_status: 'Pending',
-        draft_status: status === 'Draft' ? 'Draft' : 'Final',
-        
-        // Document Numbers
-        SO_no: '', // Not in your form
-        manual_so: '', // Not in your form
-        Challan_no: '', // Not in your form
-        manual_challan_no: '', // Not in your form
-        Manual_DC_no: '', // Not in your form
-        invoice_no: '', // Not in your form
-        manual_invoice_no: '', // Not in your form
-        Payment_no: '', // Not in your form
-        manual_pym_no: '', // Not in your form
-        customer_ref: formData.quotation.customerReference || '',
-        
-        // Items
         items: formData.quotation.items.map(item => ({
+          // Map your form item fields to the expected API structure
           item_name: item.item_name || '',
           qty: parseFloat(item.qty) || 0,
           rate: parseFloat(item.rate) || 0,
           tax_percent: parseFloat(item.tax) || 0,
           discount: parseFloat(item.discount) || 0,
-          amount: (parseFloat(item.rate) || 0) * (parseFloat(item.qty) || 0)
+          amount: (parseFloat(item.rate) || 0) * (parseFloat(item.qty) || 0) // Calculate amount per item
         })),
-        
-        // Sales Order Items (empty for quotation)
-        salesorderitems: []
+        steps: [
+          {
+            step: "quotation",
+            status: status === 'Draft' ? 'pending' : 'completed', // Use 'pending' for draft, 'completed' for final
+            data: {
+              // Map your form fields to the quotation step data structure
+              ref_no: formData.quotation.referenceId || '',
+              Manual_ref_ro: '', // Not in your form
+              quotation_no: formData.quotation.quotationNo || '',
+              manual_quo_no: formData.quotation.manualQuotationRef || '',
+              quotation_date: formData.quotation.quotationDate || '',
+              valid_till: formData.quotation.validDate || '',
+              due_date: formData.quotation.validDate || '', // Using valid date as due date if needed elsewhere
+
+              // Customer details for quotation
+              qoutation_to_customer_name: formData.quotation.billToName || '',
+              qoutation_to_customer_address: formData.quotation.billToAddress || '',
+              qoutation_to_customer_email: formData.quotation.billToEmail || '',
+              qoutation_to_customer_phone: formData.quotation.billToPhone || '',
+
+              // Bill To Information (using customer details from form)
+              bill_to: {
+                attention_name: formData.quotation.billToName || '',
+                company_name: formData.quotation.billToName || '', // Or a separate company name field if available
+                company_address: formData.quotation.billToAddress || '',
+                company_phone: formData.quotation.billToPhone || '',
+                company_email: formData.quotation.billToEmail || '',
+                customer_name: formData.quotation.billToName || '',
+                customer_address: formData.quotation.billToAddress || '',
+                customer_email: formData.quotation.billToEmail || '',
+                customer_phone: formData.quotation.billToPhone || '',
+              },
+
+              // Ship To Information (using same as bill to for now, adjust if needed)
+              ship_to: {
+                attention_name: formData.quotation.billToName || '',
+                company_name: formData.quotation.billToName || '',
+                company_address: formData.quotation.billToAddress || '',
+                company_phone: formData.quotation.billToPhone || '',
+                company_email: formData.quotation.billToEmail || '',
+                customer_name: formData.quotation.billToName || '',
+                customer_address: formData.quotation.billToAddress || '',
+                customer_email: formData.quotation.billToEmail || '',
+                customer_phone: formData.quotation.billToPhone || '',
+              },
+
+              notes: formData.quotation.notes || '',
+              terms: formData.quotation.terms || '',
+
+              // Calculated totals
+              subtotal: subtotal,
+              tax: taxTotal,
+              discount: discountTotal,
+              total: grandTotal,
+
+              // Status
+              quotation_status: status === 'Draft' ? 'Draft' : 'Completed', // Match your form's status logic
+              draft_status: status === 'Draft' ? 'Draft' : 'Final', // Match your form's status logic
+            }
+          },
+          // Initialize other steps as pending with empty data
+          {
+            step: "sales_order",
+            status: "pending",
+            data: {
+              SO_no: '', // Not in your form
+              Manual_SO_ref: '', // Not in your form
+              bill_to: {
+                attention_name: formData.quotation.billToName || '',
+                company_name: formData.quotation.billToName || '',
+                company_address: formData.quotation.billToAddress || '',
+                company_phone: formData.quotation.billToPhone || '',
+                company_email: formData.quotation.billToEmail || '',
+                customer_name: formData.quotation.billToName || '',
+                customer_address: formData.quotation.billToAddress || '',
+                customer_email: formData.quotation.billToEmail || '',
+                customer_phone: formData.quotation.billToPhone || '',
+              },
+              ship_to: {
+                attention_name: formData.quotation.billToName || '',
+                company_name: formData.quotation.billToName || '',
+                company_address: formData.quotation.billToAddress || '',
+                company_phone: formData.quotation.billToPhone || '',
+                company_email: formData.quotation.billToEmail || '',
+                customer_name: formData.quotation.billToName || '',
+                customer_address: formData.quotation.billToAddress || '',
+                customer_email: formData.quotation.billToEmail || '',
+                customer_phone: formData.quotation.billToPhone || '',
+              },
+              sales_order_status: "Pending" // Default status
+            }
+          },
+          {
+            step: "delivery_challan",
+            status: "pending",
+            data: {
+              Challan_no: '', // Not in your form
+              Manual_challan_no: '', // Not in your form
+              Manual_DC_no: '', // Not in your form
+              bill_to: {
+                attention_name: formData.quotation.billToName || '',
+                company_name: formData.quotation.billToName || '',
+                company_address: formData.quotation.billToAddress || '',
+                company_phone: formData.quotation.billToPhone || '',
+                company_email: formData.quotation.billToEmail || '',
+                customer_name: formData.quotation.billToName || '',
+                customer_address: formData.quotation.billToAddress || '',
+                customer_email: formData.quotation.billToEmail || '',
+                customer_phone: formData.quotation.billToPhone || '',
+              },
+              ship_to: {
+                attention_name: formData.quotation.billToName || '',
+                company_name: formData.quotation.billToName || '',
+                company_address: formData.quotation.billToAddress || '',
+                company_phone: formData.quotation.billToPhone || '',
+                company_email: formData.quotation.billToEmail || '',
+                customer_name: formData.quotation.billToName || '',
+                customer_address: formData.quotation.billToAddress || '',
+                customer_email: formData.quotation.billToEmail || '',
+                customer_phone: formData.quotation.billToPhone || '',
+              },
+              driver_name: '', // Not in your form
+              driver_phone: '', // Not in your form
+              delivery_challan_status: "Pending" // Default status
+            }
+          },
+          {
+            step: "invoice",
+            status: "pending",
+            data: {
+              invoice_no: '', // Not in your form
+              Manual_invoice_no: '', // Not in your form
+              total_invoice: grandTotal, // Use the calculated grand total
+              bill_to: {
+                attention_name: formData.quotation.billToName || '',
+                company_name: formData.quotation.billToName || '',
+                company_address: formData.quotation.billToAddress || '',
+                company_phone: formData.quotation.billToPhone || '',
+                company_email: formData.quotation.billToEmail || '',
+                customer_name: formData.quotation.billToName || '',
+                customer_address: formData.quotation.billToAddress || '',
+                customer_email: formData.quotation.billToEmail || '',
+                customer_phone: formData.quotation.billToPhone || '',
+              },
+              ship_to: {
+                attention_name: formData.quotation.billToName || '',
+                company_name: formData.quotation.billToName || '',
+                company_address: formData.quotation.billToAddress || '',
+                company_phone: formData.quotation.billToPhone || '',
+                company_email: formData.quotation.billToEmail || '',
+                customer_name: formData.quotation.billToName || '',
+                customer_address: formData.quotation.billToAddress || '',
+                customer_email: formData.quotation.billToEmail || '',
+                customer_phone: formData.quotation.billToPhone || '',
+              },
+              invoice_status: "Pending" // Default status
+            }
+          },
+          {
+            step: "payment",
+            status: "pending",
+            data: {
+              Payment_no: '', // Not in your form
+              Manual_payment_no: '', // Not in your form
+              received_from: {
+                customer_name: formData.quotation.billToName || '',
+                customer_address: formData.quotation.billToAddress || '',
+                customer_email: formData.quotation.billToEmail || '',
+                customer_phone: formData.quotation.billToPhone || '',
+              },
+              payment_details: {
+                amount_received: 0, // Not in your form
+                total_amount: grandTotal, // Use the calculated grand total
+                payment_status: "Pending", // Default status
+                balance: grandTotal, // Not in your form
+                payment_note: '' // Not in your form
+              }
+            }
+          }
+        ],
+        additional_info: {
+          customer_ref: formData.quotation.customerReference || '',
+          signature_url: '', // Not in your form
+          photo_url: '', // Not in your form
+          attachment_url: '' // Not in your form
+        }
       };
 
       // Send POST request with JSON payload to the NEW API URL
-      const response = await axiosInstance.post(`${BaseUrl}sales-order/create-sales-order`, data, {
+      const response = await axiosInstance.post(`${BaseUrl}sales-order/create-sales-order`, payload, {
         headers: {
           'Content-Type': 'application/json'
         }
       });
 
-      if (response.data.status) { // Assuming your API returns a status field
+      if (response.data.success) { // Check for success field from API
         toast.success(`Quotation saved as ${status} successfully!`);
         // Optionally reset form or redirect
         // navigate('/some-path');
@@ -387,18 +469,15 @@ const QuotationTab = ({
   };
 
   const handleNext = async () => {
-    await saveQuotation('Final'); // This will set status to 'Completed'
+    await saveQuotation('Final'); // This will set status to 'completed' in the quotation step
     // Optionally navigate to next step
     // navigate('/next-step');
   };
 
   const formatCompanyAddress = () => {
     const parts = [
-      companyInfo.address,
-      companyInfo.city,
-      companyInfo.state,
-      companyInfo.postal_code,
-      companyInfo.country
+      companyInfo.company_address,
+      // Add other address parts if available in companyInfo, e.g., city, state, postal code, country
     ].filter(Boolean);
 
     return parts.join(', ');
@@ -415,9 +494,9 @@ const QuotationTab = ({
               style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
               onClick={() => document.getElementById('logo-upload')?.click()}
             >
-              {companyInfo.company_logo_url ? (
+              {companyInfo.logo_url ? (
                 <img
-                  src={companyInfo.company_logo_url}
+                  src={companyInfo.logo_url}
                   alt="Company Logo"
                   style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
                   onError={(e) => {
@@ -442,7 +521,7 @@ const QuotationTab = ({
             <div className="d-flex flex-column gap-1">
               <Form.Control
                 type="text"
-                value={companyInfo.name || ''}
+                value={companyInfo.company_name || ''}
                 readOnly
                 placeholder="Company Name"
                 className="form-control-no-border"
@@ -458,7 +537,7 @@ const QuotationTab = ({
               />
               <Form.Control
                 type="email"
-                value={companyInfo.email || ''}
+                value={companyInfo.company_email || ''}
                 readOnly
                 placeholder="Company Email"
                 className="form-control-no-border"
