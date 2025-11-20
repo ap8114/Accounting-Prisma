@@ -32,7 +32,8 @@ const WareHouse = () => {
   const [state, setState] = useState("");
   const [pincode, setPincode] = useState("");
   const [country, setCountry] = useState("");
-  const [editId, setEditId] = useState(null);
+  // FIX: Use a consistent 'id' state for editing
+  const [editId, setEditId] = useState(null); 
   const [filterLocation, setFilterLocation] = useState("");
   const navigate = useNavigate();
   const [showAddStockModal, setShowAddStockModal] = useState(false);
@@ -68,11 +69,12 @@ const WareHouse = () => {
         throw new Error("Invalid API response format");
       }
 
+      // FIX: Use the correct 'id' from the API response and be consistent
       const filteredAndMapped = warehouseData
         .filter((w) => w.company_id == companyId)
         .map((w) => ({
-          _id: w.id?.toString() || w._id?.toString(),
-          id: w.id?.toString() || w._id?.toString(),
+          // Use the 'id' from the API response as the primary key
+          id: w.id, 
           name: w.warehouse_name || w.name,
           location: w.location,
           address_line1: w.address_line1,
@@ -81,7 +83,7 @@ const WareHouse = () => {
           state: w.state,
           pincode: w.pincode,
           country: w.country,
-          totalStocks: w.totalStocks || 0, // ✅ FIX: was totalStockUnits
+          totalStocks: w.totalStocks || 0,
         }));
 
       setWarehouses(filteredAndMapped);
@@ -117,9 +119,11 @@ const WareHouse = () => {
     resetFormAndCloseModal();
   };
 
+  // FIX: Ensure the correct 'id' is used when opening the edit modal
   const handleModalShow = (data = null) => {
     if (data) {
-      setEditId(data._id);
+      // Use the correct 'id' from the data object
+      setEditId(data.id); 
       setWarehouseName(data.name);
       setLocation(data.location);
       setAddressLine1(data.address_line1 || "");
@@ -165,6 +169,7 @@ const WareHouse = () => {
 
       let response;
       if (editId) {
+        // FIX: The API call now correctly uses the numeric 'id'
         response = await axiosInstance.patch(`/warehouses/${editId}`, payload);
       } else {
         response = await axiosInstance.post("/warehouses", payload);
@@ -211,6 +216,7 @@ const WareHouse = () => {
     }
   };
 
+  // FIX: Use the correct 'id' for deleting
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this warehouse?"
@@ -218,6 +224,7 @@ const WareHouse = () => {
     if (!confirmDelete) return;
 
     try {
+      // The API call now correctly uses the numeric 'id'
       await axiosInstance.delete(`/warehouses/${id}`);
       await fetchWarehouses();
       
@@ -257,10 +264,10 @@ const WareHouse = () => {
       const sheetName = workbook.SheetNames[0];
       const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
       const formatted = data.map((item, index) => ({
-        _id: Date.now().toString() + index,
+        id: Date.now().toString() + index, // Use a temporary id for import
         name: item["Warehouse Name"] || "",
         location: item["Location"] || "",
-        totalStocks: 0, // ✅ number, not string
+        totalStocks: 0,
       }));
       setWarehouses(formatted);
       
@@ -526,7 +533,7 @@ const WareHouse = () => {
                   <tbody>
                     {currentItems.length > 0 ? (
                       currentItems.map((w, index) => (
-                        <tr key={w._id}>
+                        <tr key={w.id}>
                           <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
                           <td
                             className="text-primary"
@@ -534,12 +541,12 @@ const WareHouse = () => {
                             onClick={() => {
                               localStorage.setItem("warehouseName", w.name);
                               localStorage.setItem("warehouseid", w.id);
-                              navigate(`/company/warehouse/${w._id}`);
+                              navigate(`/company/warehouse/${w.id}`);
                             }}
                           >
                             <u>{w.name}</u>
                           </td>
-                          <td>{w.totalStocks}</td> {/* ✅ Now shows real totalStockUnits */}
+                          <td>{w.totalStocks}</td>
                           <td>{w.location}</td>
                           <td>
                             <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -555,7 +562,7 @@ const WareHouse = () => {
                               <Button
                                 variant="link"
                                 className="text-danger p-0"
-                                onClick={() => handleDelete(w._id)}
+                                onClick={() => handleDelete(w.id)}
                                 title="Delete"
                                 disabled={loading}
                               >
