@@ -499,25 +499,11 @@ const MultiStepSalesForm = ({
         handleChange("deliveryChallan", "challanNo", generateReferenceId("deliveryChallan"));
       }
     }
-<<<<<<< HEAD
-
-    if (
-      formData.deliveryChallan.manualRefNo &&
-      formData.deliveryChallan.manualRefNo !==
-        formData.deliveryChallan.challanNo
-    ) {
-      handleChange(
-        "deliveryChallan",
-        "challanNo",
-        formData.deliveryChallan.manualRefNo
-      );
-=======
     if (formData.deliveryChallan.manualChallanNo && formData.deliveryChallan.manualChallanNo !== formData.deliveryChallan.challanNo) {
       handleChange("deliveryChallan", "challanNo", formData.deliveryChallan.manualChallanNo);
     }
     if (!formData.deliveryChallan.salesOrderNo && formData.salesOrder.salesOrderNo) {
       handleChange("deliveryChallan", "salesOrderNo", formData.salesOrder.salesOrderNo);
->>>>>>> a3f69a1707a32a3abfd978fb9a2d171730dedda6
     }
 
     // Invoice Auto-fill
@@ -849,11 +835,7 @@ const MultiStepSalesForm = ({
       .set({
         margin: 10,
         filename: `${key}-${
-<<<<<<< HEAD
-          formData[key].quotationNo || formData[key].invoiceNo || "document"
-=======
           formData[key].quotationNo || formData[key].salesOrderNo || formData[key].challanNo || formData[key].invoiceNo || formData[key].paymentNo || "document"
->>>>>>> a3f69a1707a32a3abfd978fb9a2d171730dedda6
         }.pdf`,
         jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
         html2canvas: { scale: 3 },
@@ -1695,19 +1677,10 @@ const MultiStepSalesForm = ({
                                   handleSelectSearchedItem(tab, idx, filteredItem)
                                 }
                                 onMouseEnter={(e) =>
-<<<<<<< HEAD
-                                  (e.currentTarget.style.backgroundColor =
-                                    "#f0f0f0")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.currentTarget.style.backgroundColor =
-                                    "white")
-=======
                                   (e.currentTarget.style.backgroundColor = "#f0f0f0")
                                 }
                                 onMouseLeave={(e) =>
                                   (e.currentTarget.style.backgroundColor = "white")
->>>>>>> a3f69a1707a32a3abfd978fb9a2d171730dedda6
                                 }
                               >
                                 <div><strong>{filteredItem.name || filteredItem.item_name}</strong></div>
@@ -1795,19 +1768,10 @@ const MultiStepSalesForm = ({
                                   handleSelectSearchedWarehouse(tab, idx, wh)
                                 }
                                 onMouseEnter={(e) =>
-<<<<<<< HEAD
-                                  (e.currentTarget.style.backgroundColor =
-                                    "#f0f0f0")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.currentTarget.style.backgroundColor =
-                                    "white")
-=======
                                   (e.currentTarget.style.backgroundColor = "#f0f0f0")
                                 }
                                 onMouseLeave={(e) =>
                                   (e.currentTarget.style.backgroundColor = "white")
->>>>>>> a3f69a1707a32a3abfd978fb9a2d171730dedda6
                                 }
                               >
                                 <div><strong>{wh.warehouse_name}</strong></div>
