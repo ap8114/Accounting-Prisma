@@ -492,7 +492,7 @@ const AllAccounts = () => {
           >
             + Add New Account
           </Button>
-          <Button
+          {/* <Button
             style={{
               backgroundColor: "#53b2a5",
               border: "none",
@@ -513,7 +513,7 @@ const AllAccounts = () => {
             onClick={() => setShowCustomerModal(true)}
           >
             <FaUserFriends /> Add Customer
-          </Button>
+          </Button> */}
         </Col>
       </Row>
 
