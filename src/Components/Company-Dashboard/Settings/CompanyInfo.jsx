@@ -3,6 +3,7 @@ import { Form, Button, Container, Image, Nav, Tab, Card, Row, Col } from 'react-
 import { FaBuilding, FaImage, FaMapMarkerAlt, FaGlobe, FaFileInvoice } from 'react-icons/fa';
 import { CurrencySetting } from './CurrencySetting';
 import GetCompanyId from '../../../Api/GetCompanyId';
+import BaseUrl from '../../../Api/BaseUrl';
 
 const CompanyInfo = () => {
   const [printLanguage, setPrintLanguage] = useState('en');
@@ -163,7 +164,7 @@ const CompanyInfo = () => {
         formDataForUpload.append('company_dark_logo', formData.companyDarkLogo);
       }
 
-      const response = await fetch(`https://02x4fc84-8080.inc1.devtunnels.ms/api/v1/auth/Company/${companyId}`, {
+      const response = await fetch(`${BaseUrl}auth/Company/${companyId}`, {
         method: 'PUT',
         body: formDataForUpload
       });
@@ -184,6 +185,12 @@ const CompanyInfo = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Define handleSubmit function
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    saveCompanyData();
   };
 
   // Translations
@@ -413,8 +420,6 @@ const CompanyInfo = () => {
     fontWeight: isActive ? '600' : '400'
   });
 
-  
-
   return (
     <div
       style={{
@@ -479,183 +484,185 @@ const CompanyInfo = () => {
                   {t('companyInformation')}
                 </h2>
 
-                <Form.Group className="mb-4">
-                  <Form.Control
-                    type="text"
-                    placeholder={t('companyName')}
-                    className="mb-3"
-                    name="companyName"
-                    value={formData.companyName}
-                    onChange={handleChange}
-                  />
-                  <Form.Control
-                    type="email"
-                    placeholder={t('companyEmail')}
-                    className="mb-3"
-                    name="companyEmail"
-                    value={formData.companyEmail}
-                    onChange={handleChange}
-                  />
-                  <Form.Control
-                    type="tel"
-                    placeholder={t('phoneNumber')}
-                    className="mb-3"
-                    name="phoneNumber"
-                    value={formData.phoneNumber}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-
-                <hr className="my-4" />
-
-                <div className="d-flex align-items-center mb-3">
-                  <FaImage className="me-2" style={{ color: '#002d4d' }} />
-                  <h5 style={{ marginBottom: 0 }}>{t('companyImages')}</h5>
-                </div>
-
-                {["companyIcon", "favicon", "companyLogo", "companyDarkLogo"].map((field) => (
-                  <Form.Group className="mb-4" key={field}>
-                    <Form.Label className="fw-bold d-block mb-2">{t(field)}</Form.Label>
-                    <div className="d-flex align-items-center">
-                      <Button as="label" htmlFor={`${field}-upload`} style={uploadButtonStyle}>
-                        {t('chooseFile')}
-                        <Form.Control
-                          type="file"
-                          id={`${field}-upload`}
-                          className="d-none"
-                          name={field}
-                          onChange={handleChange}
-                          accept="image/*"
-                        />
-                      </Button>
-                      {previewImages[field] && (
-                        <Image src={previewImages[field]} alt={`${field} Preview`} style={previewImageStyle} />
-                      )}
-                    </div>
-                    <Form.Text className="text-muted">
-                      {t('uploadInstruction').replace('{field}', t(field).toLowerCase())}
-                    </Form.Text>
-                  </Form.Group>
-                ))}
-
-                <hr className="my-4" />
-
-                <div className="d-flex align-items-center mb-3">
-                  <FaMapMarkerAlt className="me-2" style={{ color: '#002d4d' }} />
-                  <h5 style={{ marginBottom: 0 }}>{t('addressInformation')}</h5>
-                </div>
-
-                <Form.Group className="mb-4">
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    placeholder={t('address')}
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-
-                <div className="row mb-4">
-                  <div className="col-md-6 mb-3 mb-md-0">
-                    <Form.Label className="fw-bold">{t('country')}</Form.Label>
-                    <Form.Select
-                      name="country"
-                      value={formData.country}
-                      onChange={handleChange}
-                    >
-                      {countryOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </div>
-                  <div className="col-md-6">
-                    <Form.Label className="fw-bold">{t('city')}</Form.Label>
-                    <Form.Select
-                      name="city"
-                      value={formData.city}
-                      onChange={handleChange}
-                    >
-                      {cityOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </div>
-                </div>
-
-                <div className="row mb-4">
-                  <div className="col-md-6 mb-3 mb-md-0">
-                    <Form.Label className="fw-bold">{t('state')}</Form.Label>
-                    <Form.Select
-                      name="state"
-                      value={formData.state}
-                      onChange={handleChange}
-                    >
-                      {stateOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </div>
-                  <div className="col-md-6">
-                    <Form.Label className="fw-bold">{t('portalCode')}</Form.Label>
+                <Form onSubmit={handleSubmit}>
+                  <Form.Group className="mb-4">
                     <Form.Control
                       type="text"
-                      name="portalCode"
-                      value={formData.portalCode}
+                      placeholder={t('companyName')}
+                      className="mb-3"
+                      name="companyName"
+                      value={formData.companyName}
                       onChange={handleChange}
                     />
-                  </div>
-                </div>
-
-                <div className="row mb-4">
-                  <div className="col-md-6">
-                    <Form.Label className="fw-bold">
-                      {printLanguage === 'both' ? (
-                        <>
-                          <div>Currency *</div>
-                          <div>العملة *</div>
-                        </>
-                      ) : printLanguage === 'ar' ? 'العملة *' : 'Currency *'}
-                    </Form.Label>
-                    <Form.Select
-                      name="currency"
-                      value={formData.currency}
+                    <Form.Control
+                      type="email"
+                      placeholder={t('companyEmail')}
+                      className="mb-3"
+                      name="companyEmail"
+                      value={formData.companyEmail}
                       onChange={handleChange}
-                    >
-                      {currencyOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </div>
-                </div>
+                    />
+                    <Form.Control
+                      type="tel"
+                      placeholder={t('phoneNumber')}
+                      className="mb-3"
+                      name="phoneNumber"
+                      value={formData.phoneNumber}
+                      onChange={handleChange}
+                    />
+                  </Form.Group>
 
-                <div className="d-flex justify-content-end mt-4">
-                  <Button variant="outline-secondary" className="me-3 px-4 py-2">
-                    {t('cancel')}
-                  </Button>
-                  <Button
-                    className="px-4 py-2"
-                    style={{
-                      borderRadius: '4px',
-                      backgroundColor: '#002d4d',
-                      borderColor: '#002d4d',
-                      border: 'none',
-                      color: '#fff'
-                    }}
-                    onClick={handleSubmit}
-                    disabled={loading}
-                  >
-                    {loading ? 'Saving...' : t('saveChanges')}
-                  </Button>
-                </div>
+                  <hr className="my-4" />
+
+                  <div className="d-flex align-items-center mb-3">
+                    <FaImage className="me-2" style={{ color: '#002d4d' }} />
+                    <h5 style={{ marginBottom: 0 }}>{t('companyImages')}</h5>
+                  </div>
+
+                  {["companyIcon", "favicon", "companyLogo", "companyDarkLogo"].map((field) => (
+                    <Form.Group className="mb-4" key={field}>
+                      <Form.Label className="fw-bold d-block mb-2">{t(field)}</Form.Label>
+                      <div className="d-flex align-items-center">
+                        <Button as="label" htmlFor={`${field}-upload`} style={uploadButtonStyle}>
+                          {t('chooseFile')}
+                          <Form.Control
+                            type="file"
+                            id={`${field}-upload`}
+                            className="d-none"
+                            name={field}
+                            onChange={handleChange}
+                            accept="image/*"
+                          />
+                        </Button>
+                        {previewImages[field] && (
+                          <Image src={previewImages[field]} alt={`${field} Preview`} style={previewImageStyle} />
+                        )}
+                      </div>
+                      <Form.Text className="text-muted">
+                        {t('uploadInstruction').replace('{field}', t(field).toLowerCase())}
+                      </Form.Text>
+                    </Form.Group>
+                  ))}
+
+                  <hr className="my-4" />
+
+                  <div className="d-flex align-items-center mb-3">
+                    <FaMapMarkerAlt className="me-2" style={{ color: '#002d4d' }} />
+                    <h5 style={{ marginBottom: 0 }}>{t('addressInformation')}</h5>
+                  </div>
+
+                  <Form.Group className="mb-4">
+                    <Form.Control
+                      as="textarea"
+                      rows={3}
+                      placeholder={t('address')}
+                      name="address"
+                      value={formData.address}
+                      onChange={handleChange}
+                    />
+                  </Form.Group>
+
+                  <div className="row mb-4">
+                    <div className="col-md-6 mb-3 mb-md-0">
+                      <Form.Label className="fw-bold">{t('country')}</Form.Label>
+                      <Form.Select
+                        name="country"
+                        value={formData.country}
+                        onChange={handleChange}
+                      >
+                        {countryOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                    <div className="col-md-6">
+                      <Form.Label className="fw-bold">{t('city')}</Form.Label>
+                      <Form.Select
+                        name="city"
+                        value={formData.city}
+                        onChange={handleChange}
+                      >
+                        {cityOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                  </div>
+
+                  <div className="row mb-4">
+                    <div className="col-md-6 mb-3 mb-md-0">
+                      <Form.Label className="fw-bold">{t('state')}</Form.Label>
+                      <Form.Select
+                        name="state"
+                        value={formData.state}
+                        onChange={handleChange}
+                      >
+                        {stateOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                    <div className="col-md-6">
+                      <Form.Label className="fw-bold">{t('portalCode')}</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="portalCode"
+                        value={formData.portalCode}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row mb-4">
+                    <div className="col-md-6">
+                      <Form.Label className="fw-bold">
+                        {printLanguage === 'both' ? (
+                          <>
+                            <div>Currency *</div>
+                            <div>العملة *</div>
+                          </>
+                        ) : printLanguage === 'ar' ? 'العملة *' : 'Currency *'}
+                      </Form.Label>
+                      <Form.Select
+                        name="currency"
+                        value={formData.currency}
+                        onChange={handleChange}
+                      >
+                        {currencyOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                  </div>
+
+                  <div className="d-flex justify-content-end mt-4">
+                    <Button variant="outline-secondary" className="me-3 px-4 py-2">
+                      {t('cancel')}
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="px-4 py-2"
+                      style={{
+                        borderRadius: '4px',
+                        backgroundColor: '#002d4d',
+                        borderColor: '#002d4d',
+                        border: 'none',
+                        color: '#fff'
+                      }}
+                      disabled={loading}
+                    >
+                      {loading ? 'Saving...' : t('saveChanges')}
+                    </Button>
+                  </div>
+                </Form>
               </div>
             </Tab.Pane>
 
@@ -666,106 +673,108 @@ const CompanyInfo = () => {
                   {t('invoiceSettings')}
                 </h2>
 
-                {/* Footer Fields */}
-                <Form.Group className="mb-4 mt-4">
-                  <Form.Label className="fw-bold">{t('footerText')}</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    name="footerTerms"
-                    value={formData.footerTerms}
-                    onChange={handleChange}
-                    placeholder={t('termsConditions')}
-                    className="mb-2"
-                  />
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    name="footerNote"
-                    value={formData.footerNote}
-                    onChange={handleChange}
-                    placeholder={t('note')}
-                    className="mb-2"
-                  />
-                  <Form.Label className="fw-bold">{t('bankDetails')}</Form.Label>
-                  <div className="row g-2">
-                    <div className="col-md-6">
-                      <Form.Control
-                        type="text"
-                        name="bank_name"
-                        value={formData.bank_name}
-                        onChange={handleChange}
-                        placeholder="Bank Name"
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Control
-                        type="text"
-                        name="account_no"
-                        value={formData.account_no}
-                        onChange={handleChange}
-                        placeholder="Account No."
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Control
-                        type="text"
-                        name="account_holder"
-                        value={formData.account_holder}
-                        onChange={handleChange}
-                        placeholder="Account Holder"
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <Form.Control
-                        type="text"
-                        name="ifsc_code"
-                        value={formData.ifsc_code}
-                        onChange={handleChange}
-                        placeholder="IFSC Code"
-                      />
-                    </div>
-                  </div>
-                </Form.Group>
-
-                {/* Currency Subunit Info */}
-                {formData.currency && (
-                  <Form.Group className="mb-4">
-                    <Form.Label className="fw-bold">
-                      {printLanguage === 'both' ? (
-                        <>
-                          <div>Currency Format</div>
-                          <div>تنسيق العملة</div>
-                        </>
-                      ) : printLanguage === 'ar' ? 'تنسيق العملة' : 'Currency Format'}
-                    </Form.Label>
-                    <div className="alert alert-info mb-0">
-                      {printLanguage === 'ar'
-                        ? `العملة: ${getSubunitLabels(formData.currency).major}، الوحدة الفرعية: ${getSubunitLabels(formData.currency).minor}`
-                        : `Major Unit: ${getSubunitLabels(formData.currency).major}, Minor Unit: ${getSubunitLabels(formData.currency).minor}`}
+                <Form onSubmit={handleSubmit}>
+                  {/* Footer Fields */}
+                  <Form.Group className="mb-4 mt-4">
+                    <Form.Label className="fw-bold">{t('footerText')}</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      name="footerTerms"
+                      value={formData.footerTerms}
+                      onChange={handleChange}
+                      placeholder={t('termsConditions')}
+                      className="mb-2"
+                    />
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      name="footerNote"
+                      value={formData.footerNote}
+                      onChange={handleChange}
+                      placeholder={t('note')}
+                      className="mb-2"
+                    />
+                    <Form.Label className="fw-bold">{t('bankDetails')}</Form.Label>
+                    <div className="row g-2">
+                      <div className="col-md-6">
+                        <Form.Control
+                          type="text"
+                          name="bank_name"
+                          value={formData.bank_name}
+                          onChange={handleChange}
+                          placeholder="Bank Name"
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <Form.Control
+                          type="text"
+                          name="account_no"
+                          value={formData.account_no}
+                          onChange={handleChange}
+                          placeholder="Account No."
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <Form.Control
+                          type="text"
+                          name="account_holder"
+                          value={formData.account_holder}
+                          onChange={handleChange}
+                          placeholder="Account Holder"
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <Form.Control
+                          type="text"
+                          name="ifsc_code"
+                          value={formData.ifsc_code}
+                          onChange={handleChange}
+                          placeholder="IFSC Code"
+                        />
+                      </div>
                     </div>
                   </Form.Group>
-                )}
 
-                <div className="d-flex justify-content-end mt-4">
-                  <Button variant="outline-secondary" className="me-3 px-4 py-2">
-                    {t('cancel')}
-                  </Button>
-                  <Button
-                    className="px-4 py-2"
-                    style={{
-                      borderRadius: '4px',
-                      backgroundColor: '#002d4d',
-                      borderColor: '#002d4d',
-                      border: 'none',
-                      color: '#fff'
-                    }}
-                    onClick={handleSubmit}
-                    disabled={loading}
-                  >
-                    {loading ? 'Saving...' : t('saveSettings')}
-                  </Button>
-                </div>
+                  {/* Currency Subunit Info */}
+                  {formData.currency && (
+                    <Form.Group className="mb-4">
+                      <Form.Label className="fw-bold">
+                        {printLanguage === 'both' ? (
+                          <>
+                            <div>Currency Format</div>
+                            <div>تنسيق العملة</div>
+                          </>
+                        ) : printLanguage === 'ar' ? 'تنسيق العملة' : 'Currency Format'}
+                      </Form.Label>
+                      <div className="alert alert-info mb-0">
+                        {printLanguage === 'ar'
+                          ? `العملة: ${getSubunitLabels(formData.currency).major}، الوحدة الفرعية: ${getSubunitLabels(formData.currency).minor}`
+                          : `Major Unit: ${getSubunitLabels(formData.currency).major}, Minor Unit: ${getSubunitLabels(formData.currency).minor}`}
+                      </div>
+                    </Form.Group>
+                  )}
+
+                  <div className="d-flex justify-content-end mt-4">
+                    <Button variant="outline-secondary" className="me-3 px-4 py-2">
+                      {t('cancel')}
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="px-4 py-2"
+                      style={{
+                        borderRadius: '4px',
+                        backgroundColor: '#002d4d',
+                        borderColor: '#002d4d',
+                        border: 'none',
+                        color: '#fff'
+                      }}
+                      disabled={loading}
+                    >
+                      {loading ? 'Saving...' : t('saveSettings')}
+                    </Button>
+                  </div>
+                </Form>
               </div>
             </Tab.Pane>
           </Tab.Content>

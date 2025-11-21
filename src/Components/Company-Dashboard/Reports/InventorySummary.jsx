@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   Form,
@@ -13,190 +13,87 @@ import {
   ListGroup,
 } from "react-bootstrap";
 import * as XLSX from "xlsx";
+import GetCompanyId from "../../../Api/GetCompanyId";
+import axiosInstance from "../../../Api/axiosInstance";
+import BaseUrl from "../../../Api/BaseUrl";
 
 const InventorySummary = () => {
+  const companyId = GetCompanyId();
   const [search, setSearch] = useState("");
   const [priceFilter, setPriceFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
+  const [inventoryData, setInventoryData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // New state for date filters
   const [purchaseDateFilter, setPurchaseDateFilter] = useState({ start: "", end: "" });
   const [salesDateFilter, setSalesDateFilter] = useState({ start: "", end: "" });
 
-  // Enhanced inventory data with multiple warehouses
-  const inventoryData = [
-    {
-      id: 1,
-      name: "Product A",
-      sku: "PROD-A",
-      description: "Premium quality electronic component",
-      category: "Electronics",
-      brand: "TechBrand",
-      unit: "Pieces",
-      hsnCode: "85423100",
-      valuationMethod: "Average Cost",
-      minStockLevel: 20,
-      maxStockLevel: 200,
-      supplier: "Tech Suppliers Ltd",
-      warehouses: [
-        {
-          name: "Indore",
-          opening: 100,
-          inward: 50,
-          outward: 80,
-          closing: 70,
-          price: 50,
-          lastPurchaseDate: "2023-10-15",
-          lastSaleDate: "2023-10-20",
-          purchaseHistory: [
-            { date: "2023-10-15", quantity: 30, rate: 48, amount: 1440 },
-            { date: "2023-09-20", quantity: 20, rate: 50, amount: 1000 },
-          ],
-          salesHistory: [
-            { date: "2023-10-20", quantity: 25, rate: 65, amount: 1625 },
-            { date: "2023-10-18", quantity: 30, rate: 65, amount: 1950 },
-            { date: "2023-10-15", quantity: 25, rate: 65, amount: 1625 },
-          ],
-        },
-        {
-          name: "Delhi",
-          opening: 80,
-          inward: 40,
-          outward: 60,
-          closing: 60,
-          price: 52,
-          lastPurchaseDate: "2023-10-10",
-          lastSaleDate: "2023-10-18",
-          purchaseHistory: [
-            { date: "2023-10-10", quantity: 40, rate: 50, amount: 2000 },
-          ],
-          salesHistory: [
-            { date: "2023-10-18", quantity: 30, rate: 68, amount: 2040 },
-            { date: "2023-10-15", quantity: 30, rate: 68, amount: 2040 },
-          ],
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "Product B",
-      sku: "PROD-B",
-      description: "Office furniture item",
-      category: "Furniture",
-      brand: "ComfortZone",
-      unit: "Pieces",
-      hsnCode: "94016100",
-      valuationMethod: "FIFO",
-      minStockLevel: 15,
-      maxStockLevel: 150,
-      supplier: "Furniture World",
-      warehouses: [
-        {
-          name: "Delhi",
-          opening: 20,
-          inward: 100,
-          outward: 60,
-          closing: 60,
-          price: 30,
-          lastPurchaseDate: "2023-10-10",
-          lastSaleDate: "2023-10-22",
-          purchaseHistory: [
-            { date: "2023-10-10", quantity: 50, rate: 28, amount: 1400 },
-            { date: "2023-09-25", quantity: 50, rate: 30, amount: 1500 },
-          ],
-          salesHistory: [
-            { date: "2023-10-22", quantity: 20, rate: 45, amount: 900 },
-            { date: "2023-10-18", quantity: 20, rate: 45, amount: 900 },
-            { date: "2023-10-15", quantity: 20, rate: 45, amount: 900 },
-          ],
-        },
-        {
-          name: "Mumbai",
-          opening: 15,
-          inward: 30,
-          outward: 25,
-          closing: 20,
-          price: 32,
-          lastPurchaseDate: "2023-10-05",
-          lastSaleDate: "2023-10-20",
-          purchaseHistory: [
-            { date: "2023-10-05", quantity: 30, rate: 30, amount: 900 },
-          ],
-          salesHistory: [
-            { date: "2023-10-20", quantity: 15, rate: 48, amount: 720 },
-            { date: "2023-10-15", quantity: 10, rate: 48, amount: 480 },
-          ],
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: "Product C",
-      sku: "PROD-C",
-      description: "High-end stationery item",
-      category: "Stationery",
-      brand: "WriteRight",
-      unit: "Pieces",
-      hsnCode: "96089900",
-      valuationMethod: "Average Cost",
-      minStockLevel: 5,
-      maxStockLevel: 50,
-      supplier: "Stationery Hub",
-      warehouses: [
-        {
-          name: "Mumbai",
-          opening: 10,
-          inward: 5,
-          outward: 12,
-          closing: 3,
-          price: 100,
-          lastPurchaseDate: "2023-10-05",
-          lastSaleDate: "2023-10-21",
-          purchaseHistory: [
-            { date: "2023-10-05", quantity: 5, rate: 95, amount: 475 },
-          ],
-          salesHistory: [
-            { date: "2023-10-21", quantity: 5, rate: 130, amount: 650 },
-            { date: "2023-10-18", quantity: 4, rate: 130, amount: 520 },
-            { date: "2023-10-15", quantity: 3, rate: 130, amount: 390 },
-          ],
-        },
-      ],
-    },
-  ];
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // ✅ Correctly flatten data without overwriting product fields
-  const flattenedData = inventoryData.flatMap((product) =>
-    product.warehouses.map((warehouse) => ({
-      productId: product.id,
-      productName: product.name,
-      sku: product.sku,
-      description: product.description,
-      category: product.category,
-      brand: product.brand,
-      unit: product.unit,
-      hsnCode: product.hsnCode,
-      valuationMethod: product.valuationMethod,
-      minStockLevel: product.minStockLevel,
-      maxStockLevel: product.maxStockLevel,
-      supplier: product.supplier,
-      warehouse: warehouse.name,
-      opening: warehouse.opening,
-      inward: warehouse.inward,
-      outward: warehouse.outward,
-      closing: warehouse.closing,
-      price: warehouse.price,
-      lastPurchaseDate: warehouse.lastPurchaseDate,
-      lastSaleDate: warehouse.lastSaleDate,
-      purchaseHistory: warehouse.purchaseHistory,
-      salesHistory: warehouse.salesHistory,
-    }))
-  );
+  // Fetch inventory data from API
+  useEffect(() => {
+    const fetchInventoryData = async () => {
+      try {
+        setLoading(true);
+        const response = await axiosInstance.get(`${BaseUrl}inventory/summary?companyId=${companyId}&page=${currentPage}`);
+        
+        if (response.data.success) {
+          // Transform the API data to match our component's expected format
+          const transformedData = response.data.data.map(item => ({
+            id: item.id, // Include the id from the API response
+            productId: item.productId, 
+            productName: item.productName,
+            sku: item.sku,
+            warehouse: item.warehouse,
+            opening: item.opening,
+            inward: item.inward,
+            outward: item.outward,
+            closing: item.closing,
+            price: item.price,
+            totalValue: item.totalValue,
+            status: item.status,
+            // Add additional fields that might be needed for detailed view
+            description: "",
+            category: "",
+            brand: "",
+            unit: "Pieces",
+            hsnCode: "",
+            valuationMethod: "Average Cost",
+            minStockLevel: 5,
+            maxStockLevel: 100,
+            supplier: "",
+            lastPurchaseDate: "",
+            lastSaleDate: "",
+            purchaseHistory: [],
+            salesHistory: []
+          }));
+          
+          setInventoryData(transformedData);
+          setTotalPages(response.data.pagination.totalPages);
+          setTotalCount(response.data.pagination.totalCount);
+        } else {
+          setError("Failed to fetch inventory data");
+        }
+      } catch (err) {
+        setError("Error fetching inventory data: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInventoryData();
+  }, [currentPage, companyId]);
 
   // Filter using product name
-  const filteredData = flattenedData.filter(
+  const filteredData = inventoryData.filter(
     (item) =>
       item.productName.toLowerCase().includes(search.toLowerCase()) &&
       (priceFilter === "" || item.price >= parseFloat(priceFilter))
@@ -216,8 +113,8 @@ const InventorySummary = () => {
       Outward: item.outward,
       Closing: item.closing,
       Price: item.price,
-      TotalValue: item.closing * item.price,
-      Status: item.closing <= 5 ? "Low Stock" : "In Stock",
+      TotalValue: item.totalValue,
+      Status: item.status,
     }));
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
@@ -244,23 +141,65 @@ const InventorySummary = () => {
     XLSX.writeFile(workbook, "Inventory_Template.xlsx");
   };
 
-  const handleViewDetails = (flattenedItem, warehouseName) => {
-    const fullProduct = inventoryData.find(p => p.id === flattenedItem.productId);
-    setSelectedProduct(fullProduct);
-    setSelectedWarehouse(warehouseName);
-    setPurchaseDateFilter({ start: "", end: "" });
-    setSalesDateFilter({ start: "", end: "" });
-    setShowModal(true);
+  // Fetch detailed product information when View Details is clicked
+  const handleViewDetails = async (item) => {
+    try {
+      setDetailsLoading(true);
+      // Fetch detailed product information using the new API endpoint
+      const response = await axiosInstance.get(`${BaseUrl}inventory/product/${companyId}/${item.productId}`);
+      
+      if (response.data.success) {
+        // Create a product object in the format expected by the modal
+        const product = {
+          id: response.data.productMaster.id,
+          name: response.data.productMaster.item_name,
+          sku: response.data.productMaster.sku,
+          description: response.data.productMaster.description,
+          category: response.data.productMaster.item_category.item_category_name,
+          brand: "",
+          unit: "Pieces",
+          hsnCode: response.data.productMaster.hsn,
+          valuationMethod: "Average Cost",
+          minStockLevel: response.data.productMaster.min_order_qty,
+          maxStockLevel: 100,
+          supplier: "",
+          warehouses: response.data.stockSummary.map(stockItem => ({
+            name: stockItem.warehouse,
+            opening: stockItem.opening,
+            inward: stockItem.inward,
+            outward: stockItem.outward,
+            closing: stockItem.closing,
+            price: response.data.productMaster.sale_price,
+            lastPurchaseDate: stockItem.lastPurchaseDate,
+            lastSaleDate: stockItem.lastSaleDate,
+            purchaseHistory: response.data.purchaseHistory,
+            salesHistory: response.data.salesHistory,
+          }))
+        };
+        
+        setSelectedProduct(product);
+        setSelectedWarehouse(item.warehouse);
+        setPurchaseDateFilter({ start: "", end: "" });
+        setSalesDateFilter({ start: "", end: "" });
+        setShowModal(true);
+      } else {
+        setError("Failed to fetch product details");
+      }
+    } catch (err) {
+      setError("Error fetching product details: " + err.message);
+    } finally {
+      setDetailsLoading(false);
+    }
   };
 
   const getWarehouseStats = (warehouseName) => {
-    const warehouseProducts = flattenedData.filter(item => item.warehouse === warehouseName);
+    const warehouseProducts = inventoryData.filter(item => item.warehouse === warehouseName);
     const totalProducts = warehouseProducts.length;
     const totalOpening = warehouseProducts.reduce((sum, item) => sum + item.opening, 0);
     const totalInward = warehouseProducts.reduce((sum, item) => sum + item.inward, 0);
     const totalOutward = warehouseProducts.reduce((sum, item) => sum + item.outward, 0);
     const totalClosing = warehouseProducts.reduce((sum, item) => sum + item.closing, 0);
-    const totalValue = warehouseProducts.reduce((sum, item) => sum + (item.closing * item.price), 0);
+    const totalValue = warehouseProducts.reduce((sum, item) => sum + item.totalValue, 0);
     const totalSalesValue = warehouseProducts.reduce((sum, item) => sum + (item.outward * item.price), 0);
 
     return {
@@ -292,6 +231,11 @@ const InventorySummary = () => {
       }
       return true;
     });
+  };
+
+  // Handle pagination
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   return (
@@ -350,89 +294,121 @@ const InventorySummary = () => {
         </Col>
       </Row>
 
-      <Table striped bordered responsive hover>
-        <thead className="table-light">
-          <tr>
-            <th>#</th>
-            <th>Product</th>
-            <th>SKU</th>
-            <th>Warehouse</th>
-            <th>Opening</th>
-            <th>Inward</th>
-            <th>Outward</th>
-            <th>Closing</th>
-            <th>Price (₹)</th>
-            <th>Total Value (₹)</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredData.length > 0 ? (
-            filteredData.map((item, index) => {
-              const totalValue = item.closing * item.price;
-              const status =
-                item.closing <= 5 ? (
-                  <Badge bg="danger">Low Stock</Badge>
-                ) : (
-                  <Badge bg="success">In Stock</Badge>
-                );
-              return (
-                <tr key={`${item.productId}-${item.warehouse}`}>
-                  <td>{index + 1}</td>
-                  <td>{item.productName}</td>
-                  <td>{item.sku}</td>
-                  <td>{item.warehouse}</td>
-                  <td>{item.opening}</td>
-                  <td>{item.inward}</td>
-                  <td>{item.outward}</td>
-                  <td>{item.closing}</td>
-                  <td>₹{item.price}</td>
-                  <td>₹{totalValue}</td>
-                  <td>{status}</td>
-                  <td>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => handleViewDetails(item, item.warehouse)}
-                    >
-                      View Details
-                    </Button>
+      {loading ? (
+        <div className="text-center my-5">
+          <div className="spinner-border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="alert alert-danger" role="alert">
+          {error}
+        </div>
+      ) : (
+        <>
+          <Table striped bordered responsive hover>
+            <thead className="table-light">
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>Warehouse</th>
+                <th>Opening</th>
+                <th>Inward</th>
+                <th>Outward</th>
+                <th>Closing</th>
+                <th>Price (₹)</th>
+                <th>Total Value (₹)</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.length > 0 ? (
+                filteredData.map((item, index) => {
+                  const statusBadge = item.status === "Low Stock" ? (
+                    <Badge bg="danger">Low Stock</Badge>
+                  ) : item.status === "Out of Stock" ? (
+                    <Badge bg="warning">Out of Stock</Badge>
+                  ) : (
+                    <Badge bg="success">In Stock</Badge>
+                  );
+                  return (
+                    <tr key={item.id}>
+                      <td>{(currentPage - 1) * 10 + index + 1}</td>
+                      <td>{item.productName}</td>
+                      <td>{item.sku}</td>
+                      <td>{item.warehouse}</td>
+                      <td>{item.opening}</td>
+                      <td>{item.inward}</td>
+                      <td>{item.outward}</td>
+                      <td>{item.closing}</td>
+                      <td>₹{item.price}</td>
+                      <td>₹{item.totalValue}</td>
+                      <td>{statusBadge}</td>
+                      <td>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleViewDetails(item)}
+                          disabled={detailsLoading}
+                        >
+                          {detailsLoading ? "Loading..." : "View Details"}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="12" className="text-center">
+                    No products found.
                   </td>
                 </tr>
-              );
-            })
-          ) : (
-            <tr>
-              <td colSpan="12" className="text-center">
-                No products found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </Table>
+              )}
+            </tbody>
+          </Table>
 
-      <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap">
-        <small className="text-muted ms-2">
-          Showing {filteredData.length} of {filteredData.length} results
-        </small>
-        <nav>
-          <ul className="pagination mb-0">
-            <li className="page-item disabled">
-              <button className="page-link">&laquo;</button>
-            </li>
-            <li className="page-item active">
-              <button className="page-link">1</button>
-            </li>
-            <li className="page-item">
-              <button className="page-link">2</button>
-            </li>
-            <li className="page-item">
-              <button className="page-link">&raquo;</button>
-            </li>
-          </ul>
-        </nav>
-      </div>
+          <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap">
+            <small className="text-muted ms-2">
+              Showing {filteredData.length} of {totalCount} results
+            </small>
+            <nav>
+              <ul className="pagination mb-0">
+                <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                  <button 
+                    className="page-link" 
+                    onClick={() => handlePageChange(currentPage - 1)}
+                  >
+                    &laquo;
+                  </button>
+                </li>
+                {[...Array(totalPages)].map((_, index) => (
+                  <li 
+                    key={index} 
+                    className={`page-item ${currentPage === index + 1 ? "active" : ""}`}
+                  >
+                    <button 
+                      className="page-link" 
+                      onClick={() => handlePageChange(index + 1)}
+                    >
+                      {index + 1}
+                    </button>
+                  </li>
+                ))}
+                <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                  <button 
+                    className="page-link" 
+                    onClick={() => handlePageChange(currentPage + 1)}
+                  >
+                    &raquo;
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </>
+      )}
 
       {/* Comprehensive Product Details Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="xl" scrollable>
@@ -518,9 +494,9 @@ const InventorySummary = () => {
                           <Col md={6}>
                             <p><strong>Closing Stock:</strong> {warehouseData.closing} units</p>
                             <p><strong>Stock Value:</strong> ₹{warehouseData.closing * warehouseData.price}</p>
-                            <p><strong>Last Purchase Date:</strong> {warehouseData.lastPurchaseDate}</p>
-                            <p><strong>Last Sale Date:</strong> {warehouseData.lastSaleDate}</p>
-                            <p><strong>Status:</strong> {warehouseData.closing <= 5 ? (
+                            <p><strong>Last Purchase Date:</strong> {warehouseData.lastPurchaseDate || "N/A"}</p>
+                            <p><strong>Last Sale Date:</strong> {warehouseData.lastSaleDate || "N/A"}</p>
+                            <p><strong>Status:</strong> {warehouseData.closing <= selectedProduct.minStockLevel ? (
                               <Badge bg="danger">Low Stock</Badge>
                             ) : (
                               <Badge bg="success">In Stock</Badge>

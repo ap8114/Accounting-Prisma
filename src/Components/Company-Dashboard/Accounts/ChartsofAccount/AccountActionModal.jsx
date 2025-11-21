@@ -188,7 +188,6 @@ const AccountActionModal = ({
                   }
                 />
               </Form.Group>
-
               <Form.Group className="mb-3">
                 <Form.Label>Account Balance</Form.Label>
                 <Form.Control

@@ -3,10 +3,23 @@ import { Table, Button, Badge, Modal, Form } from 'react-bootstrap';
 import { FaArrowLeft } from "react-icons/fa";
 import MultiStepSalesForm from './MultiStepSalesForm';
 import GetCompanyId from '../../../Api/GetCompanyId';
+import axiosInstance from '../../../Api/axiosInstance';
+
+// Helper function to get step status
+const getStepStatus = (steps, stepName) => {
+  const step = steps.find(s => s.step === stepName);
+  return step ? step.status : 'pending';
+};
+
+// Helper function to get step data
+const getStepData = (steps, stepName) => {
+  const step = steps.find(s => s.step === stepName);
+  return step ? step.data : {};
+};
 
 const statusBadge = (status) => {
-  const variant = status === 'Done' ? 'success' : status === 'Pending' ? 'secondary' : 'warning';
-  return <Badge bg={variant}>{status}</Badge>;
+  const variant = status === 'completed' ? 'success' : status === 'pending' ? 'secondary' : 'warning';
+  return <Badge bg={variant}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
 };
 
 const Invoice = () => {
@@ -35,8 +48,8 @@ const Invoice = () => {
   const getTabKeyFromStepName = (stepName) => {
     const mapping = {
       "Quotation": "quotation",
-      "Sales Order": "salesOrder",
-      "Delivery Challan": "deliveryChallan",
+      "Sales Order": "sales_order", // Updated to match API
+      "Delivery Challan": "delivery_challan", // Updated to match API
       "Invoice": "invoice",
       "Payment": "payment"
     };
@@ -53,6 +66,40 @@ const Invoice = () => {
     }
   }, [stepNameFilter]);
 
+  // 🔥 Fetch data from API when component mounts or companyId changes
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!companyId) {
+        console.error("Company ID not found");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null); // Reset error state before fetching
+        console.log(`Fetching orders for company ID: ${companyId}`);
+        const response = await axiosInstance.get(`sales-order/company/${companyId}`);
+
+        // The API returns { success, message, data }, so we use response.data.data
+        const apiData = response.data?.data;
+        if (Array.isArray(apiData)) {
+          setOrders(apiData);
+        } else {
+          console.warn("API returned non-array data, defaulting to empty array:", response.data);
+          setOrders([]);
+        }
+      } catch (err) {
+        console.error("Error fetching sales orders:", err);
+        setError("Failed to load sales orders. Please try again later.");
+        setOrders([]); // Ensure orders is always an array
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [companyId]);
 
   const handleCreateNewInvoice = (order = null) => {
     setSelectedOrder(order);
@@ -66,76 +113,83 @@ const Invoice = () => {
     setStepNameFilter('');
   };
 
-  const handleFormSubmit = (formData, lastStep = 'quotation') => {
+  const handleFormSubmit = async (formData, lastStep = 'quotation') => {
     const isEdit = selectedOrder?.id;
 
-    const newOrder = {
-      id: isEdit ? selectedOrder.id : Date.now(),
-      orderNo: isEdit ? selectedOrder.orderNo : (orders.length ? Math.max(...orders.map(o => o.orderNo)) + 1 : 2045),
-      vendor: formData.quotation?.customer || selectedOrder?.vendor || 'Unknown',
-      date: new Date().toISOString().split('T')[0],
-      amount: `$ ${formData.payment?.amount ? parseFloat(formData.payment.amount).toFixed(2) : '0.00'}`,
-      quotation: formData.quotation,
-      salesOrder: formData.salesOrder,
-      deliveryChallan: formData.deliveryChallan,
-      invoice: formData.invoice,
-      payment: formData.payment,
-      quotationStatus: formData.quotation?.quotationNo ? 'Done' : 'Pending',
-      salesOrderStatus: formData.salesOrder?.orderNo ? 'Done' : 'Pending',
-      deliveryChallanStatus: formData.deliveryChallan?.challanNo ? 'Done' : 'Pending',
-      invoiceStatus: formData.invoice?.invoiceNo ? 'Done' : 'Pending',
-      paymentStatus: formData.payment?.amount ? 'Done' : 'Pending',
-      draftStep: lastStep,
-    };
+    try {
+      if (isEdit) {
+        // Update existing order
+        console.log(`Updating order with ID: ${selectedOrder.id}`, formData);
+        // Note: The PUT endpoint might need adjustment based on how the backend expects the payload
+        // It might expect a specific format, not the raw formData
+        await axiosInstance.put(`sales-order/create-sales-order/${selectedOrder.id}`, {
+          ...formData,
+          company_id: companyId // Use the correct field name expected by the backend
+        });
+      } else {
+        // Create new order
+        console.log("Creating new order", formData);
+        await axiosInstance.post('sales-order/create-sales-order', {
+          ...formData,
+          company_id: companyId // Use the correct field name expected by the backend
+        });
+      }
 
-    setOrders(prev =>
-      isEdit
-        ? prev.map(o => (o.id === selectedOrder.id ? { ...o, ...newOrder } : o))
-        : [newOrder, ...prev]
-    );
+      // Refetch data after successful operation to get the updated list
+      console.log("Refetching orders after save...");
+      const response = await axiosInstance.get(`sales-order/company/${companyId}`);
+      const apiData = response.data?.data;
+      if (Array.isArray(apiData)) {
+        setOrders(apiData);
+      } else {
+        console.warn("API returned non-array data on refetch, defaulting to empty array:", response.data);
+        setOrders([]);
+      }
+      handleCloseModal();
+    } catch (err) {
+      console.error("Error saving sales order:", err);
+      setError("Failed to save sales order. Please check the console for details.");
+      // Optionally show a user-facing error message here (e.g., a toast)
+    }
+  };
 
-    handleCloseModal();
-  };  
-
+  // 🔥 Fixed useMemo hook: Extract data based on new API structure
   const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
-      const orderDate = new Date(order.date);
+    const ordersArray = Array.isArray(orders) ? orders : [];
+
+    return ordersArray.filter(order => {
+      // Extract step data from the nested structure
+      const quotationData = getStepData(order.steps, 'quotation');
+      const salesOrderData = getStepData(order.steps, 'sales_order');
+      const invoiceData = getStepData(order.steps, 'invoice');
+
+      // Use the quotation date as the primary date for filtering
+      let orderDate = new Date();
+      if (quotationData.quotation_date) {
+        orderDate = new Date(quotationData.quotation_date);
+      } else if (salesOrderData.SO_date) { // Assuming SO_date might exist
+        orderDate = new Date(salesOrderData.SO_date);
+      }
+
       const from = fromDate ? new Date(fromDate) : null;
       const to = toDate ? new Date(toDate) : null;
       const dateMatch = (!from || orderDate >= from) && (!to || orderDate <= to);
 
       const invoiceNoMatch =
         !invoiceNoFilter ||
-        (order.invoice?.invoiceNo &&
-          order.invoice.invoiceNo.toLowerCase().startsWith(invoiceNoFilter.toLowerCase()));
+        (invoiceData.invoice_no &&
+          invoiceData.invoice_no.toLowerCase().startsWith(invoiceNoFilter.toLowerCase()));
 
-      const matchesQuotation = !quotationStatusFilter || order.quotationStatus === quotationStatusFilter;
-      const matchesSalesOrder = !salesOrderStatusFilter || order.salesOrderStatus === salesOrderStatusFilter;
-      const matchesDeliveryChallan = !deliveryChallanStatusFilter || order.deliveryChallanStatus === deliveryChallanStatusFilter;
-      const matchesInvoice = !invoiceStatusFilter || order.invoiceStatus === invoiceStatusFilter;
-      const matchesPayment = !paymentStatusFilter || order.paymentStatus === paymentStatusFilter;
+      const matchesQuotation = !quotationStatusFilter || getStepStatus(order.steps, 'quotation') === quotationStatusFilter.toLowerCase();
+      const matchesSalesOrder = !salesOrderStatusFilter || getStepStatus(order.steps, 'sales_order') === salesOrderStatusFilter.toLowerCase();
+      const matchesDeliveryChallan = !deliveryChallanStatusFilter || getStepStatus(order.steps, 'delivery_challan') === deliveryChallanStatusFilter.toLowerCase();
+      const matchesInvoice = !invoiceStatusFilter || getStepStatus(order.steps, 'invoice') === invoiceStatusFilter.toLowerCase();
+      const matchesPayment = !paymentStatusFilter || getStepStatus(order.steps, 'payment') === paymentStatusFilter.toLowerCase();
 
       let matchesStepName = true;
       if (stepNameFilter) {
-        switch (stepNameFilter) {
-          case 'Quotation':
-            matchesStepName = order.quotationStatus === 'Done';
-            break;
-          case 'Sales Order':
-            matchesStepName = order.salesOrderStatus === 'Done';
-            break;
-          case 'Delivery Challan':
-            matchesStepName = order.deliveryChallanStatus === 'Done';
-            break;
-          case 'Invoice':
-            matchesStepName = order.invoiceStatus === 'Done';
-            break;
-          case 'Payment':
-            matchesStepName = order.paymentStatus === 'Done';
-            break;
-          default:
-            matchesStepName = true;
-        }
+        const stepToCheck = getTabKeyFromStepName(stepNameFilter);
+        matchesStepName = getStepStatus(order.steps, stepToCheck) === 'completed';
       }
 
       return (
@@ -146,11 +200,11 @@ const Invoice = () => {
         matchesDeliveryChallan &&
         matchesInvoice &&
         matchesPayment &&
-        matchesStepName 
+        matchesStepName
       );
     });
   }, [
-    orders,
+    orders, // This dependency will trigger the memo when orders changes
     fromDate,
     toDate,
     invoiceNoFilter,
@@ -169,8 +223,13 @@ const Invoice = () => {
           <FaArrowLeft size={20} color="blue" />
           <h5 className="mb-0">Sales Workflow</h5>
         </div>
-        <Button  variant="primary"  onClick={() => handleCreateNewInvoice()}
-          style={{ backgroundColor: "#53b2a5", border: "none", padding: "8px 16px" }} >   + Create sales order  </Button>
+        <Button
+          variant="primary"
+          onClick={() => handleCreateNewInvoice()}
+          style={{ backgroundColor: "#53b2a5", border: "none", padding: "8px 16px" }}
+        >
+          + Create sales order
+        </Button>
       </div>
 
       {/* 🔥 Sales Steps Dropdown + Show Filters Button */}
@@ -179,7 +238,8 @@ const Invoice = () => {
           <label className="form-label text-secondary fw-bold">Sales Steps</label>
           <Form.Select
             value={stepNameFilter}
-            onChange={(e) => setStepNameFilter(e.target.value)}>
+            onChange={(e) => setStepNameFilter(e.target.value)}
+          >
             <option value="">Select Steps</option>
             <option value="Quotation">Quotation</option>
             <option value="Sales Order">Sales Order</option>
@@ -189,9 +249,11 @@ const Invoice = () => {
           </Form.Select>
         </div>
 
-        <Button variant="outline-secondary"
+        <Button
+          variant="outline-secondary"
           size="sm"
-          onClick={() => setShowFilters(!showFilters)}>
+          onClick={() => setShowFilters(!showFilters)}
+        >
           {showFilters ? 'Hide Filters' : 'Show Filters'}
         </Button>
       </div>
@@ -205,7 +267,8 @@ const Invoice = () => {
               type="date"
               className="form-control"
               value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}/>
+              onChange={(e) => setFromDate(e.target.value)}
+            />
           </div>
 
           <div>
@@ -233,24 +296,28 @@ const Invoice = () => {
           {/* Quotation Status */}
           <div>
             <label className="form-label text-secondary">Quotation</label>
-            <Form.Select value={quotationStatusFilter}
+            <Form.Select
+              value={quotationStatusFilter}
               onChange={(e) => setQuotationStatusFilter(e.target.value)}
-              style={{ minWidth: "130px" }}>
+              style={{ minWidth: "130px" }}
+            >
               <option value="">All</option>
               <option value="Pending">Pending</option>
-              <option value="Done">Done</option>
+              <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </Form.Select>
           </div>
 
           <div>
             <label className="form-label text-secondary">Sales Order</label>
-            <Form.Select  value={salesOrderStatusFilter}
+            <Form.Select
+              value={salesOrderStatusFilter}
               onChange={(e) => setSalesOrderStatusFilter(e.target.value)}
-              style={{ minWidth: "130px" }}>
+              style={{ minWidth: "130px" }}
+            >
               <option value="">All</option>
               <option value="Pending">Pending</option>
-              <option value="Done">Done</option>
+              <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </Form.Select>
           </div>
@@ -260,10 +327,11 @@ const Invoice = () => {
             <Form.Select
               value={deliveryChallanStatusFilter}
               onChange={(e) => setDeliveryChallanStatusFilter(e.target.value)}
-              style={{ minWidth: "130px" }}>
+              style={{ minWidth: "130px" }}
+            >
               <option value="">All</option>
               <option value="Pending">Pending</option>
-              <option value="Done">Done</option>
+              <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </Form.Select>
           </div>
@@ -277,7 +345,7 @@ const Invoice = () => {
             >
               <option value="">All</option>
               <option value="Pending">Pending</option>
-              <option value="Done">Done</option>
+              <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </Form.Select>
           </div>
@@ -291,7 +359,7 @@ const Invoice = () => {
             >
               <option value="">All</option>
               <option value="Pending">Pending</option>
-              <option value="Done">Done</option>
+              <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </Form.Select>
           </div>
@@ -324,6 +392,13 @@ const Invoice = () => {
         </div>
       )}
 
+      {/* Error Message Display */}
+      {error && (
+        <div className="alert alert-danger" role="alert">
+          {error}
+        </div>
+      )}
+
       {/* Table */}
       <Table bordered hover responsive className="text-center align-middle">
         <thead className="table-light">
@@ -346,40 +421,69 @@ const Invoice = () => {
               </td>
             </tr>
           ) : (
-            filteredOrders?.map((order, idx) => (
-              <tr key={order.id}>
-                <td>{idx + 1}</td>
-                <td>{order.invoice?.invoiceNo || '-'}</td>
-                <td>{order.vendor}</td>
-                <td>{order.date}</td>
-                <td>{order.amount}</td>
-                <td>
-                  {order.quotationStatus === "Done" && (
-                    <Badge bg="success" className="me-1">Quotation</Badge>
-                  )}
-                  {order.salesOrderStatus === "Done" && (
-                    <Badge bg="success" className="me-1">Sales Order</Badge>
-                  )}
-                  {order.deliveryChallanStatus === "Done" && (
-                    <Badge bg="success" className="me-1">Delivery Challan</Badge>
-                  )}
-                  {order.invoiceStatus === "Done" && (
-                    <Badge bg="success" className="me-1">Invoice</Badge>
-                  )}
-                </td>
-                <td>{statusBadge(order.paymentStatus)}</td>
-                <td>
-                  <Button
-                    size="sm"
-                    className="me-1 mb-1"
-                    variant="outline-primary"
-                    onClick={() => handleCreateNewInvoice(order)}
-                  >
-                    Continue
-                  </Button>
-                </td>
-              </tr>
-            ))
+            filteredOrders?.map((order, idx) => {
+              // Extract data for display
+              const quotationData = getStepData(order.steps, 'quotation');
+              const salesOrderData = getStepData(order.steps, 'sales_order');
+              const invoiceData = getStepData(order.steps, 'invoice');
+              const paymentData = getStepData(order.steps, 'payment');
+
+              // Determine customer name
+              const customerName = quotationData.bill_to?.customer_name ||
+                quotationData.bill_to?.company_name ||
+                order.company_info?.company_name || 'Unknown';
+
+              // Determine date
+              let displayDate = 'N/A';
+              if (quotationData.quotation_date) {
+                displayDate = new Date(quotationData.quotation_date).toLocaleDateString();
+              } else if (salesOrderData.SO_date) {
+                displayDate = new Date(salesOrderData.SO_date).toLocaleDateString();
+              }
+
+              // Determine amount
+              let displayAmount = 'N/A';
+              if (invoiceData.total_invoice) {
+                displayAmount = `$${invoiceData.total_invoice}`;
+              } else if (quotationData.total) {
+                displayAmount = `$${quotationData.total}`;
+              }
+
+              return (
+                <tr key={order.id || idx}> {/* Use order.id if available, otherwise fallback to idx */}
+                  <td>{idx + 1}</td>
+                  <td>{invoiceData.invoice_no || '-'}</td>
+                  <td>{customerName}</td>
+                  <td>{displayDate}</td>
+                  <td>{displayAmount}</td>
+                  <td>
+                    {getStepStatus(order.steps, 'quotation') === "completed" && (
+                      <Badge bg="success" className="me-1">Quotation</Badge>
+                    )}
+                    {getStepStatus(order.steps, 'sales_order') === "completed" && (
+                      <Badge bg="success" className="me-1">Sales Order</Badge>
+                    )}
+                    {getStepStatus(order.steps, 'delivery_challan') === "completed" && (
+                      <Badge bg="success" className="me-1">Delivery Challan</Badge>
+                    )}
+                    {getStepStatus(order.steps, 'invoice') === "completed" && (
+                      <Badge bg="success" className="me-1">Invoice</Badge>
+                    )}
+                  </td>
+                  <td>{statusBadge(getStepStatus(order.steps, 'payment'))}</td>
+                  <td>
+                    <Button
+                      size="sm"
+                      className="me-1 mb-1"
+                      variant="outline-primary"
+                      onClick={() => handleCreateNewInvoice(order)}
+                    >
+                      Continue
+                    </Button>
+                  </td>
+                </tr>
+              )
+            })
           )}
         </tbody>
       </Table>
@@ -391,8 +495,8 @@ const Invoice = () => {
             {selectedOrder && selectedOrder.id
               ? 'Continue Sales Workflow'
               : stepNameFilter
-              ? `Create New - ${stepNameFilter}`
-              : 'Create Sales Order'}
+                ? `Create New - ${stepNameFilter}`
+                : 'Create Sales Order'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -407,4 +511,4 @@ const Invoice = () => {
   );
 };
 
-export default Invoice; 
+export default Invoice;

@@ -15,8 +15,10 @@ import AOS from "aos";
 import "aos/dist/aos.css";
 import "./Pages.css";
 import axiosInstance from "../../../Api/axiosInstance";
+import GetCompanyId from "../../../Api/GetCompanyId";
 
 const Pricing = () => {
+  const companyId = GetCompanyId(); // Get the company ID
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -152,20 +154,20 @@ const Pricing = () => {
     setSubmitting(true);
     
     try {
-      // Prepare data for API call
+      // Prepare data for API call - Updated to match the expected response format
       const requestData = {
-        company_id: formData.companyName, // This might need to be an actual company ID
+        company_name: formData.companyName, // Send company name from form
+        company_email: formData.email, // Send email from form
         plan_id: selectedPlan.id,
         billing_cycle: billingDuration,
-        // startdate: formData.startDate,
-        request_date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+        request_date: formData.startDate, // Use the selected start date
         status: "Pending" // Default status
       };
       
-      // Make API call to request plan
-      const response = await axiosInstance.post('planreq', requestData);
+      // Make API call to request plan - Updated endpoint
+      const response = await axiosInstance.post('/planreq', requestData);
       
-      if (response.data.success) {
+      if (response.data) {
         alert("Plan request submitted successfully! We'll contact you shortly.");
         handleCloseModal();
       } else {

@@ -28,6 +28,8 @@ import {
   faChevronDown,
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
+import axiosInstance from '../../../Api/axiosInstance';
+import GetCompanyId from '../../../Api/GetCompanyId';
 
 const MultiStepSalesForm = ({
   onSubmit,
@@ -277,6 +279,53 @@ const MultiStepSalesForm = ({
     return initialFormData;
   });
 
+  // Fetch company details by logged-in company id and populate all steps
+  useEffect(() => {
+    const company_id = GetCompanyId();
+    if (!company_id) return;
+
+    const fetchCompany = async () => {
+      try {
+        const response = await axiosInstance.get(`auth/Company/${company_id}`);
+        const company = response?.data?.data;
+        if (!company) return;
+
+        setFormData((prev) => {
+          const mapCompanyToTab = (tab) => ({
+            ...prev[tab],
+            companyName: company.name || prev[tab].companyName,
+            companyAddress: company.address || prev[tab].companyAddress,
+            companyEmail: company.email || prev[tab].companyEmail,
+            companyPhone: company.phone || prev[tab].companyPhone,
+            companyLogo: company.branding?.company_logo_url || prev[tab].companyLogo,
+            companyDarkLogo: company.branding?.company_dark_logo_url || prev[tab].companyDarkLogo,
+            companyIcon: company.branding?.company_icon_url || prev[tab].companyIcon,
+            companyFavicon: company.branding?.favicon_url || prev[tab].companyFavicon,
+            terms: company.terms_and_conditions || prev[tab].terms,
+            notes: company.notes || prev[tab].notes,
+            bankName: company.bank_details?.bank_name || prev[tab].bankName,
+            accountNo: company.bank_details?.account_number || prev[tab].accountNo,
+            accountHolder: company.bank_details?.account_holder || prev[tab].accountHolder,
+            ifsc: company.bank_details?.ifsc_code || prev[tab].ifsc,
+          });
+
+          return {
+            ...prev,
+            quotation: mapCompanyToTab('quotation'),
+            salesOrder: mapCompanyToTab('salesOrder'),
+            deliveryChallan: mapCompanyToTab('deliveryChallan'),
+            invoice: mapCompanyToTab('invoice'),
+            payment: mapCompanyToTab('payment'),
+          };
+        });
+      } catch (err) {
+        console.error('Failed to fetch company details:', err);
+      }
+    };
+
+    fetchCompany();
+  }, []);
+
   // Search state for each row
   const [rowSearchTerms, setRowSearchTerms] = useState({});
   const [showRowSearch, setShowRowSearch] = useState({});
@@ -312,8 +361,59 @@ const MultiStepSalesForm = ({
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [productList, setProductList] = useState(availableItems || []);
   const searchRef = useRef(null);
   const dropdownRef = useRef(null);
+
+  // When a customer is selected in the quotation tab, propagate basic customer info to all steps
+  useEffect(() => {
+    if (!selectedCustomer) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      quotation: {
+        ...prev.quotation,
+        billToName: selectedCustomer.name_english || selectedCustomer.name || '',
+        billToAddress: selectedCustomer.address || '',
+        billToEmail: selectedCustomer.email || '',
+        billToPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+        customerId: selectedCustomer.id || prev.quotation.customerId,
+      },
+      salesOrder: {
+        ...prev.salesOrder,
+        customerName: selectedCustomer.name_english || selectedCustomer.name || '',
+        customerAddress: selectedCustomer.address || '',
+        customerEmail: selectedCustomer.email || '',
+        customerPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+        billToAttn: selectedCustomer.name_english || selectedCustomer.name || '',
+        billToCompanyName: selectedCustomer.company_name || selectedCustomer.name_english || '',
+        billToAddress: selectedCustomer.address || '',
+        billToEmail: selectedCustomer.email || '',
+        billToPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+      },
+      deliveryChallan: {
+        ...prev.deliveryChallan,
+        billToName: selectedCustomer.name_english || selectedCustomer.name || '',
+        billToAddress: selectedCustomer.address || '',
+        billToEmail: selectedCustomer.email || '',
+        billToPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+      },
+      invoice: {
+        ...prev.invoice,
+        customerName: selectedCustomer.name_english || selectedCustomer.name || '',
+        customerAddress: selectedCustomer.address || '',
+        customerEmail: selectedCustomer.email || '',
+        customerPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+      },
+      payment: {
+        ...prev.payment,
+        customerName: selectedCustomer.name_english || selectedCustomer.name || '',
+        customerAddress: selectedCustomer.address || '',
+        customerEmail: selectedCustomer.email || '',
+        customerPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+      },
+    }));
+  }, [selectedCustomer]);
 
   // Categories (could also come from parent)
   const [categories, setCategories] = useState([
@@ -516,20 +616,31 @@ const MultiStepSalesForm = ({
 
   const handleSelectSearchedItem = (tab, index, item) => {
     const updatedItems = [...formData[tab].items];
+    // Support different API shapes: products use `item_name` and `sale_price` etc.
+    const name = item.name || item.item_name || '';
+    const rate = item.price || item.sale_price || item.sellingPrice || item.rate || '';
+    const tax = item.tax || item.tax_percent || 0;
+    const hsn = item.hsn || '';
+    const uom = item.uom || item.unit_detail?.uom_name || updatedItems[index].uom || 'PCS';
+    const description = item.description || item.prod_description || updatedItems[index].description || '';
+    const sku = item.sku || item.SKU || '';
+    const barcode = item.barcode || '';
+    const warehousesForItem = item.warehouses || item.warehouses_list || [];
+
     updatedItems[index] = {
       ...updatedItems[index],
-      item_name: item.name,
-      rate: item.price,
-      tax: item.tax,
-      hsn: item.hsn,
-      uom: item.uom,
-      description: item.description || "",
-      sku: item.sku || "",
-      barcode: item.barcode || "",
-      warehouses: item.warehouses || [],
+      item_name: name,
+      rate: rate,
+      tax: tax,
+      hsn: hsn,
+      uom: uom,
+      description: description,
+      sku: sku,
+      barcode: barcode,
+      warehouses: warehousesForItem,
     };
-    if (item.warehouses && item.warehouses.length > 0) {
-      updatedItems[index].warehouse = item.warehouses[0].warehouse_name;
+    if (warehousesForItem && warehousesForItem.length > 0) {
+      updatedItems[index].warehouse = warehousesForItem[0].warehouse_name || warehousesForItem[0].warehouse || '';
     } else {
       updatedItems[index].warehouse = "";
     }
@@ -1084,6 +1195,50 @@ const MultiStepSalesForm = ({
     };
   }, []);
 
+  // Fetch customers for the logged-in company so search works by name/phone
+  useEffect(() => {
+    const company_id = GetCompanyId();
+    if (!company_id) return;
+
+    const fetchCustomers = async () => {
+      try {
+        const res = await axiosInstance.get(`vendorCustomer/company/${company_id}?type=customer`);
+        const data = res?.data?.data || [];
+        setCustomerList(data);
+        setFilteredCustomerList(data);
+      } catch (err) {
+        console.error('Failed to fetch customers:', err);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
+
+  // Fetch products for the company and keep local productList used by item search
+  useEffect(() => {
+    const company_id = GetCompanyId();
+    if (!company_id) return;
+
+    const fetchProducts = async () => {
+      try {
+        const res = await axiosInstance.get(`products/company/${company_id}`);
+        const data = res?.data?.data || [];
+        setProductList(data);
+      } catch (err) {
+        console.error('Failed to fetch products:', err);
+        // fallback to availableItems prop if provided
+        setProductList(availableItems || []);
+      }
+    };
+
+    fetchProducts();
+  }, [availableItems]);
+
+  // Keep productList in sync when parent passes availableItems prop
+  useEffect(() => {
+    if (availableItems && availableItems.length > 0) setProductList(availableItems);
+  }, [availableItems]);
+
   const handleCustomerSelect = (customer) => {
     setSelectedCustomer(customer);
     handleChange("quotation", "billToName", customer.name_english || '');
@@ -1136,15 +1291,23 @@ const MultiStepSalesForm = ({
 
     // Filter items based on search term for each row
     const getFilteredItems = (index) => {
-      const searchTerm = rowSearchTerms[`${tab}-${index}`] || "";
-      if (!searchTerm) return availableItems;
-      return availableItems.filter(
-        (item) =>
-          item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (item.barcode && item.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+      const searchTerm = (rowSearchTerms[`${tab}-${index}`] || "").trim();
+      if (!searchTerm) return productList;
+      const lower = searchTerm.toLowerCase();
+      return productList.filter((item) => {
+        const name = (item.name || item.item_name || '').toString().toLowerCase();
+        const category = (item.category || item.item_category?.item_category_name || '').toString().toLowerCase();
+        const sku = (item.sku || item.SKU || '').toString().toLowerCase();
+        const barcode = (item.barcode || '').toString().toLowerCase();
+        const desc = (item.description || '').toString().toLowerCase();
+        return (
+          name.includes(lower) ||
+          category.includes(lower) ||
+          sku.includes(lower) ||
+          barcode.includes(lower) ||
+          desc.includes(lower)
+        );
+      });
     };
 
     // Get warehouses to display in the dropdown for a specific row
@@ -1520,10 +1683,10 @@ const MultiStepSalesForm = ({
                                   (e.currentTarget.style.backgroundColor = "white")
                                 }
                               >
-                                <div><strong>{filteredItem.name}</strong></div>
+                                <div><strong>{filteredItem.name || filteredItem.item_name}</strong></div>
                                 <div style={{ fontSize: "0.8rem", color: "#666" }}>
-                                  {filteredItem.category} - ${filteredItem.price.toFixed(2)}
-                                  {filteredItem.sku && <span> | SKU: {filteredItem.sku}</span>}
+                                  {(filteredItem.category || filteredItem.item_category?.item_category_name || '')} - ${((filteredItem.price || filteredItem.sale_price || filteredItem.sellingPrice) ? parseFloat(filteredItem.price || filteredItem.sale_price || filteredItem.sellingPrice).toFixed(2) : '0.00')}
+                                  {(filteredItem.sku || filteredItem.SKU) && <span> | SKU: {filteredItem.sku || filteredItem.SKU}</span>}
                                 </div>
                               </div>
                             ))}
@@ -1802,12 +1965,14 @@ const MultiStepSalesForm = ({
   };
 
   const formatCompanyAddress = () => {
+    // Prefer populated formData for quotation (fetched company sets this), fallback to companyDetails prop
+    if (formData?.quotation?.companyAddress) return formData.quotation.companyAddress;
     const parts = [
       companyDetails.address,
       companyDetails.city,
       companyDetails.state,
       companyDetails.postal_code,
-      companyDetails.country
+      companyDetails.country,
     ].filter(Boolean);
     return parts.join(', ');
   };
@@ -1850,7 +2015,7 @@ const MultiStepSalesForm = ({
             <div className="d-flex flex-column gap-1">
               <Form.Control
                 type="text"
-                value={companyDetails.name || ''}
+                value={formData?.quotation?.companyName || companyDetails.name || ''}
                 readOnly
                 placeholder="Company Name"
                 className="form-control-no-border"
@@ -1866,7 +2031,7 @@ const MultiStepSalesForm = ({
               />
               <Form.Control
                 type="email"
-                value={companyDetails.email || ''}
+                value={formData?.quotation?.companyEmail || companyDetails.email || ''}
                 readOnly
                 placeholder="Company Email"
                 className="form-control-no-border"
@@ -2195,7 +2360,7 @@ const MultiStepSalesForm = ({
           <Button variant="secondary" onClick={handleSkip}>Skip</Button>
           <Button variant="warning" onClick={handleSaveDraft}>Save</Button>
           <Button variant="primary" onClick={handleSaveNext}>Save & Next</Button>
-          <Button variant="success" onClick={handleNext}>Next</Button>
+          <Button variant="success" onClick={handleNext}>Next</Button>  
         </div>
       </Form>
     );
@@ -2209,12 +2374,25 @@ const MultiStepSalesForm = ({
           <Col md={3} className="d-flex align-items-center justify-content-center">
             <div
               className="border rounded d-flex flex-column align-items-center justify-content-center"
-              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer" }}
+              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
               onClick={() => document.getElementById('logo-upload-so')?.click()}
             >
-              <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
-              <small>Upload Logo</small>
-              <input id="logo-upload-so" type="file" accept="image/*" hidden />
+              {formData.salesOrder.companyLogo ? (
+                <img
+                  src={formData.salesOrder.companyLogo}
+                  alt="Company Logo"
+                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <small>Upload Logo</small>
+                </>
+              )}
+              <input id="logo-upload-so" type="file" accept="image/*" hidden onChange={(e) => {
+                if (e.target.files[0]) handleChange("salesOrder", "companyLogo", e.target.files[0]);
+              }} />
             </div>
           </Col>
           <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
@@ -2585,12 +2763,25 @@ const MultiStepSalesForm = ({
           <Col md={3} className="d-flex align-items-center justify-content-center">
             <div
               className="border rounded d-flex flex-column align-items-center justify-content-center"
-              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer" }}
+              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
               onClick={() => document.getElementById('logo-upload-dc')?.click()}
             >
-              <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
-              <small>Upload Logo</small>
-              <input id="logo-upload-dc" type="file" accept="image/*" hidden />
+              {formData.deliveryChallan.companyLogo ? (
+                <img
+                  src={formData.deliveryChallan.companyLogo}
+                  alt="Company Logo"
+                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <small>Upload Logo</small>
+                </>
+              )}
+              <input id="logo-upload-dc" type="file" accept="image/*" hidden onChange={(e) => {
+                if (e.target.files[0]) handleChange("deliveryChallan", "companyLogo", e.target.files[0]);
+              }} />
             </div>
           </Col>
           <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
@@ -3002,12 +3193,25 @@ const MultiStepSalesForm = ({
           <Col md={3} className="d-flex align-items-center justify-content-center">
             <div
               className="border rounded d-flex flex-column align-items-center justify-content-center"
-              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer" }}
+              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
               onClick={() => document.getElementById('logo-upload-invoice')?.click()}
             >
-              <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
-              <small>Upload Logo</small>
-              <input id="logo-upload-invoice" type="file" accept="image/*" hidden />
+              {formData.invoice.companyLogo ? (
+                <img
+                  src={formData.invoice.companyLogo}
+                  alt="Company Logo"
+                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <small>Upload Logo</small>
+                </>
+              )}
+              <input id="logo-upload-invoice" type="file" accept="image/*" hidden onChange={(e) => {
+                if (e.target.files[0]) handleChange("invoice", "companyLogo", e.target.files[0]);
+              }} />
             </div>
           </Col>
           <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
@@ -3407,12 +3611,25 @@ const MultiStepSalesForm = ({
           <Col md={3} className="d-flex align-items-center justify-content-center">
             <div
               className="border rounded d-flex flex-column align-items-center justify-content-center"
-              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer" }}
+              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
               onClick={() => document.getElementById('logo-upload-payment')?.click()}
             >
-              <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
-              <small>Upload Logo</small>
-              <input id="logo-upload-payment" type="file" accept="image/*" hidden />
+              {formData.payment.companyLogo ? (
+                <img
+                  src={formData.payment.companyLogo}
+                  alt="Company Logo"
+                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <small>Upload Logo</small>
+                </>
+              )}
+              <input id="logo-upload-payment" type="file" accept="image/*" hidden onChange={(e) => {
+                if (e.target.files[0]) handleChange("payment", "companyLogo", e.target.files[0]);
+              }} />
             </div>
           </Col>
           <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
