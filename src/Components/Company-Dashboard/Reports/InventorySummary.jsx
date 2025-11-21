@@ -27,6 +27,7 @@ const InventorySummary = () => {
   const [inventoryData, setInventoryData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // New state for date filters
   const [purchaseDateFilter, setPurchaseDateFilter] = useState({ start: "", end: "" });
@@ -140,42 +141,55 @@ const InventorySummary = () => {
     XLSX.writeFile(workbook, "Inventory_Template.xlsx");
   };
 
-  const handleViewDetails = (item) => {
-    // Create a product object in the format expected by the modal
-    const product = {
-      id: item.productId,
-      name: item.productName,
-      sku: item.sku,
-      description: item.description,
-      category: item.category,
-      brand: item.brand,
-      unit: item.unit,
-      hsnCode: item.hsnCode,
-      valuationMethod: item.valuationMethod,
-      minStockLevel: item.minStockLevel,
-      maxStockLevel: item.maxStockLevel,
-      supplier: item.supplier,
-      warehouses: [
-        {
-          name: item.warehouse,
-          opening: item.opening,
-          inward: item.inward,
-          outward: item.outward,
-          closing: item.closing,
-          price: item.price,
-          lastPurchaseDate: item.lastPurchaseDate,
-          lastSaleDate: item.lastSaleDate,
-          purchaseHistory: item.purchaseHistory,
-          salesHistory: item.salesHistory,
-        }
-      ]
-    };
-    
-    setSelectedProduct(product);
-    setSelectedWarehouse(item.warehouse);
-    setPurchaseDateFilter({ start: "", end: "" });
-    setSalesDateFilter({ start: "", end: "" });
-    setShowModal(true);
+  // Fetch detailed product information when View Details is clicked
+  const handleViewDetails = async (item) => {
+    try {
+      setDetailsLoading(true);
+      // Fetch detailed product information using the new API endpoint
+      const response = await axiosInstance.get(`${BaseUrl}inventory/product/${companyId}/${item.productId}`);
+      
+      if (response.data.success) {
+        // Create a product object in the format expected by the modal
+        const product = {
+          id: response.data.productMaster.id,
+          name: response.data.productMaster.item_name,
+          sku: response.data.productMaster.sku,
+          description: response.data.productMaster.description,
+          category: response.data.productMaster.item_category.item_category_name,
+          brand: "",
+          unit: "Pieces",
+          hsnCode: response.data.productMaster.hsn,
+          valuationMethod: "Average Cost",
+          minStockLevel: response.data.productMaster.min_order_qty,
+          maxStockLevel: 100,
+          supplier: "",
+          warehouses: response.data.stockSummary.map(stockItem => ({
+            name: stockItem.warehouse,
+            opening: stockItem.opening,
+            inward: stockItem.inward,
+            outward: stockItem.outward,
+            closing: stockItem.closing,
+            price: response.data.productMaster.sale_price,
+            lastPurchaseDate: stockItem.lastPurchaseDate,
+            lastSaleDate: stockItem.lastSaleDate,
+            purchaseHistory: response.data.purchaseHistory,
+            salesHistory: response.data.salesHistory,
+          }))
+        };
+        
+        setSelectedProduct(product);
+        setSelectedWarehouse(item.warehouse);
+        setPurchaseDateFilter({ start: "", end: "" });
+        setSalesDateFilter({ start: "", end: "" });
+        setShowModal(true);
+      } else {
+        setError("Failed to fetch product details");
+      }
+    } catch (err) {
+      setError("Error fetching product details: " + err.message);
+    } finally {
+      setDetailsLoading(false);
+    }
   };
 
   const getWarehouseStats = (warehouseName) => {
@@ -337,8 +351,9 @@ const InventorySummary = () => {
                           variant="primary"
                           size="sm"
                           onClick={() => handleViewDetails(item)}
+                          disabled={detailsLoading}
                         >
-                          View Details
+                          {detailsLoading ? "Loading..." : "View Details"}
                         </Button>
                       </td>
                     </tr>
@@ -479,9 +494,9 @@ const InventorySummary = () => {
                           <Col md={6}>
                             <p><strong>Closing Stock:</strong> {warehouseData.closing} units</p>
                             <p><strong>Stock Value:</strong> ₹{warehouseData.closing * warehouseData.price}</p>
-                            <p><strong>Last Purchase Date:</strong> {warehouseData.lastPurchaseDate}</p>
-                            <p><strong>Last Sale Date:</strong> {warehouseData.lastSaleDate}</p>
-                            <p><strong>Status:</strong> {warehouseData.closing <= 5 ? (
+                            <p><strong>Last Purchase Date:</strong> {warehouseData.lastPurchaseDate || "N/A"}</p>
+                            <p><strong>Last Sale Date:</strong> {warehouseData.lastSaleDate || "N/A"}</p>
+                            <p><strong>Status:</strong> {warehouseData.closing <= selectedProduct.minStockLevel ? (
                               <Badge bg="danger">Low Stock</Badge>
                             ) : (
                               <Badge bg="success">In Stock</Badge>
