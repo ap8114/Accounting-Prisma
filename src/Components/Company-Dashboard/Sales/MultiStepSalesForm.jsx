@@ -575,7 +575,7 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
     if (
       formData.deliveryChallan.manualRefNo &&
       formData.deliveryChallan.manualRefNo !==
-      formData.deliveryChallan.challanNo
+        formData.deliveryChallan.challanNo
     ) {
       handleChange(
         "deliveryChallan",
@@ -973,8 +973,9 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
       .from(element)
       .set({
         margin: 10,
-        filename: `${key}-${formData[key].quotationNo || formData[key].invoiceNo || "document"
-          }.pdf`,
+        filename: `${key}-${
+          formData[key].quotationNo || formData[key].invoiceNo || "document"
+        }.pdf`,
         jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
         html2canvas: { scale: 3 },
         pagebreak: { mode: ["avoid-all", "css", "legacy"] },
@@ -1648,12 +1649,12 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                                   )
                                 }
                                 onMouseEnter={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#f0f0f0")
+                                  (e.currentTarget.style.backgroundColor =
+                                    "#f0f0f0")
                                 }
                                 onMouseLeave={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "white")
+                                  (e.currentTarget.style.backgroundColor =
+                                    "white")
                                 }
                               >
                                 <div>
@@ -1766,12 +1767,12 @@ const MultiStepSalesForm = ({ onSubmit, initialData, initialStep }) => {
                                   handleSelectSearchedWarehouse(tab, idx, wh)
                                 }
                                 onMouseEnter={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#f0f0f0")
+                                  (e.currentTarget.style.backgroundColor =
+                                    "#f0f0f0")
                                 }
                                 onMouseLeave={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "white")
+                                  (e.currentTarget.style.backgroundColor =
+                                    "white")
                                 }
                               >
                                 <div>
