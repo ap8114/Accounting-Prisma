@@ -20,7 +20,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUpload,
   faTrash,
-  faEye,
+  faEye,  
   faEdit,
   faPlus,
   faSearch,

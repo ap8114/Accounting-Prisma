@@ -1,47 +1,104 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Table, Button, Badge, Modal, Form, Row, Col } from "react-bootstrap";
 import MultiStepPurchaseForms from "./MultiStepPurchaseForms";
 import { FaArrowRight } from "react-icons/fa";
+import BaseUrl from "../../../Api/BaseUrl";
+import GetCompanyId from "../../../Api/GetCompanyId";
+// Utility to map API status to UI status ("Done", "Pending", etc.)
+const mapApiStatusToUiStatus = (apiStatus) => {
+  if (!apiStatus || apiStatus === "Pending") return "Pending";
+  if (["Approved", "Confirmed", "Completed", "completed"].includes(apiStatus))
+    return "Done";
+  return "Pending"; // fallback
+};
 
-const initialOrders = [];
-
-const statusBadge = (status) => {
-  let variant;
-  switch (status) {
-    case "Done":
-      variant = "success";
-      break;
-    case "Pending":
-      variant = "secondary";
-      break;
-    case "Cancelled":
-      variant = "danger";
-      break;
-    default:
-      variant = "warning";
-  }
-  return <Badge bg={variant}>{status}</Badge>;
+// Utility to format amount (e.g., "₹9,510")
+const formatAmount = (value) => {
+  if (!value || isNaN(value)) return "₹0";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+  }).format(Number(value));
 };
 
 const PurchaseOrderr = () => {
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stepModal, setStepModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-
-  // Filter states (updated)
+  const companyId = GetCompanyId();
+  // Filters
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [searchOrderNo, setSearchOrderNo] = useState("");
-
-  // Alag-alag status filters
-  // Alag-alag status filters
-  const [purchaseQuotationStatusFilter, setPurchaseQuotationStatusFilter] =
-    useState("");
-  const [purchaseOrderStatusFilter, setPurchaseOrderStatusFilter] =
-    useState("");
+  const [purchaseQuotationStatusFilter, setPurchaseQuotationStatusFilter] = useState("");
+  const [purchaseOrderStatusFilter, setPurchaseOrderStatusFilter] = useState("");
   const [goodsReceiptStatusFilter, setGoodsReceiptStatusFilter] = useState("");
   const [billStatusFilter, setBillStatusFilter] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
+
+  // Fetch orders from API
+  useEffect(() => {
+    const fetchPurchaseOrders = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `${BaseUrl}purchase-orders/company/${companyId}`
+        );
+        if (!response.ok) throw new Error("Failed to fetch purchase orders");
+        const result = await response.json();
+
+        if (result.success && Array.isArray(result.data)) {
+          const formattedOrders = result.data.map((po) => {
+            // Find step data
+            const quotationStep = po.steps.find((s) => s.step === "quotation");
+            const poStep = po.steps.find((s) => s.step === "purchase_order");
+            const grStep = po.steps.find((s) => s.step === "goods_receipt");
+            const billStep = po.steps.find((s) => s.step === "bill");
+            const paymentStep = po.steps.find((s) => s.step === "payment");
+
+            return {
+              id: po.company_info.id,
+              orderNo: poStep?.data?.PO_no || poStep?.data?.Manual_PO_ref || "-",
+              vendor: quotationStep?.data?.quotation_from_vendor_name || "-",
+              date: poStep?.data?.PO_date || po.company_info.created_at.split("T")[0],
+              amount: formatAmount(po.total),
+              quotation: quotationStep?.data || null,
+              salesOrder: poStep?.data || null,
+              goodsReceipt: grStep?.data || null,
+              invoice: billStep?.data || null,
+              payment: paymentStep?.data || null,
+
+              purchaseQuotationStatus: mapApiStatusToUiStatus(quotationStep?.status),
+              purchaseOrderStatus: mapApiStatusToUiStatus(poStep?.status),
+              goodsReceiptStatus: mapApiStatusToUiStatus(grStep?.status),
+              billStatus: mapApiStatusToUiStatus(billStep?.status),
+              paymentStatus: mapApiStatusToUiStatus(paymentStep?.status),
+              draftStep: "purchase_order", // Default to PO if continuing
+            };
+          });
+          setOrders(formattedOrders);
+        } else {
+          setOrders([]);
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setError("Failed to load purchase orders.");
+        setOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (companyId) {
+      fetchPurchaseOrders();
+    } else {
+      setLoading(false);
+    }
+  }, [companyId]);
 
   const handleCreateNewPurchase = (order = null) => {
     setSelectedOrder(order);
@@ -54,86 +111,35 @@ const PurchaseOrderr = () => {
   };
 
   const handleFormSubmit = (formData, lastStep = "quotation") => {
-    const isEdit = selectedOrder?.id;
-    const newOrderNo = orders.length
-      ? Math.max(...orders.map((o) => o.orderNo)) + 1
-      : 2045;
-    const today = new Date().toISOString().split("T")[0];
-
-    // Statuses based on form data
-    const purchaseQuotationStatus = formData.quotation?.quotationNo
-      ? "Done"
-      : "Pending";
-    const purchaseOrderStatus = formData.salesOrder?.orderNo
-      ? "Done"
-      : "Pending";
-    const goodsReceiptStatus = formData.goodsReceipt?.receiptNo
-      ? "Done"
-      : "Pending"; // Goods Receipt
-    const billStatus = formData.invoice?.invoiceNo ? "Done" : "Pending"; // Bill = Invoice
-    const paymentStatus = formData.payment?.amount ? "Done" : "Pending";
-
-    const newOrder = {
-      id: isEdit ? selectedOrder.id : Date.now(),
-      orderNo: isEdit ? selectedOrder.orderNo : newOrderNo,
-      vendor: formData.quotation.customer || "",
-      date: today,
-      amount: `$ ${formData.payment?.amount || 0}`,
-      quotation: formData.quotation,
-      salesOrder: formData.salesOrder,
-      goodsReceipt: formData.goodsReceipt, // ✅ New field
-      invoice: formData.invoice,
-      payment: formData.payment,
-
-      // Updated Status Keys
-      purchaseQuotationStatus,
-      purchaseOrderStatus,
-      goodsReceiptStatus,
-      billStatus,
-      paymentStatus,
-      draftStep: lastStep,
-    };
-
-    setOrders((prev) =>
-      isEdit
-        ? prev.map((o) => (o.id === selectedOrder.id ? newOrder : o))
-        : [newOrder, ...prev]
-    );
-
+    // TODO: Implement POST/PUT API calls if editing/creating
+    alert("Form submit logic not connected to backend yet.");
     handleCloseModal();
   };
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      // Order No filter
       const matchesOrderNo =
         !searchOrderNo ||
         order.orderNo?.toString().includes(searchOrderNo.trim()) ||
-        order.invoice?.invoiceNo?.includes(searchOrderNo.trim());
+        (order.invoice?.Bill_no || "").includes(searchOrderNo.trim());
 
-      // Date filter
       const orderDate = new Date(order.date);
       const from = fromDate ? new Date(fromDate) : null;
       const to = toDate ? new Date(toDate) : null;
       const afterFrom = !from || orderDate >= from;
       const beforeTo = !to || orderDate <= to;
 
-      // Individual status filters
       const matchesPurchaseQuotationStatus =
         !purchaseQuotationStatusFilter ||
         order.purchaseQuotationStatus === purchaseQuotationStatusFilter;
-
       const matchesPurchaseOrderStatus =
         !purchaseOrderStatusFilter ||
         order.purchaseOrderStatus === purchaseOrderStatusFilter;
-
       const matchesGoodsReceiptStatus =
         !goodsReceiptStatusFilter ||
         order.goodsReceiptStatus === goodsReceiptStatusFilter;
-
       const matchesBillStatus =
         !billStatusFilter || order.billStatus === billStatusFilter;
-
       const matchesPaymentStatus =
         !paymentStatusFilter || order.paymentStatus === paymentStatusFilter;
 
@@ -160,6 +166,27 @@ const PurchaseOrderr = () => {
     paymentStatusFilter,
   ]);
 
+  const statusBadge = (status) => {
+    let variant;
+    switch (status) {
+      case "Done":
+        variant = "success";
+        break;
+      case "Pending":
+        variant = "secondary";
+        break;
+      case "Cancelled":
+        variant = "danger";
+        break;
+      default:
+        variant = "warning";
+    }
+    return <Badge bg={variant}>{status}</Badge>;
+  };
+
+  if (loading) return <div className="p-4">Loading purchase orders...</div>;
+  if (error) return <div className="p-4 text-danger">{error}</div>;
+
   return (
     <div className="p-4">
       <div className="d-flex justify-content-between">
@@ -167,7 +194,6 @@ const PurchaseOrderr = () => {
           <FaArrowRight size={20} color="red" />
           <h5 className="mb-0">Purchase Workflow</h5>
         </div>
-
         <Button
           variant="primary"
           className="mb-3"
@@ -181,6 +207,7 @@ const PurchaseOrderr = () => {
           + Create New Purchase
         </Button>
       </div>
+
       <Row className="mb-4 g-3">
         <Col md={3}>
           <Form.Group>
@@ -214,7 +241,6 @@ const PurchaseOrderr = () => {
           </Form.Group>
         </Col>
 
-        {/* Purchase Quotation */}
         <Col md={3}>
           <Form.Group>
             <Form.Label>Purchase Quotation</Form.Label>
@@ -230,7 +256,6 @@ const PurchaseOrderr = () => {
           </Form.Group>
         </Col>
 
-        {/* Purchase Order */}
         <Col md={3}>
           <Form.Group>
             <Form.Label>Purchase Order</Form.Label>
@@ -246,7 +271,6 @@ const PurchaseOrderr = () => {
           </Form.Group>
         </Col>
 
-        {/* Goods Receipt */}
         <Col md={3}>
           <Form.Group>
             <Form.Label>Goods Receipt</Form.Label>
@@ -262,7 +286,6 @@ const PurchaseOrderr = () => {
           </Form.Group>
         </Col>
 
-        {/* Bill */}
         <Col md={3}>
           <Form.Group>
             <Form.Label>Bill</Form.Label>
@@ -278,7 +301,6 @@ const PurchaseOrderr = () => {
           </Form.Group>
         </Col>
 
-        {/* Payment */}
         <Col md={3}>
           <Form.Group>
             <Form.Label>Payment</Form.Label>
@@ -294,7 +316,6 @@ const PurchaseOrderr = () => {
           </Form.Group>
         </Col>
 
-        {/* Clear Button */}
         <Col md={3} className="d-flex align-items-end">
           <Button
             variant="secondary"
@@ -324,41 +345,46 @@ const PurchaseOrderr = () => {
             <th>Voucher No</th>
             <th>Date</th>
             <th>Amount</th>
-            <th>Purchase Quotation</th> {/* Updated */}
-            <th>Purchase Order</th> {/* Updated */}
-            <th>Goods Receipt</th> {/* Updated */}
-            <th>Bill</th> {/* Updated */}
+            <th>Purchase Quotation</th>
+            <th>Purchase Order</th>
+            <th>Goods Receipt</th>
+            <th>Bill</th>
             <th>Payment</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {filteredOrders.map((order, idx) => (
-            <tr key={order.id}>
-              <td>{idx + 1}</td>
-              <td>{order.invoice?.invoiceNo || order.orderNo || "-"}</td>
-              <td>{order.vendor}</td>
-              <td>{order.payment?.voucherType || "-"}</td>
-              <td>{order.payment?.voucherNo || "-"}</td>
-              <td>{order.date}</td>
-              <td>{order.amount}</td>
-              <td>{statusBadge(order.purchaseQuotationStatus)}</td>{" "}
-              {/* Updated */}
-              <td>{statusBadge(order.purchaseOrderStatus)}</td> {/* Updated */}
-              <td>{statusBadge(order.goodsReceiptStatus)}</td> {/* Updated */}
-              <td>{statusBadge(order.billStatus)}</td> {/* Updated */}
-              <td>{statusBadge(order.paymentStatus)}</td>
-              <td>
-                <Button
-                  size="sm"
-                  variant="outline-primary"
-                  onClick={() => handleCreateNewPurchase(order)}
-                >
-                  Continue
-                </Button>
-              </td>
+          {filteredOrders.length === 0 ? (
+            <tr>
+              <td colSpan="13">No purchase orders found.</td>
             </tr>
-          ))}
+          ) : (
+            filteredOrders.map((order, idx) => (
+              <tr key={order.id}>
+                <td>{idx + 1}</td>
+                <td>{order.orderNo}</td>
+                <td>{order.vendor}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>{order.date}</td>
+                <td>{order.amount}</td>
+                <td>{statusBadge(order.purchaseQuotationStatus)}</td>
+                <td>{statusBadge(order.purchaseOrderStatus)}</td>
+                <td>{statusBadge(order.goodsReceiptStatus)}</td>
+                <td>{statusBadge(order.billStatus)}</td>
+                <td>{statusBadge(order.paymentStatus)}</td>
+                <td>
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    onClick={() => handleCreateNewPurchase(order)}
+                  >
+                    Continue
+                  </Button>
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </Table>
 
