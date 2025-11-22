@@ -3596,7 +3596,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                 className="form-control-no-border text-start "
               />
             </Form.Group>
-            <Form.Group className="mb-2"> 
+            <Form.Group className="mb-2">
               <Form.Label>Payment Status</Form.Label>
               <Form.Control
                 type="text"
@@ -3750,18 +3750,87 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   return (
     <div className="container-fluid mt-4 px-2">
       <h4 className="text-center mb-4">Purchase Process</h4>
-      <div className="d-flex flex-wrap justify-content-center gap-2 mb-4">
-        <Button variant="warning" onClick={() => { }}>
-          Print (EN)
+      <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
+        {/* Print English */}
+        <Button
+          variant="warning"
+
+          className="flex-fill flex-sm-grow-0"
+          style={{
+            minWidth: "130px",
+            fontSize: "0.95rem",
+            padding: "6px 10px",
+          }}
+        >
+          Print (English)
         </Button>
-        <Button variant="success" onClick={() => { }}>
+        {/* Print Arabic */}
+        <Button
+          variant="warning"
+
+          className="flex-fill flex-sm-grow-0"
+          style={{
+            minWidth: "130px",
+            fontSize: "0.95rem",
+            padding: "6px 10px",
+            backgroundColor: "#d39e00",
+            borderColor: "#c49200",
+          }}
+        >
+          طباعة (العربية)
+        </Button>
+        {/* Print Both */}
+        <Button
+          variant="warning"
+
+          className="flex-fill flex-sm-grow-0"
+          style={{
+            minWidth: "150px",
+            fontSize: "0.95rem",
+            padding: "6px 10px",
+            backgroundColor: "#c87f0a",
+            borderColor: "#b87409",
+          }}
+        >
+          Print Both (EN + AR)
+        </Button>
+        {/* Send Button */}
+        <Button
+          variant="info"
+          className="flex-fill flex-sm-grow-0"
+          style={{
+            color: "white",
+            minWidth: "110px",
+            fontSize: "0.95rem",
+            padding: "6px 10px",
+          }}
+        >
+          Send
+        </Button>
+        {/* Download PDF */}
+        <Button
+          variant="success"
+
+          className="flex-fill flex-sm-grow-0"
+          style={{
+            minWidth: "130px",
+            fontSize: "0.95rem",
+            padding: "6px 10px",
+          }}
+        >
           Download PDF
         </Button>
+        {/* Download Excel */}
         <Button
           variant="primary"
-          onClick={() => navigate("/company/viewinvoicee")}
+          className="flex-fill flex-sm-grow-0"
+          style={{
+            minWidth: "130px",
+            fontSize: "0.95rem",
+            padding: "6px 10px",
+          }}
         >
-          View Bills
+          Download Excel
         </Button>
       </div>
       <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4" fill>
