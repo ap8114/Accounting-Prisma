@@ -59,6 +59,42 @@ const Invoice = () => {
     return mapping[stepName] || "quotation";
   };
 
+  // 🔥 Fetch data from API function
+  const fetchOrders = async () => {
+    if (!companyId) {
+      console.error("Company ID not found");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null); // Reset error state before fetching
+      console.log(`Fetching orders for company ID: ${companyId}`);
+      const response = await axiosInstance.get(`sales-order/company/${companyId}`);
+
+      // The API returns { success, message, data }, so we use response.data.data
+      const apiData = response.data?.data;
+      if (Array.isArray(apiData)) {
+        setOrders(apiData);
+      } else {
+        console.warn("API returned non-array data, defaulting to empty array:", response.data);
+        setOrders([]);
+      }
+    } catch (err) {
+      console.error("Error fetching sales orders:", err);
+      setError("Failed to load sales orders. Please try again later.");
+      setOrders([]); // Ensure orders is always an array
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔥 Fetch data from API when component mounts or companyId changes
+  useEffect(() => {
+    fetchOrders();
+  }, [companyId]);
+
   // 🔥 Open modal when stepNameFilter changes
   useEffect(() => {
     if (stepNameFilter) {
@@ -68,41 +104,6 @@ const Invoice = () => {
       setStepModal(true);
     }
   }, [stepNameFilter]);
-
-  // 🔥 Fetch data from API when component mounts or companyId changes
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (!companyId) {
-        console.error("Company ID not found");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null); // Reset error state before fetching
-        console.log(`Fetching orders for company ID: ${companyId}`);
-        const response = await axiosInstance.get(`sales-order/company/${companyId}`);
-
-        // The API returns { success, message, data }, so we use response.data.data
-        const apiData = response.data?.data;
-        if (Array.isArray(apiData)) {
-          setOrders(apiData);
-        } else {
-          console.warn("API returned non-array data, defaulting to empty array:", response.data);
-          setOrders([]);
-        }
-      } catch (err) {
-        console.error("Error fetching sales orders:", err);
-        setError("Failed to load sales orders. Please try again later.");
-        setOrders([]); // Ensure orders is always an array
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrders();
-  }, [companyId]);
 
   const handleCreateNewInvoice = (order = null) => {
     setSelectedOrder(order);
@@ -149,14 +150,7 @@ const Invoice = () => {
 
       // Refetch data after successful operation to get the updated list
       console.log("Refetching orders after save...");
-      const response = await axiosInstance.get(`sales-order/company/${companyId}`);
-      const apiData = response.data?.data;
-      if (Array.isArray(apiData)) {
-        setOrders(apiData);
-      } else {
-        console.warn("API returned non-array data on refetch, defaulting to empty array:", response.data);
-        setOrders([]);
-      }
+      await fetchOrders();
       handleCloseModal();
     } catch (err) {
       console.error("Error saving sales order:", err);
@@ -171,6 +165,9 @@ const Invoice = () => {
       // Update the orders list after successful deletion
       setOrders(orders.filter(order => order.id !== orderId));
       setDeleteConfirm({ show: false, id: null });
+      
+      // Refetch orders to ensure the list is up to date
+      await fetchOrders();
     } catch (err) {
       console.error("Error deleting sales order:", err);
       setError("Failed to delete sales order. Please try again later.");
@@ -525,7 +522,7 @@ const Invoice = () => {
                         size="sm"
                         className="mb-1"
                         variant="outline-danger"
-                        onClick={() => setDeleteConfirm({ show: true, id: order.id })}
+                        onClick={() => setDeleteConfirm({ show: true, id: order.company_info.id })}
                         title="Delete Order"
                       >
                         <FaTrash />

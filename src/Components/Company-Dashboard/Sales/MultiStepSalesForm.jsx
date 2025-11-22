@@ -2411,55 +2411,7 @@ const MultiStepSalesForm = ({
 
     return (
       <Table striped bordered hover responsive>
-        <thead>
-          <tr>
-            <th>Document Type</th>
-            <th>Document Number</th>
-            <th>Date</th>
-            <th>Customer</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {salesWorkflow.map((workflow, index) => (
-            <tr key={index}>
-              <td>{workflow.document_type}</td>
-              <td>{workflow.document_number}</td>
-              <td>{workflow.date}</td>
-              <td>{workflow.customer_name}</td>
-              <td>
-                <span
-                  className={`badge ${
-                    workflow.status === "Done" ? "bg-success" : "bg-warning"
-                  }`}
-                >
-                  {workflow.status}
-                </span>
-              </td>
-              <td>
-                {workflow.status === "Pending" && (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => navigateToStep(workflow.step_key)}
-                  >
-                    Continue
-                  </Button>
-                )}
-                {workflow.status === "Done" && (
-                  <Button
-                    size="sm"
-                    variant="outline-secondary"
-                    onClick={() => navigateToStep(workflow.step_key)}
-                  >
-                    View
-                  </Button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
+      
       </Table>
     );
   };
