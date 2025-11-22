@@ -13,12 +13,13 @@ import {
   FormControl,
   Dropdown,
 } from "react-bootstrap";
-
+import html2pdf from "html2pdf.js";
+import * as XLSX from "xlsx";
 // import "./MultiStepSalesForm.css"; // Ensure this CSS file is included in your project
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUpload,
-  faTrash,    
+  faTrash,
   faEye,
   faEdit,
   faPlus,
@@ -27,8 +28,8 @@ import {
   faChevronDown,
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
-import axiosInstance from '../../../Api/axiosInstance';
-import GetCompanyId from '../../../Api/GetCompanyId';
+import axiosInstance from "../../../Api/axiosInstance";
+import GetCompanyId from "../../../Api/GetCompanyId";
 
 const MultiStepSalesForm = ({
   onSubmit,
@@ -55,6 +56,9 @@ const MultiStepSalesForm = ({
   const [salesWorkflow, setSalesWorkflow] = useState([]);
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
 
+  // Current sales order ID for updates
+  const [currentSalesOrderId, setCurrentSalesOrderId] = useState(null);
+
   // --- Form Data State ---
   const [formData, setFormData] = useState(() => {
     const initialFormData = {
@@ -72,7 +76,9 @@ const MultiStepSalesForm = ({
         quotationNo: "", // Auto-generated Quotation No
         manualQuotationRef: "", // Optional manual ref
         quotationDate: new Date().toISOString().split("T")[0],
-        validDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 7 days from now
+        validDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0], // 7 days from now
         billToName: "",
         billToAddress: "",
         billToEmail: "",
@@ -139,7 +145,14 @@ const MultiStepSalesForm = ({
         shipToEmail: "",
         shipToPhone: "",
         items: [
-          { item_name: "", qty: "", rate: "", tax: 0, discount: 0, warehouse: "" },
+          {
+            item_name: "",
+            qty: "",
+            rate: "",
+            tax: 0,
+            discount: 0,
+            warehouse: "",
+          },
         ],
         terms: companyDetails.terms_and_conditions || "",
         signature: "",
@@ -200,7 +213,9 @@ const MultiStepSalesForm = ({
         manualInvoiceNo: "", // Manual INV Ref
         manualRefNo: "", // Fallback manual ref
         invoiceDate: new Date().toISOString().split("T")[0],
-        dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 15 days from now
+        dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0], // 15 days from now
         challanNo: "", // Auto-generated DC No
         manualChallanRef: "", // Manual DC Ref
         manualChallanNo: "",
@@ -275,7 +290,10 @@ const MultiStepSalesForm = ({
     // Merge initialData if provided (guard against null/undefined)
     Object.keys(initialData || {}).forEach((tabKey) => {
       if (initialFormData[tabKey]) {
-        initialFormData[tabKey] = { ...initialFormData[tabKey], ...initialData[tabKey] };
+        initialFormData[tabKey] = {
+          ...initialFormData[tabKey],
+          ...initialData[tabKey],
+        };
       }
     });
 
@@ -300,29 +318,36 @@ const MultiStepSalesForm = ({
             companyAddress: company.address || prev[tab].companyAddress,
             companyEmail: company.email || prev[tab].companyEmail,
             companyPhone: company.phone || prev[tab].companyPhone,
-            companyLogo: company.branding?.company_logo_url || prev[tab].companyLogo,
-            companyDarkLogo: company.branding?.company_dark_logo_url || prev[tab].companyDarkLogo,
-            companyIcon: company.branding?.company_icon_url || prev[tab].companyIcon,
-            companyFavicon: company.branding?.favicon_url || prev[tab].companyFavicon,
+            companyLogo:
+              company.branding?.company_logo_url || prev[tab].companyLogo,
+            companyDarkLogo:
+              company.branding?.company_dark_logo_url ||
+              prev[tab].companyDarkLogo,
+            companyIcon:
+              company.branding?.company_icon_url || prev[tab].companyIcon,
+            companyFavicon:
+              company.branding?.favicon_url || prev[tab].companyFavicon,
             terms: company.terms_and_conditions || prev[tab].terms,
             notes: company.notes || prev[tab].notes,
             bankName: company.bank_details?.bank_name || prev[tab].bankName,
-            accountNo: company.bank_details?.account_number || prev[tab].accountNo,
-            accountHolder: company.bank_details?.account_holder || prev[tab].accountHolder,
+            accountNo:
+              company.bank_details?.account_number || prev[tab].accountNo,
+            accountHolder:
+              company.bank_details?.account_holder || prev[tab].accountHolder,
             ifsc: company.bank_details?.ifsc_code || prev[tab].ifsc,
           });
 
           return {
             ...prev,
-            quotation: mapCompanyToTab('quotation'),
-            salesOrder: mapCompanyToTab('salesOrder'),
-            deliveryChallan: mapCompanyToTab('deliveryChallan'),
-            invoice: mapCompanyToTab('invoice'),
-            payment: mapCompanyToTab('payment'),
+            quotation: mapCompanyToTab("quotation"),
+            salesOrder: mapCompanyToTab("salesOrder"),
+            deliveryChallan: mapCompanyToTab("deliveryChallan"),
+            invoice: mapCompanyToTab("invoice"),
+            payment: mapCompanyToTab("payment"),
           };
         });
       } catch (err) {
-        console.error('Failed to fetch company details:', err);
+        console.error("Failed to fetch company details:", err);
       }
     };
 
@@ -336,13 +361,24 @@ const MultiStepSalesForm = ({
         setLoadingWorkflow(true);
         const company_id = GetCompanyId();
         if (!company_id) return;
-        
-        const response = await axiosInstance.get(`sales-order/create-sales-order/${company_id}`);
+
+        const response = await axiosInstance.get(
+          `sales-order/company/${company_id}`
+        );
         if (response?.data?.data) {
           setSalesWorkflow(response.data.data);
+
+          // Extract the current sales order ID if it exists
+          const salesOrderData = response.data.data.find(
+            (item) => item.step === "sales_order" && item.status === "completed"
+          );
+
+          if (salesOrderData && salesOrderData.id) {
+            setCurrentSalesOrderId(salesOrderData.id);
+          }
         }
       } catch (err) {
-        console.error('Failed to fetch sales workflow:', err);
+        console.error("Failed to fetch sales workflow:", err);
       } finally {
         setLoadingWorkflow(false);
       }
@@ -383,7 +419,7 @@ const MultiStepSalesForm = ({
   // Customer search state (for Quotation Tab)
   const [customerList, setCustomerList] = useState([]); // Should come from parent or API call
   const [filteredCustomerList, setFilteredCustomerList] = useState([]);
-  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [productList, setProductList] = useState(availableItems || []);
@@ -398,44 +434,51 @@ const MultiStepSalesForm = ({
       ...prev,
       quotation: {
         ...prev.quotation,
-        billToName: selectedCustomer.name_english || selectedCustomer.name || '',
-        billToAddress: selectedCustomer.address || '',
-        billToEmail: selectedCustomer.email || '',
-        billToPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+        billToName:
+          selectedCustomer.name_english || selectedCustomer.name || "",
+        billToAddress: selectedCustomer.address || "",
+        billToEmail: selectedCustomer.email || "",
+        billToPhone: selectedCustomer.phone || selectedCustomer.mobile || "",
         customerId: selectedCustomer.id || prev.quotation.customerId,
       },
       salesOrder: {
         ...prev.salesOrder,
-        customerName: selectedCustomer.name_english || selectedCustomer.name || '',
-        customerAddress: selectedCustomer.address || '',
-        customerEmail: selectedCustomer.email || '',
-        customerPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
-        billToAttn: selectedCustomer.name_english || selectedCustomer.name || '',
-        billToCompanyName: selectedCustomer.company_name || selectedCustomer.name_english || '',
-        billToAddress: selectedCustomer.address || '',
-        billToEmail: selectedCustomer.email || '',
-        billToPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+        customerName:
+          selectedCustomer.name_english || selectedCustomer.name || "",
+        customerAddress: selectedCustomer.address || "",
+        customerEmail: selectedCustomer.email || "",
+        customerPhone: selectedCustomer.phone || selectedCustomer.mobile || "",
+        billToAttn:
+          selectedCustomer.name_english || selectedCustomer.name || "",
+        billToCompanyName:
+          selectedCustomer.company_name || selectedCustomer.name_english || "",
+        billToAddress: selectedCustomer.address || "",
+        billToEmail: selectedCustomer.email || "",
+        billToPhone: selectedCustomer.phone || selectedCustomer.mobile || "",
       },
       deliveryChallan: {
         ...prev.deliveryChallan,
-        billToName: selectedCustomer.name_english || selectedCustomer.name || '',
-        billToAddress: selectedCustomer.address || '',
-        billToEmail: selectedCustomer.email || '',
-        billToPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+        billToName:
+          selectedCustomer.name_english || selectedCustomer.name || "",
+        billToAddress: selectedCustomer.address || "",
+        billToEmail: selectedCustomer.email || "",
+        billToPhone: selectedCustomer.phone || selectedCustomer.mobile || "",
       },
       invoice: {
         ...prev.invoice,
-        customerName: selectedCustomer.name_english || selectedCustomer.name || '',
-        customerAddress: selectedCustomer.address || '',
-        customerEmail: selectedCustomer.email || '',
-        customerPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+        customerName:
+          selectedCustomer.name_english || selectedCustomer.name || "",
+        customerAddress: selectedCustomer.address || "",
+        customerEmail: selectedCustomer.email || "",
+        customerPhone: selectedCustomer.phone || selectedCustomer.mobile || "",
       },
       payment: {
         ...prev.payment,
-        customerName: selectedCustomer.name_english || selectedCustomer.name || '',
-        customerAddress: selectedCustomer.address || '',
-        customerEmail: selectedCustomer.email || '',
-        customerPhone: selectedCustomer.phone || selectedCustomer.mobile || '',
+        customerName:
+          selectedCustomer.name_english || selectedCustomer.name || "",
+        customerAddress: selectedCustomer.address || "",
+        customerEmail: selectedCustomer.email || "",
+        customerPhone: selectedCustomer.phone || selectedCustomer.mobile || "",
       },
     }));
   }, [selectedCustomer]);
@@ -479,56 +522,128 @@ const MultiStepSalesForm = ({
   useEffect(() => {
     // Quotation Auto-fill
     if (!formData.quotation.referenceId) {
-      handleChange("quotation", "referenceId", generateReferenceId("quotation"));
+      handleChange(
+        "quotation",
+        "referenceId",
+        generateReferenceId("quotation")
+      );
     }
     if (!formData.quotation.quotationNo) {
       if (formData.quotation.manualQuotationRef) {
-        handleChange("quotation", "quotationNo", formData.quotation.manualQuotationRef);
+        handleChange(
+          "quotation",
+          "quotationNo",
+          formData.quotation.manualQuotationRef
+        );
       } else {
-        handleChange("quotation", "quotationNo", generateReferenceId("quotation"));
+        handleChange(
+          "quotation",
+          "quotationNo",
+          generateReferenceId("quotation")
+        );
       }
     }
-    if (formData.quotation.manualQuotationRef && formData.quotation.manualQuotationRef !== formData.quotation.quotationNo) {
-      handleChange("quotation", "quotationNo", formData.quotation.manualQuotationRef);
+    if (
+      formData.quotation.manualQuotationRef &&
+      formData.quotation.manualQuotationRef !== formData.quotation.quotationNo
+    ) {
+      handleChange(
+        "quotation",
+        "quotationNo",
+        formData.quotation.manualQuotationRef
+      );
     }
 
     // Sales Order Auto-fill
     if (!formData.salesOrder.referenceId) {
-      handleChange("salesOrder", "referenceId", generateReferenceId("salesOrder"));
+      handleChange(
+        "salesOrder",
+        "referenceId",
+        generateReferenceId("salesOrder")
+      );
     }
     if (!formData.salesOrder.salesOrderNo) {
       if (formData.salesOrder.manualOrderRef) {
-        handleChange("salesOrder", "salesOrderNo", formData.salesOrder.manualOrderRef);
+        handleChange(
+          "salesOrder",
+          "salesOrderNo",
+          formData.salesOrder.manualOrderRef
+        );
       } else {
-        handleChange("salesOrder", "salesOrderNo", generateReferenceId("salesOrder"));
+        handleChange(
+          "salesOrder",
+          "salesOrderNo",
+          generateReferenceId("salesOrder")
+        );
       }
     }
-    if (formData.salesOrder.manualOrderRef && formData.salesOrder.manualOrderRef !== formData.salesOrder.salesOrderNo) {
-      handleChange("salesOrder", "salesOrderNo", formData.salesOrder.manualOrderRef);
+    if (
+      formData.salesOrder.manualOrderRef &&
+      formData.salesOrder.manualOrderRef !== formData.salesOrder.salesOrderNo
+    ) {
+      handleChange(
+        "salesOrder",
+        "salesOrderNo",
+        formData.salesOrder.manualOrderRef
+      );
     }
     if (!formData.salesOrder.quotationNo && formData.quotation.quotationNo) {
       handleChange("salesOrder", "quotationNo", formData.quotation.quotationNo);
     }
-    if (formData.salesOrder.manualQuotationRef && formData.salesOrder.manualQuotationRef !== formData.salesOrder.quotationNo) {
-      handleChange("salesOrder", "quotationNo", formData.salesOrder.manualQuotationRef);
+    if (
+      formData.salesOrder.manualQuotationRef &&
+      formData.salesOrder.manualQuotationRef !== formData.salesOrder.quotationNo
+    ) {
+      handleChange(
+        "salesOrder",
+        "quotationNo",
+        formData.salesOrder.manualQuotationRef
+      );
     }
 
     // Delivery Challan Auto-fill
     if (!formData.deliveryChallan.referenceId) {
-      handleChange("deliveryChallan", "referenceId", generateReferenceId("deliveryChallan"));
+      handleChange(
+        "deliveryChallan",
+        "referenceId",
+        generateReferenceId("deliveryChallan")
+      );
     }
     if (!formData.deliveryChallan.challanNo) {
       if (formData.deliveryChallan.manualChallanNo) {
-        handleChange("deliveryChallan", "challanNo", formData.deliveryChallan.manualChallanNo);
+        handleChange(
+          "deliveryChallan",
+          "challanNo",
+          formData.deliveryChallan.manualChallanNo
+        );
       } else {
-        handleChange("deliveryChallan", "challanNo", generateReferenceId("deliveryChallan"));
+        handleChange(
+          "deliveryChallan",
+          "challanNo",
+          generateReferenceId("deliveryChallan")
+        );
       }
     }
-    if (formData.deliveryChallan.manualChallanNo && formData.deliveryChallan.manualChallanNo !== formData.deliveryChallan.challanNo) {
-      handleChange("deliveryChallan", "challanNo", formData.deliveryChallan.manualChallanNo);
+    if (
+      formData.deliveryChallan.manualChallanNo &&
+      formData.deliveryChallan.manualChallanNo !==
+        formData.deliveryChallan.challanNo
+    ) {
+      handleChange(
+        "deliveryChallan",
+        "challanNo",
+        formData.deliveryChallan.manualChallanNo
+      );
     }
-    if (!formData.deliveryChallan.salesOrderNo && formData.salesOrder.salesOrderNo) {
-      handleChange("deliveryChallan", "salesOrderNo", formData.salesOrder.salesOrderNo);
+    if (
+      !formData.deliveryChallan.salesOrderNo &&
+      formData.salesOrder.salesOrderNo
+    ) {
+      handleChange(
+        "deliveryChallan",
+        "salesOrderNo",
+        formData.salesOrder.salesOrderNo
+      );
     }
 
     // Invoice Auto-fill
@@ -542,7 +657,10 @@ const MultiStepSalesForm = ({
         handleChange("invoice", "invoiceNo", generateReferenceId("invoice"));
       }
     }
-    if (formData.invoice.manualInvoiceNo && formData.invoice.manualInvoiceNo !== formData.invoice.invoiceNo) {
+    if (
+      formData.invoice.manualInvoiceNo &&
+      formData.invoice.manualInvoiceNo !== formData.invoice.invoiceNo
+    ) {
       handleChange("invoice", "invoiceNo", formData.invoice.manualInvoiceNo);
     }
     if (!formData.invoice.challanNo && formData.deliveryChallan.challanNo) {
@@ -560,18 +678,36 @@ const MultiStepSalesForm = ({
         handleChange("payment", "paymentNo", generateReferenceId("payment"));
       }
     }
-    if (formData.payment.manualPaymentNo && formData.payment.manualPaymentNo !== formData.payment.paymentNo) {
+    if (
+      formData.payment.manualPaymentNo &&
+      formData.payment.manualPaymentNo !== formData.payment.paymentNo
+    ) {
       handleChange("payment", "paymentNo", formData.payment.manualPaymentNo);
     }
     if (!formData.payment.invoiceNo && formData.invoice.invoiceNo) {
       handleChange("payment", "invoiceNo", formData.invoice.invoiceNo);
     }
   }, [
-    formData.quotation.referenceId, formData.quotation.quotationNo, formData.quotation.manualQuotationRef,
-    formData.salesOrder.referenceId, formData.salesOrder.salesOrderNo, formData.salesOrder.manualOrderRef, formData.salesOrder.quotationNo, formData.salesOrder.manualQuotationRef,
-    formData.deliveryChallan.referenceId, formData.deliveryChallan.challanNo, formData.deliveryChallan.manualChallanNo, formData.deliveryChallan.salesOrderNo,
-    formData.invoice.referenceId, formData.invoice.invoiceNo, formData.invoice.manualInvoiceNo, formData.invoice.challanNo,
-    formData.payment.referenceId, formData.payment.paymentNo, formData.payment.manualPaymentNo, formData.payment.invoiceNo,
+    formData.quotation.referenceId,
+    formData.quotation.quotationNo,
+    formData.quotation.manualQuotationRef,
+    formData.salesOrder.referenceId,
+    formData.salesOrder.salesOrderNo,
+    formData.salesOrder.manualOrderRef,
+    formData.salesOrder.quotationNo,
+    formData.salesOrder.manualQuotationRef,
+    formData.deliveryChallan.referenceId,
+    formData.deliveryChallan.challanNo,
+    formData.deliveryChallan.manualChallanNo,
+    formData.deliveryChallan.salesOrderNo,
+    formData.invoice.referenceId,
+    formData.invoice.invoiceNo,
+    formData.invoice.manualInvoiceNo,
+    formData.invoice.challanNo,
+    formData.payment.referenceId,
+    formData.payment.paymentNo,
+    formData.payment.manualPaymentNo,
+    formData.payment.invoiceNo,
   ]);
 
   // --- Handlers ---
@@ -616,7 +752,14 @@ const MultiStepSalesForm = ({
         ...prev[tab],
         items: [
           ...prev[tab].items,
-          { item_name: "", qty: "", rate: "", tax: 0, discount: 0, warehouse: "" },
+          {
+            item_name: "",
+            qty: "",
+            rate: "",
+            tax: 0,
+            discount: 0,
+            warehouse: "",
+          },
         ],
       },
     }));
@@ -642,14 +785,23 @@ const MultiStepSalesForm = ({
   const handleSelectSearchedItem = (tab, index, item) => {
     const updatedItems = [...formData[tab].items];
     // Support different API shapes: products use `item_name` and `sale_price` etc.
-    const name = item.name || item.item_name || '';
-    const rate = item.price || item.sale_price || item.sellingPrice || item.rate || '';
+    const name = item.name || item.item_name || "";
+    const rate =
+      item.price || item.sale_price || item.sellingPrice || item.rate || "";
     const tax = item.tax || item.tax_percent || 0;
-    const hsn = item.hsn || '';
-    const uom = item.uom || item.unit_detail?.uom_name || updatedItems[index].uom || 'PCS';
-    const description = item.description || item.prod_description || updatedItems[index].description || '';
-    const sku = item.sku || item.SKU || '';
-    const barcode = item.barcode || '';
+    const hsn = item.hsn || "";
+    const uom =
+      item.uom ||
+      item.unit_detail?.uom_name ||
+      updatedItems[index].uom ||
+      "PCS";
+    const description =
+      item.description ||
+      item.prod_description ||
+      updatedItems[index].description ||
+      "";
+    const sku = item.sku || item.SKU || "";
+    const barcode = item.barcode || "";
     const warehousesForItem = item.warehouses || item.warehouses_list || [];
 
     updatedItems[index] = {
@@ -665,7 +817,10 @@ const MultiStepSalesForm = ({
       warehouses: warehousesForItem,
     };
     if (warehousesForItem && warehousesForItem.length > 0) {
-      updatedItems[index].warehouse = warehousesForItem[0].warehouse_name || warehousesForItem[0].warehouse || '';
+      updatedItems[index].warehouse =
+        warehousesForItem[0].warehouse_name ||
+        warehousesForItem[0].warehouse ||
+        "";
     } else {
       updatedItems[index].warehouse = "";
     }
@@ -742,8 +897,6 @@ const MultiStepSalesForm = ({
     }, 0);
   };
 
-
-
   // --- Navigation Buttons ---
   const handleSkip = () => {
     setKey((prev) => {
@@ -759,292 +912,164 @@ const MultiStepSalesForm = ({
     try {
       const company_id = GetCompanyId();
       if (!company_id) return;
+
+      // Determine if this is the first step (quotation) or a subsequent step
+      const isFirstStep = key === "quotation" && !currentSalesOrderId;
       
       // Prepare the payload based on the current tab
       let payload = {};
-      let endpoint = '';
-      
-      switch (key) {
-        case 'quotation':
-          endpoint = `sales-order/create-sales-order`;
-          payload = {
-            company_info: {
-              company_id: company_id,
-              company_name: formData.quotation.companyName,
-              company_address: formData.quotation.companyAddress,
-              company_email: formData.quotation.companyEmail,
-              company_phone: formData.quotation.companyPhone,
-              logo_url: formData.quotation.companyLogo,
-              bank_name: formData.quotation.bankName,
-              account_no: formData.quotation.accountNo,
-              account_holder: formData.quotation.accountHolder,
-              ifsc_code: formData.quotation.ifsc,
-              terms: formData.quotation.terms
-            },
-            customer_info: {
-              customer_id: formData.quotation.customerId,
-              customer_name: formData.quotation.billToName,
-              customer_address: formData.quotation.billToAddress,
-              customer_email: formData.quotation.billToEmail,
-              customer_phone: formData.quotation.billToPhone
-            },
-            items: formData.quotation.items.map(item => ({
-              item_name: item.item_name,
-              description: item.description,
-              qty: item.qty,
-              rate: item.rate,
-              tax_percent: item.tax,
-              discount: item.discount,
-              amount: item.amount,
-              uom: item.uom,
-              hsn: item.hsn,
-              sku: item.sku,
-              barcode: item.barcode,
-              warehouse_id: item.warehouse
-            })),
-            quotation_details: {
-              quotation_no: formData.quotation.quotationNo,
-              manual_quotation_ref: formData.quotation.manualQuotationRef,
-              quotation_date: formData.quotation.quotationDate,
-              valid_till: formData.quotation.validDate,
-              notes: formData.quotation.notes,
-              customer_ref: formData.quotation.customerReference
-            },
-            additional_info: {
-              signature_url: formData.quotation.signature,
-              photo_url: formData.quotation.photo,
-              files: formData.quotation.files
-            }
-          };
-          break;
-          
-        case 'salesOrder':
-          endpoint = `sales-order/create-sales-order`;
-          payload = {
-            company_info: {
-              company_id: company_id,
-              company_name: formData.salesOrder.companyName,
-              company_address: formData.salesOrder.companyAddress,
-              company_email: formData.salesOrder.companyEmail,
-              company_phone: formData.salesOrder.companyPhone,
-              logo_url: formData.salesOrder.companyLogo,
-              terms: formData.salesOrder.terms
-            },
-            shipping_details: {
-              bill_to_name: formData.salesOrder.billToCompanyName,
-              bill_to_address: formData.salesOrder.billToAddress,
-              bill_to_email: formData.salesOrder.billToEmail,
-              bill_to_phone: formData.salesOrder.billToPhone,
-              bill_to_attention_name: formData.salesOrder.billToAttn,
-              ship_to_name: formData.salesOrder.shipToCompanyName,
-              ship_to_address: formData.salesOrder.shipToAddress,
-              ship_to_email: formData.salesOrder.shipToEmail,
-              ship_to_phone: formData.salesOrder.shipToPhone,
-              ship_to_attention_name: formData.salesOrder.shipToAttn
-            },
-            items: formData.salesOrder.items.map(item => ({
-              item_name: item.item_name,
-              qty: item.qty,
-              rate: item.rate,
-              tax_percent: item.tax,
-              discount: item.discount,
-              amount: item.amount,
-              warehouse_id: item.warehouse
-            })),
-            steps: {
-              quotation: {
-                quotation_no: formData.salesOrder.quotationNo,
-                manual_quotation_ref: formData.salesOrder.manualQuotationRef
-              },
-              sales_order: {
-                SO_no: formData.salesOrder.salesOrderNo,
-                manual_ref_no: formData.salesOrder.manualOrderRef
-              }
-            },
-            additional_info: {
-              signature_url: formData.salesOrder.signature,
-              photo_url: formData.salesOrder.photo,
-              files: formData.salesOrder.files
-            }
-          };
-          break;
-          
-        case 'deliveryChallan':
-          endpoint = `delivery-challan/create-delivery-challan`;
-          payload = {
-            company_info: {
-              company_id: company_id,
-              company_name: formData.deliveryChallan.companyName,
-              company_address: formData.deliveryChallan.companyAddress,
-              company_email: formData.deliveryChallan.companyEmail,
-              company_phone: formData.deliveryChallan.companyPhone,
-              logo_url: formData.deliveryChallan.companyLogo,
-              terms: formData.deliveryChallan.terms
-            },
-            shipping_details: {
-              bill_to_name: formData.deliveryChallan.billToName,
-              bill_to_address: formData.deliveryChallan.billToAddress,
-              bill_to_email: formData.deliveryChallan.billToEmail,
-              bill_to_phone: formData.deliveryChallan.billToPhone,
-              ship_to_name: formData.deliveryChallan.shipToName,
-              ship_to_address: formData.deliveryChallan.shipToAddress,
-              ship_to_email: formData.deliveryChallan.shipToEmail,
-              ship_to_phone: formData.deliveryChallan.shipToPhone
-            },
-            items: formData.deliveryChallan.items.map(item => ({
-              item_name: item.item_name,
-              qty: item.qty,
-              delivered_qty: item.deliveredQty,
-              rate: item.rate,
-              tax_percent: item.tax,
-              discount: item.discount,
-              amount: item.amount,
-              warehouse_id: item.warehouse
-            })),
-            delivery_details: {
-              challan_no: formData.deliveryChallan.challanNo,
-              manual_challan_no: formData.deliveryChallan.manualChallanNo,
-              challan_date: formData.deliveryChallan.challanDate,
-              vehicle_no: formData.deliveryChallan.vehicleNo,
-              driver_name: formData.deliveryChallan.driverName,
-              driver_phone: formData.deliveryChallan.driverPhone
-            },
-            steps: {
-              sales_order: {
-                SO_no: formData.deliveryChallan.salesOrderNo,
-                manual_ref_no: formData.deliveryChallan.manualSalesOrderRef
-              },
-              delivery_challan: {
-                challan_no: formData.deliveryChallan.challanNo,
-                manual_challan_no: formData.deliveryChallan.manualChallanNo
-              }
-            },
-            additional_info: {
-              signature_url: formData.deliveryChallan.signature,
-              photo_url: formData.deliveryChallan.photo,
-              files: formData.deliveryChallan.files
-            }
-          };
-          break;
-          
-        case 'invoice':
-          endpoint = `invoice/create-invoice`;
-          payload = {
-            company_info: {
-              company_id: company_id,
-              company_name: formData.invoice.companyName,
-              company_address: formData.invoice.companyAddress,
-              company_email: formData.invoice.companyEmail,
-              company_phone: formData.invoice.companyPhone,
-              logo_url: formData.invoice.companyLogo,
-              terms: formData.invoice.terms
-            },
-            shipping_details: {
-              bill_to_name: formData.invoice.customerName,
-              bill_to_address: formData.invoice.customerAddress,
-              bill_to_email: formData.invoice.customerEmail,
-              bill_to_phone: formData.invoice.customerPhone,
-              ship_to_name: formData.invoice.shipToName,
-              ship_to_address: formData.invoice.shipToAddress,
-              ship_to_email: formData.invoice.shipToEmail,
-              ship_to_phone: formData.invoice.shipToPhone
-            },
-            items: formData.invoice.items.map(item => ({
-              item_name: item.description,
-              qty: item.qty,
-              rate: item.rate,
-              tax_percent: item.tax,
-              discount: item.discount,
-              amount: item.amount,
-              warehouse_id: item.warehouse
-            })),
-            invoice_details: {
-              invoice_no: formData.invoice.invoiceNo,
-              manual_invoice_no: formData.invoice.manualInvoiceNo,
-              invoice_date: formData.invoice.invoiceDate,
-              due_date: formData.invoice.dueDate,
-              payment_status: formData.invoice.paymentStatus,
-              payment_method: formData.invoice.paymentMethod,
-              note: formData.invoice.note
-            },
-            steps: {
-              delivery_challan: {
-                challan_no: formData.invoice.challanNo,
-                manual_challan_no: formData.invoice.manualChallanNo
-              },
-              invoice: {
-                invoice_no: formData.invoice.invoiceNo,
-                manual_invoice_no: formData.invoice.manualInvoiceNo
-              }
-            },
-            additional_info: {
-              signature_url: formData.invoice.signature,
-              photo_url: formData.invoice.photo,
-              files: formData.invoice.files
-            }
-          };
-          break;
-          
-        case 'payment':
-          endpoint = `payment/create-payment`;
-          payload = {
-            company_info: {
-              company_id: company_id,
-              company_name: formData.payment.companyName,
-              company_address: formData.payment.companyAddress,
-              company_email: formData.payment.companyEmail,
-              company_phone: formData.payment.companyPhone,
-              logo_url: formData.payment.companyLogo
-            },
-            customer_info: {
-              customer_name: formData.payment.customerName,
-              customer_address: formData.payment.customerAddress,
-              customer_email: formData.payment.customerEmail,
-              customer_phone: formData.payment.customerPhone
-            },
-            payment_details: {
-              payment_no: formData.payment.paymentNo,
-              manual_payment_no: formData.payment.manualPaymentNo,
-              payment_date: formData.payment.paymentDate,
-              amount_received: formData.payment.amount,
-              payment_method: formData.payment.paymentMethod,
-              payment_status: formData.payment.paymentStatus,
-              payment_note: formData.payment.note
-            },
-            steps: {
-              invoice: {
-                invoice_no: formData.payment.invoiceNo,
-                manual_invoice_no: formData.payment.manualInvoiceRef
-              },
-              payment: {
-                payment_no: formData.payment.paymentNo,
-                manual_payment_no: formData.payment.manualPaymentNo
-              }
-            },
-            additional_info: {
-              signature_url: formData.payment.signature,
-              photo_url: formData.payment.photo,
-              files: formData.payment.files
-            }
-          };
-          break;
-          
-        default:
-          return;
+      let endpoint = "sales-order/create-sales-order"; // Single endpoint for all steps
+      let method = isFirstStep ? "post" : "put"; // POST for first step, PUT for subsequent steps
+
+      // Build a unified payload that includes all steps data
+      payload = {
+        company_info: {
+          company_id: company_id,
+          company_name: formData[key].companyName,
+          company_address: formData[key].companyAddress,
+          company_email: formData[key].companyEmail,
+          company_phone: formData[key].companyPhone,
+          logo_url: formData[key].companyLogo,
+          terms: formData[key].terms,
+        },
+        customer_info: {
+          customer_id: formData.quotation.customerId,
+          customer_name: formData[key].billToName || formData[key].customerName,
+          customer_address: formData[key].billToAddress || formData[key].customerAddress,
+          customer_email: formData[key].billToEmail || formData[key].customerEmail,
+          customer_phone: formData[key].billToPhone || formData[key].customerPhone,
+        },
+        items: formData[key].items.map((item) => ({
+          item_name: item.item_name || item.description,
+          description: item.description,
+          qty: item.qty,
+          rate: item.rate,
+          tax_percent: item.tax,
+          discount: item.discount,
+          amount: item.amount,
+          uom: item.uom,
+          hsn: item.hsn,
+          sku: item.sku,
+          barcode: item.barcode,
+          warehouse_id: item.warehouse,
+        })),
+        // Include all step-specific data
+        steps: {
+          quotation: {
+            quotation_no: formData.quotation.quotationNo,
+            manual_quotation_ref: formData.quotation.manualQuotationRef,
+            quotation_date: formData.quotation.quotationDate,
+            valid_till: formData.quotation.validDate,
+            notes: formData.quotation.notes,
+            customer_ref: formData.quotation.customerReference,
+            bank_name: formData.quotation.bankName,
+            account_no: formData.quotation.accountNo,
+            account_holder: formData.quotation.accountHolder,
+            ifsc_code: formData.quotation.ifsc,
+          },
+          sales_order: {
+            SO_no: formData.salesOrder.salesOrderNo,
+            manual_ref_no: formData.salesOrder.manualOrderRef,
+            order_date: formData.salesOrder.orderDate,
+            customer_no: formData.salesOrder.customerNo,
+            bill_to_attn: formData.salesOrder.billToAttn,
+            bill_to_company_name: formData.salesOrder.billToCompanyName,
+            bill_to_address: formData.salesOrder.billToAddress,
+            bill_to_email: formData.salesOrder.billToEmail,
+            bill_to_phone: formData.salesOrder.billToPhone,
+            ship_to_attn: formData.salesOrder.shipToAttn,
+            ship_to_company_name: formData.salesOrder.shipToCompanyName,
+            ship_to_address: formData.salesOrder.shipToAddress,
+            ship_to_email: formData.salesOrder.shipToEmail,
+            ship_to_phone: formData.salesOrder.shipToPhone,
+          },
+          delivery_challan: {
+            challan_no: formData.deliveryChallan.challanNo,
+            manual_challan_no: formData.deliveryChallan.manualChallanNo,
+            challan_date: formData.deliveryChallan.challanDate,
+            vehicle_no: formData.deliveryChallan.vehicleNo,
+            driver_name: formData.deliveryChallan.driverName,
+            driver_phone: formData.deliveryChallan.driverPhone,
+            bill_to_name: formData.deliveryChallan.billToName,
+            bill_to_address: formData.deliveryChallan.billToAddress,
+            bill_to_email: formData.deliveryChallan.billToEmail,
+            bill_to_phone: formData.deliveryChallan.billToPhone,
+            ship_to_name: formData.deliveryChallan.shipToName,
+            ship_to_address: formData.deliveryChallan.shipToAddress,
+            ship_to_email: formData.deliveryChallan.shipToEmail,
+            ship_to_phone: formData.deliveryChallan.shipToPhone,
+          },
+          invoice: {
+            invoice_no: formData.invoice.invoiceNo,
+            manual_invoice_no: formData.invoice.manualInvoiceNo,
+            invoice_date: formData.invoice.invoiceDate,
+            due_date: formData.invoice.dueDate,
+            payment_status: formData.invoice.paymentStatus,
+            payment_method: formData.invoice.paymentMethod,
+            note: formData.invoice.note,
+            customer_name: formData.invoice.customerName,
+            customer_address: formData.invoice.customerAddress,
+            customer_email: formData.invoice.customerEmail,
+            customer_phone: formData.invoice.customerPhone,
+            ship_to_name: formData.invoice.shipToName,
+            ship_to_address: formData.invoice.shipToAddress,
+            ship_to_email: formData.invoice.shipToEmail,
+            ship_to_phone: formData.invoice.shipToPhone,
+          },
+          payment: {
+            payment_no: formData.payment.paymentNo,
+            manual_payment_no: formData.payment.manualPaymentNo,
+            payment_date: formData.payment.paymentDate,
+            amount_received: formData.payment.amount,
+            payment_method: formData.payment.paymentMethod,
+            payment_status: formData.payment.paymentStatus,
+            payment_note: formData.payment.note,
+            customer_name: formData.payment.customerName,
+            customer_address: formData.payment.customerAddress,
+            customer_email: formData.payment.customerEmail,
+            customer_phone: formData.payment.customerPhone,
+          },
+        },
+        additional_info: {
+          signature_url: formData[key].signature,
+          photo_url: formData[key].photo,
+          files: formData[key].files,
+        },
+        current_step: key, // Indicate which step is currently being saved
+      };
+
+      // If we have a sales order ID, use PUT to update, otherwise POST to create
+      if (!isFirstStep && currentSalesOrderId) {
+        endpoint = `sales-order/update-sales-order/${currentSalesOrderId}`;
       }
-      
+
       // Send the request to the API
-      const response = await axiosInstance.post(endpoint, payload);
+      let response;
+      if (method === "put") {
+        response = await axiosInstance.put(endpoint, payload);
+      } else {
+        response = await axiosInstance.post(endpoint, payload);
+      }
+
       if (response?.data?.success) {
-        alert('Draft saved successfully!');
+        alert("Draft saved successfully!");
+
+        // If we just created a sales order, store its ID for future updates
+        if (
+          isFirstStep &&
+          response.data.data?.id
+        ) {
+          setCurrentSalesOrderId(response.data.data.id);
+        }
+
         // Refresh the sales workflow
         fetchSalesWorkflow();
       } else {
-        alert('Failed to save draft. Please try again.');
+        alert("Failed to save draft. Please try again.");
       }
     } catch (err) {
-      console.error('Error saving draft:', err);
-      alert('Error saving draft. Please try again.');
+      console.error("Error saving draft:", err);
+      alert("Error saving draft. Please try again.");
     }
   };
 
@@ -1053,13 +1078,24 @@ const MultiStepSalesForm = ({
       setLoadingWorkflow(true);
       const company_id = GetCompanyId();
       if (!company_id) return;
-      
-      const response = await axiosInstance.get(`sales-order/company/${company_id}`);
+
+      const response = await axiosInstance.get(
+        `sales-order/company/${company_id}`
+      );
       if (response?.data?.data) {
         setSalesWorkflow(response.data.data);
+
+        // Extract the current sales order ID if it exists
+        const salesOrderData = response.data.data.find(
+          (item) => item.step === "sales_order" && item.status === "completed"
+        );
+
+        if (salesOrderData && salesOrderData.id) {
+          setCurrentSalesOrderId(salesOrderData.id);
+        }
       }
     } catch (err) {
-      console.error('Failed to fetch sales workflow:', err);
+      console.error("Failed to fetch sales workflow:", err);
     } finally {
       setLoadingWorkflow(false);
     }
@@ -1068,7 +1104,7 @@ const MultiStepSalesForm = ({
   const handleSaveNext = async () => {
     // First save the current step
     await handleSaveDraft();
-    
+
     // Then move to the next step
     setKey((prev) => {
       if (prev === "quotation") {
@@ -1155,7 +1191,9 @@ const MultiStepSalesForm = ({
             ...prevData.invoice,
             challanNo: prevData.deliveryChallan.challanNo,
             invoiceDate: new Date().toISOString().split("T")[0],
-            dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .split("T")[0],
             customerName: prevData.deliveryChallan.billToName, // Map from DC
             customerAddress: prevData.deliveryChallan.billToAddress,
             customerEmail: prevData.deliveryChallan.billToEmail,
@@ -1188,7 +1226,9 @@ const MultiStepSalesForm = ({
         return "invoice";
       }
       if (prev === "invoice") {
-        const totalInvoiceAmount = calculateTotalWithTaxAndDiscount(formData.invoice.items);
+        const totalInvoiceAmount = calculateTotalWithTaxAndDiscount(
+          formData.invoice.items
+        );
         setFormData((prevData) => ({
           ...prevData,
           payment: {
@@ -1231,18 +1271,18 @@ const MultiStepSalesForm = ({
     try {
       // Save the payment data
       await handleSaveDraft();
-      
+
       // Call the parent's onSubmit function with the complete form data
-      onSubmit(formData, 'payment');
-      
+      onSubmit(formData, "payment");
+
       // Show success message
-      alert('Sales process completed successfully!');
-      
+      alert("Sales process completed successfully!");
+
       // Redirect to sales workflow page
-      navigate('/sales-workflow');
+      navigate("/sales-workflow");
     } catch (err) {
-      console.error('Error submitting final form:', err);
-      alert('Error submitting final form. Please try again.');
+      console.error("Error submitting final form:", err);
+      alert("Error submitting final form. Please try again.");
     }
   };
 
@@ -1382,19 +1422,38 @@ const MultiStepSalesForm = ({
   // --- Quotation Tab Specific Handlers ---
   // Filter customers based on search term
   useEffect(() => {
-    const term = (customerSearchTerm || '').trim();
+    const term = (customerSearchTerm || "").trim();
     if (!term) {
       setFilteredCustomerList(customerList);
       return;
     }
     const lower = term.toLowerCase();
-    const digits = term.replace(/\D/g, '');
-    const filtered = customerList.filter(customer => {
-      const nameMatch = (customer?.name_english || '').toString().toLowerCase().includes(lower);
-      const companyMatch = (customer?.company_name || '').toString().toLowerCase().includes(lower);
-      const emailMatch = (customer?.email || '').toString().toLowerCase().includes(lower);
-      const phoneFields = [customer?.phone, customer?.mobile, customer?.contact, customer?.phone_no, customer?.mobile_no];
-      const phoneMatch = digits ? phoneFields.some(p => p && p.toString().replace(/\D/g, '').includes(digits)) : false;
+    const digits = term.replace(/\D/g, "");
+    const filtered = customerList.filter((customer) => {
+      const nameMatch = (customer?.name_english || "")
+        .toString()
+        .toLowerCase()
+        .includes(lower);
+      const companyMatch = (customer?.company_name || "")
+        .toString()
+        .toLowerCase()
+        .includes(lower);
+      const emailMatch = (customer?.email || "")
+        .toString()
+        .toLowerCase()
+        .includes(lower);
+      const phoneFields = [
+        customer?.phone,
+        customer?.mobile,
+        customer?.contact,
+        customer?.phone_no,
+        customer?.mobile_no,
+      ];
+      const phoneMatch = digits
+        ? phoneFields.some(
+            (p) => p && p.toString().replace(/\D/g, "").includes(digits)
+          )
+        : false;
       return !!(nameMatch || companyMatch || emailMatch || phoneMatch);
     });
     setFilteredCustomerList(filtered);
@@ -1403,14 +1462,18 @@ const MultiStepSalesForm = ({
   // Handle clicks outside the customer dropdown to close it
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
-        searchRef.current && !searchRef.current.contains(event.target)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        searchRef.current &&
+        !searchRef.current.contains(event.target)
+      ) {
         setShowCustomerDropdown(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -1421,12 +1484,14 @@ const MultiStepSalesForm = ({
 
     const fetchCustomers = async () => {
       try {
-        const res = await axiosInstance.get(`vendorCustomer/company/${company_id}?type=customer`);
+        const res = await axiosInstance.get(
+          `vendorCustomer/company/${company_id}?type=customer`
+        );
         const data = res?.data?.data || [];
         setCustomerList(data);
         setFilteredCustomerList(data);
       } catch (err) {
-        console.error('Failed to fetch customers:', err);
+        console.error("Failed to fetch customers:", err);
       }
     };
 
@@ -1444,7 +1509,7 @@ const MultiStepSalesForm = ({
         const data = res?.data?.data || [];
         setProductList(data);
       } catch (err) {
-        console.error('Failed to fetch products:', err);
+        console.error("Failed to fetch products:", err);
         // fallback to availableItems prop if provided
         setProductList(availableItems || []);
       }
@@ -1455,15 +1520,16 @@ const MultiStepSalesForm = ({
 
   // Keep productList in sync when parent passes availableItems prop
   useEffect(() => {
-    if (availableItems && availableItems.length > 0) setProductList(availableItems);
+    if (availableItems && availableItems.length > 0)
+      setProductList(availableItems);
   }, [availableItems]);
 
   const handleCustomerSelect = (customer) => {
     setSelectedCustomer(customer);
-    handleChange("quotation", "billToName", customer.name_english || '');
-    handleChange("quotation", "billToAddress", customer.address || '');
-    handleChange("quotation", "billToEmail", customer.email || '');
-    handleChange("quotation", "billToPhone", customer.phone || '');
+    handleChange("quotation", "billToName", customer.name_english || "");
+    handleChange("quotation", "billToAddress", customer.address || "");
+    handleChange("quotation", "billToEmail", customer.email || "");
+    handleChange("quotation", "billToPhone", customer.phone || "");
     handleChange("quotation", "customerId", customer.id);
     setCustomerSearchTerm(customer.name_english);
     setShowCustomerDropdown(false);
@@ -1494,7 +1560,14 @@ const MultiStepSalesForm = ({
           ...prev[tab],
           items: [
             ...items,
-            { item_name: "", qty: "", rate: "", tax: 0, discount: 0, warehouse: "" },
+            {
+              item_name: "",
+              qty: "",
+              rate: "",
+              tax: 0,
+              discount: 0,
+              warehouse: "",
+            },
           ],
         },
       }));
@@ -1514,11 +1587,19 @@ const MultiStepSalesForm = ({
       if (!searchTerm) return productList;
       const lower = searchTerm.toLowerCase();
       return productList.filter((item) => {
-        const name = (item.name || item.item_name || '').toString().toLowerCase();
-        const category = (item.category || item.item_category?.item_category_name || '').toString().toLowerCase();
-        const sku = (item.sku || item.SKU || '').toString().toLowerCase();
-        const barcode = (item.barcode || '').toString().toLowerCase();
-        const desc = (item.description || '').toString().toLowerCase();
+        const name = (item.name || item.item_name || "")
+          .toString()
+          .toLowerCase();
+        const category = (
+          item.category ||
+          item.item_category?.item_category_name ||
+          ""
+        )
+          .toString()
+          .toLowerCase();
+        const sku = (item.sku || item.SKU || "").toString().toLowerCase();
+        const barcode = (item.barcode || "").toString().toLowerCase();
+        const desc = (item.description || "").toString().toLowerCase();
         return (
           name.includes(lower) ||
           category.includes(lower) ||
@@ -1546,7 +1627,8 @@ const MultiStepSalesForm = ({
       return warehousesToFilter.filter(
         (wh) =>
           wh.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (wh.location && wh.location.toLowerCase().includes(searchTerm.toLowerCase()))
+          (wh.location &&
+            wh.location.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     };
 
@@ -1608,7 +1690,9 @@ const MultiStepSalesForm = ({
                   type="text"
                   name="name"
                   value={newItem.name}
-                  onChange={(e) => handleProductChange(e.target.name, e.target.value)}
+                  onChange={(e) =>
+                    handleProductChange(e.target.name, e.target.value)
+                  }
                   placeholder="Enter product name"
                 />
               </Form.Group>
@@ -1618,12 +1702,16 @@ const MultiStepSalesForm = ({
                   <Form.Select
                     name="category"
                     value={newItem.category}
-                    onChange={(e) => handleProductChange(e.target.name, e.target.value)}
+                    onChange={(e) =>
+                      handleProductChange(e.target.name, e.target.value)
+                    }
                     className="flex-grow-1 me-2"
                   >
                     <option value="">Select Category</option>
                     {categories.map((cat, idx) => (
-                      <option key={idx} value={cat}>{cat}</option>
+                      <option key={idx} value={cat}>
+                        {cat}
+                      </option>
                     ))}
                   </Form.Select>
                   <Button
@@ -1641,7 +1729,9 @@ const MultiStepSalesForm = ({
                   type="text"
                   name="hsn"
                   value={newItem.hsn}
-                  onChange={(e) => handleProductChange(e.target.name, e.target.value)}
+                  onChange={(e) =>
+                    handleProductChange(e.target.name, e.target.value)
+                  }
                   placeholder="Enter HSN code"
                 />
               </Form.Group>
@@ -1652,7 +1742,9 @@ const MultiStepSalesForm = ({
                   step="0.01"
                   name="sellingPrice"
                   value={newItem.sellingPrice}
-                  onChange={(e) => handleProductChange(e.target.name, e.target.value)}
+                  onChange={(e) =>
+                    handleProductChange(e.target.name, e.target.value)
+                  }
                   placeholder="Enter selling price"
                 />
               </Form.Group>
@@ -1663,7 +1755,9 @@ const MultiStepSalesForm = ({
                   step="0.01"
                   name="tax"
                   value={newItem.tax}
-                  onChange={(e) => handleProductChange(e.target.name, e.target.value)}
+                  onChange={(e) =>
+                    handleProductChange(e.target.name, e.target.value)
+                  }
                   placeholder="e.g. 18"
                 />
               </Form.Group>
@@ -1674,7 +1768,9 @@ const MultiStepSalesForm = ({
                     type="text"
                     name="uom"
                     value={newItem.uom}
-                    onChange={(e) => handleProductChange(e.target.name, e.target.value)}
+                    onChange={(e) =>
+                      handleProductChange(e.target.name, e.target.value)
+                    }
                     placeholder="e.g. PCS"
                     className="flex-grow-1 me-2"
                   />
@@ -1703,7 +1799,11 @@ const MultiStepSalesForm = ({
         </Modal>
 
         {/* Service Modal */}
-        <Modal show={showServiceModal} onHide={() => setShowServiceModal(false)} centered>
+        <Modal
+          show={showServiceModal}
+          onHide={() => setShowServiceModal(false)}
+          centered
+        >
           <Modal.Header closeButton className="bg-light">
             <Modal.Title>Add Service</Modal.Title>
           </Modal.Header>
@@ -1760,7 +1860,10 @@ const MultiStepSalesForm = ({
             </Form>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowServiceModal(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowServiceModal(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -1773,7 +1876,10 @@ const MultiStepSalesForm = ({
         </Modal>
 
         {/* Add Category Modal */}
-        <Modal show={showAddCategoryModal} onHide={() => setShowAddCategoryModal(false)}>
+        <Modal
+          show={showAddCategoryModal}
+          onHide={() => setShowAddCategoryModal(false)}
+        >
           <Modal.Header closeButton>
             <Modal.Title>Add Category</Modal.Title>
           </Modal.Header>
@@ -1791,7 +1897,10 @@ const MultiStepSalesForm = ({
             </Form>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowAddCategoryModal(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowAddCategoryModal(false)}
+            >
               Cancel
             </Button>
             <Button variant="primary" onClick={handleAddCategory}>
@@ -1816,14 +1925,18 @@ const MultiStepSalesForm = ({
           </thead>
           <tbody>
             {items.map((item, idx) => {
-              const qty = tab === "deliveryChallan" ? parseInt(item.deliveredQty) || 0 : parseInt(item.qty) || 0;
+              const qty =
+                tab === "deliveryChallan"
+                  ? parseInt(item.deliveredQty) || 0
+                  : parseInt(item.qty) || 0;
               const amount = (parseFloat(item.rate) || 0) * qty;
               const itemRowKey = `${tab}-${idx}`;
               const filteredItems = getFilteredItems(idx);
               const isItemSearchVisible = showRowSearch[itemRowKey];
               const warehouseRowKey = `${tab}-${idx}`;
               const filteredWarehouses = getFilteredWarehouses(idx);
-              const isWarehouseSearchVisible = showWarehouseSearch[warehouseRowKey];
+              const isWarehouseSearchVisible =
+                showWarehouseSearch[warehouseRowKey];
 
               return (
                 <tr key={idx}>
@@ -1879,11 +1992,19 @@ const MultiStepSalesForm = ({
                           />
                         </InputGroup>
                         {loadingItems ? (
-                          <div style={{ padding: "8px", textAlign: "center", color: "#666" }}>
+                          <div
+                            style={{
+                              padding: "8px",
+                              textAlign: "center",
+                              color: "#666",
+                            }}
+                          >
                             Loading products...
                           </div>
                         ) : filteredItems.length > 0 ? (
-                          <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                          <div
+                            style={{ maxHeight: "200px", overflowY: "auto" }}
+                          >
                             {filteredItems.map((filteredItem) => (
                               <div
                                 key={filteredItem.id}
@@ -1893,25 +2014,62 @@ const MultiStepSalesForm = ({
                                   borderBottom: "1px solid #eee",
                                 }}
                                 onClick={() =>
-                                  handleSelectSearchedItem(tab, idx, filteredItem)
+                                  handleSelectSearchedItem(
+                                    tab,
+                                    idx,
+                                    filteredItem
+                                  )
                                 }
                                 onMouseEnter={(e) =>
-                                  (e.currentTarget.style.backgroundColor = "#f0f0f0")
+                                  (e.currentTarget.style.backgroundColor =
+                                    "#f0f0f0")
                                 }
                                 onMouseLeave={(e) =>
-                                  (e.currentTarget.style.backgroundColor = "white")
+                                  (e.currentTarget.style.backgroundColor =
+                                    "white")
                                 }
                               >
-                                <div><strong>{filteredItem.name || filteredItem.item_name}</strong></div>
-                                <div style={{ fontSize: "0.8rem", color: "#666" }}>
-                                  {(filteredItem.category || filteredItem.item_category?.item_category_name || '')} - ${((filteredItem.price || filteredItem.sale_price || filteredItem.sellingPrice) ? parseFloat(filteredItem.price || filteredItem.sale_price || filteredItem.sellingPrice).toFixed(2) : '0.00')}
-                                  {(filteredItem.sku || filteredItem.SKU) && <span> | SKU: {filteredItem.sku || filteredItem.SKU}</span>}
+                                <div>
+                                  <strong>
+                                    {filteredItem.name ||
+                                      filteredItem.item_name}
+                                  </strong>
+                                </div>
+                                <div
+                                  style={{ fontSize: "0.8rem", color: "#666" }}
+                                >
+                                  {filteredItem.category ||
+                                    filteredItem.item_category
+                                      ?.item_category_name ||
+                                    ""}{" "}
+                                  - $                                   {filteredItem.price ||
+                                  filteredItem.sale_price ||
+                                  filteredItem.sellingPrice
+                                    ? parseFloat(
+                                        filteredItem.price ||
+                                          filteredItem.sale_price ||
+                                          filteredItem.sellingPrice
+                                      ).toFixed(2)
+                                    : "0.00"}
+                                  {(filteredItem.sku || filteredItem.SKU) && (
+                                    <span>
+                                      {" "}
+                                      | SKU:{" "}
+                                      {filteredItem.sku || filteredItem.SKU}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <div style={{ padding: "8px", textAlign: "center", color: "#666" }}>
+                          <div
+                            style={{
+                              padding: "8px",
+                              textAlign: "center",
+                              color: "#666",
+                            }}
+                          >
                             No items found
                           </div>
                         )}
@@ -1964,17 +2122,29 @@ const MultiStepSalesForm = ({
                             placeholder="Search warehouses..."
                             value={warehouseSearchTerms[warehouseRowKey] || ""}
                             onChange={(e) =>
-                              handleWarehouseSearchChange(tab, idx, e.target.value)
+                              handleWarehouseSearchChange(
+                                tab,
+                                idx,
+                                e.target.value
+                              )
                             }
                             autoFocus
                           />
                         </InputGroup>
                         {loadingWarehouses ? (
-                          <div style={{ padding: "8px", textAlign: "center", color: "#666" }}>
+                          <div
+                            style={{
+                              padding: "8px",
+                              textAlign: "center",
+                              color: "#666",
+                            }}
+                          >
                             Loading warehouses...
                           </div>
                         ) : filteredWarehouses.length > 0 ? (
-                          <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                          <div
+                            style={{ maxHeight: "200px", overflowY: "auto" }}
+                          >
                             {filteredWarehouses.map((wh) => (
                               <div
                                 key={wh.warehouse_id || wh.warehouse_name}
@@ -1987,21 +2157,35 @@ const MultiStepSalesForm = ({
                                   handleSelectSearchedWarehouse(tab, idx, wh)
                                 }
                                 onMouseEnter={(e) =>
-                                  (e.currentTarget.style.backgroundColor = "#f0f0f0")
+                                  (e.currentTarget.style.backgroundColor =
+                                    "#f0f0f0")
                                 }
                                 onMouseLeave={(e) =>
-                                  (e.currentTarget.style.backgroundColor = "white")
+                                  (e.currentTarget.style.backgroundColor =
+                                    "white")
                                 }
                               >
-                                <div><strong>{wh.warehouse_name}</strong></div>
-                                <div style={{ fontSize: "0.8rem", color: "#666" }}>
-                                  {wh.stock_qty !== null ? `Stock: ${wh.stock_qty}` : wh.location || "General Warehouse"}
+                                <div>
+                                  <strong>{wh.warehouse_name}</strong>
+                                </div>
+                                <div
+                                  style={{ fontSize: "0.8rem", color: "#666" }}
+                                >
+                                  {wh.stock_qty !== null
+                                    ? `Stock: ${wh.stock_qty}`
+                                    : wh.location || "General Warehouse"}
                                 </div>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <div style={{ padding: "8px", textAlign: "center", color: "#666" }}>
+                          <div
+                            style={{
+                              padding: "8px",
+                              textAlign: "center",
+                              color: "#666",
+                            }}
+                          >
                             No warehouses found
                           </div>
                         )}
@@ -2185,7 +2369,8 @@ const MultiStepSalesForm = ({
 
   const formatCompanyAddress = () => {
     // Prefer populated formData for quotation (fetched company sets this), fallback to companyDetails prop
-    if (formData?.quotation?.companyAddress) return formData.quotation.companyAddress;
+    if (formData?.quotation?.companyAddress)
+      return formData.quotation.companyAddress;
     const parts = [
       companyDetails.address,
       companyDetails.city,
@@ -2193,7 +2378,7 @@ const MultiStepSalesForm = ({
       companyDetails.postal_code,
       companyDetails.country,
     ].filter(Boolean);
-    return parts.join(', ');
+    return parts.join(", ");
   };
 
   // Render Sales Workflow Table
@@ -2237,12 +2422,16 @@ const MultiStepSalesForm = ({
               <td>{workflow.date}</td>
               <td>{workflow.customer_name}</td>
               <td>
-                <span className={`badge ${workflow.status === 'Done' ? 'bg-success' : 'bg-warning'}`}>
+                <span
+                  className={`badge ${
+                    workflow.status === "Done" ? "bg-success" : "bg-warning"
+                  }`}
+                >
                   {workflow.status}
                 </span>
               </td>
               <td>
-                {workflow.status === 'Pending' && (
+                {workflow.status === "Pending" && (
                   <Button
                     size="sm"
                     variant="primary"
@@ -2251,7 +2440,7 @@ const MultiStepSalesForm = ({
                     Continue
                   </Button>
                 )}
-                {workflow.status === 'Done' && (
+                {workflow.status === "Done" && (
                   <Button
                     size="sm"
                     variant="outline-secondary"
@@ -2274,71 +2463,128 @@ const MultiStepSalesForm = ({
       <Form>
         {/* Header: Logo + Company Info + Title */}
         <Row className="mb-4 mt-3">
-          <Col md={3} className="d-flex align-items-center justify-content-center">
+          <Col
+            md={3}
+            className="d-flex align-items-center justify-content-center"
+          >
             <div
               className="border rounded d-flex flex-column align-items-center justify-content-center"
-              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
-              onClick={() => document.getElementById('logo-upload')?.click()}
+              style={{
+                height: "120px",
+                width: "100%",
+                borderStyle: "dashed",
+                cursor: "pointer",
+                overflow: "hidden",
+              }}
+              onClick={() => document.getElementById("logo-upload")?.click()}
             >
               {formData.quotation.companyLogo ? (
                 <img
                   src={formData.quotation.companyLogo}
                   alt="Company Logo"
-                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+                  style={{
+                    maxHeight: "100%",
+                    maxWidth: "100%",
+                    objectFit: "contain",
+                  }}
                   onError={(e) => {
-                    e.target.style.display = 'none';
+                    e.target.style.display = "none";
                   }}
                 />
               ) : (
                 <>
-                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <FontAwesomeIcon
+                    icon={faUpload}
+                    size="2x"
+                    className="text-muted"
+                  />
                   <small>Upload Logo</small>
                 </>
               )}
-              <input id="logo-upload" type="file" accept="image/*" hidden onChange={(e) => {
-                if (e.target.files[0]) {
-                  handleChange("quotation", "companyLogo", e.target.files[0]);
-                }
-              }} />
+              <input
+                id="logo-upload"
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files[0]) {
+                    handleChange("quotation", "companyLogo", e.target.files[0]);
+                  }
+                }}
+              />
             </div>
           </Col>
           <Col md={6}>
             <div className="d-flex flex-column gap-1">
               <Form.Control
                 type="text"
-                value={formData?.quotation?.companyName || companyDetails.name || ''}
+                value={
+                  formData?.quotation?.companyName || companyDetails.name || ""
+                }
                 readOnly
                 placeholder="Company Name"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", fontWeight: "bold" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                  fontWeight: "bold",
+                }}
               />
               <Form.Control
                 type="text"
                 value={formatCompanyAddress()}
-                onChange={(e) => handleChange("quotation", "companyAddress", e.target.value)}
+                onChange={(e) =>
+                  handleChange("quotation", "companyAddress", e.target.value)
+                }
                 placeholder="Company Address, City, State, Pincode......."
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="email"
-                value={formData?.quotation?.companyEmail || companyDetails.email || ''}
+                value={
+                  formData?.quotation?.companyEmail ||
+                  companyDetails.email ||
+                  ""
+                }
                 readOnly
                 placeholder="Company Email"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="text"
                 value={formData.quotation.companyPhone}
-                onChange={(e) => handleChange("quotation", "companyPhone", e.target.value)}
+                onChange={(e) =>
+                  handleChange("quotation", "companyPhone", e.target.value)
+                }
                 placeholder="Phone No........"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </div>
           </Col>
-          <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
+          <Col
+            md={3}
+            className="d-flex flex-column align-items-end justify-content-center"
+          >
             <h2 className="text-success mb-0">QUOTATION</h2>
             <hr
               style={{
@@ -2384,7 +2630,7 @@ const MultiStepSalesForm = ({
                 <FontAwesomeIcon
                   icon={faChevronDown}
                   className="position-absolute end-0 top-50 translate-middle-y me-2 text-muted"
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: "pointer" }}
                   onClick={() => {
                     setShowCustomerDropdown(!showCustomerDropdown);
                     if (!showCustomerDropdown && !customerSearchTerm) {
@@ -2397,9 +2643,9 @@ const MultiStepSalesForm = ({
                 <div
                   ref={dropdownRef}
                   className="position-absolute w-100 bg-white border rounded mt-1 shadow-sm z-index-10"
-                  style={{ maxHeight: '200px', overflowY: 'auto' }}
+                  style={{ maxHeight: "200px", overflowY: "auto" }}
                 >
-                  {filteredCustomerList.map(customer => (
+                  {filteredCustomerList.map((customer) => (
                     <div
                       key={customer.id}
                       className="p-2 hover:bg-light cursor-pointer"
@@ -2407,7 +2653,9 @@ const MultiStepSalesForm = ({
                     >
                       <div className="fw-bold">{customer.name_english}</div>
                       {customer.company_name && (
-                        <div className="text-muted small">{customer.company_name}</div>
+                        <div className="text-muted small">
+                          {customer.company_name}
+                        </div>
                       )}
                       <div className="text-muted small">{customer.email}</div>
                     </div>
@@ -2427,37 +2675,58 @@ const MultiStepSalesForm = ({
               <Form.Control
                 type="text"
                 value={formData.quotation.billToAddress}
-                onChange={(e) => handleChange("quotation", "billToAddress", e.target.value)}
+                onChange={(e) =>
+                  handleChange("quotation", "billToAddress", e.target.value)
+                }
                 placeholder="Customer Address"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2">
               <Form.Control
                 type="email"
                 value={formData.quotation.billToEmail}
-                onChange={(e) => handleChange("quotation", "billToEmail", e.target.value)}
+                onChange={(e) =>
+                  handleChange("quotation", "billToEmail", e.target.value)
+                }
                 placeholder="Email"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2">
               <Form.Control
                 type="text"
                 value={formData.quotation.billToPhone}
-                onChange={(e) => handleChange("quotation", "billToPhone", e.target.value)}
+                onChange={(e) =>
+                  handleChange("quotation", "billToPhone", e.target.value)
+                }
                 placeholder="Phone"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <div className="mt-2">
               <Button
                 variant="outline-primary"
                 size="sm"
-                onClick={() => navigate('/add-customer')} // Example navigation
+                onClick={() => navigate("/add-customer")} // Example navigation
                 title="Add Customer"
               >
                 Add Customer
@@ -2465,10 +2734,22 @@ const MultiStepSalesForm = ({
             </div>
           </Col>
           <Col md={4} className="d-flex flex-column align-items-start">
-            <div className="d-flex flex-column gap-2" style={{ maxWidth: "400px", width: "100%" }}>
+            <div
+              className="d-flex flex-column gap-2"
+              style={{ maxWidth: "400px", width: "100%" }}
+            >
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
-                  <Form.Label className="mb-0" style={{ fontSize: "0.9rem", color: "#6c757d", whiteSpace: "nowrap", flexShrink: 0, marginRight: "8px" }}>
+                  <Form.Label
+                    className="mb-0"
+                    style={{
+                      fontSize: "0.9rem",
+                      color: "#6c757d",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                      marginRight: "8px",
+                    }}
+                  >
                     Quotation No.
                   </Form.Label>
                   <Form.Control
@@ -2486,20 +2767,33 @@ const MultiStepSalesForm = ({
                       color: "#495057",
                       cursor: "not-allowed",
                       textAlign: "right",
-                      flexGrow: 1
+                      flexGrow: 1,
                     }}
                   />
                 </div>
               </Form.Group>
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
-                  <Form.Label className="mb-0 flex-shrink-0 me-2" style={{ fontSize: "0.9rem", color: "#6c757d", whiteSpace: "nowrap" }}>
+                  <Form.Label
+                    className="mb-0 flex-shrink-0 me-2"
+                    style={{
+                      fontSize: "0.9rem",
+                      color: "#6c757d",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     Manual QUO No (Optional)
                   </Form.Label>
                   <Form.Control
                     type="text"
                     value={formData.quotation.manualQuotationRef || ""}
-                    onChange={(e) => handleChange("quotation", "manualQuotationRef", e.target.value)}
+                    onChange={(e) =>
+                      handleChange(
+                        "quotation",
+                        "manualQuotationRef",
+                        e.target.value
+                      )
+                    }
                     placeholder="e.g. QUO-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
                     style={{
@@ -2507,14 +2801,21 @@ const MultiStepSalesForm = ({
                       lineHeight: "1.5",
                       minHeight: "auto",
                       padding: "0.375rem 0.75rem",
-                      textAlign: "right"
+                      textAlign: "right",
                     }}
                   />
                 </div>
               </Form.Group>
               <Row className="align-items-center g-2 mb-2">
                 <Col md="auto" className="p-0">
-                  <Form.Label className="mb-0 flex-shrink-0 me-2" style={{ fontSize: "0.9rem", color: "#6c757d", whiteSpace: "nowrap" }}>
+                  <Form.Label
+                    className="mb-0 flex-shrink-0 me-2"
+                    style={{
+                      fontSize: "0.9rem",
+                      color: "#6c757d",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     Quotation Date
                   </Form.Label>
                 </Col>
@@ -2522,14 +2823,23 @@ const MultiStepSalesForm = ({
                   <Form.Control
                     type="date"
                     value={formData.quotation.quotationDate}
-                    onChange={(e) => handleChange("quotation", "quotationDate", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("quotation", "quotationDate", e.target.value)
+                    }
                     style={{ border: "1px solid #495057", fontSize: "1rem" }}
                   />
                 </Col>
               </Row>
               <Row className="align-items-center g-2 mb-2">
                 <Col md="auto" className="p-0">
-                  <Form.Label className="mb-0 flex-shrink-0 me-2" style={{ fontSize: "0.9rem", color: "#6c757d", whiteSpace: "nowrap" }}>
+                  <Form.Label
+                    className="mb-0 flex-shrink-0 me-2"
+                    style={{
+                      fontSize: "0.9rem",
+                      color: "#6c757d",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     Valid Till
                   </Form.Label>
                 </Col>
@@ -2537,7 +2847,9 @@ const MultiStepSalesForm = ({
                   <Form.Control
                     type="date"
                     value={formData.quotation.validDate}
-                    onChange={(e) => handleChange("quotation", "validDate", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("quotation", "validDate", e.target.value)
+                    }
                     style={{ border: "1px solid #495057", fontSize: "1rem" }}
                   />
                 </Col>
@@ -2549,7 +2861,16 @@ const MultiStepSalesForm = ({
         <Row className="mb-4">
           <Col>{renderItemsTable("quotation")}</Col>
         </Row>
-        <hr style={{ width: "100%", height: "4px", backgroundColor: "#28a745", border: "none", marginTop: "5px", marginBottom: "10px" }} />
+        <hr
+          style={{
+            width: "100%",
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            marginTop: "5px",
+            marginBottom: "10px",
+          }}
+        />
         {/* Totals */}
         <Row className="mb-4 mt-2">
           <Col md={4}>
@@ -2564,47 +2885,82 @@ const MultiStepSalesForm = ({
                 <tr>
                   <td className="fw-bold">Tax:</td>
                   <td>
-                    ${formData.quotation.items.reduce((sum, item) => {
-                      const subtotal = (parseFloat(item.rate) || 0) * (parseInt(item.qty) || 0);
-                      return sum + (subtotal * (parseFloat(item.tax) || 0)) / 100;
-                    }, 0).toFixed(2)}
+                    $                     {formData.quotation.items
+                      .reduce((sum, item) => {
+                        const subtotal =
+                          (parseFloat(item.rate) || 0) *
+                          (parseInt(item.qty) || 0);
+                        return (
+                          sum + (subtotal * (parseFloat(item.tax) || 0)) / 100
+                        );
+                      }, 0)
+                      .toFixed(2)}
                   </td>
                 </tr>
                 <tr>
                   <td className="fw-bold">Discount:</td>
                   <td>
-                    ${formData.quotation.items.reduce((sum, item) => sum + (parseFloat(item.discount) || 0), 0).toFixed(2)}
+                    $                     {formData.quotation.items
+                      .reduce(
+                        (sum, item) => sum + (parseFloat(item.discount) || 0),
+                        0
+                      )
+                      .toFixed(2)}
                   </td>
                 </tr>
                 <tr>
                   <td className="fw-bold">Total:</td>
                   <td className="fw-bold">
-                    ${calculateTotalWithTaxAndDiscount(formData.quotation.items).toFixed(2)}
+                    $                     {calculateTotalWithTaxAndDiscount(
+                      formData.quotation.items
+                    ).toFixed(2)}
                   </td>
                 </tr>
               </tbody>
             </Table>
           </Col>
         </Row>
-        <hr style={{ width: "100%", height: "4px", backgroundColor: "#28a745", border: "none", marginTop: "5px", marginBottom: "10px" }} />
+        <hr
+          style={{
+            width: "100%",
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            marginTop: "5px",
+            marginBottom: "10px",
+          }}
+        />
         {/* Bank & Notes */}
         <Row className="mb-4">
           <h5>Bank Details</h5>
-          <Col md={6} className="p-2 rounded" style={{ border: "1px solid #343a40" }}>
-            {['bankName', 'accountNo', 'accountHolder', 'ifsc'].map(field => (
+          <Col
+            md={6}
+            className="p-2 rounded"
+            style={{ border: "1px solid #343a40" }}
+          >
+            {["bankName", "accountNo", "accountHolder", "ifsc"].map((field) => (
               <Form.Group key={field} className="mb-2">
                 <Form.Control
                   type="text"
-                  placeholder={{
-                    bankName: 'Bank Name',
-                    accountNo: 'Account No.',
-                    accountHolder: 'Account Holder',
-                    ifsc: 'IFSC Code',
-                  }[field]}
+                  placeholder={
+                    {
+                      bankName: "Bank Name",
+                      accountNo: "Account No.",
+                      accountHolder: "Account Holder",
+                      ifsc: "IFSC Code",
+                    }[field]
+                  }
                   value={formData.quotation[field] || ""}
-                  onChange={(e) => handleChange("quotation", field, e.target.value)}
+                  onChange={(e) =>
+                    handleChange("quotation", field, e.target.value)
+                  }
                   className="form-control-no-border"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                  }}
                 />
               </Form.Group>
             ))}
@@ -2616,12 +2972,23 @@ const MultiStepSalesForm = ({
               rows={5}
               placeholder="Enter any additional notes"
               value={formData.quotation.notes || ""}
-              onChange={(e) => handleChange("quotation", "notes", e.target.value)}
+              onChange={(e) =>
+                handleChange("quotation", "notes", e.target.value)
+              }
               style={{ border: "1px solid #343a40" }}
             />
           </Col>
         </Row>
-        <hr style={{ width: "100%", height: "4px", backgroundColor: "#28a745", border: "none", marginTop: "5px", marginBottom: "10px" }} />
+        <hr
+          style={{
+            width: "100%",
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            marginTop: "5px",
+            marginBottom: "10px",
+          }}
+        />
         {/* Terms & Footer */}
         <Row className="mb-4">
           <Col>
@@ -2631,7 +2998,9 @@ const MultiStepSalesForm = ({
                 as="textarea"
                 rows={3}
                 value={formData.quotation.terms}
-                onChange={(e) => handleChange("quotation", "terms", e.target.value)}
+                onChange={(e) =>
+                  handleChange("quotation", "terms", e.target.value)
+                }
                 placeholder="e.g. Payment within 15 days"
                 style={{ border: "1px solid #343a40" }}
               />
@@ -2642,16 +3011,26 @@ const MultiStepSalesForm = ({
         {renderAttachmentFields("quotation")}
         <Row className="text-center mb-4">
           <Col>
-            <p><strong>Thank you for your business!</strong></p>
+            <p>
+              <strong>Thank you for your business!</strong>
+            </p>
             <p className="text-muted">www.yourcompany.com</p>
           </Col>
         </Row>
         {/* Navigation */}
         <div className="d-flex justify-content-between mt-5">
-          <Button variant="secondary" onClick={handleSkip}>Skip</Button>
-          <Button variant="warning" onClick={handleSaveDraft}>Save</Button>
-          <Button variant="primary" onClick={handleSaveNext}>Save & Next</Button>
-          <Button variant="success" onClick={handleNext}>Next</Button>  
+          <Button variant="secondary" onClick={handleSkip}>
+            Skip
+          </Button>
+          <Button variant="warning" onClick={handleSaveDraft}>
+            Save
+          </Button>
+          <Button variant="primary" onClick={handleSaveNext}>
+            Save & Next
+          </Button>
+          <Button variant="success" onClick={handleNext}>
+            Next
+          </Button>
         </div>
       </Form>
     );
@@ -2662,31 +3041,64 @@ const MultiStepSalesForm = ({
       <Form>
         {/* Header: Logo + Company Info + Title */}
         <Row className="mb-4 d-flex justify-content-between">
-          <Col md={3} className="d-flex align-items-center justify-content-center">
+          <Col
+            md={3}
+            className="d-flex align-items-center justify-content-center"
+          >
             <div
               className="border rounded d-flex flex-column align-items-center justify-content-center"
-              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
-              onClick={() => document.getElementById('logo-upload-so')?.click()}
+              style={{
+                height: "120px",
+                width: "100%",
+                borderStyle: "dashed",
+                cursor: "pointer",
+                overflow: "hidden",
+              }}
+              onClick={() => document.getElementById("logo-upload-so")?.click()}
             >
               {formData.salesOrder.companyLogo ? (
                 <img
                   src={formData.salesOrder.companyLogo}
                   alt="Company Logo"
-                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
-                  onError={(e) => { e.target.style.display = 'none'; }}
+                  style={{
+                    maxHeight: "100%",
+                    maxWidth: "100%",
+                    objectFit: "contain",
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
                 />
               ) : (
                 <>
-                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <FontAwesomeIcon
+                    icon={faUpload}
+                    size="2x"
+                    className="text-muted"
+                  />
                   <small>Upload Logo</small>
                 </>
               )}
-              <input id="logo-upload-so" type="file" accept="image/*" hidden onChange={(e) => {
-                if (e.target.files[0]) handleChange("salesOrder", "companyLogo", e.target.files[0]);
-              }} />
+              <input
+                id="logo-upload-so"
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files[0])
+                    handleChange(
+                      "salesOrder",
+                      "companyLogo",
+                      e.target.files[0]
+                    );
+                }}
+              />
             </div>
           </Col>
-          <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
+          <Col
+            md={3}
+            className="d-flex flex-column align-items-end justify-content-center"
+          >
             <h2 className="text-success mb-0">SALES ORDER FORM</h2>
             <hr
               style={{
@@ -2714,39 +3126,70 @@ const MultiStepSalesForm = ({
               <Form.Control
                 type="text"
                 value={formData.salesOrder.companyName}
-                onChange={(e) => handleChange("salesOrder", "companyName", e.target.value)}
+                onChange={(e) =>
+                  handleChange("salesOrder", "companyName", e.target.value)
+                }
                 placeholder="Your Company Name"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="text"
                 value={formData.salesOrder.companyAddress}
-                onChange={(e) => handleChange("salesOrder", "companyAddress", e.target.value)}
+                onChange={(e) =>
+                  handleChange("salesOrder", "companyAddress", e.target.value)
+                }
                 placeholder="Company Address, City, State, Pincode"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="email"
                 value={formData.salesOrder.companyEmail}
-                onChange={(e) => handleChange("salesOrder", "companyEmail", e.target.value)}
+                onChange={(e) =>
+                  handleChange("salesOrder", "companyEmail", e.target.value)
+                }
                 placeholder="Company Email"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="text"
                 value={formData.salesOrder.companyPhone}
-                onChange={(e) => handleChange("salesOrder", "companyPhone", e.target.value)}
+                onChange={(e) =>
+                  handleChange("salesOrder", "companyPhone", e.target.value)
+                }
                 placeholder="Phone No."
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </div>
           </Col>
           <Col md={6} className="d-flex flex-column align-items-end">
-            <div className="d-flex flex-column gap-2 text-end" style={{ maxWidth: "400px", width: "100%" }}>
+            <div
+              className="d-flex flex-column gap-2 text-end"
+              style={{ maxWidth: "400px", width: "100%" }}
+            >
               {/* Sales Order No (Auto or Manual) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
@@ -2757,7 +3200,7 @@ const MultiStepSalesForm = ({
                       color: "#6c757d",
                       whiteSpace: "nowrap",
                       flexShrink: 0,
-                      marginRight: "8px"
+                      marginRight: "8px",
                     }}
                   >
                     SO No.
@@ -2777,7 +3220,7 @@ const MultiStepSalesForm = ({
                       color: "#495057",
                       cursor: "not-allowed",
                       textAlign: "right",
-                      flexGrow: 1
+                      flexGrow: 1,
                     }}
                   />
                 </div>
@@ -2792,7 +3235,7 @@ const MultiStepSalesForm = ({
                       color: "#6c757d",
                       whiteSpace: "nowrap",
                       flexShrink: 0,
-                      marginRight: "8px"
+                      marginRight: "8px",
                     }}
                   >
                     Quotation No
@@ -2812,7 +3255,7 @@ const MultiStepSalesForm = ({
                       color: "#495057",
                       cursor: "not-allowed",
                       textAlign: "right",
-                      flexGrow: 1
+                      flexGrow: 1,
                     }}
                   />
                 </div>
@@ -2825,7 +3268,7 @@ const MultiStepSalesForm = ({
                     style={{
                       fontSize: "0.9rem",
                       color: "#6c757d",
-                      whiteSpace: "nowrap"
+                      whiteSpace: "nowrap",
                     }}
                   >
                     Manual Quotation No (Optional)
@@ -2833,7 +3276,13 @@ const MultiStepSalesForm = ({
                   <Form.Control
                     type="text"
                     value={formData.salesOrder.manualQuotationRef || ""}
-                    onChange={(e) => handleChange("salesOrder", "manualQuotationRef", e.target.value)}
+                    onChange={(e) =>
+                      handleChange(
+                        "salesOrder",
+                        "manualQuotationRef",
+                        e.target.value
+                      )
+                    }
                     placeholder="e.g. CUST-QTN-001"
                     className="form-control-no-border text-end flex-grow-1"
                     style={{
@@ -2841,7 +3290,7 @@ const MultiStepSalesForm = ({
                       lineHeight: "1.5",
                       minHeight: "auto",
                       padding: "0.375rem 0.75rem",
-                      textAlign: "right"
+                      textAlign: "right",
                     }}
                   />
                 </div>
@@ -2851,7 +3300,9 @@ const MultiStepSalesForm = ({
                 <Form.Control
                   type="text"
                   value={formData.salesOrder.customerNo}
-                  onChange={(e) => handleChange('salesOrder', 'customerNo', e.target.value)}
+                  onChange={(e) =>
+                    handleChange("salesOrder", "customerNo", e.target.value)
+                  }
                   placeholder="Customer No."
                   className="form-control-no-border text-end"
                   style={{
@@ -2859,7 +3310,7 @@ const MultiStepSalesForm = ({
                     lineHeight: "1.5",
                     minHeight: "auto",
                     padding: "0",
-                    textAlign: "right"
+                    textAlign: "right",
                   }}
                 />
               </Form.Group>
@@ -2885,21 +3336,40 @@ const MultiStepSalesForm = ({
               <Form.Control
                 type="text"
                 value={formData.salesOrder.billToAttn}
-                onChange={(e) => handleChange("salesOrder", "billToAttn", e.target.value)}
+                onChange={(e) =>
+                  handleChange("salesOrder", "billToAttn", e.target.value)
+                }
                 placeholder="Attention Name / Department"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2 w-100">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
                 <Form.Control
                   type="text"
                   value={formData.salesOrder.billToCompanyName}
-                  onChange={(e) => handleChange("salesOrder", "billToCompanyName", e.target.value)}
+                  onChange={(e) =>
+                    handleChange(
+                      "salesOrder",
+                      "billToCompanyName",
+                      e.target.value
+                    )
+                  }
                   placeholder="Company Name"
                   className="form-control-no-border"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", marginRight: '5px' }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    marginRight: "5px",
+                  }}
                 />
               </div>
             </Form.Group>
@@ -2907,30 +3377,51 @@ const MultiStepSalesForm = ({
               <Form.Control
                 type="text"
                 value={formData.salesOrder.billToAddress}
-                onChange={(e) => handleChange("salesOrder", "billToAddress", e.target.value)}
+                onChange={(e) =>
+                  handleChange("salesOrder", "billToAddress", e.target.value)
+                }
                 placeholder="Company Address"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2 w-100">
               <Form.Control
                 type="text"
                 value={formData.salesOrder.billToPhone}
-                onChange={(e) => handleChange("salesOrder", "billToPhone", e.target.value)}
+                onChange={(e) =>
+                  handleChange("salesOrder", "billToPhone", e.target.value)
+                }
                 placeholder="Phone"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2 w-100">
               <Form.Control
                 type="email"
                 value={formData.salesOrder.billToEmail}
-                onChange={(e) => handleChange("salesOrder", "billToEmail", e.target.value)}
+                onChange={(e) =>
+                  handleChange("salesOrder", "billToEmail", e.target.value)
+                }
                 placeholder="Email"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
           </Col>
@@ -2942,50 +3433,94 @@ const MultiStepSalesForm = ({
                 <Form.Control
                   type="text"
                   value={formData.salesOrder.shipToAttn}
-                  onChange={(e) => handleChange("salesOrder", "shipToAttn", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("salesOrder", "shipToAttn", e.target.value)
+                  }
                   placeholder="Attention Name / Department"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Control
                   type="text"
                   value={formData.salesOrder.shipToCompanyName}
-                  onChange={(e) => handleChange("salesOrder", "shipToCompanyName", e.target.value)}
+                  onChange={(e) =>
+                    handleChange(
+                      "salesOrder",
+                      "shipToCompanyName",
+                      e.target.value
+                    )
+                  }
                   placeholder="Company Name"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Control
                   type="text"
                   value={formData.salesOrder.shipToAddress}
-                  onChange={(e) => handleChange("salesOrder", "shipToAddress", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("salesOrder", "shipToAddress", e.target.value)
+                  }
                   placeholder="Company Address"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Control
                   type="text"
                   value={formData.salesOrder.shipToPhone}
-                  onChange={(e) => handleChange("salesOrder", "shipToPhone", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("salesOrder", "shipToPhone", e.target.value)
+                  }
                   placeholder="Phone"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Control
                   type="email"
                   value={formData.salesOrder.shipToEmail}
-                  onChange={(e) => handleChange("salesOrder", "shipToEmail", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("salesOrder", "shipToEmail", e.target.value)
+                  }
                   placeholder="Email"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
             </div>
@@ -3002,7 +3537,7 @@ const MultiStepSalesForm = ({
           }}
         />
         {/* Items Table */}
-        <div className="mt-4">{renderItemsTable('salesOrder')}</div>
+        <div className="mt-4">{renderItemsTable("salesOrder")}</div>
         {/* Totals - Moved to left side */}
         <Row className="mb-4 mt-2">
           <Col md={4}>
@@ -3010,12 +3545,16 @@ const MultiStepSalesForm = ({
               <tbody>
                 <tr>
                   <td className="fw-bold">Sub Total:</td>
-                  <td>${calculateTotalAmount(formData.salesOrder.items).toFixed(2)}</td>
+                  <td>
+                    $
+                    {calculateTotalAmount(formData.salesOrder.items).toFixed(2)}
+                  </td>
                 </tr>
                 <tr>
                   <td className="fw-bold">Total:</td>
                   <td className="fw-bold">
-                    ${calculateTotalAmount(formData.salesOrder.items).toFixed(2)}
+                    $
+                    {calculateTotalAmount(formData.salesOrder.items).toFixed(2)}
                   </td>
                 </tr>
               </tbody>
@@ -3029,7 +3568,9 @@ const MultiStepSalesForm = ({
             as="textarea"
             rows={2}
             value={formData.salesOrder.terms}
-            onChange={(e) => handleChange('salesOrder', 'terms', e.target.value)}
+            onChange={(e) =>
+              handleChange("salesOrder", "terms", e.target.value)
+            }
             style={{ border: "1px solid #343a40" }}
           />
         </Form.Group>
@@ -3037,10 +3578,18 @@ const MultiStepSalesForm = ({
         {renderAttachmentFields("salesOrder")}
         {/* Navigation Buttons */}
         <div className="d-flex justify-content-between mt-4">
-          <Button variant="secondary" onClick={handleSkip}>Skip</Button>
-          <Button variant="warning" onClick={handleSaveDraft}>Save</Button>
-          <Button variant="primary" onClick={handleSaveNext}>Save & Next</Button>
-          <Button variant="success" onClick={handleNext}>Next</Button>
+          <Button variant="secondary" onClick={handleSkip}>
+            Skip
+          </Button>
+          <Button variant="warning" onClick={handleSaveDraft}>
+            Save
+          </Button>
+          <Button variant="primary" onClick={handleSaveNext}>
+            Save & Next
+          </Button>
+          <Button variant="success" onClick={handleNext}>
+            Next
+          </Button>
         </div>
       </Form>
     );
@@ -3051,31 +3600,64 @@ const MultiStepSalesForm = ({
       <Form>
         {/* Header: Logo + Company Info + Title */}
         <Row className="mb-4 d-flex justify-content-between">
-          <Col md={3} className="d-flex align-items-center justify-content-center">
+          <Col
+            md={3}
+            className="d-flex align-items-center justify-content-center"
+          >
             <div
               className="border rounded d-flex flex-column align-items-center justify-content-center"
-              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
-              onClick={() => document.getElementById('logo-upload-dc')?.click()}
+              style={{
+                height: "120px",
+                width: "100%",
+                borderStyle: "dashed",
+                cursor: "pointer",
+                overflow: "hidden",
+              }}
+              onClick={() => document.getElementById("logo-upload-dc")?.click()}
             >
               {formData.deliveryChallan.companyLogo ? (
                 <img
                   src={formData.deliveryChallan.companyLogo}
                   alt="Company Logo"
-                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
-                  onError={(e) => { e.target.style.display = 'none'; }}
+                  style={{
+                    maxHeight: "100%",
+                    maxWidth: "100%",
+                    objectFit: "contain",
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
                 />
               ) : (
                 <>
-                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <FontAwesomeIcon
+                    icon={faUpload}
+                    size="2x"
+                    className="text-muted"
+                  />
                   <small>Upload Logo</small>
                 </>
               )}
-              <input id="logo-upload-dc" type="file" accept="image/*" hidden onChange={(e) => {
-                if (e.target.files[0]) handleChange("deliveryChallan", "companyLogo", e.target.files[0]);
-              }} />
+              <input
+                id="logo-upload-dc"
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files[0])
+                    handleChange(
+                      "deliveryChallan",
+                      "companyLogo",
+                      e.target.files[0]
+                    );
+                }}
+              />
             </div>
           </Col>
-          <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
+          <Col
+            md={3}
+            className="d-flex flex-column align-items-end justify-content-center"
+          >
             <h2 className="text-success mb-0">DELIVERY CHALLAN</h2>
             <hr
               style={{
@@ -3103,39 +3685,82 @@ const MultiStepSalesForm = ({
               <Form.Control
                 type="text"
                 value={formData.deliveryChallan.companyName}
-                onChange={(e) => handleChange("deliveryChallan", "companyName", e.target.value)}
+                onChange={(e) =>
+                  handleChange("deliveryChallan", "companyName", e.target.value)
+                }
                 placeholder="Your Company Name"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="text"
                 value={formData.deliveryChallan.companyAddress}
-                onChange={(e) => handleChange("deliveryChallan", "companyAddress", e.target.value)}
+                onChange={(e) =>
+                  handleChange(
+                    "deliveryChallan",
+                    "companyAddress",
+                    e.target.value
+                  )
+                }
                 placeholder="Company Address, City, State, Pincode"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="email"
                 value={formData.deliveryChallan.companyEmail}
-                onChange={(e) => handleChange("deliveryChallan", "companyEmail", e.target.value)}
+                onChange={(e) =>
+                  handleChange(
+                    "deliveryChallan",
+                    "companyEmail",
+                    e.target.value
+                  )
+                }
                 placeholder="Company Email"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="text"
                 value={formData.deliveryChallan.companyPhone}
-                onChange={(e) => handleChange("deliveryChallan", "companyPhone", e.target.value)}
+                onChange={(e) =>
+                  handleChange(
+                    "deliveryChallan",
+                    "companyPhone",
+                    e.target.value
+                  )
+                }
                 placeholder="Phone No."
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </div>
           </Col>
           <Col md={6} className="d-flex flex-column align-items-end">
-            <div className="d-flex flex-column gap-2 text-end" style={{ maxWidth: "400px", width: "100%" }}>
+            <div
+              className="d-flex flex-column gap-2 text-end"
+              style={{ maxWidth: "400px", width: "100%" }}
+            >
               {/* Challan No (Auto or Manual) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
@@ -3146,7 +3771,7 @@ const MultiStepSalesForm = ({
                       color: "#6c757d",
                       whiteSpace: "nowrap",
                       flexShrink: 0,
-                      marginRight: "8px"
+                      marginRight: "8px",
                     }}
                   >
                     Challan No.
@@ -3166,7 +3791,7 @@ const MultiStepSalesForm = ({
                       color: "#495057",
                       cursor: "not-allowed",
                       textAlign: "right",
-                      flexGrow: 1
+                      flexGrow: 1,
                     }}
                   />
                 </div>
@@ -3179,7 +3804,7 @@ const MultiStepSalesForm = ({
                     style={{
                       fontSize: "0.9rem",
                       color: "#6c757d",
-                      whiteSpace: "nowrap"
+                      whiteSpace: "nowrap",
                     }}
                   >
                     Manual DC No (Optional)
@@ -3187,7 +3812,13 @@ const MultiStepSalesForm = ({
                   <Form.Control
                     type="text"
                     value={formData.deliveryChallan.manualChallanNo || ""}
-                    onChange={(e) => handleChange("deliveryChallan", "manualChallanNo", e.target.value)}
+                    onChange={(e) =>
+                      handleChange(
+                        "deliveryChallan",
+                        "manualChallanNo",
+                        e.target.value
+                      )
+                    }
                     placeholder="e.g. DC-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
                     style={{
@@ -3195,7 +3826,7 @@ const MultiStepSalesForm = ({
                       lineHeight: "1.5",
                       minHeight: "auto",
                       padding: "0.375rem 0.75rem",
-                      textAlign: "right"
+                      textAlign: "right",
                     }}
                   />
                 </div>
@@ -3210,7 +3841,7 @@ const MultiStepSalesForm = ({
                       color: "#6c757d",
                       whiteSpace: "nowrap",
                       flexShrink: 0,
-                      marginRight: "8px"
+                      marginRight: "8px",
                     }}
                   >
                     SO No.
@@ -3230,7 +3861,7 @@ const MultiStepSalesForm = ({
                       color: "#495057",
                       cursor: "not-allowed",
                       textAlign: "right",
-                      flexGrow: 1
+                      flexGrow: 1,
                     }}
                   />
                 </div>
@@ -3243,7 +3874,7 @@ const MultiStepSalesForm = ({
                     style={{
                       fontSize: "0.9rem",
                       color: "#6c757d",
-                      whiteSpace: "nowrap"
+                      whiteSpace: "nowrap",
                     }}
                   >
                     Manual SO No (Optional)
@@ -3251,7 +3882,13 @@ const MultiStepSalesForm = ({
                   <Form.Control
                     type="text"
                     value={formData.deliveryChallan.manualSalesOrderRef || ""}
-                    onChange={(e) => handleChange("deliveryChallan", "manualSalesOrderRef", e.target.value)}
+                    onChange={(e) =>
+                      handleChange(
+                        "deliveryChallan",
+                        "manualSalesOrderRef",
+                        e.target.value
+                      )
+                    }
                     placeholder="e.g. SO-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
                     style={{
@@ -3259,7 +3896,7 @@ const MultiStepSalesForm = ({
                       lineHeight: "1.5",
                       minHeight: "auto",
                       padding: "0.375rem 0.75rem",
-                      textAlign: "right"
+                      textAlign: "right",
                     }}
                   />
                 </div>
@@ -3269,7 +3906,9 @@ const MultiStepSalesForm = ({
                 <Form.Control
                   type="text"
                   value={formData.deliveryChallan.vehicleNo}
-                  onChange={(e) => handleChange('deliveryChallan', 'vehicleNo', e.target.value)}
+                  onChange={(e) =>
+                    handleChange("deliveryChallan", "vehicleNo", e.target.value)
+                  }
                   placeholder="Vehicle No."
                   className="form-control-no-border text-end"
                   style={{
@@ -3277,7 +3916,7 @@ const MultiStepSalesForm = ({
                     lineHeight: "1.5",
                     minHeight: "auto",
                     padding: "0",
-                    textAlign: "right"
+                    textAlign: "right",
                   }}
                 />
               </Form.Group>
@@ -3299,14 +3938,26 @@ const MultiStepSalesForm = ({
           <Col md={6} className="d-flex flex-column align-items-start">
             <h5>BILL TO</h5>
             <Form.Group className="mb-2 w-100">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
                 <Form.Control
                   type="text"
                   value={formData.deliveryChallan.billToName}
-                  onChange={(e) => handleChange("deliveryChallan", "billToName", e.target.value)}
+                  onChange={(e) =>
+                    handleChange(
+                      "deliveryChallan",
+                      "billToName",
+                      e.target.value
+                    )
+                  }
                   placeholder="Attention Name / Department"
                   className="form-control-no-border"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", marginRight: '5px' }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    marginRight: "5px",
+                  }}
                 />
               </div>
             </Form.Group>
@@ -3314,30 +3965,55 @@ const MultiStepSalesForm = ({
               <Form.Control
                 type="text"
                 value={formData.deliveryChallan.billToAddress}
-                onChange={(e) => handleChange("deliveryChallan", "billToAddress", e.target.value)}
+                onChange={(e) =>
+                  handleChange(
+                    "deliveryChallan",
+                    "billToAddress",
+                    e.target.value
+                  )
+                }
                 placeholder="Company Address"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2 w-100">
               <Form.Control
                 type="text"
                 value={formData.deliveryChallan.billToPhone}
-                onChange={(e) => handleChange("deliveryChallan", "billToPhone", e.target.value)}
+                onChange={(e) =>
+                  handleChange("deliveryChallan", "billToPhone", e.target.value)
+                }
                 placeholder="Phone"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2 w-100">
               <Form.Control
                 type="email"
                 value={formData.deliveryChallan.billToEmail}
-                onChange={(e) => handleChange("deliveryChallan", "billToEmail", e.target.value)}
+                onChange={(e) =>
+                  handleChange("deliveryChallan", "billToEmail", e.target.value)
+                }
                 placeholder="Email"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
           </Col>
@@ -3349,40 +4025,88 @@ const MultiStepSalesForm = ({
                 <Form.Control
                   type="text"
                   value={formData.deliveryChallan.shipToName}
-                  onChange={(e) => handleChange("deliveryChallan", "shipToName", e.target.value)}
+                  onChange={(e) =>
+                    handleChange(
+                      "deliveryChallan",
+                      "shipToName",
+                      e.target.value
+                    )
+                  }
                   placeholder="Attention Name / Department"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Control
                   type="text"
                   value={formData.deliveryChallan.shipToAddress}
-                  onChange={(e) => handleChange("deliveryChallan", "shipToAddress", e.target.value)}
+                  onChange={(e) =>
+                    handleChange(
+                      "deliveryChallan",
+                      "shipToAddress",
+                      e.target.value
+                    )
+                  }
                   placeholder="Company Address"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Control
                   type="text"
                   value={formData.deliveryChallan.shipToPhone}
-                  onChange={(e) => handleChange("deliveryChallan", "shipToPhone", e.target.value)}
+                  onChange={(e) =>
+                    handleChange(
+                      "deliveryChallan",
+                      "shipToPhone",
+                      e.target.value
+                    )
+                  }
                   placeholder="Phone"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Control
                   type="email"
                   value={formData.deliveryChallan.shipToEmail}
-                  onChange={(e) => handleChange("deliveryChallan", "shipToEmail", e.target.value)}
+                  onChange={(e) =>
+                    handleChange(
+                      "deliveryChallan",
+                      "shipToEmail",
+                      e.target.value
+                    )
+                  }
                   placeholder="Email"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
             </div>
@@ -3407,7 +4131,9 @@ const MultiStepSalesForm = ({
               <Form.Control
                 type="text"
                 value={formData.deliveryChallan.driverName}
-                onChange={(e) => handleChange("deliveryChallan", "driverName", e.target.value)}
+                onChange={(e) =>
+                  handleChange("deliveryChallan", "driverName", e.target.value)
+                }
                 placeholder="Driver Name"
                 style={{ border: "1px solid #343a40" }}
               />
@@ -3417,7 +4143,9 @@ const MultiStepSalesForm = ({
               <Form.Control
                 type="text"
                 value={formData.deliveryChallan.driverPhone}
-                onChange={(e) => handleChange("deliveryChallan", "driverPhone", e.target.value)}
+                onChange={(e) =>
+                  handleChange("deliveryChallan", "driverPhone", e.target.value)
+                }
                 placeholder="Driver Phone"
                 style={{ border: "1px solid #343a40" }}
               />
@@ -3425,7 +4153,7 @@ const MultiStepSalesForm = ({
           </Col>
         </Row>
         {/* Items Table */}
-        <div className="mt-4">{renderItemsTable('deliveryChallan')}</div>
+        <div className="mt-4">{renderItemsTable("deliveryChallan")}</div>
         {/* Totals - Moved to left side */}
         <Row className="mb-4 mt-2">
           <Col md={4}>
@@ -3433,12 +4161,20 @@ const MultiStepSalesForm = ({
               <tbody>
                 <tr>
                   <td className="fw-bold">Sub Total:</td>
-                  <td>${calculateTotalAmount(formData.deliveryChallan.items).toFixed(2)}</td>
+                  <td>
+                    $
+                    {calculateTotalAmount(
+                      formData.deliveryChallan.items
+                    ).toFixed(2)}
+                  </td>
                 </tr>
                 <tr>
                   <td className="fw-bold">Total:</td>
                   <td className="fw-bold">
-                    ${calculateTotalAmount(formData.deliveryChallan.items).toFixed(2)}
+                    $
+                    {calculateTotalAmount(
+                      formData.deliveryChallan.items
+                    ).toFixed(2)}
                   </td>
                 </tr>
               </tbody>
@@ -3452,7 +4188,9 @@ const MultiStepSalesForm = ({
             as="textarea"
             rows={2}
             value={formData.deliveryChallan.terms}
-            onChange={(e) => handleChange('deliveryChallan', 'terms', e.target.value)}
+            onChange={(e) =>
+              handleChange("deliveryChallan", "terms", e.target.value)
+            }
             style={{ border: "1px solid #343a40" }}
           />
         </Form.Group>
@@ -3461,16 +4199,26 @@ const MultiStepSalesForm = ({
         {/* Thank You Section */}
         <Row className="text-center mt-5 mb-4 pt-3 border-top">
           <Col>
-            <p><strong>Thank you for your business!</strong></p>
+            <p>
+              <strong>Thank you for your business!</strong>
+            </p>
             <p className="text-muted">www.yourcompany.com</p>
           </Col>
         </Row>
         {/* Navigation Buttons */}
         <div className="d-flex justify-content-between mt-4">
-          <Button variant="secondary" onClick={handleSkip}>Skip</Button>
-          <Button variant="warning" onClick={handleSaveDraft}>Save</Button>
-          <Button variant="primary" onClick={handleSaveNext}>Save & Next</Button>
-          <Button variant="success" onClick={handleNext}>Next</Button>
+          <Button variant="secondary" onClick={handleSkip}>
+            Skip
+          </Button>
+          <Button variant="warning" onClick={handleSaveDraft}>
+            Save
+          </Button>
+          <Button variant="primary" onClick={handleSaveNext}>
+            Save & Next
+          </Button>
+          <Button variant="success" onClick={handleNext}>
+            Next
+          </Button>
         </div>
       </Form>
     );
@@ -3481,31 +4229,62 @@ const MultiStepSalesForm = ({
       <Form>
         {/* Header: Logo + Company Info + Title */}
         <Row className="mb-4 d-flex justify-content-between align-items-center">
-          <Col md={3} className="d-flex align-items-center justify-content-center">
+          <Col
+            md={3}
+            className="d-flex align-items-center justify-content-center"
+          >
             <div
               className="border rounded d-flex flex-column align-items-center justify-content-center"
-              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
-              onClick={() => document.getElementById('logo-upload-invoice')?.click()}
+              style={{
+                height: "120px",
+                width: "100%",
+                borderStyle: "dashed",
+                cursor: "pointer",
+                overflow: "hidden",
+              }}
+              onClick={() =>
+                document.getElementById("logo-upload-invoice")?.click()
+              }
             >
               {formData.invoice.companyLogo ? (
                 <img
                   src={formData.invoice.companyLogo}
                   alt="Company Logo"
-                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
-                  onError={(e) => { e.target.style.display = 'none'; }}
+                  style={{
+                    maxHeight: "100%",
+                    maxWidth: "100%",
+                    objectFit: "contain",
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
                 />
               ) : (
                 <>
-                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <FontAwesomeIcon
+                    icon={faUpload}
+                    size="2x"
+                    className="text-muted"
+                  />
                   <small>Upload Logo</small>
                 </>
               )}
-              <input id="logo-upload-invoice" type="file" accept="image/*" hidden onChange={(e) => {
-                if (e.target.files[0]) handleChange("invoice", "companyLogo", e.target.files[0]);
-              }} />
+              <input
+                id="logo-upload-invoice"
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files[0])
+                    handleChange("invoice", "companyLogo", e.target.files[0]);
+                }}
+              />
             </div>
           </Col>
-          <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
+          <Col
+            md={3}
+            className="d-flex flex-column align-items-end justify-content-center"
+          >
             <h2 className="text-success mb-0">INVOICE</h2>
             <hr
               style={{
@@ -3533,39 +4312,70 @@ const MultiStepSalesForm = ({
               <Form.Control
                 type="text"
                 value={formData.invoice.companyName}
-                onChange={(e) => handleChange("invoice", "companyName", e.target.value)}
+                onChange={(e) =>
+                  handleChange("invoice", "companyName", e.target.value)
+                }
                 placeholder="Your Company Name"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="text"
                 value={formData.invoice.companyAddress}
-                onChange={(e) => handleChange("invoice", "companyAddress", e.target.value)}
+                onChange={(e) =>
+                  handleChange("invoice", "companyAddress", e.target.value)
+                }
                 placeholder="Company Address, City, State, Pincode"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="email"
                 value={formData.invoice.companyEmail}
-                onChange={(e) => handleChange("invoice", "companyEmail", e.target.value)}
+                onChange={(e) =>
+                  handleChange("invoice", "companyEmail", e.target.value)
+                }
                 placeholder="Company Email"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="text"
                 value={formData.invoice.companyPhone}
-                onChange={(e) => handleChange("invoice", "companyPhone", e.target.value)}
+                onChange={(e) =>
+                  handleChange("invoice", "companyPhone", e.target.value)
+                }
                 placeholder="Phone No."
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </div>
           </Col>
           <Col md={6} className="d-flex flex-column align-items-end">
-            <div className="d-flex flex-column gap-2 text-end" style={{ maxWidth: "400px", width: "100%" }}>
+            <div
+              className="d-flex flex-column gap-2 text-end"
+              style={{ maxWidth: "400px", width: "100%" }}
+            >
               {/* Invoice No (Auto or Manual) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
@@ -3576,7 +4386,7 @@ const MultiStepSalesForm = ({
                       color: "#6c757d",
                       whiteSpace: "nowrap",
                       flexShrink: 0,
-                      marginRight: "8px"
+                      marginRight: "8px",
                     }}
                   >
                     Invoice No.
@@ -3596,7 +4406,7 @@ const MultiStepSalesForm = ({
                       color: "#495057",
                       cursor: "not-allowed",
                       textAlign: "right",
-                      flexGrow: 1
+                      flexGrow: 1,
                     }}
                   />
                 </div>
@@ -3609,7 +4419,7 @@ const MultiStepSalesForm = ({
                     style={{
                       fontSize: "0.9rem",
                       color: "#6c757d",
-                      whiteSpace: "nowrap"
+                      whiteSpace: "nowrap",
                     }}
                   >
                     Manual Invoice No (Optional)
@@ -3617,7 +4427,9 @@ const MultiStepSalesForm = ({
                   <Form.Control
                     type="text"
                     value={formData.invoice.manualInvoiceNo || ""}
-                    onChange={(e) => handleChange("invoice", "manualInvoiceNo", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("invoice", "manualInvoiceNo", e.target.value)
+                    }
                     placeholder="e.g. INV-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
                     style={{
@@ -3625,7 +4437,7 @@ const MultiStepSalesForm = ({
                       lineHeight: "1.5",
                       minHeight: "auto",
                       padding: "0.375rem 0.75rem",
-                      textAlign: "right"
+                      textAlign: "right",
                     }}
                   />
                 </div>
@@ -3640,7 +4452,7 @@ const MultiStepSalesForm = ({
                       color: "#6c757d",
                       whiteSpace: "nowrap",
                       flexShrink: 0,
-                      marginRight: "8px"
+                      marginRight: "8px",
                     }}
                   >
                     Challan No.
@@ -3660,7 +4472,7 @@ const MultiStepSalesForm = ({
                       color: "#495057",
                       cursor: "not-allowed",
                       textAlign: "right",
-                      flexGrow: 1
+                      flexGrow: 1,
                     }}
                   />
                 </div>
@@ -3673,7 +4485,7 @@ const MultiStepSalesForm = ({
                     style={{
                       fontSize: "0.9rem",
                       color: "#6c757d",
-                      whiteSpace: "nowrap"
+                      whiteSpace: "nowrap",
                     }}
                   >
                     Manual Challan No (Optional)
@@ -3681,7 +4493,9 @@ const MultiStepSalesForm = ({
                   <Form.Control
                     type="text"
                     value={formData.invoice.manualChallanNo || ""}
-                    onChange={(e) => handleChange("invoice", "manualChallanNo", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("invoice", "manualChallanNo", e.target.value)
+                    }
                     placeholder="e.g. DC-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
                     style={{
@@ -3689,27 +4503,32 @@ const MultiStepSalesForm = ({
                       lineHeight: "1.5",
                       minHeight: "auto",
                       padding: "0.375rem 0.75rem",
-                      textAlign: "right"
+                      textAlign: "right",
                     }}
                   />
                 </div>
               </Form.Group>
               {/* Due Date */}
               <Form.Group>
-                <Form.Label className="mb-0" style={{ fontSize: "0.9rem", color: "#6c757d" }}>
+                <Form.Label
+                  className="mb-0"
+                  style={{ fontSize: "0.9rem", color: "#6c757d" }}
+                >
                   Due Date
                 </Form.Label>
                 <Form.Control
                   type="date"
                   value={formData.invoice.dueDate}
-                  onChange={(e) => handleChange("invoice", "dueDate", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("invoice", "dueDate", e.target.value)
+                  }
                   className="form-control-no-border text-end"
                   style={{
                     fontSize: "1rem",
                     lineHeight: "1.5",
                     minHeight: "auto",
                     padding: "0",
-                    textAlign: "right"
+                    textAlign: "right",
                   }}
                 />
               </Form.Group>
@@ -3731,19 +4550,27 @@ const MultiStepSalesForm = ({
           <Col md={6} className="d-flex flex-column align-items-start">
             <h5>BILL TO</h5>
             <Form.Group className="mb-2 w-100">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
                 <Form.Control
                   type="text"
                   value={formData.invoice.customerName}
-                  onChange={(e) => handleChange("invoice", "customerName", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("invoice", "customerName", e.target.value)
+                  }
                   placeholder="Customer Name"
                   className="form-control-no-border"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", marginRight: '5px' }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    marginRight: "5px",
+                  }}
                 />
                 <Button
                   variant="outline-primary"
                   size="sm"
-                  onClick={() => navigate('/add-customer')} // Example navigation
+                  onClick={() => navigate("/add-customer")} // Example navigation
                   title="Add Customer"
                 >
                   Add Customer
@@ -3755,30 +4582,51 @@ const MultiStepSalesForm = ({
                 as="textarea"
                 rows={2}
                 value={formData.invoice.customerAddress}
-                onChange={(e) => handleChange("invoice", "customerAddress", e.target.value)}
+                onChange={(e) =>
+                  handleChange("invoice", "customerAddress", e.target.value)
+                }
                 placeholder="Customer Address"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2 w-100">
               <Form.Control
                 type="email"
                 value={formData.invoice.customerEmail}
-                onChange={(e) => handleChange("invoice", "customerEmail", e.target.value)}
+                onChange={(e) =>
+                  handleChange("invoice", "customerEmail", e.target.value)
+                }
                 placeholder="Email"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2 w-100">
               <Form.Control
                 type="text"
                 value={formData.invoice.customerPhone}
-                onChange={(e) => handleChange("invoice", "customerPhone", e.target.value)}
+                onChange={(e) =>
+                  handleChange("invoice", "customerPhone", e.target.value)
+                }
                 placeholder="Phone"
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
           </Col>
@@ -3789,40 +4637,72 @@ const MultiStepSalesForm = ({
                 <Form.Control
                   type="text"
                   value={formData.invoice.shipToName || ""}
-                  onChange={(e) => handleChange("invoice", "shipToName", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("invoice", "shipToName", e.target.value)
+                  }
                   placeholder="Name"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Control
                   type="text"
                   value={formData.invoice.shipToAddress || ""}
-                  onChange={(e) => handleChange("invoice", "shipToAddress", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("invoice", "shipToAddress", e.target.value)
+                  }
                   placeholder="Address"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Control
                   type="email"
                   value={formData.invoice.shipToEmail || ""}
-                  onChange={(e) => handleChange("invoice", "shipToEmail", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("invoice", "shipToEmail", e.target.value)
+                  }
                   placeholder="Email"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Control
                   type="text"
                   value={formData.invoice.shipToPhone || ""}
-                  onChange={(e) => handleChange("invoice", "shipToPhone", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("invoice", "shipToPhone", e.target.value)
+                  }
                   placeholder="Phone"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
             </div>
@@ -3839,7 +4719,7 @@ const MultiStepSalesForm = ({
           }}
         />
         {/* Items Table */}
-        <div className="mt-4">{renderItemsTable('invoice')}</div>
+        <div className="mt-4">{renderItemsTable("invoice")}</div>
         {/* Totals - Moved to left side */}
         <Row className="mb-4 mt-2">
           <Col md={4}>
@@ -3847,11 +4727,15 @@ const MultiStepSalesForm = ({
               <tbody>
                 <tr>
                   <td className="fw-bold">Sub Total:</td>
-                  <td>${calculateTotalAmount(formData.invoice.items).toFixed(2)}</td>
+                  <td>
+                    ${calculateTotalAmount(formData.invoice.items).toFixed(2)}
+                  </td>
                 </tr>
                 <tr>
                   <td className="fw-bold">Total Due:</td>
-                  <td className="fw-bold">${calculateTotalAmount(formData.invoice.items).toFixed(2)}</td>
+                  <td className="fw-bold">
+                    ${calculateTotalAmount(formData.invoice.items).toFixed(2)}
+                  </td>
                 </tr>
               </tbody>
             </Table>
@@ -3877,7 +4761,9 @@ const MultiStepSalesForm = ({
             <Form.Control
               type="text"
               value={formData.invoice.footerNote}
-              onChange={(e) => handleChange("invoice", "footerNote", e.target.value)}
+              onChange={(e) =>
+                handleChange("invoice", "footerNote", e.target.value)
+              }
               className="text-center mb-2 fw-bold"
               placeholder=" Thank you for your business!"
             />
@@ -3885,10 +4771,18 @@ const MultiStepSalesForm = ({
         </Row>
         {/* Navigation */}
         <div className="d-flex justify-content-between mt-4 border-top pt-3">
-          <Button variant="secondary" onClick={handleSkip}>Skip</Button>
-          <Button variant="warning" onClick={handleSaveDraft}>Save</Button>
-          <Button variant="primary" onClick={handleSaveNext}>Save & Next</Button>
-          <Button variant="success" onClick={handleNext}>Next</Button>
+          <Button variant="secondary" onClick={handleSkip}>
+            Skip
+          </Button>
+          <Button variant="warning" onClick={handleSaveDraft}>
+            Save
+          </Button>
+          <Button variant="primary" onClick={handleSaveNext}>
+            Save & Next
+          </Button>
+          <Button variant="success" onClick={handleNext}>
+            Next
+          </Button>
         </div>
       </Form>
     );
@@ -3899,31 +4793,62 @@ const MultiStepSalesForm = ({
       <Form>
         {/* Header: Logo + Title */}
         <Row className="mb-4 d-flex justify-content-between align-items-center">
-          <Col md={3} className="d-flex align-items-center justify-content-center">
+          <Col
+            md={3}
+            className="d-flex align-items-center justify-content-center"
+          >
             <div
               className="border rounded d-flex flex-column align-items-center justify-content-center"
-              style={{ height: "120px", width: "100%", borderStyle: "dashed", cursor: "pointer", overflow: "hidden" }}
-              onClick={() => document.getElementById('logo-upload-payment')?.click()}
+              style={{
+                height: "120px",
+                width: "100%",
+                borderStyle: "dashed",
+                cursor: "pointer",
+                overflow: "hidden",
+              }}
+              onClick={() =>
+                document.getElementById("logo-upload-payment")?.click()
+              }
             >
               {formData.payment.companyLogo ? (
                 <img
                   src={formData.payment.companyLogo}
                   alt="Company Logo"
-                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
-                  onError={(e) => { e.target.style.display = 'none'; }}
+                  style={{
+                    maxHeight: "100%",
+                    maxWidth: "100%",
+                    objectFit: "contain",
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
                 />
               ) : (
                 <>
-                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <FontAwesomeIcon
+                    icon={faUpload}
+                    size="2x"
+                    className="text-muted"
+                  />
                   <small>Upload Logo</small>
                 </>
               )}
-              <input id="logo-upload-payment" type="file" accept="image/*" hidden onChange={(e) => {
-                if (e.target.files[0]) handleChange("payment", "companyLogo", e.target.files[0]);
-              }} />
+              <input
+                id="logo-upload-payment"
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files[0])
+                    handleChange("payment", "companyLogo", e.target.files[0]);
+                }}
+              />
             </div>
           </Col>
-          <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
+          <Col
+            md={3}
+            className="d-flex flex-column align-items-end justify-content-center"
+          >
             <h2 className="text-success mb-0">PAYMENT RECEIPT</h2>
             <hr
               style={{
@@ -3951,39 +4876,70 @@ const MultiStepSalesForm = ({
               <Form.Control
                 type="text"
                 value={formData.payment.companyName}
-                onChange={(e) => handleChange("payment", "companyName", e.target.value)}
+                onChange={(e) =>
+                  handleChange("payment", "companyName", e.target.value)
+                }
                 placeholder=" Enter Your Company Name. . . . ."
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="text"
                 value={formData.payment.companyAddress}
-                onChange={(e) => handleChange("payment", "companyAddress", e.target.value)}
+                onChange={(e) =>
+                  handleChange("payment", "companyAddress", e.target.value)
+                }
                 placeholder="Company Address, City, State, Pincode  . . . "
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="email"
                 value={formData.payment.companyEmail}
-                onChange={(e) => handleChange("payment", "companyEmail", e.target.value)}
+                onChange={(e) =>
+                  handleChange("payment", "companyEmail", e.target.value)
+                }
                 placeholder="Company Email. . . ."
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
               <Form.Control
                 type="text"
                 value={formData.payment.companyPhone}
-                onChange={(e) => handleChange("payment", "companyPhone", e.target.value)}
+                onChange={(e) =>
+                  handleChange("payment", "companyPhone", e.target.value)
+                }
                 placeholder="Phone No....."
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </div>
           </Col>
           <Col md={6} className="d-flex flex-column align-items-end">
-            <div className="d-flex flex-column gap-2 text-end" style={{ maxWidth: "400px", width: "100%" }}>
+            <div
+              className="d-flex flex-column gap-2 text-end"
+              style={{ maxWidth: "400px", width: "100%" }}
+            >
               {/* Payment No (Auto) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
@@ -3994,7 +4950,7 @@ const MultiStepSalesForm = ({
                       color: "#6c757d",
                       whiteSpace: "nowrap",
                       flexShrink: 0,
-                      marginRight: "8px"
+                      marginRight: "8px",
                     }}
                   >
                     Payment No.
@@ -4014,7 +4970,7 @@ const MultiStepSalesForm = ({
                       color: "#495057",
                       cursor: "not-allowed",
                       textAlign: "right",
-                      flexGrow: 1
+                      flexGrow: 1,
                     }}
                   />
                 </div>
@@ -4027,7 +4983,7 @@ const MultiStepSalesForm = ({
                     style={{
                       fontSize: "0.9rem",
                       color: "#6c757d",
-                      whiteSpace: "nowrap"
+                      whiteSpace: "nowrap",
                     }}
                   >
                     Manual Payment No (Optional)
@@ -4035,7 +4991,9 @@ const MultiStepSalesForm = ({
                   <Form.Control
                     type="text"
                     value={formData.payment.manualPaymentNo || ""}
-                    onChange={(e) => handleChange("payment", "manualPaymentNo", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("payment", "manualPaymentNo", e.target.value)
+                    }
                     placeholder="e.g. PAY-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
                     style={{
@@ -4043,7 +5001,7 @@ const MultiStepSalesForm = ({
                       lineHeight: "1.5",
                       minHeight: "auto",
                       padding: "0.375rem 0.75rem",
-                      textAlign: "right"
+                      textAlign: "right",
                     }}
                   />
                 </div>
@@ -4058,7 +5016,7 @@ const MultiStepSalesForm = ({
                       color: "#6c757d",
                       whiteSpace: "nowrap",
                       flexShrink: 0,
-                      marginRight: "8px"
+                      marginRight: "8px",
                     }}
                   >
                     Invoice No.
@@ -4078,7 +5036,7 @@ const MultiStepSalesForm = ({
                       color: "#495057",
                       cursor: "not-allowed",
                       textAlign: "right",
-                      flexGrow: 1
+                      flexGrow: 1,
                     }}
                   />
                 </div>
@@ -4091,7 +5049,7 @@ const MultiStepSalesForm = ({
                     style={{
                       fontSize: "0.9rem",
                       color: "#6c757d",
-                      whiteSpace: "nowrap"
+                      whiteSpace: "nowrap",
                     }}
                   >
                     Manual Invoice No (Optional)
@@ -4099,7 +5057,13 @@ const MultiStepSalesForm = ({
                   <Form.Control
                     type="text"
                     value={formData.payment.manualInvoiceRef || ""}
-                    onChange={(e) => handleChange("payment", "manualInvoiceRef", e.target.value)}
+                    onChange={(e) =>
+                      handleChange(
+                        "payment",
+                        "manualInvoiceRef",
+                        e.target.value
+                      )
+                    }
                     placeholder="e.g. INV-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
                     style={{
@@ -4107,7 +5071,7 @@ const MultiStepSalesForm = ({
                       lineHeight: "1.5",
                       minHeight: "auto",
                       padding: "0.375rem 0.75rem",
-                      textAlign: "right"
+                      textAlign: "right",
                     }}
                   />
                 </div>
@@ -4117,7 +5081,9 @@ const MultiStepSalesForm = ({
                 <Form.Control
                   type="text"
                   value={formData.payment.paymentMethod}
-                  onChange={(e) => handleChange("payment", "paymentMethod", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("payment", "paymentMethod", e.target.value)
+                  }
                   placeholder="Payment Method"
                   className="form-control-no-border text-end"
                   style={{
@@ -4125,7 +5091,7 @@ const MultiStepSalesForm = ({
                     lineHeight: "1.5",
                     minHeight: "auto",
                     padding: "0",
-                    textAlign: "right"
+                    textAlign: "right",
                   }}
                 />
               </Form.Group>
@@ -4148,39 +5114,67 @@ const MultiStepSalesForm = ({
             <Form.Control
               type="text"
               value={formData.payment.customerName || ""}
-              onChange={(e) => handleChange("payment", "customerName", e.target.value)}
-              placeholder="Enter Customer Name. . . . . ."
+              onChange={(e) =>
+                handleChange("payment", "customerName", e.target.value)
+              }
+              placeholder="Enter Customer Name. . . . ."
               className="form-control-no-border"
-              style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+              style={{
+                fontSize: "1rem",
+                lineHeight: "1.5",
+                minHeight: "auto",
+                padding: "0",
+              }}
             />
             <Form.Group className="mb-1 w-100">
               <Form.Control
                 rows={2}
                 value={formData.payment.customerAddress || ""}
-                onChange={(e) => handleChange("payment", "customerAddress", e.target.value)}
+                onChange={(e) =>
+                  handleChange("payment", "customerAddress", e.target.value)
+                }
                 placeholder="Customer Address. . . .  ."
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2 w-100">
               <Form.Control
                 type="email"
                 value={formData.payment.customerEmail || ""}
-                onChange={(e) => handleChange("payment", "customerEmail", e.target.value)}
+                onChange={(e) =>
+                  handleChange("payment", "customerEmail", e.target.value)
+                }
                 placeholder="Email. . . . . "
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
             <Form.Group className="mb-2 w-100">
               <Form.Control
                 type="text"
                 value={formData.payment.customerPhone || ""}
-                onChange={(e) => handleChange("payment", "customerPhone", e.target.value)}
-                placeholder="Phone. . . . . . ."
+                onChange={(e) =>
+                  handleChange("payment", "customerPhone", e.target.value)
+                }
+                placeholder="Phone. . . . . ."
                 className="form-control-no-border"
-                style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0" }}
+                style={{
+                  fontSize: "1rem",
+                  lineHeight: "1.5",
+                  minHeight: "auto",
+                  padding: "0",
+                }}
               />
             </Form.Group>
           </Col>
@@ -4193,10 +5187,18 @@ const MultiStepSalesForm = ({
                   type="number"
                   step="0.01"
                   value={formData.payment.amount}
-                  onChange={(e) => handleChange("payment", "amount", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("payment", "amount", e.target.value)
+                  }
                   placeholder="Amount"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
               <Form.Group className="mb-2">
@@ -4218,10 +5220,18 @@ const MultiStepSalesForm = ({
                 <Form.Control
                   type="text"
                   value={formData.payment.paymentStatus}
-                  onChange={(e) => handleChange("payment", "paymentStatus", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("payment", "paymentStatus", e.target.value)
+                  }
                   placeholder="Payment Status"
                   className="form-control-no-border text-end"
-                  style={{ fontSize: "1rem", lineHeight: "1.5", minHeight: "auto", padding: "0", textAlign: "right" }}
+                  style={{
+                    fontSize: "1rem",
+                    lineHeight: "1.5",
+                    minHeight: "auto",
+                    padding: "0",
+                    textAlign: "right",
+                  }}
                 />
               </Form.Group>
             </div>
@@ -4244,7 +5254,8 @@ const MultiStepSalesForm = ({
                 <tr>
                   <td className="fw-bold">Total Invoice:</td>
                   <td>
-                    ${(
+                    $
+                    {(
                       parseFloat(formData.payment.totalAmount) ||
                       calculateTotalWithTaxAndDiscount(formData.invoice.items)
                     ).toFixed(2)}
@@ -4252,15 +5263,19 @@ const MultiStepSalesForm = ({
                 </tr>
                 <tr className="fw-bold">
                   <td>Amount Received:</td>
-                  <td>${(parseFloat(formData.payment.amount) || 0).toFixed(2)}</td>
+                  <td>
+                    ${(parseFloat(formData.payment.amount) || 0).toFixed(2)}
+                  </td>
                 </tr>
                 <tr style={{ backgroundColor: "#f8f9fa" }}>
                   <td className="fw-bold">Balance:</td>
                   <td className="fw-bold text-danger">
-                    ${(
+                    $
+                    {(
                       (parseFloat(formData.payment.totalAmount) ||
-                        calculateTotalWithTaxAndDiscount(formData.invoice.items)) -
-                      (parseFloat(formData.payment.amount) || 0)
+                        calculateTotalWithTaxAndDiscount(
+                          formData.invoice.items
+                        )) - (parseFloat(formData.payment.amount) || 0)
                     ).toFixed(2)}
                   </td>
                 </tr>
@@ -4286,16 +5301,24 @@ const MultiStepSalesForm = ({
             <Form.Control
               type="text"
               value={formData.payment.footerNote}
-              onChange={(e) => handleChange("payment", "footerNote", e.target.value)}
+              onChange={(e) =>
+                handleChange("payment", "footerNote", e.target.value)
+              }
               className="text-center mb-2 fw-bold"
               placeholder="Thank you for your payment!"
             />
           </Col>
         </Row>
         <div className="d-flex justify-content-between mt-4 border-top pt-3">
-          <Button variant="secondary" onClick={handleSkip}>Skip</Button>
-          <Button variant="warning" onClick={handleSaveDraft}>Save</Button>
-          <Button variant="primary" onClick={handleFinalSubmit}>Submit</Button>
+          <Button variant="secondary" onClick={handleSkip}>
+            Skip
+          </Button>
+          <Button variant="warning" onClick={handleSaveDraft}>
+            Save
+          </Button>
+          <Button variant="primary" onClick={handleFinalSubmit}>
+            Submit
+          </Button>
         </div>
       </Form>
     );
@@ -4303,7 +5326,8 @@ const MultiStepSalesForm = ({
 
   const renderPDFView = () => {
     const currentTab = formData[key];
-    const hasItems = tabsWithItems.includes(key) && Array.isArray(currentTab.items);
+    const hasItems =
+      tabsWithItems.includes(key) && Array.isArray(currentTab.items);
     const titleMap = {
       quotation: "QUOTATION",
       salesOrder: "SALES ORDER",
@@ -4367,11 +5391,12 @@ const MultiStepSalesForm = ({
         {/* Customer Info */}
         {(currentTab.billToName || currentTab.customerName) && (
           <div style={{ marginBottom: "15px" }}>
-            <h5>{key === 'invoice' ? 'BILL TO' : 'CUSTOMER'}</h5>
+            <h5>{key === "invoice" ? "BILL TO" : "CUSTOMER"}</h5>
             <p>{currentTab.billToName || currentTab.customerName}</p>
             <p>{currentTab.billToAddress || currentTab.customerAddress}</p>
             <p>
-              Email: {currentTab.billToEmail || currentTab.customerEmail} | Phone: {currentTab.billToPhone || currentTab.customerPhone}
+              Email: {currentTab.billToEmail || currentTab.customerEmail} |
+              Phone: {currentTab.billToPhone || currentTab.customerPhone}
             </p>
           </div>
         )}
@@ -4523,7 +5548,10 @@ const MultiStepSalesForm = ({
             </thead>
             <tbody>
               {currentTab.items.map((item, idx) => {
-                const qty = key === "deliveryChallan" ? parseInt(item.deliveredQty) || 0 : parseInt(item.qty) || 0;
+                const qty =
+                  key === "deliveryChallan"
+                    ? parseInt(item.deliveredQty) || 0
+                    : parseInt(item.qty) || 0;
                 const rate = parseFloat(item.rate) || 0;
                 const tax = parseFloat(item.tax) || 0;
                 const discount = parseFloat(item.discount) || 0;
@@ -4555,6 +5583,15 @@ const MultiStepSalesForm = ({
                     <td style={{ border: "1px solid #000", padding: "8px" }}>
                       ${amount.toFixed(2)}
                     </td>
+                    <td style={{ border: "1px solid #000", padding: "8px" }}>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => removeItem(idx)}
+                      >
+                        Delete
+                      </Button>
+                    </td>
                   </tr>
                 );
               })}
@@ -4579,7 +5616,10 @@ const MultiStepSalesForm = ({
                     padding: "8px",
                   }}
                 >
-                  $                   {calculateTotalWithTaxAndDiscount(currentTab.items).toFixed(2)}
+                  ${" "}
+                  {calculateTotalWithTaxAndDiscount(currentTab.items).toFixed(
+                    2
+                  )}
                 </td>
               </tr>
             </tfoot>
@@ -4590,7 +5630,8 @@ const MultiStepSalesForm = ({
           <div style={{ marginBottom: "15px" }}>
             <h5>PAYMENT DETAILS</h5>
             <p>
-              <strong>Amount Paid:</strong> $               {parseFloat(currentTab.amount || 0).toFixed(2)}
+              <strong>Amount Paid:</strong> ${" "}
+              {parseFloat(currentTab.amount || 0).toFixed(2)}
             </p>
             <p>
               <strong>Payment Method:</strong> {currentTab.paymentMethod}
@@ -4672,15 +5713,14 @@ const MultiStepSalesForm = ({
     <>
       <div className="container-fluid mt-4 px-2" ref={formRef}>
         <h4 className="text-center mb-4">Sales Process</h4>
-        
+
         {/* Sales Workflow Table */}
         <div className="mb-4">
           <h5 className="mb-3">Sales Workflow</h5>
           {renderSalesWorkflowTable()}
         </div>
-        
-        {/* Top Action Buttons */}
-     
+
+    
         <Tabs activeKey={key} onSelect={setKey} className="mb-4" fill>
           <Tab eventKey="quotation" title="Quotation">
             {renderQuotationTab()}
@@ -4718,5 +5758,4 @@ const MultiStepSalesForm = ({
     </>
   );
 };
-
 export default MultiStepSalesForm;
