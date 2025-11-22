@@ -870,7 +870,6 @@ const QuotationTab = ({
             </Form.Group>
           </Col>
         </Row>
-
         {/* Attachment Fields */}
         {renderAttachmentFields("quotation")}
 

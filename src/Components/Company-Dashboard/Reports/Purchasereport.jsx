@@ -33,7 +33,7 @@ const Purchasereport = () => {
   const [loading, setLoading] = useState(false);
   const [errorToast, setErrorToast] = useState({ show: false, message: "" });
 
-  // Fetch purchase reports
+  // Fetch purchase reports 
   const fetchPurchaseReports = async () => {
     if (!companyId) {
       setErrorToast({ show: true, message: "Company ID missing. Please log in again." });

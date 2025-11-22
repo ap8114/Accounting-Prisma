@@ -233,7 +233,7 @@ const Ledgervendor = () => {
           <span className="me-1">←</span> Back to Vendors
         </Button>
         <h4 className="fw-bold mb-0 text-dark text-center flex-grow-1">
-          Vendor Ledger - {currentVendor.name}
+          Vendor Ledger - {currentVendor.name_english || currentVendor.name}
         </h4>
       </div>
 
@@ -388,15 +388,15 @@ const Ledgervendor = () => {
               </div>
               <div className="text-end">
                 <h5 className="mb-3 fw-bold text-success">Vendor Details</h5>
-                <p><strong>Name:</strong> {currentVendor.name}</p>
-                <p><strong>Company:</strong> {currentVendor.company_name || "N/A"}</p>
+                <p><strong>Name:</strong> {currentVendor.name_english || currentVendor.name || "N/A"}</p>
+                <p><strong>Company:</strong> {currentVendor.company_name || currentVendor.company?.name || "N/A"}</p>
                 <p><strong>Email:</strong> {currentVendor.email || "N/A"}</p>
                 <p><strong>Phone:</strong> {currentVendor.phone || "N/A"}</p>
-                <p><strong>GSTIN:</strong> {currentVendor.gstin || "N/A"}</p>
+                <p><strong>GSTIN:</strong> {currentVendor.gstIn || currentVendor.gstin || "N/A"}</p>
               </div>
             </div>
             <hr />
-            <h6 className="mb-3">Dear {currentVendor.name},</h6>
+            <h6 className="mb-3">Dear {currentVendor.name_english || currentVendor.name},</h6>
             <p>This is to confirm that as per our records, your account stands at the following balance:</p>
             <Table bordered size="sm" className="mb-4">
               <thead className="table-light">
@@ -470,7 +470,7 @@ const Ledgervendor = () => {
                 <p><strong>For Vendor</strong></p>
                 <div style={{ height: "40px", borderBottom: "1px solid #000" }}></div>
                 <p className="mt-2">
-                  <strong>Name:</strong> {currentVendor.name}<br />
+                  <strong>Name:</strong> {currentVendor.name_english || currentVendor.name || "N/A"}<br />
                   <strong>Signature:</strong><br />
                   <strong>Date:</strong> _______________
                 </p>
@@ -618,18 +618,18 @@ const Ledgervendor = () => {
                     </div>
                     <div style="text-align: right;">
                       <h5 style="color: #198754;">Vendor Details</h5>
-                      <p><strong>Name:</strong> ${currentVendor.name}</p>
-                      <p><strong>Company:</strong> ${currentVendor.company_name || "N/A"}</p>
+                      <p><strong>Name:</strong> ${currentVendor.name_english || currentVendor.name || "N/A"}</p>
+                      <p><strong>Company:</strong> ${currentVendor.company_name || currentVendor.company?.name || "N/A"}</p>
                       <p><strong>Email:</strong> ${currentVendor.email || "N/A"}</p>
                       <p><strong>Phone:</strong> ${currentVendor.phone || "N/A"}</p>
-                      <p><strong>GSTIN:</strong> ${currentVendor.gstin || "N/A"}</p>
+                      <p><strong>GSTIN:</strong> ${currentVendor.gstIn || currentVendor.gstin || "N/A"}</p>
                     </div>
                   </div>
                   
                   <hr>
                   
                   <div class="greeting">
-                    <p>Dear ${currentVendor.name},</p>
+                    <p>Dear ${currentVendor.name_english || currentVendor.name || ""},</p>
                     <p>This is to confirm that as per our records, your account stands at the following balance:</p>
                   </div>
                   
@@ -684,7 +684,7 @@ const Ledgervendor = () => {
                     <div class="signature-block">
                       <p><strong>For Vendor</strong></p>
                       <div class="signature-line"></div>
-                      <p><strong>Name:</strong> ${currentVendor.name}</p>
+                      <p><strong>Name:</strong> ${currentVendor.name_english || currentVendor.name || "N/A"}</p>
                       <p><strong>Signature:</strong></p>
                       <p><strong>Date:</strong> _______________</p>
                     </div>
@@ -725,13 +725,13 @@ const Ledgervendor = () => {
               <Col md={4}>
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Personal Info</h6>
-                  <p className="mb-2"><i className="bi bi-person text-success me-2"></i><strong>Name:</strong> {currentVendor.name}</p>
-                  <p className="mb-2"><i className="bi bi-building text-success me-2"></i><strong>Company:</strong> {currentVendor.company_name || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-telephone text-success me-2"></i><strong>Phone:</strong> {currentVendor.phone}</p>
-                  <p className="mb-0"><i className="bi bi-envelope text-success me-2"></i><strong>Email:</strong> {currentVendor.email}</p>
+                  <p className="mb-2"><i className="bi bi-person text-success me-2"></i><strong>Name:</strong> {currentVendor.name_english || currentVendor.name || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-building text-success me-2"></i><strong>Company:</strong> {currentVendor.company_name || currentVendor.company?.name || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-telephone text-success me-2"></i><strong>Phone:</strong> {currentVendor.phone || "N/A"}</p>
+                  <p className="mb-0"><i className="bi bi-envelope text-success me-2"></i><strong>Email:</strong> {currentVendor.email || "N/A"}</p>
                   <p className="mb-0 d-flex align-items-center">
                     <FaGlobe className="me-2" style={{ color: "#53b2a5" }} />
-                    <span><strong>Location:</strong> <a href={currentVendor.company_location} target="_blank" rel="noopener noreferrer" style={{ color: "#007bff" }}>Click Location</a></span>
+                    <span><strong>Location:</strong> <a href={currentVendor.google_location || currentVendor.company_location || '#'} target="_blank" rel="noopener noreferrer" style={{ color: "#007bff" }}>Click Location</a></span>
                   </p>
                 </div>
               </Col>
@@ -748,7 +748,7 @@ const Ledgervendor = () => {
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Financial Info</h6>
                   <p className="mb-2"><i className="bi bi-hash text-success me-2"></i><strong>Pincode:</strong> {currentVendor.pincode || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-file-earmark-text text-success me-2"></i><strong>GSTIN:</strong> {currentVendor.gstin || "N/A"}</p>
+                  <p className="mb-2"><i className="bi bi-file-earmark-text text-success me-2"></i><strong>GSTIN:</strong> {currentVendor.gstIn || currentVendor.gstin || "N/A"}</p>
                   <p className="mb-2"><i className="bi bi-calendar text-success me-2"></i><strong>Credit Period:</strong> {currentVendor.credit_period || "N/A"} days</p>
                   <p className="mb-0"><i className="bi bi-cash-stack text-success me-2"></i><strong>Balance:</strong> ₹{parseFloat(currentVendor.payable || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
                 </div>

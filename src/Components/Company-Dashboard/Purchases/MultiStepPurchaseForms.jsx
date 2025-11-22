@@ -1,49 +1,44 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Tabs, Tab, Button, Modal } from "react-bootstrap";
-import html2pdf from "html2pdf.js";
-import * as XLSX from "xlsx";
-import "../Sales/MultiStepSalesForm.css";
+import {
+  Form,
+  Button,
+  Table,
+  Row,
+  Col,
+  InputGroup,
+  FormControl,
+  Tabs,
+  Tab,
+} from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUpload,
   faTrash,
-  faEye,
-  faEdit,
-  faPlus,
   faSearch,
-  faUserPlus,
+  faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import AddProductModal from "../Inventory/AddProductModal";
 import GetCompanyId from "../../../Api/GetCompanyId";
-import AddVendorModal from "../Accounts/ChartsofAccount/AddVendorModal";
-
-// Import the new tab components
-import PurchaseQuotationTab from "./Tabs/PurchaseQuotationTab";
-import PurchaseOrderTab from "./Tabs/PurchaseOrderTab";
-import GoodsReceiptTab from "./Tabs/GoodsReceiptTab";
-import BillTab from "./Tabs/BillTab";
-import PaymentTab from "./Tabs/PaymentTab";
-import { Form, Row, Col } from "react-bootstrap";
-
+import axiosInstance from "../../../Api/axiosInstance";
 
 const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   const companyId = GetCompanyId();
-  const [key, setKey] = useState(initialStep || "purchaseQuotation");
   const navigate = useNavigate();
-  const formRef = useRef();
   const pdfRef = useRef();
+  const [activeTab, setActiveTab] = useState(initialStep || "purchaseQuotation");
 
-  // --- State for Vendor Modal ---
-  const [showVendorModal, setShowVendorModal] = useState(false);
-
-  // --- Form Data State ---
-  const [formData, setFormData] = useState(() => ({
+  // ===============================
+  // MASTER FORM DATA
+  // ===============================
+  const [formData, setFormData] = useState({
     purchaseQuotation: {
       companyName: "",
-      referenceId: "",
+      referenceId: `QRF-${new Date().getFullYear()}-${Math.floor(
+        1000 + Math.random() * 9000
+      )}`,
       manualRefNo: "",
-      quotationNo: "",
+      quotationNo: `PQ-${Date.now().toString().slice(-6)}`,
       manualQuotationNo: "",
       companyAddress: "",
       companyEmail: "",
@@ -54,7 +49,18 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       vendorAddress: "",
       vendorEmail: "",
       vendorPhone: "",
-      items: [{ name: "", qty: "", rate: "", tax: 0, discount: 0 }],
+      items: [
+        {
+          name: "",
+          qty: "",
+          rate: "",
+          tax: 0,
+          discount: 0,
+          warehouse: "",
+          hsn: "",
+          uom: "PCS",
+        },
+      ],
       bankName: "",
       accountNo: "",
       accountHolder: "",
@@ -64,11 +70,14 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       signature: "",
       photo: "",
       files: [],
+      logo: "",
     },
     purchaseOrder: {
-      referenceId: "",
+      referenceId: `ORD-${new Date().getFullYear()}-${Math.floor(
+        1000 + Math.random() * 9000
+      )}`,
       manualRefNo: "",
-      orderNo: "",
+      orderNo: `PO-${Date.now().toString().slice(-6)}`,
       manualOrderNo: "",
       quotationNo: "",
       manualQuotationNo: "",
@@ -78,17 +87,29 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       vendorAddress: "",
       vendorEmail: "",
       vendorPhone: "",
-      items: [{ name: "", qty: "", rate: "", tax: 0, discount: 0 }],
+      items: [
+        {
+          name: "",
+          qty: "",
+          rate: "",
+          tax: 0,
+          discount: 0,
+          hsn: "",
+          uom: "PCS",
+        },
+      ],
       terms: "",
       signature: "",
       photo: "",
       files: [],
     },
     goodsReceipt: {
-      referenceId: "",
+      referenceId: `GRN-${new Date().getFullYear()}-${Math.floor(
+        1000 + Math.random() * 9000
+      )}`,
       manualRefNo: "",
       purchaseOrderNo: "",
-      receiptNo: "",
+      receiptNo: `GR-${Date.now().toString().slice(-6)}`,
       manualReceiptNo: "",
       receiptDate: "",
       vehicleNo: "",
@@ -107,7 +128,16 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       shipToEmail: "",
       shipToPhone: "",
       items: [
-        { name: "", qty: "", receivedQty: "", rate: "", tax: 0, discount: 0 },
+        {
+          name: "",
+          qty: "",
+          receivedQty: "",
+          rate: "",
+          tax: 0,
+          discount: 0,
+          hsn: "",
+          uom: "PCS",
+        },
       ],
       terms: "",
       signature: "",
@@ -115,12 +145,12 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       files: [],
     },
     bill: {
-      orderNo: "",
+      referenceId: `BILL-${new Date().getFullYear()}-${Math.floor(
+        1000 + Math.random() * 9000
+      )}`,
       manualRefNo: "",
-      billNo: "",
+      billNo: `BILL-${Date.now().toString().slice(-6)}`,
       manualBillNo: "",
-      receiptNo: "",
-      manualReceiptNo: "",
       goodsReceiptNo: "",
       manualGoodsReceiptNo: "",
       billDate: "",
@@ -136,34 +166,33 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       items: [
         {
           description: "",
-          rate: "",
           qty: "",
+          rate: "",
           tax: "",
           discount: "",
           amount: "",
+          hsn: "",
+          uom: "PCS",
         },
       ],
-      paymentStatus: "",
-      paymentMethod: "",
-      note: "",
       terms: "",
       signature: "",
       photo: "",
       files: [],
     },
     payment: {
-      receiptNo: "",
-      manualReceiptNo: "",
-      referenceId: "",
+      referenceId: `PAY-${new Date().getFullYear()}-${Math.floor(
+        1000 + Math.random() * 9000
+      )}`,
       manualRefNo: "",
-      paymentDate: "",
-      paymentNo: "",
+      paymentNo: `PAY-${Date.now().toString().slice(-6)}`,
       manualPaymentNo: "",
       billNo: "",
       manualBillNo: "",
+      paymentDate: "",
       amount: "",
       paymentMethod: "",
-      paymentStatus: "",
+      paymentStatus: "Pending", // Default status
       note: "",
       vendorName: "",
       vendorAddress: "",
@@ -174,119 +203,32 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       companyEmail: "",
       companyPhone: "",
       totalAmount: "",
-      footerNote: "",
+      footerNote: "Thank you for your payment!",
       signature: "",
       photo: "",
       files: [],
     },
-  }));
+  });
 
-  // Available items for search
-  const [availableItems, setAvailableItems] = useState([
-    {
-      id: 1,
-      name: "Laptop",
-      category: "Electronics",
-      price: 50000,
-      tax: 18,
-      hsn: "8471",
-      uom: "PCS",
-    },
-    {
-      id: 2,
-      name: "Office Chair",
-      category: "Furniture",
-      price: 5000,
-      tax: 12,
-      hsn: "9401",
-      uom: "PCS",
-    },
-    {
-      id: 3,
-      name: "T-Shirt",
-      category: "Apparel",
-      price: 500,
-      tax: 5,
-      hsn: "6109",
-      uom: "PCS",
-    },
-    {
-      id: 4,
-      name: "Coffee Table",
-      category: "Furniture",
-      price: 8000,
-      tax: 12,
-      hsn: "9403",
-      uom: "PCS",
-    },
-    {
-      id: 5,
-      name: "Smartphone",
-      category: "Electronics",
-      price: 20000,
-      tax: 18,
-      hsn: "8517",
-      uom: "PCS",
-    },
-    {
-      id: 6,
-      name: "Notebook",
-      category: "Stationery",
-      price: 100,
-      tax: 5,
-      hsn: "4820",
-      uom: "PCS",
-    },
-    {
-      id: 7,
-      name: "Water Bottle",
-      category: "Other",
-      price: 200,
-      tax: 5,
-      hsn: "3924",
-      uom: "PCS",
-    },
-    {
-      id: 8,
-      name: "Desk Lamp",
-      category: "Furniture",
-      price: 1500,
-      tax: 12,
-      hsn: "9405",
-      uom: "PCS",
-    },
-  ]);
-
-  // States for modals and UI
-  const [showUOMModal, setShowUOMModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [showView, setShowView] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
-  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
-  const [newCategory, setNewCategory] = useState("");
-  const [categories, setCategories] = useState([
+  // ===============================
+  // API DATA
+  // ===============================
+  const [companyDetails, setCompanyDetails] = useState(null);
+  const [vendors, setVendors] = useState([]);
+  const [apiProducts, setApiProducts] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [categories] = useState([
     "Electronics",
     "Furniture",
     "Apparel",
-    "Food",
-    "Books",
-    "Automotive",
-    "Medical",
-    "Software",
     "Stationery",
     "Other",
   ]);
 
-  // Search state for each row
-  const [rowSearchTerms, setRowSearchTerms] = useState({});
-  const [showRowSearch, setShowRowSearch] = useState({});
-
-  const [savedRecords, setSavedRecords] = useState([]);
-  const [currentRecordId, setCurrentRecordId] = useState(null);
-  const [selectedRecord, setSelectedRecord] = useState(null);
+  // ===============================
+  // MODAL & UI STATES
+  // ===============================
+  const [showAdd, setShowAdd] = useState(false);
   const [newItem, setNewItem] = useState({
     name: "",
     category: "",
@@ -295,420 +237,170 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
     sellingPrice: 0,
     uom: "PCS",
   });
+  const [newCategory, setNewCategory] = useState("");
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [showUOMModal, setShowUOMModal] = useState(false);
+  const [rowSearchTerms, setRowSearchTerms] = useState({});
+  const [showRowSearch, setShowRowSearch] = useState({});
+  const [vendorSearchTerm, setVendorSearchTerm] = useState("");
+  const [showVendorSearch, setShowVendorSearch] = useState(false);
 
-  // --- Handlers ---
-  const handleChange = (tab, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [tab]: { ...prev[tab], [field]: value },
-    }));
+  // ===============================
+  // FETCHERS
+  // ===============================
+  const fetchCompanyDetails = async () => {
+    if (!companyId) return;
+    try {
+      const res = await axiosInstance.get(`/auth/Company`);
+      const current = res.data?.data?.find(
+        (c) => c.id === parseInt(companyId)
+      );
+      if (current) {
+        setCompanyDetails(current);
+        setFormData((prev) => ({
+          ...prev,
+          purchaseQuotation: {
+            ...prev.purchaseQuotation,
+            companyName: current.name || "",
+            companyAddress: current.address || "",
+            companyEmail: current.email || "",
+            companyPhone: current.phone || "",
+            logo: current.branding?.company_logo_url || "",
+            terms_and_conditions: current.terms_and_conditions || "",
+            notes: current.notes || "",
+          },
+          purchaseOrder: {
+            ...prev.purchaseOrder,
+            companyName: current.name || "",
+            companyAddress: current.address || "",
+            companyEmail: current.email || "",
+            companyPhone: current.phone || "",
+          },
+          goodsReceipt: {
+            ...prev.goodsReceipt,
+            companyName: current.name || "",
+            companyAddress: current.address || "",
+            companyEmail: current.email || "",
+            companyPhone: current.phone || "",
+          },
+          bill: {
+            ...prev.bill,
+            companyName: current.name || "",
+            companyAddress: current.address || "",
+            companyEmail: current.email || "",
+            companyPhone: current.phone || "",
+          },
+          payment: {
+            ...prev.payment,
+            companyName: current.name || "",
+            companyAddress: current.address || "",
+            companyEmail: current.email || "",
+            companyPhone: current.phone || "",
+          },
+        }));
+      }
+    } catch (err) {
+      console.error("Error fetching company:", err);
+    }
   };
 
-  const handleItemChange = (tab, index, field, value) => {
-    const updatedItems = [...formData[tab].items];
-    updatedItems[index][field] = value;
-    setFormData((prev) => ({
-      ...prev,
-      [tab]: { ...prev[tab], items: updatedItems },
-    }));
+  const fetchVendors = async () => {
+    if (!companyId) return;
+    try {
+      const res = await axiosInstance.get(
+        `/vendorCustomer/company/${companyId}?type=vender`
+      );
+      if (res.data?.success) setVendors(res.data.data);
+    } catch (err) {
+      console.error("Error fetching vendors:", err);
+    }
   };
 
-  const handleProductChange = (field, value) => {
-    setNewItem((prev) => ({ ...prev, [field]: value }));
+  const fetchProducts = async () => {
+    if (!companyId) return;
+    try {
+      const res = await axiosInstance.get(`/products/company/${companyId}`);
+      if (res.data?.success) setApiProducts(res.data.data);
+    } catch (err) {
+      console.error("Error fetching products:", err);
+    }
   };
 
-  const addItem = (tab) => {
-    setFormData((prev) => ({
-      ...prev,
-      [tab]: {
-        ...prev[tab],
-        items: [
-          ...prev[tab].items,
-          { name: "", qty: "", rate: "", tax: 0, discount: 0 },
-        ],
-      },
-    }));
+  const fetchWarehouses = async () => {
+    if (!companyId) return;
+    try {
+      const res = await axiosInstance.get(`/warehouses/company/${companyId}`);
+      if (res.data?.success) setWarehouses(res.data.data);
+    } catch (err) {
+      console.error("Error fetching warehouses:", err);
+    }
   };
 
-  const removeItem = (tab, index) => {
-    const updatedItems = [...formData[tab].items];
-    updatedItems.splice(index, 1);
-    setFormData((prev) => ({
-      ...prev,
-      [tab]: { ...prev[tab], items: updatedItems },
-    }));
-  };
+  useEffect(() => {
+    fetchCompanyDetails();
+    fetchVendors();
+    fetchProducts();
+    fetchWarehouses();
+  }, [companyId]);
 
-  const handleRowSearchChange = (tab, index, value) => {
-    setRowSearchTerms((prev) => ({
-      ...prev,
-      [`${tab}-${index}`]: value,
-    }));
-  };
-
-  const handleSelectSearchedItem = (tab, index, item) => {
-    const updatedItems = [...formData[tab].items];
-    updatedItems[index] = {
-      ...updatedItems[index],
-      name: item.name,
-      rate: item.price,
-      tax: item.tax,
-      hsn: item.hsn,
-      uom: item.uom,
-    };
-
-    setFormData((prev) => ({
-      ...prev,
-      [tab]: { ...prev[tab], items: updatedItems },
-    }));
-
-    setShowRowSearch((prev) => ({
-      ...prev,
-      [`${tab}-${index}`]: false,
-    }));
-    setRowSearchTerms((prev) => ({
-      ...prev,
-      [`${tab}-${index}`]: "",
-    }));
-  };
-
-  const toggleRowSearch = (tab, index) => {
-    const rowKey = `${tab}-${index}`;
-    setShowRowSearch((prev) => ({
-      ...prev,
-      [rowKey]: !prev[rowKey],
-    }));
+  // ===============================
+  // UTILS
+  // ===============================
+  const calculateTotalWithTaxAndDiscount = (items) => {
+    return items.reduce((total, item) => {
+      const rate = parseFloat(item.rate) || 0;
+      const qty = parseInt(item.qty || item.receivedQty) || 0;
+      const tax = parseFloat(item.tax) || 0;
+      const discount = parseFloat(item.discount) || 0;
+      const sub = rate * qty;
+      return total + sub + (sub * tax) / 100 - discount;
+    }, 0);
   };
 
   const calculateTotalAmount = (items) => {
-    if (!Array.isArray(items)) return 0;
-    return items.reduce((total, item) => {
-      const rate = parseFloat(item.rate) || 0;
-      const qty = parseInt(item.qty) || 0;
-      return total + rate * qty;
-    }, 0);
-  };
-
-  const calculateTotalWithTaxAndDiscount = (items) => {
-    if (!Array.isArray(items)) return 0;
-    return items.reduce((total, item) => {
-      const rate = parseFloat(item.rate) || 0;
-      const qty = parseInt(item.qty) || 0;
-      const tax = parseFloat(item.tax) || 0;
-      const discount = parseFloat(item.discount) || 0;
-      const subtotal = rate * qty;
-      const taxAmount = (subtotal * tax) / 100;
-      return total + subtotal + taxAmount - discount;
-    }, 0);
-  };
-
-  const handleAddItem = () => {
-    if (!newItem.name || !newItem.category) {
-      alert("Product name and category are required!");
-      return;
-    }
-    const itemToAdd = {
-      name: newItem.name,
-      qty: 1,
-      rate: newItem.sellingPrice,
-      tax: newItem.tax,
-      discount: 0,
-      hsn: newItem.hsn,
-      uom: newItem.uom,
-    };
-
-    setFormData((prev) => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        items: [...prev[key].items, itemToAdd],
-      },
-    }));
-
-    setNewItem({
-      name: "",
-      category: "",
-      hsn: "",
-      tax: 0,
-      sellingPrice: 0,
-      uom: "PCS",
-    });
-    setShowAdd(false);
-  };
-
-  const handleUpdateItem = () => {
-    console.log("Update item:", newItem);
-    setShowEdit(false);
-  };
-
-  const handleAddCategory = (e) => {
-    e.preventDefault();
-    if (newCategory && !categories.includes(newCategory)) {
-      setCategories((prev) => [...prev, newCategory]);
-      setNewItem((prev) => ({ ...prev, category: newCategory }));
-      setNewCategory("");
-    }
-    setShowAddCategoryModal(false);
-  };
-
-  // --- Top Buttons (Print, PDF, etc.) ---
-  const handlePrint = (lang) => {
-    const printContent = pdfRef.current;
-    if (!printContent) {
-      alert("No content to print!");
-      return;
-    }
-    const printWindow = window.open("", "", "height=800,width=1000");
-    printWindow.document.write("<html><head><title>Print</title>");
-    printWindow.document.write(
-      "<style>body { margin: 20px; font-family: Arial, sans-serif; }</style>"
-    );
-    printWindow.document.write("</head><body>");
-    printWindow.document.write(printContent.outerHTML);
-    printWindow.document.write("</body></html>");
-    printWindow.document.close();
-    printWindow.onload = () => {
-      printWindow.focus();
-      printWindow.print();
-    };
-  };
-
-  const handleSend = () => {
-    window.location.href = `mailto:?subject=Purchase Quotation&body=Please find the purchase quotation details attached.`;
-  };
-
-  const handleDownloadPDF = () => {
-    const element = pdfRef.current;
-    html2pdf()
-      .from(element)
-      .set({
-        margin: 10,
-        filename: `${key}-${
-          formData[key].quotationNo || formData[key].billNo || "document"
-        }.pdf`,
-        jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
-        html2canvas: { scale: 3 },
-        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
-      })
-      .save();
-  };
-
-  const handleDownloadExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(
-      formData.purchaseQuotation.items
-    );
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Purchase Quotation");
-    XLSX.writeFile(
-      workbook,
-      `purchase-quotation-${
-        formData.purchaseQuotation.quotationNo || "draft"
-      }.xlsx`
+    return items.reduce(
+      (t, i) =>
+        t +
+        (parseFloat(i.rate) || 0) * (parseInt(i.qty || i.receivedQty) || 0),
+      0
     );
   };
 
-  // --- Navigation Buttons ---
-  const handleSkip = () => {
-    setKey((prev) => {
-      if (prev === "purchaseQuotation") return "purchaseOrder";
-      if (prev === "purchaseOrder") return "goodsReceipt";
-      if (prev === "goodsReceipt") return "bill";
-      if (prev === "bill") return "payment";
-      return "purchaseQuotation";
-    });
-  };
-
-  const handleSaveDraft = () => onSubmit(formData, key);
-
-  const handleSaveNext = () => {
-    handleSaveDraft();
-    setKey((prev) => {
-      if (prev === "purchaseQuotation") {
-        setFormData((prevData) => ({
-          ...prevData,
-          purchaseOrder: {
-            ...prevData.purchaseOrder,
-            quotationNo: prevData.purchaseQuotation.quotationNo,
-            orderDate: prevData.purchaseQuotation.quotationDate,
-            vendorName: prevData.purchaseQuotation.vendorName,
-            vendorAddress: prevData.purchaseQuotation.vendorAddress,
-            vendorEmail: prevData.purchaseQuotation.vendorEmail,
-            vendorPhone: prevData.purchaseQuotation.vendorPhone,
-            companyName: prevData.purchaseQuotation.companyName,
-            companyAddress: prevData.purchaseQuotation.companyAddress,
-            companyEmail: prevData.purchaseQuotation.companyEmail,
-            companyPhone: prevData.purchaseQuotation.companyPhone,
-            items: prevData.purchaseQuotation.items.map((item) => ({
-              name: item.name,
-              qty: item.qty,
-              rate: item.rate,
-            })),
-          },
-        }));
-        return "purchaseOrder";
-      }
-      if (prev === "purchaseOrder") {
-        setFormData((prevData) => ({
-          ...prevData,
-          goodsReceipt: {
-            ...prevData.goodsReceipt,
-            purchaseOrderNo: prevData.purchaseOrder.orderNo,
-            receiptDate: new Date().toISOString().split("T")[0],
-            companyName: prevData.purchaseOrder.companyName,
-            companyAddress: prevData.purchaseOrder.companyAddress,
-            companyEmail: prevData.purchaseOrder.companyEmail,
-            companyPhone: prevData.purchaseOrder.companyPhone,
-            vendorName: prevData.purchaseOrder.vendorName,
-            vendorAddress: prevData.purchaseOrder.vendorAddress,
-            vendorEmail: prevData.purchaseOrder.vendorEmail,
-            vendorPhone: prevData.purchaseOrder.vendorPhone,
-            shipToName: prevData.purchaseOrder.shipToCompanyName,
-            shipToAddress: prevData.purchaseOrder.shipToAddress,
-            shipToEmail: prevData.purchaseOrder.shipToEmail,
-            shipToPhone: prevData.purchaseOrder.shipToPhone,
-            items: prevData.purchaseOrder.items.map((item) => ({
-              name: item.name,
-              qty: item.qty,
-              receivedQty: item.qty,
-              rate: item.rate,
-            })),
-          },
-        }));
-        return "goodsReceipt";
-      }
-      if (prev === "goodsReceipt") {
-        setFormData((prevData) => ({
-          ...prevData,
-          bill: {
-            ...prevData.bill,
-            orderNo: prevData.purchaseOrder.orderNo,
-            billNo: `BILL-${Date.now().toString().slice(-6)}`,
-            billDate: new Date().toISOString().split("T")[0],
-            dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
-              .toISOString()
-              .split("T")[0],
-            vendorName: prevData.goodsReceipt.vendorName,
-            vendorAddress: prevData.goodsReceipt.vendorAddress,
-            vendorEmail: prevData.goodsReceipt.vendorEmail,
-            vendorPhone: prevData.goodsReceipt.vendorPhone,
-            companyName: prevData.goodsReceipt.companyName,
-            companyAddress: prevData.goodsReceipt.companyAddress,
-            companyEmail: prevData.goodsReceipt.companyEmail,
-            companyPhone: prevData.goodsReceipt.companyPhone,
-            items: prevData.goodsReceipt.items.map((item) => ({
-              description: item.name,
-              qty: item.receivedQty,
-              rate: item.rate,
-              tax: 0,
-              discount: 0,
-              amount: item.rate * item.receivedQty,
-            })),
-          },
-        }));
-        return "bill";
-      }
-      if (prev === "bill") {
-        setFormData((prevData) => ({
-          ...prevData,
-          payment: {
-            ...prevData.payment,
-            billNo: prevData.bill.billNo,
-            paymentDate: new Date().toISOString().split("T")[0],
-            totalAmount: calculateTotalAmount(prevData.bill.items).toFixed(2),
-            amount: "",
-            vendorName: prevData.bill.vendorName,
-            vendorAddress: prevData.bill.vendorAddress,
-            vendorEmail: prevData.bill.vendorEmail,
-            vendorPhone: prevData.bill.vendorPhone,
-            companyName: prevData.bill.companyName,
-            companyAddress: prevData.bill.companyAddress,
-            companyEmail: prevData.bill.companyEmail,
-            companyPhone: prevData.bill.companyPhone,
-          },
-        }));
-        return "payment";
-      }
-      return "purchaseQuotation";
-    });
-  };
-
-  const handleNext = () => {
-    setKey((prev) => {
-      if (prev === "purchaseQuotation") return "purchaseOrder";
-      if (prev === "purchaseOrder") return "goodsReceipt";
-      if (prev === "goodsReceipt") return "bill";
-      if (prev === "bill") return "payment";
-      return "purchaseQuotation";
-    });
-  };
-
-  const handleFinalSubmit = () => {
-    const newRecord = {
-      id: currentRecordId || Date.now(),
-      data: formData,
-      createdAt: new Date().toLocaleString(),
-    };
-
-    if (currentRecordId) {
-      setSavedRecords((prev) => {
-        const updated = prev.map((r) =>
-          r.id === currentRecordId ? newRecord : r
-        );
-        localStorage.setItem("purchaseFormRecords", JSON.stringify(updated));
-        return updated;
-      });
-    } else {
-      const updatedRecords = [...savedRecords, newRecord];
-      setSavedRecords(updatedRecords);
-      localStorage.setItem(
-        "purchaseFormRecords",
-        JSON.stringify(updatedRecords)
-      );
-    }
-
-    setCurrentRecordId(null);
-    alert("Purchase form submitted!");
-  };
-
-  // File handlers
-  const handleSignatureChange = (tab, e) => {
+  // ===============================
+  // FILE HANDLERS
+  // ===============================
+  const handleFileChange = (tab, field, e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleChange(tab, "signature", reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: { ...prev[tab], [field]: reader.result },
+      }));
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handlePhotoChange = (tab, e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleChange(tab, "photo", reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleFileChange = (tab, e) => {
+  const handleMultiFileChange = (tab, e) => {
     const files = Array.from(e.target.files);
     const newFiles = [];
-
     files.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         newFiles.push({
           name: file.name,
-          type: file.type,
           size: file.size,
           base64: reader.result,
         });
-
         if (newFiles.length === files.length) {
-          handleChange(tab, "files", [...formData[tab].files, ...newFiles]);
+          setFormData((prev) => ({
+            ...prev,
+            [tab]: {
+              ...prev[tab],
+              files: [...(prev[tab].files || []), ...newFiles],
+            },
+          }));
         }
       };
       reader.readAsDataURL(file);
@@ -716,564 +408,3394 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   };
 
   const removeFile = (tab, index) => {
-    const updatedFiles = [...formData[tab].files];
-    updatedFiles.splice(index, 1);
-    handleChange(tab, "files", updatedFiles);
+    setFormData((prev) => {
+      const updated = [...(prev[tab].files || [])];
+      updated.splice(index, 1);
+      return { ...prev, [tab]: { ...prev[tab], files: updated } };
+    });
   };
 
-  // --- PDF View ---
-  const renderPDFView = () => {
-    const currentTab = formData[key];
-    const hasItems =
-      ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill"].includes(
-        key
-      ) && Array.isArray(currentTab.items);
+  // ===============================
+  // TAB: PURCHASE QUOTATION
+  // ===============================
+  const renderPurchaseQuotationTab = () => {
+    const tab = "purchaseQuotation";
+    const data = formData[tab];
+    const handleChange = (field, value) => {
+      if (
+        [
+          "companyName",
+          "companyAddress",
+          "companyEmail",
+          "companyPhone",
+          "notes",
+          "terms_and_conditions",
+        ].includes(field)
+      )
+        return;
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], [field]: value } }));
+    };
+
+    const handleItemChange = (idx, field, value) => {
+      const items = [...data.items];
+      items[idx][field] = value;
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+    };
+
+    const addItem = () => {
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          items: [
+            ...prev[tab].items,
+            {
+              name: "",
+              qty: "",
+              rate: "",
+              tax: 0,
+              discount: 0,
+              warehouse: "",
+              hsn: "",
+              uom: "PCS",
+            },
+          ],
+        },
+      }));
+    };
+
+    const removeItem = (idx) => {
+      const items = [...data.items];
+      items.splice(idx, 1);
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+    };
+
+    const handleRowSearchChange = (idx, value) => {
+      setRowSearchTerms((prev) => ({ ...prev, [`${tab}-${idx}`]: value }));
+    };
+
+    const toggleRowSearch = (idx) => {
+      setShowRowSearch((prev) => ({
+        ...prev,
+        [`${tab}-${idx}`]: !prev[`${tab}-${idx}`],
+      }));
+    };
+
+    const handleSelectSearchedItem = (idx, item) => {
+      const items = [...data.items];
+      items[idx] = {
+        ...items[idx],
+        name: item.item_name,
+        rate: item.purchase_price || item.sale_price,
+        tax: parseFloat(item.tax_account) || 0,
+        hsn: item.hsn,
+        uom: item.unit_detail?.uom_name || "PCS",
+        productId: item.id,
+        warehouse: item.warehouses?.[0]?.warehouse_id || "", // Pre-select first warehouse if available
+      };
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+      setShowRowSearch((prev) => ({ ...prev, [`${tab}-${idx}`]: false }));
+      setRowSearchTerms((prev) => ({ ...prev, [`${tab}-${idx}`]: "" }));
+    };
+
+    const getFilteredItems = (idx) => {
+      const term = (rowSearchTerms[`${tab}-${idx}`] || "").toLowerCase();
+      return term
+        ? apiProducts.filter(
+          (i) =>
+            (i.item_name || "").toLowerCase().includes(term) ||
+            (i.item_category?.item_category_name || "")
+              .toLowerCase()
+              .includes(term)
+        )
+        : apiProducts;
+    };
+
+    const handleAddItem = () => {
+      if (!newItem.name || !newItem.category) return alert("Name and category required!");
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          items: [
+            ...prev[tab].items,
+            {
+              name: newItem.name,
+              qty: 1,
+              rate: newItem.sellingPrice,
+              tax: newItem.tax,
+              discount: 0,
+              hsn: newItem.hsn,
+              uom: newItem.uom,
+              warehouse: "",
+            },
+          ],
+        },
+      }));
+      setNewItem({
+        name: "",
+        category: "",
+        hsn: "",
+        tax: 0,
+        sellingPrice: 0,
+        uom: "PCS",
+      });
+      setShowAdd(false);
+    };
+
+    const handleVendorSearchChange = (value) => {
+      setVendorSearchTerm(value);
+      setShowVendorSearch(true);
+    };
+
+    const handleSelectVendor = (v) => {
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          vendorName: v.name_english || "",
+          vendorAddress: v.address || "",
+          vendorEmail: v.email || "",
+          vendorPhone: v.phone || "",
+          bankName: v.bank_name_branch || "",
+          accountNo: v.bank_account_number || "",
+          accountHolder: v.account_name || "",
+          ifsc: v.bank_ifsc || "",
+        },
+      }));
+      setShowVendorSearch(false);
+      setVendorSearchTerm("");
+    };
+
+    const filteredVendors = vendorSearchTerm
+      ? vendors.filter(
+        (v) =>
+          (v.name_english || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+          (v.email || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+          (v.phone || "").toLowerCase().includes(vendorSearchTerm.toLowerCase())
+      )
+      : vendors;
 
     return (
-      <div
-        ref={pdfRef}
-        style={{
-          fontFamily: "Arial, sans-serif",
-          padding: "20px",
-          backgroundColor: "white",
-          minHeight: "100vh",
-          boxSizing: "border-box",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: "20px",
-          }}
-        >
-          <div
-            style={{
-              border: "2px dashed #28a745",
-              padding: "10px",
-              width: "120px",
-              height: "120px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {currentTab.logo ? (
-              <img
-                src={currentTab.logo}
-                alt="Logo"
-                style={{ maxWidth: "100%", maxHeight: "100px" }}
+      <Form>
+        {/* Header */}
+        <Row className="mb-4 mt-3">
+          <Col md={3} className="d-flex align-items-center justify-content-center">
+            <div
+              className="border rounded d-flex flex-column align-items-center justify-content-center"
+              style={{
+                height: "120px",
+                width: "100%",
+                borderStyle: "dashed",
+                cursor: "pointer",
+              }}
+              onClick={() => document.getElementById("logo-pq")?.click()}
+            >
+              {data.logo ? (
+                <img
+                  src={data.logo}
+                  alt="Logo"
+                  style={{ maxWidth: "100%", maxHeight: "100px" }}
+                />
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <small>Upload Logo</small>
+                </>
+              )}
+              <input
+                id="logo-pq"
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => handleFileChange(tab, "logo", e)}
               />
-            ) : (
-              "Logo"
+            </div>
+          </Col>
+          <Col md={6}>
+            <div className="d-flex flex-column gap-1">
+              <Form.Control
+                type="text"
+                value={data.companyName}
+                readOnly
+                className="form-control-no-border"
+                style={{ backgroundColor: "#f8f9fa" }}
+              />
+              <Form.Control
+                type="text"
+                value={data.companyAddress}
+                readOnly
+                className="form-control-no-border"
+                style={{ backgroundColor: "#f8f9fa" }}
+              />
+              <Form.Control
+                type="email"
+                value={data.companyEmail}
+                readOnly
+                className="form-control-no-border"
+                style={{ backgroundColor: "#f8f9fa" }}
+              />
+              <Form.Control
+                type="text"
+                value={data.companyPhone}
+                readOnly
+                className="form-control-no-border"
+                style={{ backgroundColor: "#f8f9fa" }}
+              />
+            </div>
+          </Col>
+          <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
+            <h2 className="text-success mb-0">PURCHASE QUOTATION</h2>
+            <hr
+              style={{
+                width: "80%",
+                borderColor: "#28a745",
+                margin: "5px 0 10px",
+              }}
+            />
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        {/* Vendor & Dates */}
+        <Row className="mb-4">
+          <Col md={8}>
+            <h5>Quotation From</h5>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
+              <Form.Control
+                value={data.vendorName}
+                onChange={(e) => {
+                  handleChange("vendorName", e.target.value);
+                  handleVendorSearchChange(e.target.value);
+                }}
+                onFocus={() => setShowVendorSearch(true)}
+                placeholder="Vendor Name"
+                className="form-control-no-border"
+              />
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => setShowVendorSearch(!showVendorSearch)}
+              >
+                <FontAwesomeIcon icon={faSearch} />
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigate("/Company/vendorscreditors")}
+                style={{
+                  textWrap: "nowrap",
+                  backgroundColor: "#53b2a5",
+                  border: "none",
+                  marginLeft: "5px",
+                }}
+              >
+                Add Vendor
+              </Button>
+            </div>
+            {showVendorSearch && (
+              <div
+                style={{
+                  position: "absolute",
+                  zIndex: 10,
+                  backgroundColor: "white",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  width: "100%",
+                }}
+              >
+                {filteredVendors.map((v) => (
+                  <div
+                    key={v.id}
+                    style={{ padding: "8px", cursor: "pointer" }}
+                    onClick={() => handleSelectVendor(v)}
+                  >
+                    <strong>{v.name_english}</strong> – {v.email} | {v.phone}
+                  </div>
+                ))}
+              </div>
             )}
+            <Form.Control
+              type="text"
+              value={data.vendorAddress}
+              onChange={(e) => handleChange("vendorAddress", e.target.value)}
+              placeholder="Address"
+              className="form-control-no-border"
+            />
+            <Form.Control
+              type="email"
+              value={data.vendorEmail}
+              onChange={(e) => handleChange("vendorEmail", e.target.value)}
+              placeholder="Email"
+              className="form-control-no-border"
+            />
+            <Form.Control
+              type="text"
+              value={data.vendorPhone}
+              onChange={(e) => handleChange("vendorPhone", e.target.value)}
+              placeholder="Phone"
+              className="form-control-no-border"
+            />
+          </Col>
+          <Col md={4}>
+            <Form.Group className="mb-2">
+              <Form.Label>Reference No</Form.Label>
+              <Form.Control value={data.referenceId} readOnly style={{ backgroundColor: "#f8f9fa" }} />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Manual Ref. No. (Optional)</Form.Label>
+              <Form.Control
+                value={data.manualRefNo}
+                onChange={(e) => handleChange("manualRefNo", e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Quotation No.</Form.Label>
+              <Form.Control
+                value={data.quotationNo}
+                onChange={(e) => handleChange("quotationNo", e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Quotation Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={data.quotationDate}
+                onChange={(e) => handleChange("quotationDate", e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Valid Till</Form.Label>
+              <Form.Control
+                type="date"
+                value={data.validDate}
+                onChange={(e) => handleChange("validDate", e.target.value)}
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+        {/* Items */}
+        <div className="mb-4">
+          <div className="d-flex justify-content-between mb-2">
+            <Button
+              size="sm"
+              onClick={addItem}
+              style={{
+                backgroundColor: "#53b2a5",
+                border: "none",
+                marginRight: "5px",
+              }}
+            >
+              <FontAwesomeIcon icon={faPlus} /> Add Row
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowAdd(true)}
+              style={{ backgroundColor: "#53b2a5", border: "none" }}
+            >
+              + Add Product
+            </Button>
           </div>
-          <div style={{ textAlign: "center", color: "#28a745" }}>
-            <h2>
-              {key === "purchaseQuotation" && "PURCHASE QUOTATION"}
-              {key === "purchaseOrder" && "PURCHASE ORDER"}
-              {key === "goodsReceipt" && "GOODS RECEIPT NOTE"}
-              {key === "bill" && "PURCHASE BILL"}
-              {key === "payment" && "PAYMENT RECEIPT"}
-            </h2>
-          </div>
-        </div>
-        <hr style={{ border: "2px solid #28a745", margin: "15px 0" }} />
-        <div style={{ marginBottom: "15px" }}>
-          <h4>{currentTab.companyName}</h4>
-          <p>{currentTab.companyAddress}</p>
-          <p>
-            Email: {currentTab.companyEmail} | Phone: {currentTab.companyPhone}
-          </p>
-        </div>
-        {currentTab.vendorName && (
-          <div style={{ marginBottom: "15px" }}>
-            <h5>Vendor</h5>
-            <p>{currentTab.vendorName}</p>
-            <p>{currentTab.vendorAddress}</p>
-            <p>
-              Email: {currentTab.vendorEmail} | Phone: {currentTab.vendorPhone}
-            </p>
-          </div>
-        )}
-        {currentTab.shipToName && (
-          <div style={{ marginBottom: "15px" }}>
-            <h5>Ship To</h5>
-            <p>{currentTab.shipToName}</p>
-            <p>{currentTab.shipToAddress}</p>
-            <p>
-              Email: {currentTab.shipToEmail} | Phone: {currentTab.shipToPhone}
-            </p>
-          </div>
-        )}
-        {key === "goodsReceipt" && (
-          <div style={{ marginBottom: "15px" }}>
-            <h5>Driver Details</h5>
-            <p>
-              {currentTab.driverName} | {currentTab.driverPhone}
-            </p>
-            <p>Vehicle No.: {currentTab.vehicleNo}</p>
-          </div>
-        )}
-        <div style={{ marginBottom: "15px" }}>
-          <strong>Ref NO:</strong> {currentTab.referenceId} |
-          {key === "purchaseQuotation" && (
-            <>
-              <strong>Quotation No.:</strong> {currentTab.quotationNo} |{" "}
-            </>
-          )}
-          {key === "purchaseOrder" && (
-            <>
-              <strong>Order No.:</strong> {currentTab.orderNo} |{" "}
-            </>
-          )}
-          {key === "goodsReceipt" && (
-            <>
-              <strong>Receipt No.:</strong> {currentTab.receiptNo} |{" "}
-            </>
-          )}
-          {key === "bill" && (
-            <>
-              <strong>Bill No.:</strong> {currentTab.billNo} |{" "}
-            </>
-          )}
-          {key === "payment" && (
-            <>
-              <strong>Payment No.:</strong> {currentTab.paymentNo} |{" "}
-            </>
-          )}
-          <strong>Date:</strong> {currentTab[`${key}Date`] || currentTab.date}
-        </div>
-        {hasItems && (
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              marginBottom: "20px",
+          <AddProductModal
+            showAdd={showAdd}
+            showEdit={false}
+            newItem={newItem}
+            categories={categories}
+            newCategory={newCategory}
+            showUOMModal={showUOMModal}
+            showAddCategoryModal={showAddCategoryModal}
+            setShowAdd={setShowAdd}
+            setShowEdit={() => { }}
+            setShowUOMModal={setShowUOMModal}
+            setShowAddCategoryModal={setShowAddCategoryModal}
+            setNewCategory={setNewCategory}
+            handleChange={(f, v) => setNewItem((prev) => ({ ...prev, [f]: v }))}
+            handleAddItem={handleAddItem}
+            handleUpdateItem={() => { }}
+            handleAddCategory={(e) => {
+              e.preventDefault();
+              if (newCategory && !categories.includes(newCategory)) {
+                setNewItem((prev) => ({ ...prev, category: newCategory }));
+              }
+              setNewCategory("");
+              setShowAddCategoryModal(false);
             }}
-          >
-            <thead>
-              <tr style={{ backgroundColor: "#f8f9fa" }}>
-                <th style={{ border: "1px solid #000", padding: "8px" }}>
-                  Item Name
-                </th>
-                <th style={{ border: "1px solid #000", padding: "8px" }}>
-                  Qty
-                </th>
-                {key === "goodsReceipt" && (
-                  <th style={{ border: "1px solid #000", padding: "8px" }}>
-                    Received Qty
-                  </th>
-                )}
-                <th style={{ border: "1px solid #000", padding: "8px" }}>
-                  Rate
-                </th>
-                <th style={{ border: "1px solid #000", padding: "8px" }}>
-                  Tax %
-                </th>
-                <th style={{ border: "1px solid #000", padding: "8px" }}>
-                  Discount
-                </th>
-                <th style={{ border: "1px solid #000", padding: "8px" }}>
-                  Amount
-                </th>
+            companyId={companyId}
+          />
+          <Table bordered hover size="sm" className="dark-bordered-table">
+            <thead className="bg-light">
+              <tr>
+                <th>Item Name</th>
+                <th>Warehouse</th>
+                <th>Qty</th>
+                <th>Rate</th>
+                <th>Tax %</th>
+                <th>Discount</th>
+                <th>Amount</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {currentTab.items.map((item, idx) => {
-                const qty =
-                  key === "goodsReceipt"
-                    ? parseInt(item.receivedQty) || 0
-                    : parseInt(item.qty) || 0;
+              {data.items.map((item, idx) => {
+                const qty = parseInt(item.qty) || 0;
                 const amount = (parseFloat(item.rate) || 0) * qty;
+                const rowKey = `${tab}-${idx}`;
                 return (
                   <tr key={idx}>
-                    <td style={{ border: "1px solid #000", padding: "8px" }}>
-                      {item.name}
+                    <td style={{ position: "relative" }}>
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        <Form.Control
+                          size="sm"
+                          value={item.name}
+                          onChange={(e) => handleItemChange(idx, "name", e.target.value)}
+                          style={{ marginRight: "5px" }}
+                        />
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => toggleRowSearch(idx)}
+                        >
+                          <FontAwesomeIcon icon={faSearch} />
+                        </Button>
+                      </div>
+                      {showRowSearch[rowKey] && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            right: 0,
+                            zIndex: 10,
+                            backgroundColor: "white",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                            maxHeight: "200px",
+                            overflowY: "auto",
+                          }}
+                        >
+                          <InputGroup size="sm">
+                            <InputGroup.Text>
+                              <FontAwesomeIcon icon={faSearch} />
+                            </InputGroup.Text>
+                            <FormControl
+                              placeholder="Search..."
+                              value={rowSearchTerms[rowKey] || ""}
+                              onChange={(e) => handleRowSearchChange(idx, e.target.value)}
+                              autoFocus
+                            />
+                          </InputGroup>
+                          {getFilteredItems(idx).map((fItem) => (
+                            <div
+                              key={fItem.id}
+                              style={{ padding: "8px", cursor: "pointer" }}
+                              onClick={() => handleSelectSearchedItem(idx, fItem)}
+                            >
+                              <strong>{fItem.item_name}</strong> – $
+                              {(parseFloat(fItem.purchase_price || fItem.sale_price) || 0).toFixed(2)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </td>
-                    <td style={{ border: "1px solid #000", padding: "8px" }}>
-                      {item.qty}
+                    <td>
+                      <Form.Select
+                        size="sm"
+                        value={item.warehouse || ""}
+                        onChange={(e) => handleItemChange(idx, "warehouse", e.target.value)}
+                      >
+                        <option value="">Select Warehouse</option>
+                        {warehouses.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.warehouse_name} ({w.location})
+                          </option>
+                        ))}
+                      </Form.Select>
                     </td>
-                    {key === "goodsReceipt" && (
-                      <td style={{ border: "1px solid #000", padding: "8px" }}>
-                        {item.receivedQty}
-                      </td>
-                    )}
-                    <td style={{ border: "1px solid #000", padding: "8px" }}>
-                      {parseFloat(item.rate).toFixed(2)}
+                    <td>
+                      <Form.Control
+                        type="number"
+                        size="sm"
+                        value={item.qty}
+                        onChange={(e) => handleItemChange(idx, "qty", e.target.value)}
+                      />
                     </td>
-                    <td style={{ border: "1px solid #000", padding: "8px" }}>
-                      {item.tax}%
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.rate}
+                        onChange={(e) => handleItemChange(idx, "rate", e.target.value)}
+                      />
                     </td>
-                    <td style={{ border: "1px solid #000", padding: "8px" }}>
-                      {parseFloat(item.discount).toFixed(2)}
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.tax}
+                        onChange={(e) => handleItemChange(idx, "tax", e.target.value)}
+                      />
                     </td>
-                    <td style={{ border: "1px solid #000", padding: "8px" }}>
-                      {amount.toFixed(2)}
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.discount}
+                        onChange={(e) => handleItemChange(idx, "discount", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={amount.toFixed(2)}
+                        readOnly
+                        style={{ backgroundColor: "#f8f9fa" }}
+                      />
+                    </td>
+                    <td>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => removeItem(idx)}
+                      >
+                        Delete
+                      </Button>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
-            <tfoot>
-              <tr>
-                <td
-                  colSpan={key === "goodsReceipt" ? 6 : 5}
-                  style={{
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    border: "1px solid #000",
-                    padding: "8px",
-                  }}
-                >
-                  Total:
-                </td>
-                <td
-                  style={{
-                    fontWeight: "bold",
-                    border: "1px solid #000",
-                    padding: "8px",
-                  }}
-                >
-                  $                   {calculateTotalWithTaxAndDiscount(currentTab.items).toFixed(2)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        )}
-        {key === "payment" && (
-          <div style={{ marginBottom: "15px" }}>
-            <h5>Payment Details</h5>
-            <p>Amount Paid: ${parseFloat(currentTab.amount).toFixed(2)}</p>
-            <p>Payment Method: {currentTab.paymentMethod}</p>
-            <p>Status: {currentTab.paymentStatus}</p>
-          </div>
-        )}
-        {currentTab.terms && (
-          <div style={{ marginBottom: "15px" }}>
-            <strong>Terms & Conditions:</strong>
-            <p>{currentTab.terms}</p>
-          </div>
-        )}
-        <div style={{ marginBottom: "15px" }}>
-          {currentTab.signature && (
-            <div>
-              <strong>Signature:</strong>
-              <br />
-              <img
-                src={currentTab.signature}
-                alt="Signature"
-                style={{
-                  maxWidth: "150px",
-                  maxHeight: "100px",
-                  margin: "5px 0",
-                }}
-              />
-            </div>
-          )}
-          {currentTab.photo && (
-            <div>
-              <strong>Photo:</strong>
-              <br />
-              <img
-                src={currentTab.photo}
-                alt="Photo"
-                style={{
-                  maxWidth: "150px",
-                  maxHeight: "100px",
-                  margin: "5px 0",
-                }}
-              />
-            </div>
-          )}
-          {currentTab.files && currentTab.files.length > 0 && (
-            <div>
-              <strong>Files:</strong>
-              <ul style={{ listStyle: "none", padding: 0 }}>
-                {currentTab.files.map((file, i) => (
-                  <li key={i}>
-                    {file.name} ({(file.size / 1024).toFixed(1)} KB)
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          </Table>
         </div>
-        <p
-          style={{ textAlign: "center", fontWeight: "bold", marginTop: "30px" }}
-        >
-          {currentTab.footerNote || "Thank you for your business!"}
-        </p>
-      </div>
-    );
-  };
-
-  // --- Render Attachment Fields (can be a utility function or a small component) ---
-  const renderAttachmentFields = (tab) => {
-    return (
-      <div className="mt-4 mb-4">
-        <h5>Attachments</h5>
-        <Row>
+        {/* Totals, Bank, Notes, Terms, Attachments */}
+        <Row className="mb-4 mt-2">
           <Col md={4}>
+            <Table bordered size="sm" className="dark-bordered-table">
+              <tbody>
+                <tr>
+                  <td>Sub Total:</td>
+                  <td>
+                    $
+                    {data.items
+                      .reduce(
+                        (s, i) =>
+                          s + (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0),
+                        0
+                      )
+                      .toFixed(2)}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Tax:</td>
+                  <td>
+                    $
+                    {data.items
+                      .reduce((s, i) => {
+                        const sub = (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0);
+                        return s + (sub * (parseFloat(i.tax) || 0)) / 100;
+                      }, 0)
+                      .toFixed(2)}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Discount:</td>
+                  <td>
+                    $
+                    {data.items
+                      .reduce((s, i) => s + (parseFloat(i.discount) || 0), 0)
+                      .toFixed(2)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="fw-bold">Total:</td>
+                  <td className="fw-bold">
+                    ${calculateTotalWithTaxAndDiscount(data.items).toFixed(2)}
+                  </td>
+                </tr>
+              </tbody>
+            </Table>
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        <Row className="mb-4">
+          <h5>Bank Details</h5>
+          <Col md={6} className="p-2 rounded" style={{ border: "1px solid #343a40" }}>
+            {["bankName", "accountNo", "accountHolder", "ifsc"].map((f) => (
+              <Form.Group key={f} className="mb-2">
+                <Form.Control
+                  type="text"
+                  placeholder={f.replace(/([A-Z])/g, " $1")}
+                  value={data[f] || ""}
+                  onChange={(e) => handleChange(f, e.target.value)}
+                  className="form-control-no-border"
+                />
+              </Form.Group>
+            ))}
+          </Col>
+          <Col md={6}>
+            <h5>Notes</h5>
+            <Form.Control
+              as="textarea"
+              rows={5}
+              value={data.notes || ""}
+              onChange={(e) => handleChange("notes", e.target.value)}
+              style={{ border: "1px solid #343a40" }}
+            />
+          </Col>
+        </Row>
+        {/* <hr style={{ height: "4px", backgroundColor: "#28a745", border: "none", margin: "5px 0 10px" }} /> */}
+        <Row className="mb-4">
+          <Col>
             <Form.Group>
-              <Form.Label>Signature</Form.Label>
+              <Form.Label>Terms & Conditions</Form.Label>
               <Form.Control
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleSignatureChange(tab, e)}
+                as="textarea"
+                rows={3}
+                value={data.terms_and_conditions || ""}
+                onChange={(e) => handleChange("terms_and_conditions", e.target.value)}
+                style={{ border: "1px solid #343a40" }}
               />
-              {formData[tab].signature && (
-                <div className="mt-2">
-                  <img
-                    src={formData[tab].signature}
-                    alt="Signature"
-                    style={{
-                      width: "100px",
-                      height: "50px",
-                      objectFit: "contain",
-                    }}
-                  />
-                </div>
-              )}
             </Form.Group>
           </Col>
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label>Photo</Form.Label>
-              <Form.Control
-                type="file"
-                accept="image/*"
-                onChange={(e) => handlePhotoChange(tab, e)}
-              />
-              {formData[tab].photo && (
-                <div className="mt-2">
-                  <img
-                    src={formData[tab].photo}
-                    alt="Photo"
-                    style={{
-                      width: "100px",
-                      height: "100px",
-                      objectFit: "cover",
-                    }}
+        </Row>
+        <div className="mt-4 mb-4">
+          <h5>Attachments</h5>
+          <Row>
+            {["signature", "photo"].map((field, i) => (
+              <Col md={4} key={i}>
+                <Form.Group>
+                  <Form.Label>{field.charAt(0).toUpperCase() + field.slice(1)}</Form.Label>
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(tab, field, e)}
                   />
-                </div>
-              )}
-            </Form.Group>
-          </Col>
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label>Attach Files</Form.Label>
-              <Form.Control
-                type="file"
-                multiple
-                onChange={(e) => handleFileChange(tab, e)}
-              />
-              {formData[tab].files && formData[tab].files.length > 0 && (
-                <div className="mt-2">
-                  <ul className="list-unstyled">
-                    {formData[tab].files.map((file, index) => (
-                      <li
-                        key={index}
-                        className="d-flex justify-content-between align-items-center"
-                      >
-                        <span>{file.name}</span>
+                  {data[field] && (
+                    <img
+                      src={data[field]}
+                      alt={field}
+                      style={{
+                        width: i === 0 ? "100px" : "100px",
+                        height: i === 0 ? "50px" : "100px",
+                        objectFit: "cover",
+                        marginTop: "8px",
+                      }}
+                    />
+                  )}
+                </Form.Group>
+              </Col>
+            ))}
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Attach Files</Form.Label>
+                <Form.Control
+                  type="file"
+                  multiple
+                  onChange={(e) => handleMultiFileChange(tab, e)}
+                />
+                {data.files?.length > 0 && (
+                  <ul className="list-unstyled mt-2">
+                    {data.files.map((f, i) => (
+                      <li key={i} className="d-flex justify-content-between">
+                        <span>{f.name}</span>
                         <Button
                           variant="danger"
                           size="sm"
-                          onClick={() => removeFile(tab, index)}
+                          onClick={() => removeFile(tab, i)}
                         >
                           <FontAwesomeIcon icon={faTrash} />
                         </Button>
                       </li>
                     ))}
                   </ul>
-                </div>
-              )}
-            </Form.Group>
+                )}
+              </Form.Group>
+            </Col>
+          </Row>
+        </div>
+        <Row className="text-center mb-4">
+          <Col>
+            <p>
+              <strong>Thank you for your business!</strong>
+            </p>
+            <p className="text-muted">www.yourcompany.com</p>
           </Col>
         </Row>
-      </div>
+      </Form>
     );
   };
 
-  // Props to be passed to each tab component
-  const tabProps = {
-    formData,
-    handleChange,
-    handleItemChange,
-    addItem,
-    removeItem,
-    handleRowSearchChange,
-    handleSelectSearchedItem,
-    toggleRowSearch,
-    calculateTotalWithTaxAndDiscount,
-    availableItems,
-    rowSearchTerms,
-    showRowSearch,
-    renderAttachmentFields,
-    handleAddItem,
-    newItem,
-    setNewItem,
-    showAdd,
-    setShowAdd,
-    showEdit,
-    setShowEdit,
-    showUOMModal,
-    setShowUOMModal,
-    showAddCategoryModal,
-    setShowAddCategoryModal,
-    newCategory,
-    setNewCategory,
-    categories,
-    handleProductChange,
-    handleUpdateItem,
-    handleAddCategory,
-    companyId,
-    generateReferenceId: (tabKey) => {
-      const prefixes = {
-        purchaseQuotation: "QRF",
-        purchaseOrder: "ORD",
-        goodsReceipt: "GRN",
-        bill: "BILL",
-        payment: "PAY",
+  // --- PurchaseOrderTab ---
+  const renderPurchaseOrderTab = () => {
+    const tab = "purchaseOrder";
+    const data = formData[tab];
+    const handleChange = (field, value) =>
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], [field]: value } }));
+
+    const handleItemChange = (idx, field, value) => {
+      const items = [...data.items];
+      items[idx][field] = value;
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+    };
+
+    const addItem = () =>
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          items: [
+            ...prev[tab].items,
+            { name: "", qty: "", rate: "", tax: 0, discount: 0, hsn: "", uom: "PCS" },
+          ],
+        },
+      }));
+
+    const removeItem = (idx) => {
+      const items = [...data.items];
+      items.splice(idx, 1);
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+    };
+
+    const handleRowSearchChange = (idx, value) =>
+      setRowSearchTerms((prev) => ({ ...prev, [`${tab}-${idx}`]: value }));
+
+    const toggleRowSearch = (idx) =>
+      setShowRowSearch((prev) => ({ ...prev, [`${tab}-${idx}`]: !prev[`${tab}-${idx}`] }));
+
+    const handleSelectSearchedItem = (idx, item) => {
+      const items = [...data.items];
+      items[idx] = {
+        ...items[idx],
+        name: item.item_name, // Use fetched product name
+        rate: item.purchase_price || item.sale_price, // Use fetched rate
+        tax: parseFloat(item.tax_account) || 0, // Use fetched tax
+        hsn: item.hsn, // Use fetched HSN
+        uom: item.unit_detail?.uom_name || "PCS", // Use fetched UOM
+        productId: item.id, // Store ID if needed later
       };
-      const prefix = prefixes[tabKey] || "REF";
-      const year = new Date().getFullYear();
-      const rand = Math.floor(1000 + Math.random() * 9000);
-      return `${prefix}-${year}-${rand}`;
-    },
-    handleSkip,
-    handleSaveDraft,
-    handleSaveNext,
-    handleNext,
-    navigate,
-    showVendorModal,
-    setShowVendorModal,
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+      setShowRowSearch((prev) => ({ ...prev, [`${tab}-${idx}`]: false }));
+      setRowSearchTerms((prev) => ({ ...prev, [`${tab}-${idx}`]: "" }));
+    };
+
+    const getFilteredItems = (idx) => {
+      const term = (rowSearchTerms[`${tab}-${idx}`] || "").toLowerCase();
+      return term
+        ? apiProducts.filter(
+          (i) =>
+            (i.item_name || "").toLowerCase().includes(term) ||
+            (i.item_category?.item_category_name || "")
+              .toLowerCase()
+              .includes(term)
+        )
+        : apiProducts;
+    };
+
+    const handleAddItem = () => {
+      if (!newItem.name || !newItem.category) return alert("Name and category required!");
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          items: [
+            ...prev[tab].items,
+            {
+              name: newItem.name,
+              qty: 1,
+              rate: newItem.sellingPrice,
+              tax: newItem.tax,
+              discount: 0,
+              hsn: newItem.hsn,
+              uom: newItem.uom,
+            },
+          ],
+        },
+      }));
+      setNewItem({
+        name: "",
+        category: "",
+        hsn: "",
+        tax: 0,
+        sellingPrice: 0,
+        uom: "PCS",
+      });
+      setShowAdd(false);
+    };
+
+    return (
+      <Form>
+        {/* Header */}
+        <Row className="mb-4 mt-3">
+          <Col md={3} className="d-flex align-items-center justify-content-center">
+            <div
+              className="border rounded d-flex flex-column align-items-center justify-content-center"
+              style={{
+                height: "120px",
+                width: "100%",
+                borderStyle: "dashed",
+                cursor: "pointer",
+              }}
+              onClick={() => document.getElementById("logo-po")?.click()}
+            >
+              {formData.purchaseQuotation.logo ? ( // Use logo from PQ
+                <img
+                  src={formData.purchaseQuotation.logo}
+                  alt="Logo"
+                  style={{ maxWidth: "100%", maxHeight: "100px" }}
+                />
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <small>Upload Logo</small>
+                </>
+              )}
+              <input
+                id="logo-po"
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => handleFileChange(tab, "logo", e)}
+              />
+            </div>
+          </Col>
+          <Col md={6}>
+            <div className="d-flex flex-column gap-1">
+              <Form.Control
+                type="text"
+                value={data.companyName} // Use fetched company name
+                readOnly
+                className="form-control-no-border"
+                style={{ backgroundColor: "#f8f9fa" }}
+              />
+              <Form.Control
+                type="text"
+                value={data.companyAddress} // Use fetched company address
+                readOnly
+                className="form-control-no-border"
+                style={{ backgroundColor: "#f8f9fa" }}
+              />
+              <Form.Control
+                type="email"
+                value={data.companyEmail} // Use fetched company email
+                readOnly
+                className="form-control-no-border"
+                style={{ backgroundColor: "#f8f9fa" }}
+              />
+              <Form.Control
+                type="text"
+                value={data.companyPhone} // Use fetched company phone
+                readOnly
+                className="form-control-no-border"
+                style={{ backgroundColor: "#f8f9fa" }}
+              />
+            </div>
+          </Col>
+          <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
+            <h2 className="text-success mb-0">PURCHASE ORDER</h2>
+            <hr
+              style={{
+                width: "80%",
+                borderColor: "#28a745",
+                margin: "5px 0 10px",
+              }}
+            />
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        {/* Order Info */}
+        <Row className="mb-4">
+          <Col md={8}>
+            <h5>Order From</h5>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
+              <Form.Control
+                value={data.vendorName}
+                onChange={(e) => {
+                  handleChange("vendorName", e.target.value);
+                  handleVendorSearchChange(e.target.value); // Reuse vendor search logic
+                }}
+                onFocus={() => setShowVendorSearch(true)} // Reuse vendor search logic
+                placeholder="Vendor Name"
+                className="form-control-no-border"
+              />
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => setShowVendorSearch(!showVendorSearch)} // Reuse vendor search logic
+              >
+                <FontAwesomeIcon icon={faSearch} />
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigate("/Company/vendorscreditors")}
+                style={{
+                  textWrap: "nowrap",
+                  backgroundColor: "#53b2a5",
+                  border: "none",
+                  marginLeft: "5px",
+                }}
+              >
+                Add Vendor
+              </Button>
+            </div>
+            {showVendorSearch && (
+              <div
+                style={{
+                  position: "absolute",
+                  zIndex: 10,
+                  backgroundColor: "white",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  width: "100%",
+                }}
+              >
+                {vendors
+                  .filter(
+                    (v) =>
+                      (v.name_english || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+                      (v.email || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+                      (v.phone || "").toLowerCase().includes(vendorSearchTerm.toLowerCase())
+                  )
+                  .map((v) => (
+                    <div
+                      key={v.id}
+                      style={{ padding: "8px", cursor: "pointer" }}
+                      onClick={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          [tab]: {
+                            ...prev[tab],
+                            vendorName: v.name_english || "",
+                            vendorAddress: v.address || "",
+                            vendorEmail: v.email || "",
+                            vendorPhone: v.phone || "",
+                          },
+                        }));
+                        setShowVendorSearch(false);
+                        setVendorSearchTerm("");
+                      }}
+                    >
+                      <strong>{v.name_english}</strong> – {v.email} | {v.phone}
+                    </div>
+                  ))}
+              </div>
+            )}
+            <Form.Control
+              type="text"
+              value={data.vendorAddress}
+              onChange={(e) => handleChange("vendorAddress", e.target.value)}
+              placeholder="Address"
+              className="form-control-no-border"
+            />
+            <Form.Control
+              type="email"
+              value={data.vendorEmail}
+              onChange={(e) => handleChange("vendorEmail", e.target.value)}
+              placeholder="Email"
+              className="form-control-no-border"
+            />
+            <Form.Control
+              type="text"
+              value={data.vendorPhone}
+              onChange={(e) => handleChange("vendorPhone", e.target.value)}
+              placeholder="Phone"
+              className="form-control-no-border"
+            />
+          </Col>
+          <Col md={4}>
+            <Form.Group className="mb-2">
+              <Form.Label>Reference No</Form.Label>
+              <Form.Control value={data.referenceId} readOnly style={{ backgroundColor: "#f8f9fa" }} />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Manual Ref. No.</Form.Label>
+              <Form.Control
+                value={data.manualRefNo}
+                onChange={(e) => handleChange("manualRefNo", e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Order No.</Form.Label>
+              <Form.Control
+                value={data.orderNo}
+                onChange={(e) => handleChange("orderNo", e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Quotation No.</Form.Label>
+              <Form.Control
+                value={data.quotationNo}
+                onChange={(e) => handleChange("quotationNo", e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Order Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={data.orderDate}
+                onChange={(e) => handleChange("orderDate", e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Delivery Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={data.deliveryDate}
+                onChange={(e) => handleChange("deliveryDate", e.target.value)}
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+        {/* Items Table */}
+        <div className="mb-4">
+          <div className="d-flex justify-content-between mb-2">
+            <Button
+              size="sm"
+              onClick={addItem}
+              style={{
+                backgroundColor: "#53b2a5",
+                border: "none",
+                marginRight: "5px",
+              }}
+            >
+              <FontAwesomeIcon icon={faPlus} /> Add Row
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowAdd(true)}
+              style={{ backgroundColor: "#53b2a5", border: "none" }}
+            >
+              + Add Product
+            </Button>
+          </div>
+          <AddProductModal
+            showAdd={showAdd}
+            showEdit={false}
+            newItem={newItem}
+            categories={categories}
+            newCategory={newCategory}
+            showUOMModal={showUOMModal}
+            showAddCategoryModal={showAddCategoryModal}
+            setShowAdd={setShowAdd}
+            setShowEdit={() => { }}
+            setShowUOMModal={setShowUOMModal}
+            setShowAddCategoryModal={setShowAddCategoryModal}
+            setNewCategory={setNewCategory}
+            handleChange={(f, v) => setNewItem((prev) => ({ ...prev, [f]: v }))}
+            handleAddItem={handleAddItem}
+            handleUpdateItem={() => { }}
+            handleAddCategory={(e) => {
+              e.preventDefault();
+              if (newCategory && !categories.includes(newCategory)) {
+                setNewItem((prev) => ({ ...prev, category: newCategory }));
+              }
+              setNewCategory("");
+              setShowAddCategoryModal(false);
+            }}
+            companyId={companyId}
+          />
+          <Table bordered hover size="sm" className="dark-bordered-table">
+            <thead className="bg-light">
+              <tr>
+                <th>Item Name</th>
+                <th>Qty</th>
+                <th>Rate</th>
+                <th>Tax %</th>
+                <th>Discount</th>
+                <th>Amount</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.map((item, idx) => {
+                const qty = parseInt(item.qty) || 0;
+                const amount = (parseFloat(item.rate) || 0) * qty;
+                const rowKey = `${tab}-${idx}`;
+                return (
+                  <tr key={idx}>
+                    <td style={{ position: "relative" }}>
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        <Form.Control
+                          size="sm"
+                          value={item.name}
+                          onChange={(e) => handleItemChange(idx, "name", e.target.value)}
+                          style={{ marginRight: "5px" }}
+                        />
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => toggleRowSearch(idx)}
+                        >
+                          <FontAwesomeIcon icon={faSearch} />
+                        </Button>
+                      </div>
+                      {showRowSearch[rowKey] && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            right: 0,
+                            zIndex: 10,
+                            backgroundColor: "white",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                            maxHeight: "200px",
+                            overflowY: "auto",
+                          }}
+                        >
+                          <InputGroup size="sm">
+                            <InputGroup.Text>
+                              <FontAwesomeIcon icon={faSearch} />
+                            </InputGroup.Text>
+                            <FormControl
+                              placeholder="Search..."
+                              value={rowSearchTerms[rowKey] || ""}
+                              onChange={(e) => handleRowSearchChange(idx, e.target.value)}
+                              autoFocus
+                            />
+                          </InputGroup>
+                          {getFilteredItems(idx).map((fItem) => (
+                            <div
+                              key={fItem.id}
+                              style={{ padding: "8px", cursor: "pointer" }}
+                              onClick={() => handleSelectSearchedItem(idx, fItem)}
+                            >
+                              <strong>{fItem.item_name}</strong> – $
+                              {(parseFloat(fItem.purchase_price || fItem.sale_price) || 0).toFixed(2)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        size="sm"
+                        value={item.qty}
+                        onChange={(e) => handleItemChange(idx, "qty", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.rate}
+                        onChange={(e) => handleItemChange(idx, "rate", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.tax}
+                        onChange={(e) => handleItemChange(idx, "tax", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.discount}
+                        onChange={(e) => handleItemChange(idx, "discount", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={amount.toFixed(2)}
+                        readOnly
+                        style={{ backgroundColor: "#f8f9fa" }}
+                      />
+                    </td>
+                    <td>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => removeItem(idx)}
+                      >
+                        Delete
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </div>
+        {/* Totals */}
+        <Row className="mb-4 mt-2">
+          <Col md={4}>
+            <Table bordered size="sm" className="dark-bordered-table">
+              <tbody>
+                <tr>
+                  <td>Sub Total:</td>
+                  <td>
+                    $
+                    {data.items
+                      .reduce(
+                        (s, i) =>
+                          s + (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0),
+                        0
+                      )
+                      .toFixed(2)}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Tax:</td>
+                  <td>
+                    $
+                    {data.items
+                      .reduce((s, i) => {
+                        const sub = (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0);
+                        return s + (sub * (parseFloat(i.tax) || 0)) / 100;
+                      }, 0)
+                      .toFixed(2)}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Discount:</td>
+                  <td>
+                    $
+                    {data.items
+                      .reduce((s, i) => s + (parseFloat(i.discount) || 0), 0)
+                      .toFixed(2)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="fw-bold">Total:</td>
+                  <td className="fw-bold">
+                    ${calculateTotalWithTaxAndDiscount(data.items).toFixed(2)}
+                  </td>
+                </tr>
+              </tbody>
+            </Table>
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        {/* Terms & Attachments */}
+        <Row className="mb-4">
+          <Col>
+            <Form.Group>
+              <Form.Label>Terms & Conditions</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={data.terms}
+                onChange={(e) => handleChange("terms", e.target.value)}
+                style={{ border: "1px solid #343a40" }}
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+        <div className="mt-4 mb-4">
+          <h5>Attachments</h5>
+          <Row>
+            {["signature", "photo"].map((field, i) => (
+              <Col md={4} key={i}>
+                <Form.Group>
+                  <Form.Label>{field.charAt(0).toUpperCase() + field.slice(1)}</Form.Label>
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(tab, field, e)}
+                  />
+                  {data[field] && (
+                    <img
+                      src={data[field]}
+                      alt={field}
+                      style={{
+                        width: i === 0 ? "100px" : "100px",
+                        height: i === 0 ? "50px" : "100px",
+                        objectFit: "cover",
+                        marginTop: "8px",
+                      }}
+                    />
+                  )}
+                </Form.Group>
+              </Col>
+            ))}
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Attach Files</Form.Label>
+                <Form.Control
+                  type="file"
+                  multiple
+                  onChange={(e) => handleMultiFileChange(tab, e)}
+                />
+                {data.files?.length > 0 && (
+                  <ul className="list-unstyled mt-2">
+                    {data.files.map((f, i) => (
+                      <li key={i} className="d-flex justify-content-between">
+                        <span>{f.name}</span>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => removeFile(tab, i)}
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Form.Group>
+            </Col>
+          </Row>
+        </div>
+        <Row className="text-center mb-4">
+          <Col>
+            <p>
+              <strong>Thank you for your business!</strong>
+            </p>
+            <p className="text-muted">www.yourcompany.com</p>
+          </Col>
+        </Row>
+      </Form>
+    );
   };
 
-  return (
-    <>
-      <div className="container-fluid mt-4 px-2" ref={formRef}>
-        <h4 className="text-center mb-4">Purchase Process</h4>
+  // --- GoodsReceiptTab ---
+  const renderGoodsReceiptTab = () => {
+    const tab = "goodsReceipt";
+    const data = formData[tab];
+    const handleChange = (field, value) =>
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], [field]: value } }));
 
-        {/* Top Action Buttons */}
-        <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
-          <Button
-            variant="warning"
-            onClick={() => handlePrint("english")}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Print (English)
-          </Button>
-          <Button
-            variant="warning"
-            onClick={() => handlePrint("arabic")}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-              backgroundColor: "#d39e00",
-              borderColor: "#c49200",
-            }}
-          >
-            طباعة (العربية)
-          </Button>
-          <Button
-            variant="warning"
-            onClick={() => handlePrint("both")}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "150px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-              backgroundColor: "#c87f0a",
-              borderColor: "#b87409",
-            }}
-          >
-            Print Both (EN + AR)
-          </Button>
-          <Button
-            variant="info"
-            onClick={handleSend}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              color: "white",
-              minWidth: "110px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Send
-          </Button>
-          <Button
-            variant="success"
-            onClick={handleDownloadPDF}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Download PDF
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => navigate("/company/viewinvoicee")}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            View Bills
-          </Button>
-        </div>
+    const handleItemChange = (idx, field, value) => {
+      const items = [...data.items];
+      items[idx][field] = value;
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+    };
 
-        <Tabs activeKey={key} onSelect={setKey} className="mb-4" fill>
-          <Tab eventKey="purchaseQuotation" title="Purchase Quotation">
-            <PurchaseQuotationTab {...tabProps} />
-          </Tab>
-          <Tab eventKey="purchaseOrder" title="Purchase Order">
-            <PurchaseOrderTab {...tabProps} />
-          </Tab>
-          <Tab eventKey="goodsReceipt" title="Goods Receipt">
-            <GoodsReceiptTab {...tabProps} />
-          </Tab>
-          <Tab eventKey="bill" title="Bill">
-            <BillTab {...tabProps} />
-          </Tab>
-          <Tab eventKey="payment" title="Payment">
-            <PaymentTab {...tabProps} />
-          </Tab>
-        </Tabs>
+    const addItem = () =>
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          items: [
+            ...prev[tab].items,
+            {
+              name: "",
+              qty: "",
+              receivedQty: "",
+              rate: "",
+              tax: 0,
+              discount: 0,
+              hsn: "",
+              uom: "PCS",
+            },
+          ],
+        },
+      }));
 
-        {/* Hidden PDF View - Only for PDF generation and printing */}
-        <div
+    const removeItem = (idx) => {
+      const items = [...data.items];
+      items.splice(idx, 1);
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+    };
+
+    const handleRowSearchChange = (idx, value) =>
+      setRowSearchTerms((prev) => ({ ...prev, [`${tab}-${idx}`]: value }));
+
+    const toggleRowSearch = (idx) =>
+      setShowRowSearch((prev) => ({ ...prev, [`${tab}-${idx}`]: !prev[`${tab}-${idx}`] }));
+
+    const handleSelectSearchedItem = (idx, item) => {
+      const items = [...data.items];
+      items[idx] = {
+        ...items[idx],
+        name: item.item_name, // Use fetched product name
+        rate: item.purchase_price || item.sale_price, // Use fetched rate
+        tax: parseFloat(item.tax_account) || 0, // Use fetched tax
+        hsn: item.hsn, // Use fetched HSN
+        uom: item.unit_detail?.uom_name || "PCS", // Use fetched UOM
+        productId: item.id, // Store ID if needed later
+      };
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+      setShowRowSearch((prev) => ({ ...prev, [`${tab}-${idx}`]: false }));
+      setRowSearchTerms((prev) => ({ ...prev, [`${tab}-${idx}`]: "" }));
+    };
+
+    const getFilteredItems = (idx) => {
+      const term = (rowSearchTerms[`${tab}-${idx}`] || "").toLowerCase();
+      return term
+        ? apiProducts.filter(
+          (i) =>
+            (i.item_name || "").toLowerCase().includes(term) ||
+            (i.item_category?.item_category_name || "")
+              .toLowerCase()
+              .includes(term)
+        )
+        : apiProducts;
+    };
+
+    const handleAddItem = () => {
+      if (!newItem.name || !newItem.category) return alert("Name and category required!");
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          items: [
+            ...prev[tab].items,
+            {
+              name: newItem.name,
+              qty: 1,
+              receivedQty: 1,
+              rate: newItem.sellingPrice,
+              tax: newItem.tax,
+              discount: 0,
+              hsn: newItem.hsn,
+              uom: newItem.uom,
+            },
+          ],
+        },
+      }));
+      setNewItem({
+        name: "",
+        category: "",
+        hsn: "",
+        tax: 0,
+        sellingPrice: 0,
+        uom: "PCS",
+      });
+      setShowAdd(false);
+    };
+
+    return (
+      <Form>
+        <Row className="mb-4 d-flex justify-content-between align-items-center">
+          <Col md={3} className="d-flex align-items-center justify-content-center">
+            <div
+              className="border rounded d-flex flex-column align-items-center justify-content-center"
+              style={{
+                height: "120px",
+                width: "100%",
+                borderStyle: "dashed",
+                cursor: "pointer",
+              }}
+              onClick={() => document.getElementById("logo-gr")?.click()}
+            >
+              {formData.purchaseQuotation.logo ? ( // Use logo from PQ
+                <img
+                  src={formData.purchaseQuotation.logo}
+                  alt="Logo"
+                  style={{ maxWidth: "100%", maxHeight: "100px" }}
+                />
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <small>Upload Logo</small>
+                </>
+              )}
+              <input
+                id="logo-gr"
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => handleFileChange(tab, "logo", e)}
+              />
+            </div>
+          </Col>
+          <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
+            <h2 className="text-success mb-0">GOODS RECEIPT NOTE</h2>
+            <hr
+              style={{
+                width: "80%",
+                borderColor: "#28a745",
+                margin: "5px 0 10px",
+              }}
+            />
+          </Col>
+        </Row>
+        <hr
           style={{
-            visibility: "hidden",
-            position: "absolute",
-            left: "-9999px",
-            top: "-9999px",
-            width: "210mm",
-            padding: "15mm",
-            boxSizing: "border-box",
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
           }}
-        >
-          <div id="pdf-view" ref={pdfRef}>
-            {renderPDFView()}
+        />
+        <Row className="mb-4 mt-3">
+          <Col md={6}>
+            <div className="d-flex flex-column gap-1">
+              <Form.Control
+                type="text"
+                value={data.companyName} // Use fetched company name
+                onChange={(e) => handleChange("companyName", e.target.value)}
+                placeholder="Company Name"
+                className="form-control-no-border"
+              />
+              <Form.Control
+                type="text"
+                value={data.companyAddress} // Use fetched company address
+                onChange={(e) => handleChange("companyAddress", e.target.value)}
+                placeholder="Address"
+                className="form-control-no-border"
+              />
+              <Form.Control
+                type="email"
+                value={data.companyEmail} // Use fetched company email
+                onChange={(e) => handleChange("companyEmail", e.target.value)}
+                placeholder="Email"
+                className="form-control-no-border"
+              />
+              <Form.Control
+                type="text"
+                value={data.companyPhone} // Use fetched company phone
+                onChange={(e) => handleChange("companyPhone", e.target.value)}
+                placeholder="Phone"
+                className="form-control-no-border"
+              />
+            </div>
+          </Col>
+          <Col md={6} className="d-flex flex-column align-items-end gap-2">
+            <Form.Control
+              type="date"
+              value={data.receiptDate}
+              onChange={(e) => handleChange("receiptDate", e.target.value)}
+              className="form-control-no-border text-end"
+            />
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-left text-nowrap">
+                <Form.Label className="mb-0" style={{ fontSize: "0.9rem", color: "#6c757d" }}>
+                  Ref No.
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.referenceId}
+                  readOnly
+                  className="form-control-no-border text-end"
+                  style={{ backgroundColor: "#f8f9fa" }}
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Manual Ref. No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.manualRefNo}
+                  onChange={(e) => handleChange("manualRefNo", e.target.value)}
+                  className="form-control-no-border text-end"
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Receipt No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.receiptNo}
+                  readOnly
+                  className="form-control-no-border text-end"
+                  style={{ backgroundColor: "#f8f9fa" }}
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Manual GR No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.manualReceiptNo}
+                  onChange={(e) => handleChange("manualReceiptNo", e.target.value)}
+                  className="form-control-no-border text-end"
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Purchase Order No</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.purchaseOrderNo}
+                  readOnly
+                  className="form-control-no-border text-end"
+                  style={{ backgroundColor: "#f8f9fa" }}
+                />
+              </div>
+            </Form.Group>
+            <div className="d-flex justify-content-between align-items-center text-nowrap">
+              <Form.Label className="mb-0">Vehicle No</Form.Label>
+              <Form.Control
+                type="text"
+                value={data.vehicleNo}
+                onChange={(e) => handleChange("vehicleNo", e.target.value)}
+                placeholder="Vehicle No."
+                className="form-control-no-border text-end"
+              />
+            </div>
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        {/* Vendor & Ship To */}
+        <Row className="mb-4 d-flex justify-content-between">
+          <Col md={6}>
+            <h5>VENDOR</h5>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
+              <Form.Control
+                value={data.vendorName}
+                onChange={(e) => {
+                  handleChange("vendorName", e.target.value);
+                  handleVendorSearchChange(e.target.value); // Reuse vendor search logic
+                }}
+                onFocus={() => setShowVendorSearch(true)} // Reuse vendor search logic
+                placeholder="Vendor Name"
+                className="form-control-no-border"
+              />
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => setShowVendorSearch(!showVendorSearch)} // Reuse vendor search logic
+              >
+                <FontAwesomeIcon icon={faSearch} />
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigate("/Company/vendorscreditors")}
+                style={{
+                  textWrap: "nowrap",
+                  backgroundColor: "#53b2a5",
+                  border: "none",
+                  marginLeft: "5px",
+                }}
+              >
+                Add Vendor
+              </Button>
+            </div>
+            {showVendorSearch && (
+              <div
+                style={{
+                  position: "absolute",
+                  zIndex: 10,
+                  backgroundColor: "white",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  width: "100%",
+                }}
+              >
+                {vendors
+                  .filter(
+                    (v) =>
+                      (v.name_english || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+                      (v.email || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+                      (v.phone || "").toLowerCase().includes(vendorSearchTerm.toLowerCase())
+                  )
+                  .map((v) => (
+                    <div
+                      key={v.id}
+                      style={{ padding: "8px", cursor: "pointer" }}
+                      onClick={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          [tab]: {
+                            ...prev[tab],
+                            vendorName: v.name_english || "",
+                            vendorAddress: v.address || "",
+                            vendorEmail: v.email || "",
+                            vendorPhone: v.phone || "",
+                          },
+                        }));
+                        setShowVendorSearch(false);
+                        setVendorSearchTerm("");
+                      }}
+                    >
+                      <strong>{v.name_english}</strong> – {v.email} | {v.phone}
+                    </div>
+                  ))}
+              </div>
+            )}
+            <Form.Control
+              type="text"
+              value={data.vendorAddress}
+              onChange={(e) => handleChange("vendorAddress", e.target.value)}
+              placeholder="Address"
+              className="form-control-no-border"
+            />
+            <Form.Control
+              type="text"
+              value={data.vendorPhone}
+              onChange={(e) => handleChange("vendorPhone", e.target.value)}
+              placeholder="Phone"
+              className="form-control-no-border"
+            />
+            <Form.Control
+              type="email"
+              value={data.vendorEmail}
+              onChange={(e) => handleChange("vendorEmail", e.target.value)}
+              placeholder="Email"
+              className="form-control-no-border"
+            />
+          </Col>
+          <Col md={6}>
+            <h5 className="text-right">SHIP TO</h5>
+            <Form.Control
+              type="text"
+              value={data.shipToName}
+              onChange={(e) => handleChange("shipToName", e.target.value)}
+              placeholder="Name"
+              className="form-control-no-border text-end"
+            />
+            <Form.Control
+              type="text"
+              value={data.shipToAddress}
+              onChange={(e) => handleChange("shipToAddress", e.target.value)}
+              placeholder="Address"
+              className="form-control-no-border text-end"
+            />
+            <Form.Control
+              type="text"
+              value={data.shipToPhone}
+              onChange={(e) => handleChange("shipToPhone", e.target.value)}
+              placeholder="Phone"
+              className="form-control-no-border text-end"
+            />
+            <Form.Control
+              type="email"
+              value={data.shipToEmail}
+              onChange={(e) => handleChange("shipToEmail", e.target.value)}
+              placeholder="Email"
+              className="form-control-no-border text-end"
+            />
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        {/* Driver Details */}
+        <Row className="mb-4">
+          <Col md={6}>
+            <h5>Driver Details</h5>
+            <Form.Group className="mb-2">
+              <Form.Label>Driver Name</Form.Label>
+              <Form.Control
+                type="text"
+                value={data.driverName}
+                onChange={(e) => handleChange("driverName", e.target.value)}
+                style={{ border: "1px solid #343a40" }}
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Driver Phone</Form.Label>
+              <Form.Control
+                type="text"
+                value={data.driverPhone}
+                onChange={(e) => handleChange("driverPhone", e.target.value)}
+                style={{ border: "1px solid #343a40" }}
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+        {/* Items Table */}
+        <div className="mt-4 mb-4">
+          <div className="d-flex justify-content-between mb-2">
+            <Button
+              size="sm"
+              onClick={addItem}
+              style={{
+                backgroundColor: "#53b2a5",
+                border: "none",
+                marginRight: "5px",
+              }}
+            >
+              <FontAwesomeIcon icon={faPlus} /> Add Row
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowAdd(true)}
+              style={{ backgroundColor: "#53b2a5", border: "none" }}
+            >
+              + Add Product
+            </Button>
           </div>
+          <AddProductModal
+            showAdd={showAdd}
+            showEdit={false}
+            newItem={newItem}
+            categories={categories}
+            newCategory={newCategory}
+            showUOMModal={showUOMModal}
+            showAddCategoryModal={showAddCategoryModal}
+            setShowAdd={setShowAdd}
+            setShowEdit={() => { }}
+            setShowUOMModal={setShowUOMModal}
+            setShowAddCategoryModal={setShowAddCategoryModal}
+            setNewCategory={setNewCategory}
+            handleChange={(f, v) => setNewItem((prev) => ({ ...prev, [f]: v }))}
+            handleAddItem={handleAddItem}
+            handleUpdateItem={() => { }}
+            handleAddCategory={(e) => {
+              e.preventDefault();
+              if (newCategory && !categories.includes(newCategory)) {
+                setNewItem((prev) => ({ ...prev, category: newCategory }));
+              }
+              setNewCategory("");
+              setShowAddCategoryModal(false);
+            }}
+            companyId={companyId}
+          />
+          <Table bordered hover size="sm" className="dark-bordered-table">
+            <thead className="bg-light">
+              <tr>
+                <th>Item Name</th>
+                <th>Qty</th>
+                <th>Received Qty</th>
+                <th>Rate</th>
+                <th>Tax %</th>
+                <th>Discount</th>
+                <th>Amount</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.map((item, idx) => {
+                const qty = parseInt(item.receivedQty) || 0;
+                const amount = (parseFloat(item.rate) || 0) * qty;
+                const rowKey = `${tab}-${idx}`;
+                return (
+                  <tr key={idx}>
+                    <td style={{ position: "relative" }}>
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        <Form.Control
+                          type="text"
+                          size="sm"
+                          value={item.name}
+                          onChange={(e) => handleItemChange(idx, "name", e.target.value)}
+                        />
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => toggleRowSearch(idx)}
+                        >
+                          <FontAwesomeIcon icon={faSearch} />
+                        </Button>
+                      </div>
+                      {showRowSearch[rowKey] && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            right: 0,
+                            zIndex: 10,
+                            backgroundColor: "white",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                            maxHeight: "200px",
+                            overflowY: "auto",
+                          }}
+                        >
+                          <InputGroup size="sm">
+                            <InputGroup.Text>
+                              <FontAwesomeIcon icon={faSearch} />
+                            </InputGroup.Text>
+                            <FormControl
+                              placeholder="Search..."
+                              value={rowSearchTerms[rowKey] || ""}
+                              onChange={(e) => handleRowSearchChange(idx, e.target.value)}
+                              autoFocus
+                            />
+                          </InputGroup>
+                          {getFilteredItems(idx).map((fItem) => (
+                            <div
+                              key={fItem.id}
+                              style={{ padding: "8px", cursor: "pointer" }}
+                              onClick={() => handleSelectSearchedItem(idx, fItem)}
+                            >
+                              <strong>{fItem.item_name}</strong> – $
+                              {(parseFloat(fItem.purchase_price || fItem.sale_price) || 0).toFixed(2)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        size="sm"
+                        value={item.qty}
+                        onChange={(e) => handleItemChange(idx, "qty", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        size="sm"
+                        value={item.receivedQty}
+                        onChange={(e) => handleItemChange(idx, "receivedQty", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.rate}
+                        onChange={(e) => handleItemChange(idx, "rate", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.tax}
+                        onChange={(e) => handleItemChange(idx, "tax", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.discount}
+                        onChange={(e) => handleItemChange(idx, "discount", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={amount.toFixed(2)}
+                        readOnly
+                        style={{ backgroundColor: "#f8f9fa" }}
+                      />
+                    </td>
+                    <td>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => removeItem(idx)}
+                      >
+                        Delete
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
         </div>
+        {/* Totals */}
+        <Row className="mb-4 mt-2">
+          <Col md={4}>
+            <Table bordered size="sm" className="dark-bordered-table">
+              <tbody>
+                <tr>
+                  <td>Sub Total:</td>
+                  <td>${calculateTotalAmount(data.items).toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td className="fw-bold">Total:</td>
+                  <td className="fw-bold">${calculateTotalAmount(data.items).toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </Table>
+          </Col>
+        </Row>
+        {/* Terms & Attachments */}
+        <Form.Group className="mt-4">
+          <Form.Label>Terms & Conditions</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={2}
+            value={data.terms}
+            onChange={(e) => handleChange("terms", e.target.value)}
+            style={{ border: "1px solid #343a40" }}
+          />
+        </Form.Group>
+        <div className="mt-4 mb-4">
+          <h5>Attachments</h5>
+          <Row>
+            {["signature", "photo"].map((field, i) => (
+              <Col md={4} key={i}>
+                <Form.Group>
+                  <Form.Label>{field.charAt(0).toUpperCase() + field.slice(1)}</Form.Label>
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(tab, field, e)}
+                  />
+                  {data[field] && (
+                    <img
+                      src={data[field]}
+                      alt={field}
+                      style={{
+                        width: i === 0 ? "100px" : "100px",
+                        height: i === 0 ? "50px" : "100px",
+                        objectFit: "cover",
+                        marginTop: "8px",
+                      }}
+                    />
+                  )}
+                </Form.Group>
+              </Col>
+            ))}
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Attach Files</Form.Label>
+                <Form.Control
+                  type="file"
+                  multiple
+                  onChange={(e) => handleMultiFileChange(tab, e)}
+                />
+                {data.files?.length > 0 && (
+                  <ul className="list-unstyled mt-2">
+                    {data.files.map((f, i) => (
+                      <li key={i} className="d-flex justify-content-between">
+                        <span>{f.name}</span>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => removeFile(tab, i)}
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Form.Group>
+            </Col>
+          </Row>
+        </div>
+        <Row className="text-center mt-5 mb-4 pt-3 border-top">
+          <Col>
+            <p>
+              <strong>Thank you for your business!</strong>
+            </p>
+            <p className="text-muted">www.yourcompany.com</p>
+          </Col>
+        </Row>
+      </Form>
+    );
+  };
+
+  // --- BillTab ---
+  const renderBillTab = () => {
+    const tab = "bill";
+    const data = formData[tab];
+    const handleChange = (field, value) =>
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], [field]: value } }));
+
+    const handleItemChange = (idx, field, value) => {
+      const items = [...data.items];
+      items[idx][field] = value;
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+    };
+
+    const addItem = () =>
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          items: [
+            ...prev[tab].items,
+            {
+              description: "",
+              qty: "",
+              rate: "",
+              tax: "",
+              discount: "",
+              amount: "",
+              hsn: "",
+              uom: "PCS",
+            },
+          ],
+        },
+      }));
+
+    const removeItem = (idx) => {
+      const items = [...data.items];
+      items.splice(idx, 1);
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+    };
+
+    const handleRowSearchChange = (idx, value) =>
+      setRowSearchTerms((prev) => ({ ...prev, [`${tab}-${idx}`]: value }));
+
+    const toggleRowSearch = (idx) =>
+      setShowRowSearch((prev) => ({ ...prev, [`${tab}-${idx}`]: !prev[`${tab}-${idx}`] }));
+
+    const handleSelectSearchedItem = (idx, item) => {
+      const items = [...data.items];
+      items[idx] = {
+        ...items[idx],
+        description: item.item_name, // Use fetched product name for description
+        rate: item.purchase_price || item.sale_price, // Use fetched rate
+        tax: parseFloat(item.tax_account) || 0, // Use fetched tax
+        hsn: item.hsn, // Use fetched HSN
+        uom: item.unit_detail?.uom_name || "PCS", // Use fetched UOM
+        productId: item.id, // Store ID if needed later
+      };
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+      setShowRowSearch((prev) => ({ ...prev, [`${tab}-${idx}`]: false }));
+      setRowSearchTerms((prev) => ({ ...prev, [`${tab}-${idx}`]: "" }));
+    };
+
+    const getFilteredItems = (idx) => {
+      const term = (rowSearchTerms[`${tab}-${idx}`] || "").toLowerCase();
+      return term
+        ? apiProducts.filter(
+          (i) =>
+            (i.item_name || "").toLowerCase().includes(term) ||
+            (i.item_category?.item_category_name || "")
+              .toLowerCase()
+              .includes(term)
+        )
+        : apiProducts;
+    };
+
+    const handleAddItem = () => {
+      if (!newItem.name || !newItem.category) return alert("Name and category required!");
+      const amount = newItem.sellingPrice;
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          items: [
+            ...prev[tab].items,
+            {
+              description: newItem.name,
+              qty: 1,
+              rate: newItem.sellingPrice,
+              tax: newItem.tax,
+              discount: 0,
+              amount,
+              hsn: newItem.hsn,
+              uom: newItem.uom,
+            },
+          ],
+        },
+      }));
+      setNewItem({
+        name: "",
+        category: "",
+        hsn: "",
+        tax: 0,
+        sellingPrice: 0,
+        uom: "PCS",
+      });
+      setShowAdd(false);
+    };
+
+    return (
+      <Form>
+        <Row className="mb-4 d-flex justify-content-between align-items-center">
+          <Col md={3} className="d-flex align-items-center justify-content-center">
+            <div
+              className="border rounded d-flex flex-column align-items-center justify-content-center"
+              style={{
+                height: "120px",
+                width: "100%",
+                borderStyle: "dashed",
+                cursor: "pointer",
+              }}
+              onClick={() => document.getElementById("logo-bill")?.click()}
+            >
+              {formData.purchaseQuotation.logo ? ( // Use logo from PQ
+                <img
+                  src={formData.purchaseQuotation.logo}
+                  alt="Logo"
+                  style={{ maxWidth: "100%", maxHeight: "100px" }}
+                />
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <small>Upload Logo</small>
+                </>
+              )}
+              <input
+                id="logo-bill"
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => handleFileChange(tab, "logo", e)}
+              />
+            </div>
+          </Col>
+          <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
+            <h2 className="text-success mb-0">PURCHASE BILL</h2>
+            <hr
+              style={{
+                width: "80%",
+                borderColor: "#28a745",
+                margin: "5px 0 10px",
+              }}
+            />
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        <Row className="mb-4 mt-3">
+          <Col md={6}>
+            <div className="d-flex flex-column gap-1">
+              <Form.Control
+                type="text"
+                value={data.companyName} // Use fetched company name
+                onChange={(e) => handleChange("companyName", e.target.value)}
+                placeholder="Company Name"
+                className="form-control-no-border"
+              />
+              <Form.Control
+                type="text"
+                value={data.companyAddress} // Use fetched company address
+                onChange={(e) => handleChange("companyAddress", e.target.value)}
+                placeholder="Address"
+                className="form-control-no-border"
+              />
+              <Form.Control
+                type="email"
+                value={data.companyEmail} // Use fetched company email
+                onChange={(e) => handleChange("companyEmail", e.target.value)}
+                placeholder="Email"
+                className="form-control-no-border"
+              />
+              <Form.Control
+                type="text"
+                value={data.companyPhone} // Use fetched company phone
+                onChange={(e) => handleChange("companyPhone", e.target.value)}
+                placeholder="Phone"
+                className="form-control-no-border"
+              />
+            </div>
+          </Col>
+          <Col md={6} className=" gap-2 d-flex flex-column align-items-end">
+            <Form.Control
+              type="date"
+              value={data.billDate}
+              onChange={(e) => handleChange("billDate", e.target.value)}
+              className="form-control-no-border text-end"
+            />
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Ref No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.referenceId}
+                  readOnly
+                  className="form-control-no-border text-end"
+                  style={{ backgroundColor: "#f8f9fa" }}
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Manual Ref. No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.manualRefNo}
+                  onChange={(e) => handleChange("manualRefNo", e.target.value)}
+                  className="form-control-no-border text-end"
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Bill No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.billNo || ""}
+                  readOnly
+                  className="form-control-no-border text-end"
+                  style={{ backgroundColor: "#f8f9fa" }}
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Manual Bill No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.manualBillNo || ""}
+                  onChange={(e) => handleChange("manualBillNo", e.target.value)}
+                  className="form-control-no-border text-end"
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Goods Receipt No</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.goodsReceiptNo || ""}
+                  readOnly
+                  className="form-control-no-border text-end"
+                  style={{ backgroundColor: "#f8f9fa" }}
+                />
+              </div>
+            </Form.Group>
+            {/* <Form.Control type="date" value={data.dueDate} onChange={(e) => handleChange("dueDate", e.target.value)} placeholder="Due Date" className="form-control-no-border text-end" /> */}
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        {/* Vendor & Ship To */}
+        <Row className="mb-4 d-flex justify-content-between">
+          <Col md={6}>
+            <h5>VENDOR</h5>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
+              <Form.Control
+                value={data.vendorName}
+                onChange={(e) => {
+                  handleChange("vendorName", e.target.value);
+                  handleVendorSearchChange(e.target.value); // Reuse vendor search logic
+                }}
+                onFocus={() => setShowVendorSearch(true)} // Reuse vendor search logic
+                placeholder="Vendor Name"
+                className="form-control-no-border"
+              />
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => setShowVendorSearch(!showVendorSearch)} // Reuse vendor search logic
+              >
+                <FontAwesomeIcon icon={faSearch} />
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigate("/Company/vendorscreditors")}
+                style={{
+                  textWrap: "nowrap",
+                  backgroundColor: "#53b2a5",
+                  border: "none",
+                  marginLeft: "5px",
+                }}
+              >
+                Add Vendor
+              </Button>
+            </div>
+            {showVendorSearch && (
+              <div
+                style={{
+                  position: "absolute",
+                  zIndex: 10,
+                  backgroundColor: "white",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  width: "100%",
+                }}
+              >
+                {vendors
+                  .filter(
+                    (v) =>
+                      (v.name_english || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+                      (v.email || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+                      (v.phone || "").toLowerCase().includes(vendorSearchTerm.toLowerCase())
+                  )
+                  .map((v) => (
+                    <div
+                      key={v.id}
+                      style={{ padding: "8px", cursor: "pointer" }}
+                      onClick={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          [tab]: {
+                            ...prev[tab],
+                            vendorName: v.name_english || "",
+                            vendorAddress: v.address || "",
+                            vendorEmail: v.email || "",
+                            vendorPhone: v.phone || "",
+                          },
+                        }));
+                        setShowVendorSearch(false);
+                        setVendorSearchTerm("");
+                      }}
+                    >
+                      <strong>{v.name_english}</strong> – {v.email} | {v.phone}
+                    </div>
+                  ))}
+              </div>
+            )}
+            <Form.Control
+              as="textarea"
+              rows={2}
+              value={data.vendorAddress}
+              onChange={(e) => handleChange("vendorAddress", e.target.value)}
+              placeholder="Address"
+              className="form-control-no-border"
+            />
+            <Form.Control
+              type="email"
+              value={data.vendorEmail}
+              onChange={(e) => handleChange("vendorEmail", e.target.value)}
+              placeholder="Email"
+              className="form-control-no-border"
+            />
+            <Form.Control
+              type="text"
+              value={data.vendorPhone}
+              onChange={(e) => handleChange("vendorPhone", e.target.value)}
+              placeholder="Phone"
+              className="form-control-no-border"
+            />
+          </Col>
+          <Col md={6}>
+            <h5 className="text-right">SHIP TO</h5>
+            <Form.Control
+              type="text"
+              value={data.shipToName || ""}
+              onChange={(e) => handleChange("shipToName", e.target.value)}
+              placeholder="Name"
+              className="form-control-no-border text-end"
+            />
+            <Form.Control
+              type="text"
+              value={data.shipToAddress || ""}
+              onChange={(e) => handleChange("shipToAddress", e.target.value)}
+              placeholder="Address"
+              className="form-control-no-border text-end"
+            />
+            <Form.Control
+              type="email"
+              value={data.shipToEmail || ""}
+              onChange={(e) => handleChange("shipToEmail", e.target.value)}
+              placeholder="Email"
+              className="form-control-no-border text-end"
+            />
+            <Form.Control
+              type="text"
+              value={data.shipToPhone || ""}
+              onChange={(e) => handleChange("shipToPhone", e.target.value)}
+              placeholder="Phone"
+              className="form-control-no-border text-end"
+            />
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        {/* Items Table */}
+        <div className="mt-4 mb-4">
+          <div className="d-flex justify-content-between mb-2">
+            <Button
+              size="sm"
+              onClick={addItem}
+              style={{
+                backgroundColor: "#53b2a5",
+                border: "none",
+                marginRight: "5px",
+              }}
+            >
+              <FontAwesomeIcon icon={faPlus} /> Add Row
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowAdd(true)}
+              style={{ backgroundColor: "#53b2a5", border: "none" }}
+            >
+              + Add Product
+            </Button>
+          </div>
+          <AddProductModal
+            showAdd={showAdd}
+            showEdit={false}
+            newItem={newItem}
+            categories={categories}
+            newCategory={newCategory}
+            showUOMModal={showUOMModal}
+            showAddCategoryModal={showAddCategoryModal}
+            setShowAdd={setShowAdd}
+            setShowEdit={() => { }}
+            setShowUOMModal={setShowUOMModal}
+            setShowAddCategoryModal={setShowAddCategoryModal}
+            setNewCategory={setNewCategory}
+            handleChange={(f, v) => setNewItem((prev) => ({ ...prev, [f]: v }))}
+            handleAddItem={handleAddItem}
+            handleUpdateItem={() => { }}
+            handleAddCategory={(e) => {
+              e.preventDefault();
+              if (newCategory && !categories.includes(newCategory)) {
+                setNewItem((prev) => ({ ...prev, category: newCategory }));
+              }
+              setNewCategory("");
+              setShowAddCategoryModal(false);
+            }}
+            companyId={companyId}
+          />
+          <Table bordered hover size="sm" className="dark-bordered-table">
+            <thead className="bg-light">
+              <tr>
+                <th>Item Description</th>
+                <th>Qty</th>
+                <th>Rate</th>
+                <th>Tax %</th>
+                <th>Discount</th>
+                <th>Amount</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.map((item, idx) => {
+                const qty = parseInt(item.qty) || 0;
+                const rate = parseFloat(item.rate) || 0;
+                const amount = qty * rate;
+                const rowKey = `${tab}-${idx}`;
+                return (
+                  <tr key={idx}>
+                    <td style={{ position: "relative" }}>
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        <Form.Control
+                          type="text"
+                          size="sm"
+                          value={item.description}
+                          onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                        />
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => toggleRowSearch(idx)}
+                        >
+                          <FontAwesomeIcon icon={faSearch} />
+                        </Button>
+                      </div>
+                      {showRowSearch[rowKey] && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            right: 0,
+                            zIndex: 10,
+                            backgroundColor: "white",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                            maxHeight: "200px",
+                            overflowY: "auto",
+                          }}
+                        >
+                          <InputGroup size="sm">
+                            <InputGroup.Text>
+                              <FontAwesomeIcon icon={faSearch} />
+                            </InputGroup.Text>
+                            <FormControl
+                              placeholder="Search..."
+                              value={rowSearchTerms[rowKey] || ""}
+                              onChange={(e) => handleRowSearchChange(idx, e.target.value)}
+                              autoFocus
+                            />
+                          </InputGroup>
+                          {getFilteredItems(idx).map((fItem) => (
+                            <div
+                              key={fItem.id}
+                              style={{ padding: "8px", cursor: "pointer" }}
+                              onClick={() => handleSelectSearchedItem(idx, fItem)}
+                            >
+                              <strong>{fItem.item_name}</strong> – $
+                              {(parseFloat(fItem.purchase_price || fItem.sale_price) || 0).toFixed(2)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        size="sm"
+                        value={item.qty}
+                        onChange={(e) => handleItemChange(idx, "qty", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.rate}
+                        onChange={(e) => handleItemChange(idx, "rate", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.tax}
+                        onChange={(e) => handleItemChange(idx, "tax", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={item.discount}
+                        onChange={(e) => handleItemChange(idx, "discount", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        value={amount.toFixed(2)}
+                        readOnly
+                        style={{ backgroundColor: "#f8f9fa" }}
+                      />
+                    </td>
+                    <td>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => removeItem(idx)}
+                      >
+                        Delete
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </div>
+        {/* Totals */}
+        <Row className="mb-4 mt-2">
+          <Col md={4}>
+            <Table bordered size="sm" className="dark-bordered-table">
+              <tbody>
+                <tr>
+                  <td>Sub Total:</td>
+                  <td>${calculateTotalAmount(data.items).toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td className="fw-bold">Total Due:</td>
+                  <td className="fw-bold">${calculateTotalAmount(data.items).toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </Table>
+          </Col>
+        </Row>
+        {/* Terms & Attachments */}
+        <Form.Group className="mt-4">
+          <Form.Label>Terms & Conditions</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={3}
+            value={data.terms}
+            onChange={(e) => handleChange("terms", e.target.value)}
+            style={{ border: "1px solid #343a40" }}
+          />
+        </Form.Group>
+        <div className="mt-4 mb-4">
+          <h5>Attachments</h5>
+          <Row>
+            {["signature", "photo"].map((field, i) => (
+              <Col md={4} key={i}>
+                <Form.Group>
+                  <Form.Label>{field.charAt(0).toUpperCase() + field.slice(1)}</Form.Label>
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(tab, field, e)}
+                  />
+                  {data[field] && (
+                    <img
+                      src={data[field]}
+                      alt={field}
+                      style={{
+                        width: i === 0 ? "100px" : "100px",
+                        height: i === 0 ? "50px" : "100px",
+                        objectFit: "cover",
+                        marginTop: "8px",
+                      }}
+                    />
+                  )}
+                </Form.Group>
+              </Col>
+            ))}
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Attach Files</Form.Label>
+                <Form.Control
+                  type="file"
+                  multiple
+                  onChange={(e) => handleMultiFileChange(tab, e)}
+                />
+                {data.files?.length > 0 && (
+                  <ul className="list-unstyled mt-2">
+                    {data.files.map((f, i) => (
+                      <li key={i} className="d-flex justify-content-between">
+                        <span>{f.name}</span>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => removeFile(tab, i)}
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Form.Group>
+            </Col>
+          </Row>
+        </div>
+        <Row className="text-center mt-5 mb-4 pt-3">
+          <Col>
+            <Form.Control
+              type="text"
+              value={data.footerNote}
+              onChange={(e) => handleChange("footerNote", e.target.value)}
+              className="text-center mb-2 fw-bold"
+              placeholder="Thank you for your business!"
+            />
+          </Col>
+        </Row>
+      </Form>
+    );
+  };
+
+  // --- PaymentTab ---
+  const renderPaymentTab = () => {
+    const tab = "payment";
+    const data = formData[tab];
+    const handleChange = (field, value) =>
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], [field]: value } }));
+
+    const handleItemChange = (idx, field, value) => {
+      const items = [...data.items];
+      items[idx][field] = value;
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+    };
+
+    const addItem = () =>
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          items: [
+            ...prev[tab].items,
+            {
+              description: "",
+              qty: "",
+              rate: "",
+              tax: "",
+              discount: "",
+              amount: "",
+              hsn: "",
+              uom: "PCS",
+            },
+          ],
+        },
+      }));
+
+    const removeItem = (idx) => {
+      const items = [...data.items];
+      items.splice(idx, 1);
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
+    };
+
+    const handleAddItem = () => {
+      if (!newItem.name || !newItem.category) return alert("Name and category required!");
+      const amount = newItem.sellingPrice;
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          items: [
+            ...prev[tab].items,
+            {
+              description: newItem.name,
+              qty: 1,
+              rate: newItem.sellingPrice,
+              tax: newItem.tax,
+              discount: 0,
+              amount,
+              hsn: newItem.hsn,
+              uom: newItem.uom,
+            },
+          ],
+        },
+      }));
+      setNewItem({
+        name: "",
+        category: "",
+        hsn: "",
+        tax: 0,
+        sellingPrice: 0,
+        uom: "PCS",
+      });
+      setShowAdd(false);
+    };
+
+    const totalBill = parseFloat(data.totalAmount) || calculateTotalAmount(formData.bill?.items || []);
+    const amountPaid = parseFloat(data.amount) || 0;
+    const balance = totalBill - amountPaid;
+
+    return (
+      <Form>
+        <Row className="mb-4 d-flex justify-content-between align-items-center">
+          <Col md={3} className="d-flex align-items-center justify-content-center">
+            <div
+              className="border rounded d-flex flex-column align-items-center justify-content-center"
+              style={{
+                height: "120px",
+                width: "100%",
+                borderStyle: "dashed",
+                cursor: "pointer",
+              }}
+              onClick={() => document.getElementById("logo-pay")?.click()}
+            >
+              {formData.purchaseQuotation.logo ? ( // Use logo from PQ
+                <img
+                  src={formData.purchaseQuotation.logo}
+                  alt="Logo"
+                  style={{ maxWidth: "100%", maxHeight: "100px" }}
+                />
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faUpload} size="2x" className="text-muted" />
+                  <small>Upload Logo</small>
+                </>
+              )}
+              <input
+                id="logo-pay"
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => handleFileChange(tab, "logo", e)}
+              />
+            </div>
+          </Col>
+          <Col md={3} className="d-flex flex-column align-items-end justify-content-center">
+            <h2 className="text-success mb-0">PAYMENT RECEIPT</h2>
+            <hr
+              style={{
+                width: "80%",
+                borderColor: "#28a745",
+                margin: "5px 0 10px",
+              }}
+            />
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        <Row className="mb-4 mt-3">
+          <Col md={6}>
+            <div className="d-flex flex-column gap-1">
+              <Form.Control
+                type="text"
+                value={data.companyName} // Use fetched company name
+                onChange={(e) => handleChange("companyName", e.target.value)}
+                placeholder="Company Name"
+                className="form-control-no-border"
+              />
+              <Form.Control
+                type="text"
+                value={data.companyAddress} // Use fetched company address
+                onChange={(e) => handleChange("companyAddress", e.target.value)}
+                placeholder="Address"
+                className="form-control-no-border"
+              />
+              <Form.Control
+                type="email"
+                value={data.companyEmail} // Use fetched company email
+                onChange={(e) => handleChange("companyEmail", e.target.value)}
+                placeholder="Email"
+                className="form-control-no-border"
+              />
+              <Form.Control
+                type="text"
+                value={data.companyPhone} // Use fetched company phone
+                onChange={(e) => handleChange("companyPhone", e.target.value)}
+                placeholder="Phone"
+                className="form-control-no-border"
+              />
+            </div>
+          </Col>
+          <Col md={6} className="gap-2 d-flex flex-column align-items-end">
+            <Form.Control
+              type="date"
+              value={data.paymentDate}
+              onChange={(e) => handleChange("paymentDate", e.target.value)}
+              className="form-control-no-border text-end"
+            />
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Ref No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.referenceId}
+                  readOnly
+                  className="form-control-no-border text-end"
+                  style={{ backgroundColor: "#f8f9fa" }}
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Manual Ref. No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.manualRefNo}
+                  onChange={(e) => handleChange("manualRefNo", e.target.value)}
+                  className="form-control-no-border text-end"
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Bill No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.billNo || ""}
+                  readOnly
+                  className="form-control-no-border text-end"
+                  style={{ backgroundColor: "#f8f9fa" }}
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Manual Bill No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.manualBillNo || ""}
+                  onChange={(e) => handleChange("manualBillNo", e.target.value)}
+                  className="form-control-no-border text-end"
+                />
+              </div>
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <div className="d-flex justify-content-between align-items-center text-nowrap">
+                <Form.Label className="mb-0">Payment No.</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={data.paymentNo || ""}
+                  readOnly
+                  className="form-control-no-border text-end"
+                  style={{ backgroundColor: "#f8f9fa" }}
+                />
+              </div>
+            </Form.Group>
+            <Form.Control
+              type="text"
+              value={data.paymentMethod}
+              onChange={(e) => handleChange("paymentMethod", e.target.value)}
+              placeholder="Payment Method"
+              className="form-control-no-border text-end"
+            />
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        <Row className="mb-4 d-flex justify-content-between">
+          <Col md={6}>
+            <h5>PAID TO</h5>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
+              <Form.Control
+                value={data.vendorName}
+                onChange={(e) => {
+                  handleChange("vendorName", e.target.value);
+                  handleVendorSearchChange(e.target.value); // Reuse vendor search logic
+                }}
+                onFocus={() => setShowVendorSearch(true)} // Reuse vendor search logic
+                placeholder="Vendor Name"
+                className="form-control-no-border"
+              />
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => setShowVendorSearch(!showVendorSearch)} // Reuse vendor search logic
+              >
+                <FontAwesomeIcon icon={faSearch} />
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigate("/Company/vendorscreditors")}
+                style={{
+                  textWrap: "nowrap",
+                  backgroundColor: "#53b2a5",
+                  border: "none",
+                  marginLeft: "5px",
+                }}
+              >
+                Add Vendor
+              </Button>
+            </div>
+            {showVendorSearch && (
+              <div
+                style={{
+                  position: "absolute",
+                  zIndex: 10,
+                  backgroundColor: "white",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  width: "100%",
+                }}
+              >
+                {vendors
+                  .filter(
+                    (v) =>
+                      (v.name_english || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+                      (v.email || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+                      (v.phone || "").toLowerCase().includes(vendorSearchTerm.toLowerCase())
+                  )
+                  .map((v) => (
+                    <div
+                      key={v.id}
+                      style={{ padding: "8px", cursor: "pointer" }}
+                      onClick={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          [tab]: {
+                            ...prev[tab],
+                            vendorName: v.name_english || "",
+                            vendorAddress: v.address || "",
+                            vendorEmail: v.email || "",
+                            vendorPhone: v.phone || "",
+                          },
+                        }));
+                        setShowVendorSearch(false);
+                        setVendorSearchTerm("");
+                      }}
+                    >
+                      <strong>{v.name_english}</strong> – {v.email} | {v.phone}
+                    </div>
+                  ))}
+              </div>
+            )}
+            <Form.Control
+              as="textarea"
+              rows={2}
+              value={data.vendorAddress || ""}
+              onChange={(e) => handleChange("vendorAddress", e.target.value)}
+              placeholder="Address"
+              className="form-control-no-border"
+            />
+            <Form.Control
+              type="email"
+              value={data.vendorEmail || ""}
+              onChange={(e) => handleChange("vendorEmail", e.target.value)}
+              placeholder="Email"
+              className="form-control-no-border"
+            />
+            <Form.Control
+              type="text"
+              value={data.vendorPhone || ""}
+              onChange={(e) => handleChange("vendorPhone", e.target.value)}
+              placeholder="Phone"
+              className="form-control-no-border"
+            />
+          </Col>
+          <Col md={6}>
+            <h5>PAYMENT DETAILS</h5>
+            <Form.Group className="mb-2">
+              <Form.Label>Amount Paid</Form.Label>
+              <Form.Control
+                type="number"
+                step="0"
+                value={data.amount}
+                onChange={(e) => handleChange("amount", e.target.value)}
+                className="form-control-no-border text-start  "
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Total Amount</Form.Label>
+              <Form.Control
+                type="number"
+                step="0"
+                value={totalBill.toFixed(2)}
+                className="form-control-no-border text-start "
+              />
+            </Form.Group>
+            <Form.Group className="mb-2"> 
+              <Form.Label>Payment Status</Form.Label>
+              <Form.Control
+                type="text"
+                value={data.paymentStatus}
+                onChange={(e) => handleChange("paymentStatus", e.target.value)}
+                className="form-control-no-border text-start"
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+        <hr
+          style={{
+            height: "4px",
+            backgroundColor: "#28a745",
+            border: "none",
+            margin: "5px 0 10px",
+          }}
+        />
+        <Row className="mb-4 mt-2">
+          <Col md={4}>
+            <Table bordered size="sm" className="dark-bordered-table">
+              <tbody>
+                <tr>
+                  <td>Total Bill:</td>
+                  <td>${totalBill.toFixed(2)}</td>
+                </tr>
+                <tr className="fw-bold">
+                  <td>Amount Paid:</td>
+                  <td>${amountPaid.toFixed(2)}</td>
+                </tr>
+                <tr style={{ backgroundColor: "#f8f9fa" }}>
+                  <td className="fw-bold">Balance:</td>
+                  <td className="fw-bold text-danger">${balance.toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </Table>
+          </Col>
+        </Row>
+        <Form.Group className="mt-4">
+          <Form.Label>Note</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={2}
+            value={data.note}
+            onChange={(e) => handleChange("note", e.target.value)}
+            style={{ border: "1px solid #343a40" }}
+          />
+        </Form.Group>
+        <div className="mt-4 mb-4">
+          <h5>Attachments</h5>
+          <Row>
+            {["signature", "photo"].map((field, i) => (
+              <Col md={4} key={i}>
+                <Form.Group>
+                  <Form.Label>{field.charAt(0).toUpperCase() + field.slice(1)}</Form.Label>
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(tab, field, e)}
+                  />
+                  {data[field] && (
+                    <img
+                      src={data[field]}
+                      alt={field}
+                      style={{
+                        width: i === 0 ? "100px" : "100px",
+                        height: i === 0 ? "50px" : "100px",
+                        objectFit: "cover",
+                        marginTop: "8px",
+                      }}
+                    />
+                  )}
+                </Form.Group>
+              </Col>
+            ))}
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Attach Files</Form.Label>
+                <Form.Control
+                  type="file"
+                  multiple
+                  onChange={(e) => handleMultiFileChange(tab, e)}
+                />
+                {data.files?.length > 0 && (
+                  <ul className="list-unstyled mt-2">
+                    {data.files.map((f, i) => (
+                      <li key={i} className="d-flex justify-content-between">
+                        <span>{f.name}</span>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => removeFile(tab, i)}
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Form.Group>
+            </Col>
+          </Row>
+        </div>
+        <Row className="text-center mt-5 mb-4 pt-3 border-top">
+          <Col>
+            <Form.Control
+              type="text"
+              value={data.footerNote}
+              onChange={(e) => handleChange("footerNote", e.target.value)}
+              className="text-center mb-2 fw-bold"
+              placeholder="Thank you for your payment!"
+            />
+          </Col>
+        </Row>
+      </Form>
+    );
+  };
+
+  // ===============================
+  // NAVIGATION & ACTIONS
+  // ===============================
+  const handleNext = () => {
+    const tabs = [
+      "purchaseQuotation",
+      "purchaseOrder",
+      "goodsReceipt",
+      "bill",
+      "payment",
+    ];
+    const idx = tabs.indexOf(activeTab);
+    if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1]);
+  };
+
+  const handlePrev = () => {
+    const tabs = [
+      "purchaseQuotation",
+      "purchaseOrder",
+      "goodsReceipt",
+      "bill",
+      "payment",
+    ];
+    const idx = tabs.indexOf(activeTab);
+    if (idx > 0) setActiveTab(tabs[idx - 1]);
+  };
+
+  const handleSaveDraft = () => onSubmit(formData, activeTab);
+
+  // ===============================
+  // RENDER
+  // ===============================
+  return (
+    <div className="container-fluid mt-4 px-2">
+      <h4 className="text-center mb-4">Purchase Process</h4>
+      <div className="d-flex flex-wrap justify-content-center gap-2 mb-4">
+        <Button variant="warning" onClick={() => { }}>
+          Print (EN)
+        </Button>
+        <Button variant="success" onClick={() => { }}>
+          Download PDF
+        </Button>
+        <Button
+          variant="primary"
+          onClick={() => navigate("/company/viewinvoicee")}
+        >
+          View Bills
+        </Button>
       </div>
-    </>
+      <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4" fill>
+        <Tab eventKey="purchaseQuotation" title="Purchase Quotation" />
+        <Tab eventKey="purchaseOrder" title="Purchase Order" />
+        <Tab eventKey="goodsReceipt" title="Goods Receipt" />
+        <Tab eventKey="bill" title="Bill" />
+        <Tab eventKey="payment" title="Payment" />
+      </Tabs>
+      {activeTab === "purchaseQuotation" && renderPurchaseQuotationTab()}
+      {activeTab === "purchaseOrder" && renderPurchaseOrderTab()}
+      {activeTab === "goodsReceipt" && renderGoodsReceiptTab()}
+      {activeTab === "bill" && renderBillTab()}
+      {activeTab === "payment" && renderPaymentTab()}
+      <div className="d-flex justify-content-between mt-4">
+        <Button
+          variant="secondary"
+          onClick={handlePrev}
+          disabled={activeTab === "purchaseQuotation"}
+        >
+          Previous
+        </Button>
+        <Button variant="warning" onClick={handleSaveDraft}>
+          Save
+        </Button>
+        <Button
+          variant="primary"
+          onClick={handleNext}
+          disabled={activeTab === "payment"}
+        >
+          Save Next
+        </Button>
+      </div>
+    </div>
   );
 };
 
