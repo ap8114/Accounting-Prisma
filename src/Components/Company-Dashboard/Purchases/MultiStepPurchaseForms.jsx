@@ -630,7 +630,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
           due_date: currentData.dueDate,
         };
       } else if (activeTab === "payment") {
-        const totalAmount = parseFloat(formData.bill?.totalAmount) || calculateTotalAmount(formData.bill?.items || []);
+        const totalAmount = calculateTotalWithTaxAndDiscount(formData.purchaseQuotation.items);
         apiStepData = {
           Payment_no: currentData.paymentNo,
           Manual_payment_no: currentData.manualPaymentNo,
@@ -4004,6 +4004,25 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       }
     }
   };
+
+  const handleSubmitAndClose = async () => {
+    // First, save the current (payment) step
+    await handleSaveStep(); // This should trigger PUT for "payment" step
+
+    // Then close modal or redirect
+    // Option 1: If you're inside a modal and have `onClose` prop
+    if (onClose && typeof onClose === "function") {
+      onClose(); // Closes modal
+    }
+
+    // Option 2: If you're on a route and want to go back
+    // navigate(-1); // or navigate('/purchase-orders');
+
+    // Option 3: If `onSubmit` is your success handler (as in your props)
+    if (onSubmit && typeof onSubmit === "function") {
+      onSubmit(formData, "payment"); // or just call it to signal completion
+    }
+  };
   // ===============================
   // RENDER
   // ===============================
@@ -4042,20 +4061,32 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
         >
           Previous
         </Button>
+
         <Button
           variant="warning"
-          onClick={handleSaveStep} // Only save
+          onClick={handleSaveStep}
           disabled={isSubmitting}
         >
           {isSubmitting ? "Saving..." : "Save"}
         </Button>
-        <Button
-          variant="primary"
-          onClick={handleSaveAndNext} // Save + Next
-          disabled={activeTab === "payment" || isSubmitting}
-        >
-          {isSubmitting ? "Saving..." : "Save & Next"}
-        </Button>
+
+        {activeTab === "payment" ? (
+          <Button
+            variant="success"
+            onClick={handleSubmitAndClose}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Submitting..." : "Submit & Close"}
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            onClick={handleSaveAndNext}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Saving..." : "Save & Next"}
+          </Button>
+        )}
       </div>
     </div>
   );
