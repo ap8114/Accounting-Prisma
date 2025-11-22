@@ -1,4 +1,3 @@
-// MultiStepSalesForm.jsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   Tabs,
@@ -984,10 +983,7 @@ const MultiStepSalesForm = ({
             payment_method: formData.payment.paymentMethod,
             payment_status: formData.payment.paymentStatus,
             payment_note: formData.payment.note,
-            customer_name: formData.payment.customerName,
-            customer_address: formData.payment.customerAddress,
-            customer_email: formData.payment.customerEmail,
-            customer_phone: formData.payment.customerPhone,
+           
           },
         },
         additional_info: {
@@ -1235,7 +1231,7 @@ const MultiStepSalesForm = ({
       alert("Sales process completed successfully!");
 
       // Redirect to sales workflow page
-      navigate("/Invoice");
+      navigate("/company/Invoice");
     } catch (err) {
       console.error("Error submitting final form:", err);
       alert("Error submitting final form. Please try again.");
@@ -1831,39 +1827,7 @@ const MultiStepSalesForm = ({
           </Modal.Footer>
         </Modal>
 
-        {/* Add Category Modal */}
-        <Modal
-          show={showAddCategoryModal}
-          onHide={() => setShowAddCategoryModal(false)}
-        >
-          <Modal.Header closeButton>
-            <Modal.Title>Add Category</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Form onSubmit={handleAddCategory}>
-              <Form.Group>
-                <Form.Label>New Category Name</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  placeholder="Enter new category"
-                />
-              </Form.Group>
-            </Form>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button
-              variant="secondary"
-              onClick={() => setShowAddCategoryModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleAddCategory}>
-              Add Category
-            </Button>
-          </Modal.Footer>
-        </Modal>
+    
 
         <Table bordered hover size="sm" className="dark-bordered-table">
           <thead className="bg-light">
