@@ -543,16 +543,8 @@ const MultiStepSalesForm = ({
         );
       }
     }
-    if (
-      formData.quotation.manualQuotationRef &&
-      formData.quotation.manualQuotationRef !== formData.quotation.quotationNo
-    ) {
-      handleChange(
-        "quotation",
-        "quotationNo",
-        formData.quotation.manualQuotationRef
-      );
-    }
+    // Do not overwrite an existing primary quotationNo when manual field changes
+    // Manual quotation ref is used only as initial value when primary is empty.
 
     // Sales Order Auto-fill
     if (!formData.salesOrder.referenceId) {
@@ -577,22 +569,15 @@ const MultiStepSalesForm = ({
         );
       }
     }
-    if (
-      formData.salesOrder.manualOrderRef &&
-      formData.salesOrder.manualOrderRef !== formData.salesOrder.salesOrderNo
-    ) {
-      handleChange(
-        "salesOrder",
-        "salesOrderNo",
-        formData.salesOrder.manualOrderRef
-      );
-    }
+    // Do not overwrite an existing primary salesOrderNo when manual field changes
+    // Manual order ref is applied only if salesOrderNo is empty (handled above).
     if (!formData.salesOrder.quotationNo && formData.quotation.quotationNo) {
       handleChange("salesOrder", "quotationNo", formData.quotation.quotationNo);
     }
+    // Apply manual quotation ref to sales order only if salesOrder.quotationNo is empty
     if (
       formData.salesOrder.manualQuotationRef &&
-      formData.salesOrder.manualQuotationRef !== formData.salesOrder.quotationNo
+      !formData.salesOrder.quotationNo
     ) {
       handleChange(
         "salesOrder",
@@ -624,17 +609,8 @@ const MultiStepSalesForm = ({
         );
       }
     }
-    if (
-      formData.deliveryChallan.manualChallanNo &&
-      formData.deliveryChallan.manualChallanNo !==
-        formData.deliveryChallan.challanNo
-    ) {
-      handleChange(
-        "deliveryChallan",
-        "challanNo",
-        formData.deliveryChallan.manualChallanNo
-      );
-    }
+    // Do not overwrite an existing primary challanNo when manual field changes
+    // Manual challan ref is respected only as initial value when primary is empty.
     if (
       !formData.deliveryChallan.salesOrderNo &&
       formData.salesOrder.salesOrderNo
@@ -657,12 +633,8 @@ const MultiStepSalesForm = ({
         handleChange("invoice", "invoiceNo", generateReferenceId("invoice"));
       }
     }
-    if (
-      formData.invoice.manualInvoiceNo &&
-      formData.invoice.manualInvoiceNo !== formData.invoice.invoiceNo
-    ) {
-      handleChange("invoice", "invoiceNo", formData.invoice.manualInvoiceNo);
-    }
+    // Do not overwrite an existing primary invoiceNo when manual field changes
+    // Manual invoice ref is used only as initial value when primary is empty.
     if (!formData.invoice.challanNo && formData.deliveryChallan.challanNo) {
       handleChange("invoice", "challanNo", formData.deliveryChallan.challanNo);
     }
@@ -678,12 +650,8 @@ const MultiStepSalesForm = ({
         handleChange("payment", "paymentNo", generateReferenceId("payment"));
       }
     }
-    if (
-      formData.payment.manualPaymentNo &&
-      formData.payment.manualPaymentNo !== formData.payment.paymentNo
-    ) {
-      handleChange("payment", "paymentNo", formData.payment.manualPaymentNo);
-    }
+    // Do not overwrite an existing primary paymentNo when manual field changes
+    // Manual payment ref is used only as initial value when primary is empty.
     if (!formData.payment.invoiceNo && formData.invoice.invoiceNo) {
       handleChange("payment", "invoiceNo", formData.invoice.invoiceNo);
     }
@@ -1286,7 +1254,7 @@ const MultiStepSalesForm = ({
       alert("Sales process completed successfully!");
 
       // Redirect to sales workflow page
-      navigate("/sales-workflow");
+      navigate("/Invoice");
     } catch (err) {
       console.error("Error submitting final form:", err);
       alert("Error submitting final form. Please try again.");
@@ -3202,7 +3170,7 @@ const MultiStepSalesForm = ({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Manual Quotation No (Optional)
+                    Manual Sales No (Optional)
                   </Form.Label>
                   <Form.Control
                     type="text"
@@ -3798,7 +3766,7 @@ const MultiStepSalesForm = ({
                 </div>
               </Form.Group>
               {/* Manual Sales Order No (Optional) */}
-              <Form.Group className="mb-0">
+              {/* <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
                   <Form.Label
                     className="mb-0 flex-shrink-0 me-2"
@@ -3831,7 +3799,7 @@ const MultiStepSalesForm = ({
                     }}
                   />
                 </div>
-              </Form.Group>
+              </Form.Group> */}
               {/* Vehicle No */}
               <Form.Group>
                 <Form.Control
@@ -4411,7 +4379,7 @@ const MultiStepSalesForm = ({
               {/* Manual Challan No (Optional) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
-                  <Form.Label
+                  {/* <Form.Label
                     className="mb-0 flex-shrink-0 me-2"
                     style={{
                       fontSize: "0.9rem",
@@ -4436,7 +4404,7 @@ const MultiStepSalesForm = ({
                       padding: "0.375rem 0.75rem",
                       textAlign: "right",
                     }}
-                  />
+                  /> */}
                 </div>
               </Form.Group>
               {/* Due Date */}
@@ -4975,7 +4943,7 @@ const MultiStepSalesForm = ({
               {/* Manual Invoice No (Optional) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
-                  <Form.Label
+                  {/* <Form.Label
                     className="mb-0 flex-shrink-0 me-2"
                     style={{
                       fontSize: "0.9rem",
@@ -5004,7 +4972,7 @@ const MultiStepSalesForm = ({
                       padding: "0.375rem 0.75rem",
                       textAlign: "right",
                     }}
-                  />
+                  /> */}
                 </div>
               </Form.Group>
               {/* Payment Method */}
