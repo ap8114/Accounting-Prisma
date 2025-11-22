@@ -110,8 +110,11 @@ const MultiStepSalesForm = ({
         accountHolder: companyDetails.bank_details?.account_holder || "",
         ifsc: companyDetails.bank_details?.ifsc_code || "",
         signature: "",
+        signatureFile: null, // Store file object instead of base64
         photo: "",
+        photoFile: null, // Store file object instead of base64
         files: [],
+        fileObjects: [], // Store file objects instead of base64
         footerNote: "Thank you!",
       },
       salesOrder: {
@@ -156,8 +159,11 @@ const MultiStepSalesForm = ({
         ],
         terms: companyDetails.terms_and_conditions || "",
         signature: "",
+        signatureFile: null, // Store file object instead of base64
         photo: "",
+        photoFile: null, // Store file object instead of base64
         files: [],
+        fileObjects: [], // Store file objects instead of base64
         footerNote: "Thank you!",
         // 👉 Quotation No (Auto + Manual)
         quotationNo: "", // Auto-generated QUO No
@@ -203,8 +209,11 @@ const MultiStepSalesForm = ({
         ],
         terms: companyDetails.terms_and_conditions || "",
         signature: "",
+        signatureFile: null, // Store file object instead of base64
         photo: "",
+        photoFile: null, // Store file object instead of base64
         files: [],
+        fileObjects: [], // Store file objects instead of base64
         footerNote: "Thank you!",
       },
       invoice: {
@@ -251,8 +260,11 @@ const MultiStepSalesForm = ({
         note: "",
         terms: companyDetails.terms_and_conditions || "",
         signature: "",
+        signatureFile: null, // Store file object instead of base64
         photo: "",
+        photoFile: null, // Store file object instead of base64
         files: [],
+        fileObjects: [], // Store file objects instead of base64
         footerNote: "Thank you!",
       },
       payment: {
@@ -281,8 +293,11 @@ const MultiStepSalesForm = ({
         companyIcon: companyDetails.branding?.company_icon_url || "",
         companyFavicon: companyDetails.branding?.favicon_url || "",
         signature: "",
+        signatureFile: null, // Store file object instead of base64
         photo: "",
+        photoFile: null, // Store file object instead of base64
         files: [],
+        fileObjects: [], // Store file objects instead of base64
         footerNote: "Thank you!",
       },
     };
@@ -897,147 +912,6 @@ const MultiStepSalesForm = ({
     }, 0);
   };
 
-  // --- Top Buttons ---
-  const handlePrint = (lang) => {
-    const printContent = pdfRef.current;
-    if (!printContent) {
-      alert("No content to print!");
-      return;
-    }
-    // Mock Arabic translation
-    const getArabicText = (text) => {
-      const translations = {
-        QUOTATION: "عرض أسعار",
-        "SALES ORDER": "طلب بيع",
-        "DELIVERY CHALLAN": "إيصال توصيل",
-        INVOICE: "فاتورة",
-        "PAYMENT RECEIPT": "إيصال دفع",
-        "Company Name": "اسم الشركة",
-        "Quotation No.": "رقم عرض السعر",
-        "SO No.": "رقم أمر المبيعات",
-        "Challan No.": "رقم الإيصال",
-        "Invoice No.": "رقم الفاتورة",
-        "Payment No.": "رقم الدفع",
-        Date: "التاريخ",
-        "Item Name": "اسم الصنف",
-        Qty: "الكمية",
-        Rate: "السعر",
-        Amount: "المبلغ",
-        Total: "الإجمالي",
-        Attachments: "المرفقات",
-        Signature: "التوقيع",
-        Photo: "الصورة",
-        Files: "الملفات",
-        "Terms & Conditions": "الشروط والأحكام",
-        "Thank you for your business!": "شكرًا لتعاملكم معنا!",
-        "Driver Details": "تفاصيل السائق",
-        "Vehicle No.": "رقم المركبة",
-        "Delivery Date": "تاريخ التسليم",
-        "Due Date": "تاريخ الاستحقاق",
-        "Payment Method": "طريقة الدفع",
-        "Bill To": "موجه إلى",
-        "Ship To": "يشحن إلى",
-        "Sub Total:": "المجموع الفرعي:",
-        "Tax:": "الضريبة:",
-        "Discount:": "الخصم:",
-        "Total:": "الإجمالي:",
-        Notes: "ملاحظات",
-        "Bank Details": "بيانات البنك",
-      };
-      return translations[text] || text;
-    };
-
-    const clone = printContent.cloneNode(true);
-    const elements = clone.querySelectorAll("*");
-    if (lang === "arabic" || lang === "both") {
-      clone.style.direction = "rtl";
-      clone.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
-      elements.forEach((el) => {
-        el.style.textAlign = "right";
-      });
-    }
-    if (lang === "both") {
-      elements.forEach((el) => {
-        const text = el.innerText.trim();
-        if (text && !el.querySelector("img") && !el.querySelector("input")) {
-          const arabic = getArabicText(text);
-          if (arabic !== text) {
-            const arSpan = document.createElement("div");
-            arSpan.innerText = arabic;
-            arSpan.style.color = "#0066cc";
-            arSpan.style.marginTop = "4px";
-            arSpan.style.fontSize = "0.9em";
-            el.appendChild(arSpan);
-          }
-        }
-      });
-    } else if (lang === "arabic") {
-      elements.forEach((el) => {
-        const text = el.innerText.trim();
-        const arabic = getArabicText(text);
-        if (arabic !== text) {
-          el.innerText = arabic;
-        }
-      });
-    }
-
-    const printWindow = window.open("", "", "height=800,width=1000");
-    printWindow.document.write("<html><head><title>Print</title>");
-    printWindow.document.write("<style>");
-    printWindow.document.write(`
-      body { font-family: Arial, sans-serif; margin: 20px; }
-      table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-      th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-      .text-end { text-align: right; }
-      .fw-bold { font-weight: bold; }
-      hr { border: 2px solid #28a745; margin: 10px 0; }
-      h2, h4, h5 { color: #28a745; }
-      .attachment-img { max-width: 150px; max-height: 100px; object-fit: contain; margin: 5px 0; }
-    `);
-    printWindow.document.write("</style></head><body>");
-    printWindow.document.write(clone.outerHTML);
-    printWindow.document.write("</body></html>");
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.onload = () => {
-      printWindow.print();
-    };
-  };
-
-  const handleSend = () => {
-    window.location.href = `mailto:?subject=Sales Document&body=Please find the sales document details attached.`;
-  };
-
-  const handleDownloadPDF = () => {
-    const element = pdfRef.current;
-    html2pdf()
-      .from(element)
-      .set({
-        margin: 10,
-        filename: `${key}-${
-          formData[key].quotationNo ||
-          formData[key].salesOrderNo ||
-          formData[key].challanNo ||
-          formData[key].invoiceNo ||
-          formData[key].paymentNo ||
-          "document"
-        }.pdf`,
-        jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
-        html2canvas: { scale: 3 },
-        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
-      })
-      .save();
-  };
-
-  const handleDownloadExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(formData[key].items);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, key);
-    XLSX.writeFile(
-      workbook,
-      `${key}-${formData[key][`${key}No`] || "draft"}.xlsx`
-    );
-  };
 
   // --- Navigation Buttons ---
   const handleSkip = () => {
@@ -1062,7 +936,7 @@ const MultiStepSalesForm = ({
 
       switch (key) {
         case "quotation":
-          endpoint = `quotation/create-quotation`;
+          endpoint = `sales-order/create-sales-order`;
           payload = {
             company_info: {
               company_id: company_id,
@@ -1115,11 +989,15 @@ const MultiStepSalesForm = ({
           break;
 
         case "salesOrder":
+          // Use the correct endpoint for sales order
+          endpoint = `sales-order/create-sales-order`;
+          
           // If we have a sales order ID, use PUT to update, otherwise POST to create
           if (currentSalesOrderId) {
             method = "put";
-            endpoint = `sales-order/update-sales-order/${currentSalesOrderId}`;
+            endpoint = `sales-order/create-sales-order/${currentSalesOrderId}`;
           } else {
+            method = "post";
             endpoint = `sales-order/create-sales-order`;
           }
 
@@ -1336,12 +1214,40 @@ const MultiStepSalesForm = ({
           return;
       }
 
+      // Create FormData for file uploads
+      const formDataToSend = new FormData();
+      
+      // Add the payload as JSON
+      formDataToSend.append('data', JSON.stringify(payload));
+      
+      // Add files if they exist
+      if (formData[key].signatureFile) {
+        formDataToSend.append('signature', formData[key].signatureFile);
+      }
+      
+      if (formData[key].photoFile) {
+        formDataToSend.append('photo', formData[key].photoFile);
+      }
+      
+      if (formData[key].fileObjects && formData[key].fileObjects.length > 0) {
+        formData[key].fileObjects.forEach((file, index) => {
+          formDataToSend.append(`files[${index}]`, file);
+        });
+      }
+
+      // Set the correct headers for FormData
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      };
+
       // Send the request to the API
       let response;
       if (method === "put") {
-        response = await axiosInstance.put(endpoint, payload);
+        response = await axiosInstance.put(endpoint, formDataToSend, config);
       } else {
-        response = await axiosInstance.post(endpoint, payload);
+        response = await axiosInstance.post(endpoint, formDataToSend, config);
       }
 
       if (response?.data?.success) {
@@ -1521,7 +1427,7 @@ const MultiStepSalesForm = ({
       }
       if (prev === "invoice") {
         const totalInvoiceAmount = calculateTotalWithTaxAndDiscount(
-          prevData.invoice.items
+          formData.invoice.items
         );
         setFormData((prevData) => ({
           ...prevData,
@@ -1585,10 +1491,14 @@ const MultiStepSalesForm = ({
     setKey(step);
   };
 
-  // File handlers
+  // File handlers - Updated to store file objects instead of base64
   const handleSignatureChange = (tab, e) => {
     const file = e.target.files[0];
     if (file) {
+      // Store the file object for binary upload
+      handleChange(tab, "signatureFile", file);
+      
+      // Also create a preview URL for display
       const reader = new FileReader();
       reader.onloadend = () => {
         handleChange(tab, "signature", reader.result);
@@ -1600,6 +1510,10 @@ const MultiStepSalesForm = ({
   const handlePhotoChange = (tab, e) => {
     const file = e.target.files[0];
     if (file) {
+      // Store the file object for binary upload
+      handleChange(tab, "photoFile", file);
+      
+      // Also create a preview URL for display
       const reader = new FileReader();
       reader.onloadend = () => {
         handleChange(tab, "photo", reader.result);
@@ -1611,7 +1525,13 @@ const MultiStepSalesForm = ({
   const handleFileChange = (tab, e) => {
     const files = Array.from(e.target.files);
     const newFiles = [];
+    const newFileObjects = [];
+    
     files.forEach((file) => {
+      // Store the file object for binary upload
+      newFileObjects.push(file);
+      
+      // Also create a preview object for display
       const reader = new FileReader();
       reader.onloadend = () => {
         newFiles.push({
@@ -1620,8 +1540,11 @@ const MultiStepSalesForm = ({
           size: file.size,
           base64: reader.result,
         });
+        
+        // Update the state when all files are processed
         if (newFiles.length === files.length) {
           handleChange(tab, "files", [...formData[tab].files, ...newFiles]);
+          handleChange(tab, "fileObjects", [...formData[tab].fileObjects, ...newFileObjects]);
         }
       };
       reader.readAsDataURL(file);
@@ -1630,8 +1553,13 @@ const MultiStepSalesForm = ({
 
   const removeFile = (tab, index) => {
     const updatedFiles = [...formData[tab].files];
+    const updatedFileObjects = [...formData[tab].fileObjects];
+    
     updatedFiles.splice(index, 1);
+    updatedFileObjects.splice(index, 1);
+    
     handleChange(tab, "files", updatedFiles);
+    handleChange(tab, "fileObjects", updatedFileObjects);
   };
 
   const handleAddItem = () => {
@@ -2336,8 +2264,7 @@ const MultiStepSalesForm = ({
                                     filteredItem.item_category
                                       ?.item_category_name ||
                                     ""}{" "}
-                                  - $
-                                  {filteredItem.price ||
+                                  - $                                   {filteredItem.price ||
                                   filteredItem.sale_price ||
                                   filteredItem.sellingPrice
                                     ? parseFloat(
@@ -6018,92 +5945,6 @@ const MultiStepSalesForm = ({
           {renderSalesWorkflowTable()}
         </div>
 
-        {/* Top Action Buttons */}
-        <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
-          {/* Print English */}
-          <Button
-            variant="warning"
-            onClick={() => handlePrint("english")}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Print (English)
-          </Button>
-          {/* Print Arabic */}
-          <Button
-            variant="warning"
-            onClick={() => handlePrint("arabic")}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-              backgroundColor: "#d39e00",
-              borderColor: "#c49200",
-            }}
-          >
-            طباعة (العربية)
-          </Button>
-          {/* Print Both */}
-          <Button
-            variant="warning"
-            onClick={() => handlePrint("both")}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "150px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-              backgroundColor: "#c87f0a",
-              borderColor: "#b87409",
-            }}
-          >
-            Print Both (EN + AR)
-          </Button>
-          {/* Send Button */}
-          <Button
-            variant="info"
-            onClick={handleSend}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              color: "white",
-              minWidth: "110px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Send
-          </Button>
-          {/* Download PDF */}
-          <Button
-            variant="success"
-            onClick={handleDownloadPDF}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Download PDF
-          </Button>
-          {/* Download Excel */}
-          <Button
-            variant="primary"
-            onClick={handleDownloadExcel}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Download Excel
-          </Button>
-        </div>
         <Tabs activeKey={key} onSelect={setKey} className="mb-4" fill>
           <Tab eventKey="quotation" title="Quotation">
             {renderQuotationTab()}
