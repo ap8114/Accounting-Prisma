@@ -52,6 +52,10 @@ const MultiStepSalesForm = ({
   const formRef = useRef();
   const pdfRef = useRef();
 
+  // Sales workflow state
+  const [salesWorkflow, setSalesWorkflow] = useState([]);
+  const [loadingWorkflow, setLoadingWorkflow] = useState(false);
+
   // --- Form Data State ---
   const [formData, setFormData] = useState(() => {
     const initialFormData = {
@@ -324,6 +328,28 @@ const MultiStepSalesForm = ({
     };
 
     fetchCompany();
+  }, []);
+
+  // Fetch sales workflow data
+  useEffect(() => {
+    const fetchSalesWorkflow = async () => {
+      try {
+        setLoadingWorkflow(true);
+        const company_id = GetCompanyId();
+        if (!company_id) return;
+        
+        const response = await axiosInstance.get(`sales-order/create-sales-order/${company_id}`);
+        if (response?.data?.data) {
+          setSalesWorkflow(response.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch sales workflow:', err);
+      } finally {
+        setLoadingWorkflow(false);
+      }
+    };
+
+    fetchSalesWorkflow();
   }, []);
 
   // Search state for each row
@@ -865,12 +891,321 @@ const MultiStepSalesForm = ({
     });
   };
 
-  const handleSaveDraft = () => {
-    // Optional: onSubmit(formData, key); // If parent needs to save draft
+  const handleSaveDraft = async () => {
+    try {
+      const company_id = GetCompanyId();
+      if (!company_id) return;
+      
+      // Prepare the payload based on the current tab
+      let payload = {};
+      let endpoint = '';
+      
+      switch (key) {
+        case 'quotation':
+          endpoint = `sales-order/create-sales-order`;
+          payload = {
+            company_info: {
+              company_id: company_id,
+              company_name: formData.quotation.companyName,
+              company_address: formData.quotation.companyAddress,
+              company_email: formData.quotation.companyEmail,
+              company_phone: formData.quotation.companyPhone,
+              logo_url: formData.quotation.companyLogo,
+              bank_name: formData.quotation.bankName,
+              account_no: formData.quotation.accountNo,
+              account_holder: formData.quotation.accountHolder,
+              ifsc_code: formData.quotation.ifsc,
+              terms: formData.quotation.terms
+            },
+            customer_info: {
+              customer_id: formData.quotation.customerId,
+              customer_name: formData.quotation.billToName,
+              customer_address: formData.quotation.billToAddress,
+              customer_email: formData.quotation.billToEmail,
+              customer_phone: formData.quotation.billToPhone
+            },
+            items: formData.quotation.items.map(item => ({
+              item_name: item.item_name,
+              description: item.description,
+              qty: item.qty,
+              rate: item.rate,
+              tax_percent: item.tax,
+              discount: item.discount,
+              amount: item.amount,
+              uom: item.uom,
+              hsn: item.hsn,
+              sku: item.sku,
+              barcode: item.barcode,
+              warehouse_id: item.warehouse
+            })),
+            quotation_details: {
+              quotation_no: formData.quotation.quotationNo,
+              manual_quotation_ref: formData.quotation.manualQuotationRef,
+              quotation_date: formData.quotation.quotationDate,
+              valid_till: formData.quotation.validDate,
+              notes: formData.quotation.notes,
+              customer_ref: formData.quotation.customerReference
+            },
+            additional_info: {
+              signature_url: formData.quotation.signature,
+              photo_url: formData.quotation.photo,
+              files: formData.quotation.files
+            }
+          };
+          break;
+          
+        case 'salesOrder':
+          endpoint = `sales-order/create-sales-order`;
+          payload = {
+            company_info: {
+              company_id: company_id,
+              company_name: formData.salesOrder.companyName,
+              company_address: formData.salesOrder.companyAddress,
+              company_email: formData.salesOrder.companyEmail,
+              company_phone: formData.salesOrder.companyPhone,
+              logo_url: formData.salesOrder.companyLogo,
+              terms: formData.salesOrder.terms
+            },
+            shipping_details: {
+              bill_to_name: formData.salesOrder.billToCompanyName,
+              bill_to_address: formData.salesOrder.billToAddress,
+              bill_to_email: formData.salesOrder.billToEmail,
+              bill_to_phone: formData.salesOrder.billToPhone,
+              bill_to_attention_name: formData.salesOrder.billToAttn,
+              ship_to_name: formData.salesOrder.shipToCompanyName,
+              ship_to_address: formData.salesOrder.shipToAddress,
+              ship_to_email: formData.salesOrder.shipToEmail,
+              ship_to_phone: formData.salesOrder.shipToPhone,
+              ship_to_attention_name: formData.salesOrder.shipToAttn
+            },
+            items: formData.salesOrder.items.map(item => ({
+              item_name: item.item_name,
+              qty: item.qty,
+              rate: item.rate,
+              tax_percent: item.tax,
+              discount: item.discount,
+              amount: item.amount,
+              warehouse_id: item.warehouse
+            })),
+            steps: {
+              quotation: {
+                quotation_no: formData.salesOrder.quotationNo,
+                manual_quotation_ref: formData.salesOrder.manualQuotationRef
+              },
+              sales_order: {
+                SO_no: formData.salesOrder.salesOrderNo,
+                manual_ref_no: formData.salesOrder.manualOrderRef
+              }
+            },
+            additional_info: {
+              signature_url: formData.salesOrder.signature,
+              photo_url: formData.salesOrder.photo,
+              files: formData.salesOrder.files
+            }
+          };
+          break;
+          
+        case 'deliveryChallan':
+          endpoint = `delivery-challan/create-delivery-challan`;
+          payload = {
+            company_info: {
+              company_id: company_id,
+              company_name: formData.deliveryChallan.companyName,
+              company_address: formData.deliveryChallan.companyAddress,
+              company_email: formData.deliveryChallan.companyEmail,
+              company_phone: formData.deliveryChallan.companyPhone,
+              logo_url: formData.deliveryChallan.companyLogo,
+              terms: formData.deliveryChallan.terms
+            },
+            shipping_details: {
+              bill_to_name: formData.deliveryChallan.billToName,
+              bill_to_address: formData.deliveryChallan.billToAddress,
+              bill_to_email: formData.deliveryChallan.billToEmail,
+              bill_to_phone: formData.deliveryChallan.billToPhone,
+              ship_to_name: formData.deliveryChallan.shipToName,
+              ship_to_address: formData.deliveryChallan.shipToAddress,
+              ship_to_email: formData.deliveryChallan.shipToEmail,
+              ship_to_phone: formData.deliveryChallan.shipToPhone
+            },
+            items: formData.deliveryChallan.items.map(item => ({
+              item_name: item.item_name,
+              qty: item.qty,
+              delivered_qty: item.deliveredQty,
+              rate: item.rate,
+              tax_percent: item.tax,
+              discount: item.discount,
+              amount: item.amount,
+              warehouse_id: item.warehouse
+            })),
+            delivery_details: {
+              challan_no: formData.deliveryChallan.challanNo,
+              manual_challan_no: formData.deliveryChallan.manualChallanNo,
+              challan_date: formData.deliveryChallan.challanDate,
+              vehicle_no: formData.deliveryChallan.vehicleNo,
+              driver_name: formData.deliveryChallan.driverName,
+              driver_phone: formData.deliveryChallan.driverPhone
+            },
+            steps: {
+              sales_order: {
+                SO_no: formData.deliveryChallan.salesOrderNo,
+                manual_ref_no: formData.deliveryChallan.manualSalesOrderRef
+              },
+              delivery_challan: {
+                challan_no: formData.deliveryChallan.challanNo,
+                manual_challan_no: formData.deliveryChallan.manualChallanNo
+              }
+            },
+            additional_info: {
+              signature_url: formData.deliveryChallan.signature,
+              photo_url: formData.deliveryChallan.photo,
+              files: formData.deliveryChallan.files
+            }
+          };
+          break;
+          
+        case 'invoice':
+          endpoint = `invoice/create-invoice`;
+          payload = {
+            company_info: {
+              company_id: company_id,
+              company_name: formData.invoice.companyName,
+              company_address: formData.invoice.companyAddress,
+              company_email: formData.invoice.companyEmail,
+              company_phone: formData.invoice.companyPhone,
+              logo_url: formData.invoice.companyLogo,
+              terms: formData.invoice.terms
+            },
+            shipping_details: {
+              bill_to_name: formData.invoice.customerName,
+              bill_to_address: formData.invoice.customerAddress,
+              bill_to_email: formData.invoice.customerEmail,
+              bill_to_phone: formData.invoice.customerPhone,
+              ship_to_name: formData.invoice.shipToName,
+              ship_to_address: formData.invoice.shipToAddress,
+              ship_to_email: formData.invoice.shipToEmail,
+              ship_to_phone: formData.invoice.shipToPhone
+            },
+            items: formData.invoice.items.map(item => ({
+              item_name: item.description,
+              qty: item.qty,
+              rate: item.rate,
+              tax_percent: item.tax,
+              discount: item.discount,
+              amount: item.amount,
+              warehouse_id: item.warehouse
+            })),
+            invoice_details: {
+              invoice_no: formData.invoice.invoiceNo,
+              manual_invoice_no: formData.invoice.manualInvoiceNo,
+              invoice_date: formData.invoice.invoiceDate,
+              due_date: formData.invoice.dueDate,
+              payment_status: formData.invoice.paymentStatus,
+              payment_method: formData.invoice.paymentMethod,
+              note: formData.invoice.note
+            },
+            steps: {
+              delivery_challan: {
+                challan_no: formData.invoice.challanNo,
+                manual_challan_no: formData.invoice.manualChallanNo
+              },
+              invoice: {
+                invoice_no: formData.invoice.invoiceNo,
+                manual_invoice_no: formData.invoice.manualInvoiceNo
+              }
+            },
+            additional_info: {
+              signature_url: formData.invoice.signature,
+              photo_url: formData.invoice.photo,
+              files: formData.invoice.files
+            }
+          };
+          break;
+          
+        case 'payment':
+          endpoint = `payment/create-payment`;
+          payload = {
+            company_info: {
+              company_id: company_id,
+              company_name: formData.payment.companyName,
+              company_address: formData.payment.companyAddress,
+              company_email: formData.payment.companyEmail,
+              company_phone: formData.payment.companyPhone,
+              logo_url: formData.payment.companyLogo
+            },
+            customer_info: {
+              customer_name: formData.payment.customerName,
+              customer_address: formData.payment.customerAddress,
+              customer_email: formData.payment.customerEmail,
+              customer_phone: formData.payment.customerPhone
+            },
+            payment_details: {
+              payment_no: formData.payment.paymentNo,
+              manual_payment_no: formData.payment.manualPaymentNo,
+              payment_date: formData.payment.paymentDate,
+              amount_received: formData.payment.amount,
+              payment_method: formData.payment.paymentMethod,
+              payment_status: formData.payment.paymentStatus,
+              payment_note: formData.payment.note
+            },
+            steps: {
+              invoice: {
+                invoice_no: formData.payment.invoiceNo,
+                manual_invoice_no: formData.payment.manualInvoiceRef
+              },
+              payment: {
+                payment_no: formData.payment.paymentNo,
+                manual_payment_no: formData.payment.manualPaymentNo
+              }
+            },
+            additional_info: {
+              signature_url: formData.payment.signature,
+              photo_url: formData.payment.photo,
+              files: formData.payment.files
+            }
+          };
+          break;
+          
+        default:
+          return;
+      }
+      
+      // Send the request to the API
+      const response = await axiosInstance.post(endpoint, payload);
+      if (response?.data?.success) {
+        alert('Draft saved successfully!');
+        // Refresh the sales workflow
+        fetchSalesWorkflow();
+      } else {
+        alert('Failed to save draft. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error saving draft:', err);
+      alert('Error saving draft. Please try again.');
+    }
   };
 
-  const handleSaveNext = () => {
-    handleSaveDraft();
+  const fetchSalesWorkflow = async () => {
+    try {
+      setLoadingWorkflow(true);
+      const company_id = GetCompanyId();
+      if (!company_id) return;
+      
+      const response = await axiosInstance.get(`sales-order/company/${company_id}`);
+      if (response?.data?.data) {
+        setSalesWorkflow(response.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch sales workflow:', err);
+    } finally {
+      setLoadingWorkflow(false);
+    }
+  };
+
+  const handleSaveNext = async () => {
+    // First save the current step
+    await handleSaveDraft();
+    
+    // Then move to the next step
     setKey((prev) => {
       if (prev === "quotation") {
         setFormData((prevData) => ({
@@ -989,7 +1324,7 @@ const MultiStepSalesForm = ({
         return "invoice";
       }
       if (prev === "invoice") {
-        const totalInvoiceAmount = calculateTotalWithTaxAndDiscount(prevData.invoice.items);
+        const totalInvoiceAmount = calculateTotalWithTaxAndDiscount(formData.invoice.items);
         setFormData((prevData) => ({
           ...prevData,
           payment: {
@@ -1028,8 +1363,28 @@ const MultiStepSalesForm = ({
     });
   };
 
-  const handleFinalSubmit = () => {
-    onSubmit(formData, 'payment'); // Submit the final state
+  const handleFinalSubmit = async () => {
+    try {
+      // Save the payment data
+      await handleSaveDraft();
+      
+      // Call the parent's onSubmit function with the complete form data
+      onSubmit(formData, 'payment');
+      
+      // Show success message
+      alert('Sales process completed successfully!');
+      
+      // Redirect to sales workflow page
+      navigate('/sales-workflow');
+    } catch (err) {
+      console.error('Error submitting final form:', err);
+      alert('Error submitting final form. Please try again.');
+    }
+  };
+
+  // Navigate to a specific step in the workflow
+  const navigateToStep = (step) => {
+    setKey(step);
   };
 
   // File handlers
@@ -1232,7 +1587,7 @@ const MultiStepSalesForm = ({
     };
 
     fetchProducts();
-  }, [availableItems]);
+  }, []);
 
   // Keep productList in sync when parent passes availableItems prop
   useEffect(() => {
@@ -1975,6 +2330,78 @@ const MultiStepSalesForm = ({
       companyDetails.country,
     ].filter(Boolean);
     return parts.join(', ');
+  };
+
+  // Render Sales Workflow Table
+  const renderSalesWorkflowTable = () => {
+    if (loadingWorkflow) {
+      return (
+        <div className="text-center p-4">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-2">Loading sales workflow data...</p>
+        </div>
+      );
+    }
+
+    if (salesWorkflow.length === 0) {
+      return (
+        <div className="text-center p-4">
+          <p>No sales workflow data available.</p>
+        </div>
+      );
+    }
+
+    return (
+      <Table striped bordered hover responsive>
+        <thead>
+          <tr>
+            <th>Document Type</th>
+            <th>Document Number</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {salesWorkflow.map((workflow, index) => (
+            <tr key={index}>
+              <td>{workflow.document_type}</td>
+              <td>{workflow.document_number}</td>
+              <td>{workflow.date}</td>
+              <td>{workflow.customer_name}</td>
+              <td>
+                <span className={`badge ${workflow.status === 'Done' ? 'bg-success' : 'bg-warning'}`}>
+                  {workflow.status}
+                </span>
+              </td>
+              <td>
+                {workflow.status === 'Pending' && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => navigateToStep(workflow.step_key)}
+                  >
+                    Continue
+                  </Button>
+                )}
+                {workflow.status === 'Done' && (
+                  <Button
+                    size="sm"
+                    variant="outline-secondary"
+                    onClick={() => navigateToStep(workflow.step_key)}
+                  >
+                    View
+                  </Button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
   };
 
   // --- Tab Components Inline ---
@@ -4288,8 +4715,7 @@ const MultiStepSalesForm = ({
                     padding: "8px",
                   }}
                 >
-                  $
-                  {calculateTotalWithTaxAndDiscount(currentTab.items).toFixed(2)}
+                  $                   {calculateTotalWithTaxAndDiscount(currentTab.items).toFixed(2)}
                 </td>
               </tr>
             </tfoot>
@@ -4300,8 +4726,7 @@ const MultiStepSalesForm = ({
           <div style={{ marginBottom: "15px" }}>
             <h5>PAYMENT DETAILS</h5>
             <p>
-              <strong>Amount Paid:</strong> $
-              {parseFloat(currentTab.amount || 0).toFixed(2)}
+              <strong>Amount Paid:</strong> $               {parseFloat(currentTab.amount || 0).toFixed(2)}
             </p>
             <p>
               <strong>Payment Method:</strong> {currentTab.paymentMethod}
@@ -4383,6 +4808,13 @@ const MultiStepSalesForm = ({
     <>
       <div className="container-fluid mt-4 px-2" ref={formRef}>
         <h4 className="text-center mb-4">Sales Process</h4>
+        
+        {/* Sales Workflow Table */}
+        <div className="mb-4">
+          <h5 className="mb-3">Sales Workflow</h5>
+          {renderSalesWorkflowTable()}
+        </div>
+        
         {/* Top Action Buttons */}
         <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
           {/* Print English */}
