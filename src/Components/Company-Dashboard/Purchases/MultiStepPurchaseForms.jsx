@@ -206,7 +206,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   const fetchCompanyDetails = async () => {
     if (!companyId) return;
     try {
-      const res = await axiosInstance.get(`/auth/Company`);
+      const res = await axiosInstance.get(`auth/Company`);
       const current = res.data?.data?.find((c) => c.id === parseInt(companyId));
       if (current) {
         setCompanyDetails(current);
@@ -246,7 +246,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   const fetchVendors = async () => {
     if (!companyId) return;
     try {
-      const res = await axiosInstance.get(`/vendorCustomer/company/${companyId}?type=vender`);
+      const res = await axiosInstance.get(`vendorCustomer/company/${companyId}?type=vender`);
       if (res.data?.success) setVendors(res.data.data);
     } catch (err) {
       console.error("Error fetching vendors:", err);
@@ -266,7 +266,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   const fetchWarehouses = async () => {
     if (!companyId) return;
     try {
-      const res = await axiosInstance.get(`/warehouses/company/${companyId}`);
+      const res = await axiosInstance.get(`warehouses/company/${companyId}`);
       if (res.data?.success) setWarehouses(res.data.data);
     } catch (err) {
       console.error("Error fetching warehouses:", err);
@@ -364,7 +364,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await axiosInstance.post(`/purchase-orders/create-purchase-order`, payload);
+      const res = await axiosInstance.post(`purchase-orders/create-purchase-order`, payload);
       if (res.data.success) {
         const id = res.data.data.company_info.id;
         setPoId(id);
@@ -405,113 +405,205 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   // LOAD FULL PO
   const loadPurchaseOrder = async (id) => {
     try {
-      const res = await axiosInstance.get(`/purchase-orders/${id}`);
+      // ✅ FIXED: Correct API URL
+      const res = await axiosInstance.get(`purchase-orders/${id}`);
       if (res.data.success) {
         const apiData = res.data.data;
         const newFormData = { ...formData };
 
-        // Sync company info
+        // Helper: Format date for input
+        const formatDate = (iso) => (iso ? iso.split("T")[0] : "");
+        // ----------------------------
+        // 1. Company Info (incl. terms & notes)
+        // ----------------------------
         if (apiData.company_info) {
           const ci = apiData.company_info;
+          const companyFields = {
+            companyName: ci.company_name || "",
+            companyAddress: ci.company_address || "",
+            companyEmail: ci.company_email || "",
+            companyPhone: ci.company_phone || "",
+            logo: ci.logo_url || "", // ✅ Logo
+          };
+
           ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
             newFormData[tab] = {
               ...newFormData[tab],
-              companyName: ci.company_name,
-              companyAddress: ci.company_address,
-              companyEmail: ci.company_email,
-              companyPhone: ci.company_phone,
+              ...companyFields,
             };
           });
-          newFormData.purchaseQuotation.logo = ci.logo_url;
+
+          // Only Quotation gets full notes & terms
+          newFormData.purchaseQuotation = {
+            ...newFormData.purchaseQuotation,
+            notes: ci.notes || "",
+            terms_and_conditions: ci.terms || "",
+            bankName: ci.bank_name || "",
+            accountNo: ci.account_no || "",
+            accountHolder: ci.account_holder || "",
+            ifsc: ci.ifsc_code || "",
+          };
         }
 
-        // Sync shipping details (bill_to → vendor)
+        // ----------------------------
+        // 2. Shipping & Vendor Info
+        // ----------------------------
         if (apiData.shipping_details) {
           const sd = apiData.shipping_details;
+          const vendorFields = {
+            vendorName: sd.bill_to_attention_name || sd.bill_to_company_name || "",
+            vendorAddress: sd.bill_to_company_address || "",
+            vendorEmail: sd.bill_to_company_email || "",
+            vendorPhone: sd.bill_to_company_phone || "",
+          };
+
+          // Apply to all tabs
           ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
             newFormData[tab] = {
               ...newFormData[tab],
-              vendorName: sd.bill_to_attention_name || sd.bill_to_company_name,
-              vendorAddress: sd.bill_to_company_address,
-              vendorEmail: sd.bill_to_company_email,
-              vendorPhone: sd.bill_to_company_phone,
+              ...vendorFields,
+              // ✅ Ship To (for GR & Bill)
+              shipToName: sd.ship_to_attention_name || sd.ship_to_company_name || "",
+              shipToAddress: sd.ship_to_company_address || "",
+              shipToEmail: sd.ship_to_company_email || "",
+              shipToPhone: sd.ship_to_company_phone || "",
             };
           });
         }
 
-        // Sync items
-        if (apiData.items && apiData.items.length > 0) {
+        // ----------------------------
+        // 3. Items
+        // ----------------------------
+        if (apiData.items && Array.isArray(apiData.items)) {
           const items = apiData.items.map((i) => ({
-            name: i.item_name,
-            qty: i.qty,
-            rate: i.rate,
-            tax: i.tax_percent,
-            discount: i.discount,
+            name: i.item_name || "",
+            qty: i.qty || "",
+            rate: i.rate || "",
+            tax: parseFloat(i.tax_percent) || 0,
+            discount: parseFloat(i.discount) || 0,
             hsn: "",
             uom: "PCS",
           }));
+
           newFormData.purchaseQuotation.items = items;
-          newFormData.purchaseOrder.items = items.map(i => ({ ...i }));
-          newFormData.goodsReceipt.items = items.map(i => ({ ...i, receivedQty: i.qty }));
-          newFormData.bill.items = items.map(i => ({ ...i, description: i.name, amount: (parseFloat(i.rate) * parseInt(i.qty)).toFixed(2) }));
+          newFormData.purchaseOrder.items = items.map((i) => ({ ...i }));
+          newFormData.goodsReceipt.items = items.map((i) => ({ ...i, receivedQty: i.qty }));
+          newFormData.bill.items = items.map((i) => ({
+            ...i,
+            description: i.name,
+            amount: ((parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0)).toFixed(2),
+          }));
         }
 
-        // Sync steps
-        apiData.steps.forEach((stepObj) => {
-          const uiTab = apiStepToUiStep[stepObj.step];
-          if (uiTab && stepObj.data) {
-            if (uiTab === "purchaseQuotation") {
-              newFormData[uiTab] = {
-                ...newFormData[uiTab],
-                vendorName: stepObj.data.quotation_from_vendor_name,
-                vendorAddress: stepObj.data.quotation_from_vendor_address,
-                vendorEmail: stepObj.data.quotation_from_vendor_email,
-                vendorPhone: stepObj.data.quotation_from_vendor_phone,
-                referenceId: stepObj.data.ref_no,
-                manualRefNo: stepObj.data.manual_ref_ro || stepObj.data.manual_ref_no,
-                quotationNo: stepObj.data.quotation_no,
-                manualQuotationNo: stepObj.data.manual_quo_no,
-                quotationDate: stepObj.data.quotation_date,
-                validDate: stepObj.data.valid_till,
-              };
-            } else if (uiTab === "purchaseOrder") {
-              newFormData[uiTab] = {
-                ...newFormData[uiTab],
-                orderNo: stepObj.data.PO_no,
-                manualOrderNo: stepObj.data.Manual_PO_ref,
-              };
-            } else if (uiTab === "goodsReceipt") {
-              newFormData[uiTab] = {
-                ...newFormData[uiTab],
-                receiptNo: stepObj.data.GR_no,
-                manualReceiptNo: stepObj.data.Manual_GR_no,
-                vehicleNo: stepObj.data.vehicle_no || "",
-                driverName: stepObj.data.driver_name || "",
-                driverPhone: stepObj.data.driver_phone || "",
-              };
-            } else if (uiTab === "bill") {
-              newFormData[uiTab] = {
-                ...newFormData[uiTab],
-                billNo: stepObj.data.Bill_no,
-                manualBillNo: stepObj.data.Manual_Bill_no,
-                dueDate: stepObj.data.due_date,
-              };
-            } else if (uiTab === "payment") {
-              newFormData[uiTab] = {
-                ...newFormData[uiTab],
-                paymentNo: stepObj.data.Payment_no,
-                manualPaymentNo: stepObj.data.Manual_payment_no,
-                amount: stepObj.data.amount_paid,
-                totalAmount: stepObj.data.total_amount,
-                paymentStatus: stepObj.data.payment_status,
-                note: stepObj.data.payment_note,
-              };
-            }
+        // ----------------------------
+        // 4. Steps (with manual numbers & dates)
+        // ----------------------------
+        const stepsMap = {};
+        apiData.steps.forEach((step) => {
+          stepsMap[step.step] = step.data;
+        });
+
+        // --- Quotation
+        if (stepsMap.quotation) {
+          const q = stepsMap.quotation;
+          newFormData.purchaseQuotation = {
+            ...newFormData.purchaseQuotation,
+            referenceId: q.ref_no || newFormData.purchaseQuotation.referenceId,
+            manualRefNo: q.manual_ref_ro || q.manual_ref_no || "",
+            quotationNo: q.quotation_no || newFormData.purchaseQuotation.quotationNo,
+            manualQuotationNo: q.manual_quo_no || "",
+            quotationDate: formatDate(q.quotation_date),
+            validDate: formatDate(q.valid_till),
+            // Re-assign vendor in case step overrides shipping_details
+            vendorName: q.quotation_from_vendor_name || newFormData.purchaseQuotation.vendorName,
+            vendorAddress: q.quotation_from_vendor_address || newFormData.purchaseQuotation.vendorAddress,
+            vendorEmail: q.quotation_from_vendor_email || newFormData.purchaseQuotation.vendorEmail,
+            vendorPhone: q.quotation_from_vendor_phone || newFormData.purchaseQuotation.vendorPhone,
+          };
+        }
+
+        // --- Purchase Order
+        if (stepsMap.purchase_order) {
+          const po = stepsMap.purchase_order;
+          newFormData.purchaseOrder = {
+            ...newFormData.purchaseOrder,
+            orderNo: po.PO_no || newFormData.purchaseOrder.orderNo,
+            manualOrderNo: po.Manual_PO_ref || "", // ✅ Manual number preserved
+            quotationNo: newFormData.purchaseQuotation.quotationNo,
+            manualQuotationNo: newFormData.purchaseQuotation.manualQuotationNo,
+          };
+        }
+
+        // --- Goods Receipt
+        if (stepsMap.goods_receipt) {
+          const gr = stepsMap.goods_receipt;
+          newFormData.goodsReceipt = {
+            ...newFormData.goodsReceipt,
+            receiptNo: gr.GR_no || newFormData.goodsReceipt.receiptNo,
+            manualReceiptNo: gr.Manual_GR_no || "", // ✅ Manual GR No
+            purchaseOrderNo: newFormData.purchaseOrder.orderNo,
+            vehicleNo: gr.vehicle_no || "",
+            driverName: gr.driver_name || "",
+            driverPhone: gr.driver_phone || "",
+          };
+        }
+
+        // --- Bill
+        if (stepsMap.bill) {
+          const b = stepsMap.bill;
+          newFormData.bill = {
+            ...newFormData.bill,
+            billNo: b.Bill_no || newFormData.bill.billNo,
+            manualBillNo: b.Manual_Bill_no || "", // ✅ Manual Bill No
+            goodsReceiptNo: newFormData.goodsReceipt.receiptNo,
+            manualGoodsReceiptNo: newFormData.goodsReceipt.manualReceiptNo,
+            dueDate: formatDate(b.due_date),
+            terms: apiData.company_info?.terms || "", // ✅ Terms in Bill tab
+          };
+        }
+
+        // --- Payment
+        if (stepsMap.payment) {
+          const p = stepsMap.payment;
+          const totalAmount = calculateTotalWithTaxAndDiscount(newFormData.purchaseQuotation.items);
+          newFormData.payment = {
+            ...newFormData.payment,
+            paymentNo: p.Payment_no || newFormData.payment.paymentNo,
+            manualPaymentNo: p.Manual_payment_no || "", // ✅ Manual Payment No
+            amount: p.amount_paid !== undefined ? p.amount_paid : "",
+            totalAmount: totalAmount,
+            paymentStatus: p.payment_status || "Pending",
+            note: p.payment_note || "",
+            billNo: newFormData.bill.billNo,
+            manualBillNo: newFormData.bill.manualBillNo,
+            // Re-assign vendor from payment step if exists
+            vendorName: p.payment_made_vendor_name || newFormData.payment.vendorName,
+            vendorAddress: p.payment_made_vendor_address || newFormData.payment.vendorAddress,
+            vendorEmail: p.payment_made_vendor_email || newFormData.payment.vendorEmail,
+            vendorPhone: p.payment_made_vendor_phone || newFormData.payment.vendorPhone,
+          };
+        }
+
+        // ----------------------------
+        // 5. Load Binary Images (if supported by backend)
+        // ----------------------------
+        if (apiData.additional_info) {
+          const ai = apiData.additional_info;
+          // Assume backend returns base64 or URLs
+          if (ai.signature_url) {
+            ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
+              newFormData[tab].signature = ai.signature_url;
+            });
           }
+          if (ai.photo_url) {
+            ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
+              newFormData[tab].photo = ai.photo_url;
+            });
+          }
+          // Logo already handled from company_info
         }
-        )
-        setFormData(newFormData);
 
+        setFormData(newFormData);
       }
     } catch (err) {
       setError("Failed to load PO");
@@ -613,12 +705,12 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       if (activeTab === "purchaseOrder") {
         apiStepData = {
           PO_no: currentData.orderNo,
-          Manual_PO_ref: currentData.manualOrderNo,
+          Manual_PO_ref: currentData.manualOrderNo, // ✅ Include manual field
         };
       } else if (activeTab === "goodsReceipt") {
         apiStepData = {
           GR_no: currentData.receiptNo,
-          Manual_GR_no: currentData.manualReceiptNo,
+          Manual_GR_no: currentData.manualReceiptNo, // ✅
           vehicle_no: currentData.vehicleNo,
           driver_name: currentData.driverName,
           driver_phone: currentData.driverPhone,
@@ -626,14 +718,14 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       } else if (activeTab === "bill") {
         apiStepData = {
           Bill_no: currentData.billNo,
-          Manual_Bill_no: currentData.manualBillNo,
+          Manual_Bill_no: currentData.manualBillNo, // ✅
           due_date: currentData.dueDate,
         };
       } else if (activeTab === "payment") {
         const totalAmount = calculateTotalWithTaxAndDiscount(formData.purchaseQuotation.items);
         apiStepData = {
           Payment_no: currentData.paymentNo,
-          Manual_payment_no: currentData.manualPaymentNo,
+          Manual_payment_no: currentData.manualPaymentNo, // ✅
           amount_paid: parseFloat(currentData.amount) || 0,
           total_amount: totalAmount,
           total_bill: totalAmount,

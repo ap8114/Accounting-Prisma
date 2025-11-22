@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Table, Button, Badge, Modal, Form, Row, Col } from "react-bootstrap";
+import { Table, Button, Badge, Modal, Form, Row, Col, Alert } from "react-bootstrap";
 import MultiStepPurchaseForms from "./MultiStepPurchaseForms";
-import { FaArrowRight } from "react-icons/fa";
+import { FaArrowRight, FaTrash } from "react-icons/fa";
 import BaseUrl from "../../../Api/BaseUrl";
 import GetCompanyId from "../../../Api/GetCompanyId";
+
 // Utility to map API status to UI status ("Done", "Pending", etc.)
 const mapApiStatusToUiStatus = (apiStatus) => {
   if (!apiStatus || apiStatus === "Pending") return "Pending";
@@ -28,7 +29,9 @@ const PurchaseOrderr = () => {
   const [error, setError] = useState(null);
   const [stepModal, setStepModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, name }
   const companyId = GetCompanyId();
+
   // Filters
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -39,67 +42,60 @@ const PurchaseOrderr = () => {
   const [billStatusFilter, setBillStatusFilter] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
 
-  // Fetch orders from API
-  useEffect(() => {
-    const fetchPurchaseOrders = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(
-          `${BaseUrl}purchase-orders/company/${companyId}`
-        );
-        if (!response.ok) throw new Error("Failed to fetch purchase orders");
-        const result = await response.json();
+  // Fetch orders
+  const fetchPurchaseOrders = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${BaseUrl}purchase-orders/company/${companyId}`);
+      if (!response.ok) throw new Error("Failed to fetch purchase orders");
+      const result = await response.json();
+      if (result.success && Array.isArray(result.data)) {
+        const formattedOrders = result.data.map((po) => {
+          const quotationStep = po.steps.find((s) => s.step === "quotation");
+          const poStep = po.steps.find((s) => s.step === "purchase_order");
+          const grStep = po.steps.find((s) => s.step === "goods_receipt");
+          const billStep = po.steps.find((s) => s.step === "bill");
+          const paymentStep = po.steps.find((s) => s.step === "payment");
 
-        if (result.success && Array.isArray(result.data)) {
-          const formattedOrders = result.data.map((po) => {
-            // Find step data
-            const quotationStep = po.steps.find((s) => s.step === "quotation");
-            const poStep = po.steps.find((s) => s.step === "purchase_order");
-            const grStep = po.steps.find((s) => s.step === "goods_receipt");
-            const billStep = po.steps.find((s) => s.step === "bill");
-            const paymentStep = po.steps.find((s) => s.step === "payment");
-
-            return {
-              id: po.company_info.id,
-              orderNo: poStep?.data?.PO_no || poStep?.data?.Manual_PO_ref || "-",
-              vendor: quotationStep?.data?.quotation_from_vendor_name || "-",
-              date: poStep?.data?.PO_date || po.company_info.created_at.split("T")[0],
-              amount: formatAmount(po.total),
-              quotation: quotationStep?.data || null,
-              salesOrder: poStep?.data || null,
-              goodsReceipt: grStep?.data || null,
-              invoice: billStep?.data || null,
-              payment: paymentStep?.data || null,
-
-              purchaseQuotationStatus: mapApiStatusToUiStatus(quotationStep?.status),
-              purchaseOrderStatus: mapApiStatusToUiStatus(poStep?.status),
-              goodsReceiptStatus: mapApiStatusToUiStatus(grStep?.status),
-              billStatus: mapApiStatusToUiStatus(billStep?.status),
-              paymentStatus: mapApiStatusToUiStatus(paymentStep?.status),
-              draftStep: "purchase_order", // Default to PO if continuing
-            };
-          });
-          setOrders(formattedOrders);
-        } else {
-          setOrders([]);
-        }
-      } catch (err) {
-        console.error("Fetch error:", err);
-        setError("Failed to load purchase orders.");
+          return {
+            id: po.company_info.id,
+            orderNo: poStep?.data?.PO_no || poStep?.data?.Manual_PO_ref || "-",
+            vendor: quotationStep?.data?.quotation_from_vendor_name || "-",
+            date: poStep?.data?.PO_date || po.company_info.created_at.split("T")[0],
+            amount: formatAmount(po.total),
+            quotation: quotationStep?.data || null,
+            salesOrder: poStep?.data || null,
+            goodsReceipt: grStep?.data || null,
+            invoice: billStep?.data || null,
+            payment: paymentStep?.data || null,
+            purchaseQuotationStatus: mapApiStatusToUiStatus(quotationStep?.status),
+            purchaseOrderStatus: mapApiStatusToUiStatus(poStep?.status),
+            goodsReceiptStatus: mapApiStatusToUiStatus(grStep?.status),
+            billStatus: mapApiStatusToUiStatus(billStep?.status),
+            paymentStatus: mapApiStatusToUiStatus(paymentStep?.status),
+            draftStep: "purchase_order",
+          };
+        });
+        setOrders(formattedOrders);
+      } else {
         setOrders([]);
-      } finally {
-        setLoading(false);
       }
-    };
-
-    if (companyId) {
-      fetchPurchaseOrders();
-    } else {
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Failed to load purchase orders.");
+      setOrders([]);
+    } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (companyId) fetchPurchaseOrders();
+    else setLoading(false);
   }, [companyId]);
 
+  // Handle Create / Continue
   const handleCreateNewPurchase = (order = null) => {
     setSelectedOrder(order);
     setStepModal(true);
@@ -111,9 +107,29 @@ const PurchaseOrderr = () => {
   };
 
   const handleFormSubmit = (formData, lastStep = "quotation") => {
-    // TODO: Implement POST/PUT API calls if editing/creating
     alert("Form submit logic not connected to backend yet.");
     handleCloseModal();
+    // Optionally: fetchPurchaseOrders(); // refetch if needed
+  };
+
+  // 🔥 DELETE FUNCTION
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      const response = await fetch(`${BaseUrl}purchase-orders/${deleteConfirm.id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        // Remove from UI or refetch
+        setOrders((prev) => prev.filter((o) => o.id !== deleteConfirm.id));
+        setDeleteConfirm(null);
+      } else {
+        alert("Failed to delete purchase order.");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Error deleting purchase order.");
+    }
   };
 
   const filteredOrders = useMemo(() => {
@@ -208,6 +224,7 @@ const PurchaseOrderr = () => {
         </Button>
       </div>
 
+      {/* Filters */}
       <Row className="mb-4 g-3">
         <Col md={3}>
           <Form.Group>
@@ -335,14 +352,13 @@ const PurchaseOrderr = () => {
         </Col>
       </Row>
 
+      {/* Table */}
       <Table bordered hover responsive className="text-center align-middle">
         <thead className="table-light">
           <tr>
             <th>#</th>
             <th>Purchase No</th>
             <th>Vendor</th>
-            <th>Voucher Type</th>
-            <th>Voucher No</th>
             <th>Date</th>
             <th>Amount</th>
             <th>Purchase Quotation</th>
@@ -356,7 +372,7 @@ const PurchaseOrderr = () => {
         <tbody>
           {filteredOrders.length === 0 ? (
             <tr>
-              <td colSpan="13">No purchase orders found.</td>
+              <td colSpan="11">No purchase orders found.</td>
             </tr>
           ) : (
             filteredOrders.map((order, idx) => (
@@ -364,8 +380,6 @@ const PurchaseOrderr = () => {
                 <td>{idx + 1}</td>
                 <td>{order.orderNo}</td>
                 <td>{order.vendor}</td>
-                <td>-</td>
-                <td>-</td>
                 <td>{order.date}</td>
                 <td>{order.amount}</td>
                 <td>{statusBadge(order.purchaseQuotationStatus)}</td>
@@ -374,13 +388,27 @@ const PurchaseOrderr = () => {
                 <td>{statusBadge(order.billStatus)}</td>
                 <td>{statusBadge(order.paymentStatus)}</td>
                 <td>
-                  <Button
-                    size="sm"
-                    variant="outline-primary"
-                    onClick={() => handleCreateNewPurchase(order)}
-                  >
-                    Continue
-                  </Button>
+                  <div className="d-flex gap-1 justify-content-center">
+                    <Button
+                      size="sm"
+                      variant="outline-primary"
+                      onClick={() => handleCreateNewPurchase(order)}
+                    >
+                      Continue
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline-danger"
+                      onClick={() =>
+                        setDeleteConfirm({
+                          id: order.id,
+                          name: order.orderNo || `Order #${order.id}`,
+                        })
+                      }
+                    >
+                      <FaTrash />
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))
@@ -388,6 +416,28 @@ const PurchaseOrderr = () => {
         </tbody>
       </Table>
 
+      {/* Delete Confirmation Modal */}
+      <Modal show={!!deleteConfirm} onHide={() => setDeleteConfirm(null)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="warning">
+            Are you sure you want to delete purchase order{" "}
+            <strong>{deleteConfirm?.name}</strong>? This action cannot be undone.
+          </Alert>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleDelete}>
+            Delete
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Main Form Modal */}
       <Modal show={stepModal} onHide={handleCloseModal} size="xl" centered>
         <Modal.Header closeButton>
           <Modal.Title>
