@@ -1286,7 +1286,7 @@ const MultiStepSalesForm = ({
       alert("Sales process completed successfully!");
 
       // Redirect to sales workflow page
-      navigate("/sales-workflow");
+      navigate("/Invoice");
     } catch (err) {
       console.error("Error submitting final form:", err);
       alert("Error submitting final form. Please try again.");
