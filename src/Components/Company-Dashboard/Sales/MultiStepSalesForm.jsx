@@ -947,20 +947,11 @@ const MultiStepSalesForm = ({
           },
           sales_order: {
             SO_no: formData.salesOrder.salesOrderNo,
-            manual_ref_no: formData.salesOrder.manualOrderRef,
-            manual_quo_no: formData.salesOrder.manualQuotationRef,
+            manual_ref_no: formData.salesOrder.manualQuotationRef,
+         
             order_date: formData.salesOrder.orderDate,
             customer_no: formData.salesOrder.customerNo,
-            bill_to_attention_name: formData.salesOrder.billToAttn,
-            bill_to_company_name: formData.salesOrder.billToCompanyName,
-            bill_to_address: formData.salesOrder.billToAddress,
-            bill_to_email: formData.salesOrder.billToEmail,
-            bill_to_phone: formData.salesOrder.billToPhone,
-            ship_to_attention_name: formData.salesOrder.shipToAttn,
-            ship_to_company_name: formData.salesOrder.shipToCompanyName,
-            ship_to_address: formData.salesOrder.shipToAddress,
-            ship_to_email: formData.salesOrder.shipToEmail,
-            ship_to_phone: formData.salesOrder.shipToPhone,
+    
           },
           delivery_challan: {
             challan_no: formData.deliveryChallan.challanNo,
@@ -969,14 +960,7 @@ const MultiStepSalesForm = ({
             vehicle_no: formData.deliveryChallan.vehicleNo,
             driver_name: formData.deliveryChallan.driverName,
             driver_phone: formData.deliveryChallan.driverPhone,
-            bill_to_name: formData.deliveryChallan.billToName,
-            bill_to_address: formData.deliveryChallan.billToAddress,
-            bill_to_email: formData.deliveryChallan.billToEmail,
-            bill_to_phone: formData.deliveryChallan.billToPhone,
-            ship_to_name: formData.deliveryChallan.shipToName,
-            ship_to_address: formData.deliveryChallan.shipToAddress,
-            ship_to_email: formData.deliveryChallan.shipToEmail,
-            ship_to_phone: formData.deliveryChallan.shipToPhone,
+          
           },
           invoice: {
             invoice_no: formData.invoice.invoiceNo,
@@ -990,10 +974,7 @@ const MultiStepSalesForm = ({
             customer_address: formData.invoice.customerAddress,
             customer_email: formData.invoice.customerEmail,
             customer_phone: formData.invoice.customerPhone,
-            ship_to_name: formData.invoice.shipToName,
-            ship_to_address: formData.invoice.shipToAddress,
-            ship_to_email: formData.invoice.shipToEmail,
-            ship_to_phone: formData.invoice.shipToPhone,
+          
           },
           payment: {
             payment_no: formData.payment.paymentNo,
