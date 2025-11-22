@@ -913,11 +913,11 @@ const MultiStepSalesForm = ({
       const company_id = GetCompanyId();
       if (!company_id) return;
 
-      // Determine if this is the first step (quotation) or a subsequent step
-      const isFirstStep = key === "quotation" && !currentSalesOrderId;
-      
       // Single endpoint for all steps
       const endpoint = "sales-order/create-sales-order";
+      
+      // Determine if this is the first step (quotation) or a subsequent step
+      const isFirstStep = key === "quotation" && !currentSalesOrderId;
       const method = isFirstStep ? "post" : "put"; // POST for first step, PUT for subsequent steps
 
       // Build a unified payload that includes all steps data
@@ -1050,7 +1050,7 @@ const MultiStepSalesForm = ({
         current_step: key, // Indicate which step is currently being saved
       };
 
-      // If we have a sales order ID, use PUT to update, otherwise POST to create
+      // Send the request to the API
       let response;
       if (method === "put" && currentSalesOrderId) {
         response = await axiosInstance.put(`${endpoint}/${currentSalesOrderId}`, payload);
@@ -1064,9 +1064,9 @@ const MultiStepSalesForm = ({
         // If we just created a sales order, store its ID for future updates
         if (
           isFirstStep &&
-          response.data.data?.id
+          response.data.data?.sales_order_id
         ) {
-          setCurrentSalesOrderId(response.data.data.id);
+          setCurrentSalesOrderId(response.data.data.sales_order_id);
         }
 
         // Refresh the sales workflow
@@ -2411,7 +2411,7 @@ const MultiStepSalesForm = ({
 
     return (
       <Table striped bordered hover responsive>
-      
+     
       </Table>
     );
   };
