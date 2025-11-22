@@ -1,3 +1,4 @@
+// MultiStepSalesForm.jsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   Tabs,
@@ -12,6 +13,9 @@ import {
   FormControl,
   Dropdown,
 } from "react-bootstrap";
+import html2pdf from "html2pdf.js";
+import * as XLSX from "xlsx";
+// import "./MultiStepSalesForm.css"; // Ensure this CSS file is included in your project
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUpload,
@@ -106,11 +110,8 @@ const MultiStepSalesForm = ({
         accountHolder: companyDetails.bank_details?.account_holder || "",
         ifsc: companyDetails.bank_details?.ifsc_code || "",
         signature: "",
-        signatureFile: null, // Store file object instead of base64
         photo: "",
-        photoFile: null, // Store file object instead of base64
         files: [],
-        fileObjects: [], // Store file objects instead of base64
         footerNote: "Thank you!",
       },
       salesOrder: {
@@ -155,11 +156,8 @@ const MultiStepSalesForm = ({
         ],
         terms: companyDetails.terms_and_conditions || "",
         signature: "",
-        signatureFile: null, // Store file object instead of base64
         photo: "",
-        photoFile: null, // Store file object instead of base64
         files: [],
-        fileObjects: [], // Store file objects instead of base64
         footerNote: "Thank you!",
         // 👉 Quotation No (Auto + Manual)
         quotationNo: "", // Auto-generated QUO No
@@ -205,11 +203,8 @@ const MultiStepSalesForm = ({
         ],
         terms: companyDetails.terms_and_conditions || "",
         signature: "",
-        signatureFile: null, // Store file object instead of base64
         photo: "",
-        photoFile: null, // Store file object instead of base64
         files: [],
-        fileObjects: [], // Store file objects instead of base64
         footerNote: "Thank you!",
       },
       invoice: {
@@ -256,11 +251,8 @@ const MultiStepSalesForm = ({
         note: "",
         terms: companyDetails.terms_and_conditions || "",
         signature: "",
-        signatureFile: null, // Store file object instead of base64
         photo: "",
-        photoFile: null, // Store file object instead of base64
         files: [],
-        fileObjects: [], // Store file objects instead of base64
         footerNote: "Thank you!",
       },
       payment: {
@@ -289,11 +281,8 @@ const MultiStepSalesForm = ({
         companyIcon: companyDetails.branding?.company_icon_url || "",
         companyFavicon: companyDetails.branding?.favicon_url || "",
         signature: "",
-        signatureFile: null, // Store file object instead of base64
         photo: "",
-        photoFile: null, // Store file object instead of base64
         files: [],
-        fileObjects: [], // Store file objects instead of base64
         footerNote: "Thank you!",
       },
     };
@@ -756,6 +745,26 @@ const MultiStepSalesForm = ({
     }));
   };
 
+  const addItem = (tab) => {
+    setFormData((prev) => ({
+      ...prev,
+      [tab]: {
+        ...prev[tab],
+        items: [
+          ...prev[tab].items,
+          {
+            item_name: "",
+            qty: "",
+            rate: "",
+            tax: 0,
+            discount: 0,
+            warehouse: "",
+          },
+        ],
+      },
+    }));
+  };
+
   const removeItem = (tab, index) => {
     const updatedItems = [...formData[tab].items];
     updatedItems.splice(index, 1);
@@ -899,225 +908,154 @@ const MultiStepSalesForm = ({
     });
   };
 
-  // Helper function to build payload for API
-  const buildPayload = () => {
-    const currentTab = formData[key];
-
-    // Calculate sub_total and total
-    const subTotal = calculateTotalAmount(currentTab.items);
-    const total = calculateTotalWithTaxAndDiscount(currentTab.items);
-
-    // Get company_id
-    const company_id = GetCompanyId();
-
-    // Build payload structure
-    const payload = {
-      company_info: {
-        company_id: company_id,
-        company_name: currentTab.companyName,
-        company_address: currentTab.companyAddress,
-        company_email: currentTab.companyEmail,
-        company_phone: currentTab.companyPhone,
-        logo_url: currentTab.companyLogo,
-        bank_name: formData.quotation.bankName,
-        account_no: formData.quotation.accountNo,
-        account_holder: formData.quotation.accountHolder,
-        ifsc_code: formData.quotation.ifsc,
-        terms: currentTab.terms,
-      },
-      shipping_details: {
-        bill_to_name: currentTab.billToName || currentTab.customerName,
-        bill_to_address: currentTab.billToAddress || currentTab.customerAddress,
-        bill_to_email: currentTab.billToEmail || currentTab.customerEmail,
-        bill_to_phone: currentTab.billToPhone || currentTab.customerPhone,
-        bill_to_attention_name: formData.salesOrder.billToAttn || "",
-        bill_to_company_name:
-          formData.salesOrder.billToCompanyName ||
-          currentTab.billToName ||
-          currentTab.customerName,
-        ship_to_name: currentTab.shipToName,
-        ship_to_address: currentTab.shipToAddress,
-        ship_to_email: currentTab.shipToEmail,
-        ship_to_phone: currentTab.shipToPhone,
-        ship_to_attention_name: formData.salesOrder.shipToAttn || "",
-        ship_to_company_name:
-          formData.salesOrder.shipToCompanyName || currentTab.shipToName,
-      },
-      items: currentTab.items.map((item) => ({
-        item_name: item.item_name || item.description,
-        description: item.description,
-        qty: item.qty,
-        rate: item.rate,
-        tax_percent: item.tax,
-        discount: item.discount,
-        amount: item.amount,
-        uom: item.uom,
-        hsn: item.hsn,
-        sku: item.sku,
-        barcode: item.barcode,
-        warehouse_id: item.warehouse,
-      })),
-      steps: {
-        quotation: {
-          quotation_no: formData.quotation.quotationNo,
-          manual_quo_no: formData.quotation.manualQuotationRef,
-          quotation_date: formData.quotation.quotationDate,
-          valid_till: formData.quotation.validDate,
-          qoutation_to_customer_name: formData.quotation.billToName,
-          qoutation_to_customer_address: formData.quotation.billToAddress,
-          qoutation_to_customer_email: formData.quotation.billToEmail,
-          qoutation_to_customer_phone: formData.quotation.billToPhone,
-          notes: formData.quotation.notes,
-          customer_ref: formData.quotation.customerReference,
-        },
-        sales_order: {
-          SO_no: formData.salesOrder.salesOrderNo,
-          manual_ref_no: formData.salesOrder.manualOrderRef,
-          manual_quo_no: formData.salesOrder.manualQuotationRef,
-          order_date: formData.salesOrder.orderDate,
-          customer_no: formData.salesOrder.customerNo,
-          bill_to_attention_name: formData.salesOrder.billToAttn,
-          bill_to_company_name: formData.salesOrder.billToCompanyName,
-          bill_to_address: formData.salesOrder.billToAddress,
-          bill_to_email: formData.salesOrder.billToEmail,
-          bill_to_phone: formData.salesOrder.billToPhone,
-          ship_to_attention_name: formData.salesOrder.shipToAttn,
-          ship_to_company_name: formData.salesOrder.shipToCompanyName,
-          ship_to_address: formData.salesOrder.shipToAddress,
-          ship_to_email: formData.salesOrder.shipToEmail,
-          ship_to_phone: formData.salesOrder.shipToPhone,
-        },
-        delivery_challan: {
-          challan_no: formData.deliveryChallan.challanNo,
-          manual_challan_no: formData.deliveryChallan.manualChallanNo,
-          challan_date: formData.deliveryChallan.challanDate,
-          vehicle_no: formData.deliveryChallan.vehicleNo,
-          driver_name: formData.deliveryChallan.driverName,
-          driver_phone: formData.deliveryChallan.driverPhone,
-          bill_to_name: formData.deliveryChallan.billToName,
-          bill_to_address: formData.deliveryChallan.billToAddress,
-          bill_to_email: formData.deliveryChallan.billToEmail,
-          bill_to_phone: formData.deliveryChallan.billToPhone,
-          ship_to_name: formData.deliveryChallan.shipToName,
-          ship_to_address: formData.deliveryChallan.shipToAddress,
-          ship_to_email: formData.deliveryChallan.shipToEmail,
-          ship_to_phone: formData.deliveryChallan.shipToPhone,
-        },
-        invoice: {
-          invoice_no: formData.invoice.invoiceNo,
-          manual_invoice_no: formData.invoice.manualInvoiceNo,
-          invoice_date: formData.invoice.invoiceDate,
-          due_date: formData.invoice.dueDate,
-          payment_status: formData.invoice.paymentStatus,
-          payment_method: formData.invoice.paymentMethod,
-          note: formData.invoice.note,
-          customer_name: formData.invoice.customerName,
-          customer_address: formData.invoice.customerAddress,
-          customer_email: formData.invoice.customerEmail,
-          customer_phone: formData.invoice.customerPhone,
-          ship_to_name: formData.invoice.shipToName,
-          ship_to_address: formData.invoice.shipToAddress,
-          ship_to_email: formData.invoice.shipToEmail,
-          ship_to_phone: formData.invoice.shipToPhone,
-        },
-        payment: {
-          payment_no: formData.payment.paymentNo,
-          manual_payment_no: formData.payment.manualPaymentNo,
-          payment_date: formData.payment.paymentDate,
-          amount_received: formData.payment.amount,
-          payment_method: formData.payment.paymentMethod,
-          payment_status: formData.payment.paymentStatus,
-          payment_note: formData.payment.note,
-          customer_name: formData.payment.customerName,
-          customer_address: formData.payment.customerAddress,
-          customer_email: formData.payment.customerEmail,
-          customer_phone: formData.payment.customerPhone,
-        },
-      },
-      additional_info: {
-        files: currentTab.files.map((file) => file.base64 || file),
-        signature_url: currentTab.signature,
-        photo_url: currentTab.photo,
-        attachment_url:
-          currentTab.files.length > 0 ? currentTab.files[0].base64 : "",
-      },
-      sub_total: subTotal,
-      total: total,
-      current_step: key, // Indicate which step is currently being saved
-    };
-
-    return payload;
-  };
-
   const handleSaveDraft = async () => {
     try {
       const company_id = GetCompanyId();
       if (!company_id) return;
 
-      // Build payload using our helper function
-      const payload = buildPayload();
-
-      // Determine if this is the first step (quotation) or a subsequent step
-      const isFirstStep = key === "quotation" && !currentSalesOrderId;
-
       // Single endpoint for all steps
       const endpoint = "sales-order/create-sales-order";
+      
+      // Determine if this is the first step (quotation) or a subsequent step
+      const isFirstStep = key === "quotation" && !currentSalesOrderId;
       const method = isFirstStep ? "post" : "put"; // POST for first step, PUT for subsequent steps
 
-      // Create FormData for file uploads
-      const formDataToSend = new FormData();
+      // Build a unified payload that includes all steps data
+      const payload = {
+        company_info: {
+          company_id: company_id,
+          company_name: formData[key].companyName,
+          company_address: formData[key].companyAddress,
+          company_email: formData[key].companyEmail,
+          company_phone: formData[key].companyPhone,
+          logo_url: formData[key].companyLogo,
+          bank_name: formData.quotation.bankName,
+          account_no: formData.quotation.accountNo,
+          account_holder: formData.quotation.accountHolder,
+          ifsc_code: formData.quotation.ifsc,
+          terms: formData[key].terms,
+        },
+        shipping_details: {
+          bill_to_name: formData[key].billToName || formData[key].customerName,
+          bill_to_address: formData[key].billToAddress || formData[key].customerAddress,
+          bill_to_email: formData[key].billToEmail || formData[key].customerEmail,
+          bill_to_phone: formData[key].billToPhone || formData[key].customerPhone,
+          bill_to_attention_name: formData.salesOrder.billToAttn || "",
+          bill_to_company_name: formData.salesOrder.billToCompanyName || formData[key].billToName || formData[key].customerName,
+          ship_to_name: formData[key].shipToName,
+          ship_to_address: formData[key].shipToAddress,
+          ship_to_email: formData[key].shipToEmail,
+          ship_to_phone: formData[key].shipToPhone,
+          ship_to_attention_name: formData.salesOrder.shipToAttn || "",
+          ship_to_company_name: formData.salesOrder.shipToCompanyName || formData[key].shipToName,
+        },
+        items: formData[key].items.map((item) => ({
+          item_name: item.item_name || item.description,
+          description: item.description,
+          qty: item.qty,
+          rate: item.rate,
+          tax_percent: item.tax,
+          discount: item.discount,
+          amount: item.amount,
+          uom: item.uom,
+          hsn: item.hsn,
+          sku: item.sku,
+          barcode: item.barcode,
+          warehouse_id: item.warehouse,
+        })),
+        // Include all step-specific data
+        steps: {
+          quotation: {
+            quotation_no: formData.quotation.quotationNo,
+            manual_quo_no: formData.quotation.manualQuotationRef,
+            quotation_date: formData.quotation.quotationDate,
+            valid_till: formData.quotation.validDate,
+            qoutation_to_customer_name: formData.quotation.billToName,
+            qoutation_to_customer_address: formData.quotation.billToAddress,
+            qoutation_to_customer_email: formData.quotation.billToEmail,
+            qoutation_to_customer_phone: formData.quotation.billToPhone,
+            notes: formData.quotation.notes,
+            customer_ref: formData.quotation.customerReference,
+          },
+          sales_order: {
+            SO_no: formData.salesOrder.salesOrderNo,
+            manual_ref_no: formData.salesOrder.manualOrderRef,
+            manual_quo_no: formData.salesOrder.manualQuotationRef,
+            order_date: formData.salesOrder.orderDate,
+            customer_no: formData.salesOrder.customerNo,
+            bill_to_attention_name: formData.salesOrder.billToAttn,
+            bill_to_company_name: formData.salesOrder.billToCompanyName,
+            bill_to_address: formData.salesOrder.billToAddress,
+            bill_to_email: formData.salesOrder.billToEmail,
+            bill_to_phone: formData.salesOrder.billToPhone,
+            ship_to_attention_name: formData.salesOrder.shipToAttn,
+            ship_to_company_name: formData.salesOrder.shipToCompanyName,
+            ship_to_address: formData.salesOrder.shipToAddress,
+            ship_to_email: formData.salesOrder.shipToEmail,
+            ship_to_phone: formData.salesOrder.shipToPhone,
+          },
+          delivery_challan: {
+            challan_no: formData.deliveryChallan.challanNo,
+            manual_challan_no: formData.deliveryChallan.manualChallanNo,
+            challan_date: formData.deliveryChallan.challanDate,
+            vehicle_no: formData.deliveryChallan.vehicleNo,
+            driver_name: formData.deliveryChallan.driverName,
+            driver_phone: formData.deliveryChallan.driverPhone,
+            bill_to_name: formData.deliveryChallan.billToName,
+            bill_to_address: formData.deliveryChallan.billToAddress,
+            bill_to_email: formData.deliveryChallan.billToEmail,
+            bill_to_phone: formData.deliveryChallan.billToPhone,
+            ship_to_name: formData.deliveryChallan.shipToName,
+            ship_to_address: formData.deliveryChallan.shipToAddress,
+            ship_to_email: formData.deliveryChallan.shipToEmail,
+            ship_to_phone: formData.deliveryChallan.shipToPhone,
+          },
+          invoice: {
+            invoice_no: formData.invoice.invoiceNo,
+            manual_invoice_no: formData.invoice.manualInvoiceNo,
+            invoice_date: formData.invoice.invoiceDate,
+            due_date: formData.invoice.dueDate,
+            payment_status: formData.invoice.paymentStatus,
+            payment_method: formData.invoice.paymentMethod,
+            note: formData.invoice.note,
+            customer_name: formData.invoice.customerName,
+            customer_address: formData.invoice.customerAddress,
+            customer_email: formData.invoice.customerEmail,
+            customer_phone: formData.invoice.customerPhone,
+            ship_to_name: formData.invoice.shipToName,
+            ship_to_address: formData.invoice.shipToAddress,
+            ship_to_email: formData.invoice.shipToEmail,
+            ship_to_phone: formData.invoice.shipToPhone,
+          },
+          payment: {
+            payment_no: formData.payment.paymentNo,
+            manual_payment_no: formData.payment.manualPaymentNo,
+            payment_date: formData.payment.paymentDate,
+            amount_received: formData.payment.amount,
+            payment_method: formData.payment.paymentMethod,
+            payment_status: formData.payment.paymentStatus,
+            payment_note: formData.payment.note,
+            customer_name: formData.payment.customerName,
+            customer_address: formData.payment.customerAddress,
+            customer_email: formData.payment.customerEmail,
+            customer_phone: formData.payment.customerPhone,
+          },
+        },
+        additional_info: {
+          files: formData[key].files,
+          signature_url: formData[key].signature,
+          photo_url: formData[key].photo,
+          attachment_url: formData[key].files.length > 0 ? formData[key].files[0].base64 : "",
+        },
+        current_step: key, // Indicate which step is currently being saved
+      };
 
-      // Add all payload data to FormData
-      Object.keys(payload).forEach((key) => {
-        if (key === "additional_info") {
-          // Handle files separately
-          if (payload[key].files && payload[key].files.length > 0) {
-            // Add file objects from the current step
-            if (
-              formData[key].fileObjects &&
-              formData[key].fileObjects.length > 0
-            ) {
-              formData[key].fileObjects.forEach((file, index) => {
-                formDataToSend.append(`files[${index}]`, file);
-              });
-            }
-          }
-          // Add other additional_info fields
-          formDataToSend.append("signature_url", payload[key].signature_url);
-          formDataToSend.append("photo_url", payload[key].photo_url);
-          formDataToSend.append("attachment_url", payload[key].attachment_url);
-        } else if (key === "steps") {
-          // Stringify the steps object
-          formDataToSend.append(key, JSON.stringify(payload[key]));
-        } else if (key === "items") {
-          // Stringify the items array
-          formDataToSend.append(key, JSON.stringify(payload[key]));
-        } else {
-          // Add other fields as strings
-          formDataToSend.append(key, payload[key]);
-        }
-      });
-
-      // Add current step
-      formDataToSend.append("current_step", key);
-
+      // Send the request to the API
       let response;
       if (method === "put" && currentSalesOrderId) {
-        response = await axiosInstance.put(
-          `${endpoint}/${currentSalesOrderId}`,
-          formDataToSend,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        );
+        response = await axiosInstance.put(`${endpoint}/${currentSalesOrderId}`, payload);
       } else {
-        response = await axiosInstance.post(endpoint, formDataToSend, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
+        response = await axiosInstance.post(endpoint, payload);
       }
 
       if (response?.data?.success) {
@@ -1125,11 +1063,10 @@ const MultiStepSalesForm = ({
 
         // If we just created a sales order, store its ID for future updates
         if (
-          key === "salesOrder" &&
-          !currentSalesOrderId &&
-          response.data.data?.id
+          isFirstStep &&
+          response.data.data?.sales_order_id
         ) {
-          setCurrentSalesOrderId(response.data.data.id);
+          setCurrentSalesOrderId(response.data.data.sales_order_id);
         }
 
         // Refresh the sales workflow
@@ -1361,14 +1298,10 @@ const MultiStepSalesForm = ({
     setKey(step);
   };
 
-  // File handlers - Updated to store file objects instead of base64
+  // File handlers
   const handleSignatureChange = (tab, e) => {
     const file = e.target.files[0];
     if (file) {
-      // Store the file object for binary upload
-      handleChange(tab, "signatureFile", file);
-
-      // Also create a preview URL for display
       const reader = new FileReader();
       reader.onloadend = () => {
         handleChange(tab, "signature", reader.result);
@@ -1380,10 +1313,6 @@ const MultiStepSalesForm = ({
   const handlePhotoChange = (tab, e) => {
     const file = e.target.files[0];
     if (file) {
-      // Store the file object for binary upload
-      handleChange(tab, "photoFile", file);
-
-      // Also create a preview URL for display
       const reader = new FileReader();
       reader.onloadend = () => {
         handleChange(tab, "photo", reader.result);
@@ -1395,13 +1324,7 @@ const MultiStepSalesForm = ({
   const handleFileChange = (tab, e) => {
     const files = Array.from(e.target.files);
     const newFiles = [];
-    const newFileObjects = [];
-
     files.forEach((file) => {
-      // Store the file object for binary upload
-      newFileObjects.push(file);
-
-      // Also create a preview object for display
       const reader = new FileReader();
       reader.onloadend = () => {
         newFiles.push({
@@ -1410,14 +1333,8 @@ const MultiStepSalesForm = ({
           size: file.size,
           base64: reader.result,
         });
-
-        // Update the state when all files are processed
         if (newFiles.length === files.length) {
           handleChange(tab, "files", [...formData[tab].files, ...newFiles]);
-          handleChange(tab, "fileObjects", [
-            ...formData[tab].fileObjects,
-            ...newFileObjects,
-          ]);
         }
       };
       reader.readAsDataURL(file);
@@ -1426,13 +1343,8 @@ const MultiStepSalesForm = ({
 
   const removeFile = (tab, index) => {
     const updatedFiles = [...formData[tab].files];
-    const updatedFileObjects = [...formData[tab].fileObjects];
-
     updatedFiles.splice(index, 1);
-    updatedFileObjects.splice(index, 1);
-
     handleChange(tab, "files", updatedFiles);
-    handleChange(tab, "fileObjects", updatedFileObjects);
   };
 
   const handleAddItem = () => {
@@ -1467,6 +1379,11 @@ const MultiStepSalesForm = ({
       uom: "PCS",
     });
     setShowAdd(false);
+  };
+
+  const handleUpdateItem = () => {
+    console.log("Update item:", newItem);
+    setShowEdit(false);
   };
 
   const handleAddCategory = (e) => {
@@ -2132,8 +2049,7 @@ const MultiStepSalesForm = ({
                                     filteredItem.item_category
                                       ?.item_category_name ||
                                     ""}{" "}
-                                  - ${" "}
-                                  {filteredItem.price ||
+                                  - $                                   {filteredItem.price ||
                                   filteredItem.sale_price ||
                                   filteredItem.sellingPrice
                                     ? parseFloat(
@@ -2900,8 +2816,7 @@ const MultiStepSalesForm = ({
                 <tr>
                   <td className="fw-bold">Tax:</td>
                   <td>
-                    $
-                    {formData.quotation.items
+                    $                     {formData.quotation.items
                       .reduce((sum, item) => {
                         const subtotal =
                           (parseFloat(item.rate) || 0) *
@@ -2916,8 +2831,7 @@ const MultiStepSalesForm = ({
                 <tr>
                   <td className="fw-bold">Discount:</td>
                   <td>
-                    $
-                    {formData.quotation.items
+                    $                     {formData.quotation.items
                       .reduce(
                         (sum, item) => sum + (parseFloat(item.discount) || 0),
                         0
@@ -2928,8 +2842,7 @@ const MultiStepSalesForm = ({
                 <tr>
                   <td className="fw-bold">Total:</td>
                   <td className="fw-bold">
-                    $
-                    {calculateTotalWithTaxAndDiscount(
+                    $                     {calculateTotalWithTaxAndDiscount(
                       formData.quotation.items
                     ).toFixed(2)}
                   </td>
@@ -5732,7 +5645,7 @@ const MultiStepSalesForm = ({
       <div className="container-fluid mt-4 px-2" ref={formRef}>
         <h4 className="text-center mb-4">Sales Process</h4>
 
-        {/* Top Action Buttons */}
+    
         <Tabs activeKey={key} onSelect={setKey} className="mb-4" fill>
           <Tab eventKey="quotation" title="Quotation">
             {renderQuotationTab()}
