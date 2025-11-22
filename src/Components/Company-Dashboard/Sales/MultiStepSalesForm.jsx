@@ -543,16 +543,8 @@ const MultiStepSalesForm = ({
         );
       }
     }
-    if (
-      formData.quotation.manualQuotationRef &&
-      formData.quotation.manualQuotationRef !== formData.quotation.quotationNo
-    ) {
-      handleChange(
-        "quotation",
-        "quotationNo",
-        formData.quotation.manualQuotationRef
-      );
-    }
+    // Do not overwrite an existing primary quotationNo when manual field changes
+    // Manual quotation ref is used only as initial value when primary is empty.
 
     // Sales Order Auto-fill
     if (!formData.salesOrder.referenceId) {
@@ -577,22 +569,15 @@ const MultiStepSalesForm = ({
         );
       }
     }
-    if (
-      formData.salesOrder.manualOrderRef &&
-      formData.salesOrder.manualOrderRef !== formData.salesOrder.salesOrderNo
-    ) {
-      handleChange(
-        "salesOrder",
-        "salesOrderNo",
-        formData.salesOrder.manualOrderRef
-      );
-    }
+    // Do not overwrite an existing primary salesOrderNo when manual field changes
+    // Manual order ref is applied only if salesOrderNo is empty (handled above).
     if (!formData.salesOrder.quotationNo && formData.quotation.quotationNo) {
       handleChange("salesOrder", "quotationNo", formData.quotation.quotationNo);
     }
+    // Apply manual quotation ref to sales order only if salesOrder.quotationNo is empty
     if (
       formData.salesOrder.manualQuotationRef &&
-      formData.salesOrder.manualQuotationRef !== formData.salesOrder.quotationNo
+      !formData.salesOrder.quotationNo
     ) {
       handleChange(
         "salesOrder",
@@ -624,17 +609,8 @@ const MultiStepSalesForm = ({
         );
       }
     }
-    if (
-      formData.deliveryChallan.manualChallanNo &&
-      formData.deliveryChallan.manualChallanNo !==
-        formData.deliveryChallan.challanNo
-    ) {
-      handleChange(
-        "deliveryChallan",
-        "challanNo",
-        formData.deliveryChallan.manualChallanNo
-      );
-    }
+    // Do not overwrite an existing primary challanNo when manual field changes
+    // Manual challan ref is respected only as initial value when primary is empty.
     if (
       !formData.deliveryChallan.salesOrderNo &&
       formData.salesOrder.salesOrderNo
@@ -657,12 +633,8 @@ const MultiStepSalesForm = ({
         handleChange("invoice", "invoiceNo", generateReferenceId("invoice"));
       }
     }
-    if (
-      formData.invoice.manualInvoiceNo &&
-      formData.invoice.manualInvoiceNo !== formData.invoice.invoiceNo
-    ) {
-      handleChange("invoice", "invoiceNo", formData.invoice.manualInvoiceNo);
-    }
+    // Do not overwrite an existing primary invoiceNo when manual field changes
+    // Manual invoice ref is used only as initial value when primary is empty.
     if (!formData.invoice.challanNo && formData.deliveryChallan.challanNo) {
       handleChange("invoice", "challanNo", formData.deliveryChallan.challanNo);
     }
@@ -678,12 +650,8 @@ const MultiStepSalesForm = ({
         handleChange("payment", "paymentNo", generateReferenceId("payment"));
       }
     }
-    if (
-      formData.payment.manualPaymentNo &&
-      formData.payment.manualPaymentNo !== formData.payment.paymentNo
-    ) {
-      handleChange("payment", "paymentNo", formData.payment.manualPaymentNo);
-    }
+    // Do not overwrite an existing primary paymentNo when manual field changes
+    // Manual payment ref is used only as initial value when primary is empty.
     if (!formData.payment.invoiceNo && formData.invoice.invoiceNo) {
       handleChange("payment", "invoiceNo", formData.invoice.invoiceNo);
     }
@@ -897,148 +865,6 @@ const MultiStepSalesForm = ({
     }, 0);
   };
 
-  // --- Top Buttons ---
-  const handlePrint = (lang) => {
-    const printContent = pdfRef.current;
-    if (!printContent) {
-      alert("No content to print!");
-      return;
-    }
-    // Mock Arabic translation
-    const getArabicText = (text) => {
-      const translations = {
-        QUOTATION: "عرض أسعار",
-        "SALES ORDER": "طلب بيع",
-        "DELIVERY CHALLAN": "إيصال توصيل",
-        INVOICE: "فاتورة",
-        "PAYMENT RECEIPT": "إيصال دفع",
-        "Company Name": "اسم الشركة",
-        "Quotation No.": "رقم عرض السعر",
-        "SO No.": "رقم أمر المبيعات",
-        "Challan No.": "رقم الإيصال",
-        "Invoice No.": "رقم الفاتورة",
-        "Payment No.": "رقم الدفع",
-        Date: "التاريخ",
-        "Item Name": "اسم الصنف",
-        Qty: "الكمية",
-        Rate: "السعر",
-        Amount: "المبلغ",
-        Total: "الإجمالي",
-        Attachments: "المرفقات",
-        Signature: "التوقيع",
-        Photo: "الصورة",
-        Files: "الملفات",
-        "Terms & Conditions": "الشروط والأحكام",
-        "Thank you for your business!": "شكرًا لتعاملكم معنا!",
-        "Driver Details": "تفاصيل السائق",
-        "Vehicle No.": "رقم المركبة",
-        "Delivery Date": "تاريخ التسليم",
-        "Due Date": "تاريخ الاستحقاق",
-        "Payment Method": "طريقة الدفع",
-        "Bill To": "موجه إلى",
-        "Ship To": "يشحن إلى",
-        "Sub Total:": "المجموع الفرعي:",
-        "Tax:": "الضريبة:",
-        "Discount:": "الخصم:",
-        "Total:": "الإجمالي:",
-        Notes: "ملاحظات",
-        "Bank Details": "بيانات البنك",
-      };
-      return translations[text] || text;
-    };
-
-    const clone = printContent.cloneNode(true);
-    const elements = clone.querySelectorAll("*");
-    if (lang === "arabic" || lang === "both") {
-      clone.style.direction = "rtl";
-      clone.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
-      elements.forEach((el) => {
-        el.style.textAlign = "right";
-      });
-    }
-    if (lang === "both") {
-      elements.forEach((el) => {
-        const text = el.innerText.trim();
-        if (text && !el.querySelector("img") && !el.querySelector("input")) {
-          const arabic = getArabicText(text);
-          if (arabic !== text) {
-            const arSpan = document.createElement("div");
-            arSpan.innerText = arabic;
-            arSpan.style.color = "#0066cc";
-            arSpan.style.marginTop = "4px";
-            arSpan.style.fontSize = "0.9em";
-            el.appendChild(arSpan);
-          }
-        }
-      });
-    } else if (lang === "arabic") {
-      elements.forEach((el) => {
-        const text = el.innerText.trim();
-        const arabic = getArabicText(text);
-        if (arabic !== text) {
-          el.innerText = arabic;
-        }
-      });
-    }
-
-    const printWindow = window.open("", "", "height=800,width=1000");
-    printWindow.document.write("<html><head><title>Print</title>");
-    printWindow.document.write("<style>");
-    printWindow.document.write(`
-      body { font-family: Arial, sans-serif; margin: 20px; }
-      table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-      th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-      .text-end { text-align: right; }
-      .fw-bold { font-weight: bold; }
-      hr { border: 2px solid #28a745; margin: 10px 0; }
-      h2, h4, h5 { color: #28a745; }
-      .attachment-img { max-width: 150px; max-height: 100px; object-fit: contain; margin: 5px 0; }
-    `);
-    printWindow.document.write("</style></head><body>");
-    printWindow.document.write(clone.outerHTML);
-    printWindow.document.write("</body></html>");
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.onload = () => {
-      printWindow.print();
-    };
-  };
-
-  const handleSend = () => {
-    window.location.href = `mailto:?subject=Sales Document&body=Please find the sales document details attached.`;
-  };
-
-  const handleDownloadPDF = () => {
-    const element = pdfRef.current;
-    html2pdf()
-      .from(element)
-      .set({
-        margin: 10,
-        filename: `${key}-${
-          formData[key].quotationNo ||
-          formData[key].salesOrderNo ||
-          formData[key].challanNo ||
-          formData[key].invoiceNo ||
-          formData[key].paymentNo ||
-          "document"
-        }.pdf`,
-        jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
-        html2canvas: { scale: 3 },
-        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
-      })
-      .save();
-  };
-
-  const handleDownloadExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(formData[key].items);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, key);
-    XLSX.writeFile(
-      workbook,
-      `${key}-${formData[key][`${key}No`] || "draft"}.xlsx`
-    );
-  };
-
   // --- Navigation Buttons ---
   const handleSkip = () => {
     setKey((prev) => {
@@ -1055,291 +881,147 @@ const MultiStepSalesForm = ({
       const company_id = GetCompanyId();
       if (!company_id) return;
 
-      // Prepare the payload based on the current tab
-      let payload = {};
-      let endpoint = "";
-      let method = "post"; // Default to POST
+      // Single endpoint for all steps
+      const endpoint = "sales-order/create-sales-order";
+      
+      // Determine if this is the first step (quotation) or a subsequent step
+      const isFirstStep = key === "quotation" && !currentSalesOrderId;
+      const method = isFirstStep ? "post" : "put"; // POST for first step, PUT for subsequent steps
 
-      switch (key) {
-        case "quotation":
-          endpoint = `quotation/create-quotation`;
-          payload = {
-            company_info: {
-              company_id: company_id,
-              company_name: formData.quotation.companyName,
-              company_address: formData.quotation.companyAddress,
-              company_email: formData.quotation.companyEmail,
-              company_phone: formData.quotation.companyPhone,
-              logo_url: formData.quotation.companyLogo,
-              bank_name: formData.quotation.bankName,
-              account_no: formData.quotation.accountNo,
-              account_holder: formData.quotation.accountHolder,
-              ifsc_code: formData.quotation.ifsc,
-              terms: formData.quotation.terms,
-            },
-            customer_info: {
-              customer_id: formData.quotation.customerId,
-              customer_name: formData.quotation.billToName,
-              customer_address: formData.quotation.billToAddress,
-              customer_email: formData.quotation.billToEmail,
-              customer_phone: formData.quotation.billToPhone,
-            },
-            items: formData.quotation.items.map((item) => ({
-              item_name: item.item_name,
-              description: item.description,
-              qty: item.qty,
-              rate: item.rate,
-              tax_percent: item.tax,
-              discount: item.discount,
-              amount: item.amount,
-              uom: item.uom,
-              hsn: item.hsn,
-              sku: item.sku,
-              barcode: item.barcode,
-              warehouse_id: item.warehouse,
-            })),
-            quotation_details: {
-              quotation_no: formData.quotation.quotationNo,
-              manual_quotation_ref: formData.quotation.manualQuotationRef,
-              quotation_date: formData.quotation.quotationDate,
-              valid_till: formData.quotation.validDate,
-              notes: formData.quotation.notes,
-              customer_ref: formData.quotation.customerReference,
-            },
-            additional_info: {
-              signature_url: formData.quotation.signature,
-              photo_url: formData.quotation.photo,
-              files: formData.quotation.files,
-            },
-          };
-          break;
-
-        case "salesOrder":
-          // If we have a sales order ID, use PUT to update, otherwise POST to create
-          if (currentSalesOrderId) {
-            method = "put";
-            endpoint = `sales-order/update-sales-order/${currentSalesOrderId}`;
-          } else {
-            endpoint = `sales-order/create-sales-order`;
-          }
-
-          payload = {
-            company_info: {
-              company_id: company_id,
-              company_name: formData.salesOrder.companyName,
-              company_address: formData.salesOrder.companyAddress,
-              company_email: formData.salesOrder.companyEmail,
-              company_phone: formData.salesOrder.companyPhone,
-              logo_url: formData.salesOrder.companyLogo,
-              terms: formData.salesOrder.terms,
-            },
-            shipping_details: {
-              bill_to_name: formData.salesOrder.billToCompanyName,
-              bill_to_address: formData.salesOrder.billToAddress,
-              bill_to_email: formData.salesOrder.billToEmail,
-              bill_to_phone: formData.salesOrder.billToPhone,
-              bill_to_attention_name: formData.salesOrder.billToAttn,
-              ship_to_name: formData.salesOrder.shipToCompanyName,
-              ship_to_address: formData.salesOrder.shipToAddress,
-              ship_to_email: formData.salesOrder.shipToEmail,
-              ship_to_phone: formData.salesOrder.shipToPhone,
-              ship_to_attention_name: formData.salesOrder.shipToAttn,
-            },
-            items: formData.salesOrder.items.map((item) => ({
-              item_name: item.item_name,
-              qty: item.qty,
-              rate: item.rate,
-              tax_percent: item.tax,
-              discount: item.discount,
-              amount: item.amount,
-              warehouse_id: item.warehouse,
-            })),
-            steps: {
-              quotation: {
-                quotation_no: formData.salesOrder.quotationNo,
-                manual_quotation_ref: formData.salesOrder.manualQuotationRef,
-              },
-              sales_order: {
-                SO_no: formData.salesOrder.salesOrderNo,
-                manual_ref_no: formData.salesOrder.manualOrderRef,
-              },
-            },
-            additional_info: {
-              signature_url: formData.salesOrder.signature,
-              photo_url: formData.salesOrder.photo,
-              files: formData.salesOrder.files,
-            },
-          };
-          break;
-
-        case "deliveryChallan":
-          endpoint = `delivery-challan/create-delivery-challan`;
-          payload = {
-            company_info: {
-              company_id: company_id,
-              company_name: formData.deliveryChallan.companyName,
-              company_address: formData.deliveryChallan.companyAddress,
-              company_email: formData.deliveryChallan.companyEmail,
-              company_phone: formData.deliveryChallan.companyPhone,
-              logo_url: formData.deliveryChallan.companyLogo,
-              terms: formData.deliveryChallan.terms,
-            },
-            shipping_details: {
-              bill_to_name: formData.deliveryChallan.billToName,
-              bill_to_address: formData.deliveryChallan.billToAddress,
-              bill_to_email: formData.deliveryChallan.billToEmail,
-              bill_to_phone: formData.deliveryChallan.billToPhone,
-              ship_to_name: formData.deliveryChallan.shipToName,
-              ship_to_address: formData.deliveryChallan.shipToAddress,
-              ship_to_email: formData.deliveryChallan.shipToEmail,
-              ship_to_phone: formData.deliveryChallan.shipToPhone,
-            },
-            items: formData.deliveryChallan.items.map((item) => ({
-              item_name: item.item_name,
-              qty: item.qty,
-              delivered_qty: item.deliveredQty,
-              rate: item.rate,
-              tax_percent: item.tax,
-              discount: item.discount,
-              amount: item.amount,
-              warehouse_id: item.warehouse,
-            })),
-            delivery_details: {
-              challan_no: formData.deliveryChallan.challanNo,
-              manual_challan_no: formData.deliveryChallan.manualChallanNo,
-              challan_date: formData.deliveryChallan.challanDate,
-              vehicle_no: formData.deliveryChallan.vehicleNo,
-              driver_name: formData.deliveryChallan.driverName,
-              driver_phone: formData.deliveryChallan.driverPhone,
-            },
-            steps: {
-              sales_order: {
-                SO_no: formData.deliveryChallan.salesOrderNo,
-                manual_ref_no: formData.deliveryChallan.manualSalesOrderRef,
-              },
-              delivery_challan: {
-                challan_no: formData.deliveryChallan.challanNo,
-                manual_challan_no: formData.deliveryChallan.manualChallanNo,
-              },
-            },
-            additional_info: {
-              signature_url: formData.deliveryChallan.signature,
-              photo_url: formData.deliveryChallan.photo,
-              files: formData.deliveryChallan.files,
-            },
-          };
-          break;
-
-        case "invoice":
-          endpoint = `invoice/create-invoice`;
-          payload = {
-            company_info: {
-              company_id: company_id,
-              company_name: formData.invoice.companyName,
-              company_address: formData.invoice.companyAddress,
-              company_email: formData.invoice.companyEmail,
-              company_phone: formData.invoice.companyPhone,
-              logo_url: formData.invoice.companyLogo,
-              terms: formData.invoice.terms,
-            },
-            shipping_details: {
-              bill_to_name: formData.invoice.customerName,
-              bill_to_address: formData.invoice.customerAddress,
-              bill_to_email: formData.invoice.customerEmail,
-              bill_to_phone: formData.invoice.customerPhone,
-              ship_to_name: formData.invoice.shipToName,
-              ship_to_address: formData.invoice.shipToAddress,
-              ship_to_email: formData.invoice.shipToEmail,
-              ship_to_phone: formData.invoice.shipToPhone,
-            },
-            items: formData.invoice.items.map((item) => ({
-              item_name: item.description,
-              qty: item.qty,
-              rate: item.rate,
-              tax_percent: item.tax,
-              discount: item.discount,
-              amount: item.amount,
-              warehouse_id: item.warehouse,
-            })),
-            invoice_details: {
-              invoice_no: formData.invoice.invoiceNo,
-              manual_invoice_no: formData.invoice.manualInvoiceNo,
-              invoice_date: formData.invoice.invoiceDate,
-              due_date: formData.invoice.dueDate,
-              payment_status: formData.invoice.paymentStatus,
-              payment_method: formData.invoice.paymentMethod,
-              note: formData.invoice.note,
-            },
-            steps: {
-              delivery_challan: {
-                challan_no: formData.invoice.challanNo,
-                manual_challan_no: formData.invoice.manualChallanNo,
-              },
-              invoice: {
-                invoice_no: formData.invoice.invoiceNo,
-                manual_invoice_no: formData.invoice.manualInvoiceNo,
-              },
-            },
-            additional_info: {
-              signature_url: formData.invoice.signature,
-              photo_url: formData.invoice.photo,
-              files: formData.invoice.files,
-            },
-          };
-          break;
-
-        case "payment":
-          endpoint = `payment/create-payment`;
-          payload = {
-            company_info: {
-              company_id: company_id,
-              company_name: formData.payment.companyName,
-              company_address: formData.payment.companyAddress,
-              company_email: formData.payment.companyEmail,
-              company_phone: formData.payment.companyPhone,
-              logo_url: formData.payment.companyLogo,
-            },
-            customer_info: {
-              customer_name: formData.payment.customerName,
-              customer_address: formData.payment.customerAddress,
-              customer_email: formData.payment.customerEmail,
-              customer_phone: formData.payment.customerPhone,
-            },
-            payment_details: {
-              payment_no: formData.payment.paymentNo,
-              manual_payment_no: formData.payment.manualPaymentNo,
-              payment_date: formData.payment.paymentDate,
-              amount_received: formData.payment.amount,
-              payment_method: formData.payment.paymentMethod,
-              payment_status: formData.payment.paymentStatus,
-              payment_note: formData.payment.note,
-            },
-            steps: {
-              invoice: {
-                invoice_no: formData.payment.invoiceNo,
-                manual_invoice_no: formData.payment.manualInvoiceRef,
-              },
-              payment: {
-                payment_no: formData.payment.paymentNo,
-                manual_payment_no: formData.payment.manualPaymentNo,
-              },
-            },
-            additional_info: {
-              signature_url: formData.payment.signature,
-              photo_url: formData.payment.photo,
-              files: formData.payment.files,
-            },
-          };
-          break;
-
-        default:
-          return;
-      }
+      // Build a unified payload that includes all steps data
+      const payload = {
+        company_info: {
+          company_id: company_id,
+          company_name: formData[key].companyName,
+          company_address: formData[key].companyAddress,
+          company_email: formData[key].companyEmail,
+          company_phone: formData[key].companyPhone,
+          logo_url: formData[key].companyLogo,
+          bank_name: formData.quotation.bankName,
+          account_no: formData.quotation.accountNo,
+          account_holder: formData.quotation.accountHolder,
+          ifsc_code: formData.quotation.ifsc,
+          terms: formData[key].terms,
+        },
+        shipping_details: {
+          bill_to_name: formData[key].billToName || formData[key].customerName,
+          bill_to_address: formData[key].billToAddress || formData[key].customerAddress,
+          bill_to_email: formData[key].billToEmail || formData[key].customerEmail,
+          bill_to_phone: formData[key].billToPhone || formData[key].customerPhone,
+          bill_to_attention_name: formData.salesOrder.billToAttn || "",
+          bill_to_company_name: formData.salesOrder.billToCompanyName || formData[key].billToName || formData[key].customerName,
+          ship_to_name: formData[key].shipToName,
+          ship_to_address: formData[key].shipToAddress,
+          ship_to_email: formData[key].shipToEmail,
+          ship_to_phone: formData[key].shipToPhone,
+          ship_to_attention_name: formData.salesOrder.shipToAttn || "",
+          ship_to_company_name: formData.salesOrder.shipToCompanyName || formData[key].shipToName,
+        },
+        items: formData[key].items.map((item) => ({
+          item_name: item.item_name || item.description,
+          description: item.description,
+          qty: item.qty,
+          rate: item.rate,
+          tax_percent: item.tax,
+          discount: item.discount,
+          amount: item.amount,
+          uom: item.uom,
+          hsn: item.hsn,
+          sku: item.sku,
+          barcode: item.barcode,
+          warehouse_id: item.warehouse,
+        })),
+        // Include all step-specific data
+        steps: {
+          quotation: {
+            quotation_no: formData.quotation.quotationNo,
+            manual_quo_no: formData.quotation.manualQuotationRef,
+            quotation_date: formData.quotation.quotationDate,
+            valid_till: formData.quotation.validDate,
+            qoutation_to_customer_name: formData.quotation.billToName,
+            qoutation_to_customer_address: formData.quotation.billToAddress,
+            qoutation_to_customer_email: formData.quotation.billToEmail,
+            qoutation_to_customer_phone: formData.quotation.billToPhone,
+            notes: formData.quotation.notes,
+            customer_ref: formData.quotation.customerReference,
+          },
+          sales_order: {
+            SO_no: formData.salesOrder.salesOrderNo,
+            manual_ref_no: formData.salesOrder.manualOrderRef,
+            manual_quo_no: formData.salesOrder.manualQuotationRef,
+            order_date: formData.salesOrder.orderDate,
+            customer_no: formData.salesOrder.customerNo,
+            bill_to_attention_name: formData.salesOrder.billToAttn,
+            bill_to_company_name: formData.salesOrder.billToCompanyName,
+            bill_to_address: formData.salesOrder.billToAddress,
+            bill_to_email: formData.salesOrder.billToEmail,
+            bill_to_phone: formData.salesOrder.billToPhone,
+            ship_to_attention_name: formData.salesOrder.shipToAttn,
+            ship_to_company_name: formData.salesOrder.shipToCompanyName,
+            ship_to_address: formData.salesOrder.shipToAddress,
+            ship_to_email: formData.salesOrder.shipToEmail,
+            ship_to_phone: formData.salesOrder.shipToPhone,
+          },
+          delivery_challan: {
+            challan_no: formData.deliveryChallan.challanNo,
+            manual_challan_no: formData.deliveryChallan.manualChallanNo,
+            challan_date: formData.deliveryChallan.challanDate,
+            vehicle_no: formData.deliveryChallan.vehicleNo,
+            driver_name: formData.deliveryChallan.driverName,
+            driver_phone: formData.deliveryChallan.driverPhone,
+            bill_to_name: formData.deliveryChallan.billToName,
+            bill_to_address: formData.deliveryChallan.billToAddress,
+            bill_to_email: formData.deliveryChallan.billToEmail,
+            bill_to_phone: formData.deliveryChallan.billToPhone,
+            ship_to_name: formData.deliveryChallan.shipToName,
+            ship_to_address: formData.deliveryChallan.shipToAddress,
+            ship_to_email: formData.deliveryChallan.shipToEmail,
+            ship_to_phone: formData.deliveryChallan.shipToPhone,
+          },
+          invoice: {
+            invoice_no: formData.invoice.invoiceNo,
+            manual_invoice_no: formData.invoice.manualInvoiceNo,
+            invoice_date: formData.invoice.invoiceDate,
+            due_date: formData.invoice.dueDate,
+            payment_status: formData.invoice.paymentStatus,
+            payment_method: formData.invoice.paymentMethod,
+            note: formData.invoice.note,
+            customer_name: formData.invoice.customerName,
+            customer_address: formData.invoice.customerAddress,
+            customer_email: formData.invoice.customerEmail,
+            customer_phone: formData.invoice.customerPhone,
+            ship_to_name: formData.invoice.shipToName,
+            ship_to_address: formData.invoice.shipToAddress,
+            ship_to_email: formData.invoice.shipToEmail,
+            ship_to_phone: formData.invoice.shipToPhone,
+          },
+          payment: {
+            payment_no: formData.payment.paymentNo,
+            manual_payment_no: formData.payment.manualPaymentNo,
+            payment_date: formData.payment.paymentDate,
+            amount_received: formData.payment.amount,
+            payment_method: formData.payment.paymentMethod,
+            payment_status: formData.payment.paymentStatus,
+            payment_note: formData.payment.note,
+            customer_name: formData.payment.customerName,
+            customer_address: formData.payment.customerAddress,
+            customer_email: formData.payment.customerEmail,
+            customer_phone: formData.payment.customerPhone,
+          },
+        },
+        additional_info: {
+          files: formData[key].files,
+          signature_url: formData[key].signature,
+          photo_url: formData[key].photo,
+          attachment_url: formData[key].files.length > 0 ? formData[key].files[0].base64 : "",
+        },
+        current_step: key, // Indicate which step is currently being saved
+      };
 
       // Send the request to the API
       let response;
-      if (method === "put") {
-        response = await axiosInstance.put(endpoint, payload);
+      if (method === "put" && currentSalesOrderId) {
+        response = await axiosInstance.put(`${endpoint}/${currentSalesOrderId}`, payload);
       } else {
         response = await axiosInstance.post(endpoint, payload);
       }
@@ -1349,11 +1031,10 @@ const MultiStepSalesForm = ({
 
         // If we just created a sales order, store its ID for future updates
         if (
-          key === "salesOrder" &&
-          !currentSalesOrderId &&
-          response.data.data?.id
+          isFirstStep &&
+          response.data.data?.sales_order_id
         ) {
-          setCurrentSalesOrderId(response.data.data.id);
+          setCurrentSalesOrderId(response.data.data.sales_order_id);
         }
 
         // Refresh the sales workflow
@@ -1521,7 +1202,7 @@ const MultiStepSalesForm = ({
       }
       if (prev === "invoice") {
         const totalInvoiceAmount = calculateTotalWithTaxAndDiscount(
-          prevData.invoice.items
+          formData.invoice.items
         );
         setFormData((prevData) => ({
           ...prevData,
@@ -1573,7 +1254,7 @@ const MultiStepSalesForm = ({
       alert("Sales process completed successfully!");
 
       // Redirect to sales workflow page
-      navigate("/sales-workflow");
+      navigate("/Invoice");
     } catch (err) {
       console.error("Error submitting final form:", err);
       alert("Error submitting final form. Please try again.");
@@ -2336,8 +2017,7 @@ const MultiStepSalesForm = ({
                                     filteredItem.item_category
                                       ?.item_category_name ||
                                     ""}{" "}
-                                  - $
-                                  {filteredItem.price ||
+                                  - $                                   {filteredItem.price ||
                                   filteredItem.sale_price ||
                                   filteredItem.sellingPrice
                                     ? parseFloat(
@@ -2674,82 +2354,6 @@ const MultiStepSalesForm = ({
       companyDetails.country,
     ].filter(Boolean);
     return parts.join(", ");
-  };
-
-  // Render Sales Workflow Table
-  const renderSalesWorkflowTable = () => {
-    if (loadingWorkflow) {
-      return (
-        <div className="text-center p-4">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-2">Loading sales workflow data...</p>
-        </div>
-      );
-    }
-
-    if (salesWorkflow.length === 0) {
-      return (
-        <div className="text-center p-4">
-          <p>No sales workflow data available.</p>
-        </div>
-      );
-    }
-
-    return (
-      <Table striped bordered hover responsive>
-        <thead>
-          <tr>
-            <th>Document Type</th>
-            <th>Document Number</th>
-            <th>Date</th>
-            <th>Customer</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {salesWorkflow.map((workflow, index) => (
-            <tr key={index}>
-              <td>{workflow.document_type}</td>
-              <td>{workflow.document_number}</td>
-              <td>{workflow.date}</td>
-              <td>{workflow.customer_name}</td>
-              <td>
-                <span
-                  className={`badge ${
-                    workflow.status === "Done" ? "bg-success" : "bg-warning"
-                  }`}
-                >
-                  {workflow.status}
-                </span>
-              </td>
-              <td>
-                {workflow.status === "Pending" && (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => navigateToStep(workflow.step_key)}
-                  >
-                    Continue
-                  </Button>
-                )}
-                {workflow.status === "Done" && (
-                  <Button
-                    size="sm"
-                    variant="outline-secondary"
-                    onClick={() => navigateToStep(workflow.step_key)}
-                  >
-                    View
-                  </Button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    );
   };
 
   // --- Tab Components Inline ---
@@ -3180,8 +2784,7 @@ const MultiStepSalesForm = ({
                 <tr>
                   <td className="fw-bold">Tax:</td>
                   <td>
-                    $
-                    {formData.quotation.items
+                    $                     {formData.quotation.items
                       .reduce((sum, item) => {
                         const subtotal =
                           (parseFloat(item.rate) || 0) *
@@ -3196,8 +2799,7 @@ const MultiStepSalesForm = ({
                 <tr>
                   <td className="fw-bold">Discount:</td>
                   <td>
-                    $
-                    {formData.quotation.items
+                    $                     {formData.quotation.items
                       .reduce(
                         (sum, item) => sum + (parseFloat(item.discount) || 0),
                         0
@@ -3208,8 +2810,7 @@ const MultiStepSalesForm = ({
                 <tr>
                   <td className="fw-bold">Total:</td>
                   <td className="fw-bold">
-                    $
-                    {calculateTotalWithTaxAndDiscount(
+                    $                     {calculateTotalWithTaxAndDiscount(
                       formData.quotation.items
                     ).toFixed(2)}
                   </td>
@@ -3569,7 +3170,7 @@ const MultiStepSalesForm = ({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Manual Quotation No (Optional)
+                    Manual Sales No (Optional)
                   </Form.Label>
                   <Form.Control
                     type="text"
@@ -4165,7 +3766,7 @@ const MultiStepSalesForm = ({
                 </div>
               </Form.Group>
               {/* Manual Sales Order No (Optional) */}
-              <Form.Group className="mb-0">
+              {/* <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
                   <Form.Label
                     className="mb-0 flex-shrink-0 me-2"
@@ -4198,7 +3799,7 @@ const MultiStepSalesForm = ({
                     }}
                   />
                 </div>
-              </Form.Group>
+              </Form.Group> */}
               {/* Vehicle No */}
               <Form.Group>
                 <Form.Control
@@ -4778,7 +4379,7 @@ const MultiStepSalesForm = ({
               {/* Manual Challan No (Optional) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
-                  <Form.Label
+                  {/* <Form.Label
                     className="mb-0 flex-shrink-0 me-2"
                     style={{
                       fontSize: "0.9rem",
@@ -4803,7 +4404,7 @@ const MultiStepSalesForm = ({
                       padding: "0.375rem 0.75rem",
                       textAlign: "right",
                     }}
-                  />
+                  /> */}
                 </div>
               </Form.Group>
               {/* Due Date */}
@@ -5342,7 +4943,7 @@ const MultiStepSalesForm = ({
               {/* Manual Invoice No (Optional) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
-                  <Form.Label
+                  {/* <Form.Label
                     className="mb-0 flex-shrink-0 me-2"
                     style={{
                       fontSize: "0.9rem",
@@ -5371,7 +4972,7 @@ const MultiStepSalesForm = ({
                       padding: "0.375rem 0.75rem",
                       textAlign: "right",
                     }}
-                  />
+                  /> */}
                 </div>
               </Form.Group>
               {/* Payment Method */}
@@ -6012,98 +5613,7 @@ const MultiStepSalesForm = ({
       <div className="container-fluid mt-4 px-2" ref={formRef}>
         <h4 className="text-center mb-4">Sales Process</h4>
 
-        {/* Sales Workflow Table */}
-        <div className="mb-4">
-          <h5 className="mb-3">Sales Workflow</h5>
-          {renderSalesWorkflowTable()}
-        </div>
-
-        {/* Top Action Buttons */}
-        <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
-          {/* Print English */}
-          <Button
-            variant="warning"
-            onClick={() => handlePrint("english")}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Print (English)
-          </Button>
-          {/* Print Arabic */}
-          <Button
-            variant="warning"
-            onClick={() => handlePrint("arabic")}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-              backgroundColor: "#d39e00",
-              borderColor: "#c49200",
-            }}
-          >
-            طباعة (العربية)
-          </Button>
-          {/* Print Both */}
-          <Button
-            variant="warning"
-            onClick={() => handlePrint("both")}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "150px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-              backgroundColor: "#c87f0a",
-              borderColor: "#b87409",
-            }}
-          >
-            Print Both (EN + AR)
-          </Button>
-          {/* Send Button */}
-          <Button
-            variant="info"
-            onClick={handleSend}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              color: "white",
-              minWidth: "110px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Send
-          </Button>
-          {/* Download PDF */}
-          <Button
-            variant="success"
-            onClick={handleDownloadPDF}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Download PDF
-          </Button>
-          {/* Download Excel */}
-          <Button
-            variant="primary"
-            onClick={handleDownloadExcel}
-            className="flex-fill flex-sm-grow-0"
-            style={{
-              minWidth: "130px",
-              fontSize: "0.95rem",
-              padding: "6px 10px",
-            }}
-          >
-            Download Excel
-          </Button>
-        </div>
+    
         <Tabs activeKey={key} onSelect={setKey} className="mb-4" fill>
           <Tab eventKey="quotation" title="Quotation">
             {renderQuotationTab()}

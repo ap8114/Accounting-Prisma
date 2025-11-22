@@ -1,20 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Table, Button, Badge, Modal, Form } from 'react-bootstrap';
-import { FaArrowLeft } from "react-icons/fa";
+import { Table, Button, Badge, Modal, Form, Row, Col, Card } from 'react-bootstrap';
+import { FaArrowLeft, FaTrash, FaEye } from "react-icons/fa";
 import MultiStepSalesForm from './MultiStepSalesForm';
 import GetCompanyId from '../../../Api/GetCompanyId';
 import axiosInstance from '../../../Api/axiosInstance';
 
 // Helper function to get step status
 const getStepStatus = (steps, stepName) => {
-  const step = steps.find(s => s.step === stepName);
-  return step ? step.status : 'pending';
+  if (!steps || !steps[stepName]) return 'pending';
+  return steps[stepName].status || 'pending';
 };
 
 // Helper function to get step data
 const getStepData = (steps, stepName) => {
-  const step = steps.find(s => s.step === stepName);
-  return step ? step.data : {};
+  if (!steps || !steps[stepName]) return {};
+  return steps[stepName] || {};
 };
 
 const statusBadge = (status) => {
@@ -28,9 +28,12 @@ const Invoice = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null });
 
   const [stepModal, setStepModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [viewModal, setViewModal] = useState(false);
+  const [viewOrder, setViewOrder] = useState(null);
 
   // Filters
   const [showFilters, setShowFilters] = useState(false);
@@ -48,13 +51,49 @@ const Invoice = () => {
   const getTabKeyFromStepName = (stepName) => {
     const mapping = {
       "Quotation": "quotation",
-      "Sales Order": "sales_order", // Updated to match API
-      "Delivery Challan": "delivery_challan", // Updated to match API
+      "Sales Order": "sales_order",
+      "Delivery Challan": "delivery_challan",
       "Invoice": "invoice",
       "Payment": "payment"
     };
     return mapping[stepName] || "quotation";
   };
+
+  // 🔥 Fetch data from API function
+  const fetchOrders = async () => {
+    if (!companyId) {
+      console.error("Company ID not found");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null); // Reset error state before fetching
+      console.log(`Fetching orders for company ID: ${companyId}`);
+      const response = await axiosInstance.get(`sales-order/company/${companyId}`);
+
+      // The API returns { success, message, data }, so we use response.data.data
+      const apiData = response.data?.data;
+      if (Array.isArray(apiData)) {
+        setOrders(apiData);
+      } else {
+        console.warn("API returned non-array data, defaulting to empty array:", response.data);
+        setOrders([]);
+      }
+    } catch (err) {
+      console.error("Error fetching sales orders:", err);
+      setError("Failed to load sales orders. Please try again later.");
+      setOrders([]); // Ensure orders is always an array
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔥 Fetch data from API when component mounts or companyId changes
+  useEffect(() => {
+    fetchOrders();
+  }, [companyId]);
 
   // 🔥 Open modal when stepNameFilter changes
   useEffect(() => {
@@ -66,44 +105,14 @@ const Invoice = () => {
     }
   }, [stepNameFilter]);
 
-  // 🔥 Fetch data from API when component mounts or companyId changes
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (!companyId) {
-        console.error("Company ID not found");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null); // Reset error state before fetching
-        console.log(`Fetching orders for company ID: ${companyId}`);
-        const response = await axiosInstance.get(`sales-order/company/${companyId}`);
-
-        // The API returns { success, message, data }, so we use response.data.data
-        const apiData = response.data?.data;
-        if (Array.isArray(apiData)) {
-          setOrders(apiData);
-        } else {
-          console.warn("API returned non-array data, defaulting to empty array:", response.data);
-          setOrders([]);
-        }
-      } catch (err) {
-        console.error("Error fetching sales orders:", err);
-        setError("Failed to load sales orders. Please try again later.");
-        setOrders([]); // Ensure orders is always an array
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrders();
-  }, [companyId]);
-
   const handleCreateNewInvoice = (order = null) => {
     setSelectedOrder(order);
     setStepModal(true);
+  };
+
+  const handleViewOrder = (order) => {
+    setViewOrder(order);
+    setViewModal(true);
   };
 
   const handleCloseModal = () => {
@@ -111,6 +120,11 @@ const Invoice = () => {
     setSelectedOrder(null);
     // 🔥 Reset step filter when closing modal
     setStepNameFilter('');
+  };
+
+  const handleCloseViewModal = () => {
+    setViewModal(false);
+    setViewOrder(null);
   };
 
   const handleFormSubmit = async (formData, lastStep = 'quotation') => {
@@ -121,35 +135,43 @@ const Invoice = () => {
         // Update existing order
         console.log(`Updating order with ID: ${selectedOrder.id}`, formData);
         // Note: The PUT endpoint might need adjustment based on how the backend expects the payload
-        // It might expect a specific format, not the raw formData
         await axiosInstance.put(`sales-order/create-sales-order/${selectedOrder.id}`, {
           ...formData,
-          company_id: companyId // Use the correct field name expected by the backend
+          company_id: companyId
         });
       } else {
         // Create new order
         console.log("Creating new order", formData);
         await axiosInstance.post('sales-order/create-sales-order', {
           ...formData,
-          company_id: companyId // Use the correct field name expected by the backend
+          company_id: companyId
         });
       }
 
       // Refetch data after successful operation to get the updated list
       console.log("Refetching orders after save...");
-      const response = await axiosInstance.get(`sales-order/company/${companyId}`);
-      const apiData = response.data?.data;
-      if (Array.isArray(apiData)) {
-        setOrders(apiData);
-      } else {
-        console.warn("API returned non-array data on refetch, defaulting to empty array:", response.data);
-        setOrders([]);
-      }
+      await fetchOrders();
       handleCloseModal();
     } catch (err) {
       console.error("Error saving sales order:", err);
       setError("Failed to save sales order. Please check the console for details.");
-      // Optionally show a user-facing error message here (e.g., a toast)
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    try {
+      await axiosInstance.delete(`sales-order/${orderId}`);
+      
+      // Update the orders list after successful deletion
+      setOrders(orders.filter(order => order.id !== orderId));
+      setDeleteConfirm({ show: false, id: null });
+      
+      // Refetch orders to ensure the list is up to date
+      await fetchOrders();
+    } catch (err) {
+      console.error("Error deleting sales order:", err);
+      setError("Failed to delete sales order. Please try again later.");
+      setDeleteConfirm({ show: false, id: null });
     }
   };
 
@@ -167,7 +189,7 @@ const Invoice = () => {
       let orderDate = new Date();
       if (quotationData.quotation_date) {
         orderDate = new Date(quotationData.quotation_date);
-      } else if (salesOrderData.SO_date) { // Assuming SO_date might exist
+      } else if (salesOrderData.SO_date) {
         orderDate = new Date(salesOrderData.SO_date);
       }
 
@@ -204,7 +226,7 @@ const Invoice = () => {
       );
     });
   }, [
-    orders, // This dependency will trigger the memo when orders changes
+    orders, 
     fromDate,
     toDate,
     invoiceNoFilter,
@@ -226,8 +248,7 @@ const Invoice = () => {
         <Button
           variant="primary"
           onClick={() => handleCreateNewInvoice()}
-          style={{ backgroundColor: "#53b2a5", border: "none", padding: "8px 16px" }}
-        >
+          style={{ backgroundColor: "#53b2a5", border: "none", padding: "8px 16px" }}>
           + Create sales order
         </Button>
       </div>
@@ -238,8 +259,7 @@ const Invoice = () => {
           <label className="form-label text-secondary fw-bold">Sales Steps</label>
           <Form.Select
             value={stepNameFilter}
-            onChange={(e) => setStepNameFilter(e.target.value)}
-          >
+            onChange={(e) => setStepNameFilter(e.target.value)}>
             <option value="">Select Steps</option>
             <option value="Quotation">Quotation</option>
             <option value="Sales Order">Sales Order</option>
@@ -399,96 +419,124 @@ const Invoice = () => {
         </div>
       )}
 
-      {/* Table */}
-      <Table bordered hover responsive className="text-center align-middle">
-        <thead className="table-light">
-          <tr>
-            <th>#</th>
-            <th>Invoice No</th>
-            <th>Customer</th>
-            <th>Date</th>
-            <th>Amount</th>
-            <th>Completed Stages</th>
-            <th>Payment</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredOrders?.length === 0 ? (
+      {/* Loading State */}
+      {loading ? (
+        <div className="text-center p-4">
+          <div className="spinner-border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : (
+        /* Table */
+        <Table bordered hover responsive className="text-center align-middle">
+          <thead className="table-light">
             <tr>
-              <td colSpan="8" className="text-center text-muted">
-                No records found.
-              </td>
+              <th>#</th>
+              <th>Invoice No</th>
+              <th>Customer</th>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Completed Stages</th>
+              <th>Payment</th>
+              <th>Actions</th>
             </tr>
-          ) : (
-            filteredOrders?.map((order, idx) => {
-              // Extract data for display
-              const quotationData = getStepData(order.steps, 'quotation');
-              const salesOrderData = getStepData(order.steps, 'sales_order');
-              const invoiceData = getStepData(order.steps, 'invoice');
-              const paymentData = getStepData(order.steps, 'payment');
+          </thead>
+          <tbody>
+            {filteredOrders?.length === 0 ? (
+              <tr>
+                <td colSpan="8" className="text-center text-muted">
+                  No records found.
+                </td>
+              </tr>
+            ) : (
+              filteredOrders?.map((order, idx) => {
+                // Extract data for display
+                const quotationData = getStepData(order.steps, 'quotation');
+                const salesOrderData = getStepData(order.steps, 'sales_order');
+                const invoiceData = getStepData(order.steps, 'invoice');
+                const paymentData = getStepData(order.steps, 'payment');
 
-              // Determine customer name
-              const customerName = quotationData.bill_to?.customer_name ||
-                quotationData.bill_to?.company_name ||
-                order.company_info?.company_name || 'Unknown';
+                // Determine customer name
+                const customerName = quotationData.qoutation_to_customer_name ||
+                  order.company_info?.company_name || 'Unknown';
 
-              // Determine date
-              let displayDate = 'N/A';
-              if (quotationData.quotation_date) {
-                displayDate = new Date(quotationData.quotation_date).toLocaleDateString();
-              } else if (salesOrderData.SO_date) {
-                displayDate = new Date(salesOrderData.SO_date).toLocaleDateString();
-              }
+                // Determine date
+                let displayDate = 'N/A';
+                if (quotationData.quotation_date) {
+                  displayDate = new Date(quotationData.quotation_date).toLocaleDateString();
+                } else if (invoiceData.invoice_date) {
+                  displayDate = new Date(invoiceData.invoice_date).toLocaleDateString();
+                }
 
-              // Determine amount
-              let displayAmount = 'N/A';
-              if (invoiceData.total_invoice) {
-                displayAmount = `$${invoiceData.total_invoice}`;
-              } else if (quotationData.total) {
-                displayAmount = `$${quotationData.total}`;
-              }
+                // Calculate total amount from items if not available directly
+                let displayAmount = 'N/A';
+                if (order.total && order.total !== "0") {
+                  displayAmount = `$${order.total}`;
+                } else if (order.items && order.items.length > 0) {
+                  const total = order.items.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+                  displayAmount = `$${total.toFixed(2)}`;
+                }
 
-              return (
-                <tr key={order.id || idx}> {/* Use order.id if available, otherwise fallback to idx */}
-                  <td>{idx + 1}</td>
-                  <td>{invoiceData.invoice_no || '-'}</td>
-                  <td>{customerName}</td>
-                  <td>{displayDate}</td>
-                  <td>{displayAmount}</td>
-                  <td>
-                    {getStepStatus(order.steps, 'quotation') === "completed" && (
-                      <Badge bg="success" className="me-1">Quotation</Badge>
-                    )}
-                    {getStepStatus(order.steps, 'sales_order') === "completed" && (
-                      <Badge bg="success" className="me-1">Sales Order</Badge>
-                    )}
-                    {getStepStatus(order.steps, 'delivery_challan') === "completed" && (
-                      <Badge bg="success" className="me-1">Delivery Challan</Badge>
-                    )}
-                    {getStepStatus(order.steps, 'invoice') === "completed" && (
-                      <Badge bg="success" className="me-1">Invoice</Badge>
-                    )}
-                  </td>
-                  <td>{statusBadge(getStepStatus(order.steps, 'payment'))}</td>
-                  <td>
-                    <Button
-                      size="sm"
-                      className="me-1 mb-1"
-                      variant="outline-primary"
-                      onClick={() => handleCreateNewInvoice(order)}
-                    >
-                      Continue
-                    </Button>
-                  </td>
-                </tr>
-              )
-            })
-          )}
-        </tbody>
-      </Table>
+                return (
+                  <tr key={order.id || idx}>
+                    <td>{idx + 1}</td>
+                    <td>{invoiceData.invoice_no || '-'}</td>
+                    <td>{customerName}</td>
+                    <td>{displayDate}</td>
+                    <td>{displayAmount}</td>
+                    <td>
+                      {getStepStatus(order.steps, 'quotation') === "completed" && (
+                        <Badge bg="success" className="me-1">Quotation</Badge>
+                      )}
+                      {getStepStatus(order.steps, 'sales_order') === "completed" && (
+                        <Badge bg="success" className="me-1">Sales Order</Badge>
+                      )}
+                      {getStepStatus(order.steps, 'delivery_challan') === "completed" && (
+                        <Badge bg="success" className="me-1">Delivery Challan</Badge>
+                      )}
+                      {getStepStatus(order.steps, 'invoice') === "completed" && (
+                        <Badge bg="success" className="me-1">Invoice</Badge>
+                      )}
+                    </td>
+                    <td>{statusBadge(getStepStatus(order.steps, 'payment'))}</td>
+                    <td>
+                      <Button
+                        size="sm"
+                        className="me-1 mb-1"
+                        variant="outline-info"
+                        onClick={() => handleViewOrder(order)}
+                        title="View Details"
+                      >
+                        <FaEye />
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="me-1 mb-1"
+                        variant="outline-primary"
+                        onClick={() => handleCreateNewInvoice(order)}
+                        title="Continue Workflow"
+                      >
+                        Continue
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="mb-1"
+                        variant="outline-danger"
+                        onClick={() => setDeleteConfirm({ show: true, id: order.company_info.id })}
+                        title="Delete Order"
+                      >
+                        <FaTrash />
+                      </Button>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </Table>
+      )}
 
-      {/* Modal */}
+      {/* Modal for creating/editing sales order */}
       <Modal show={stepModal} onHide={handleCloseModal} size="xl" centered>
         <Modal.Header closeButton>
           <Modal.Title>
@@ -506,6 +554,212 @@ const Invoice = () => {
             onSubmit={handleFormSubmit}
           />
         </Modal.Body>
+      </Modal>
+
+      {/* View Order Details Modal */}
+      <Modal show={viewModal} onHide={handleCloseViewModal} size="xl" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Sales Order Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {viewOrder && (
+            <div>
+              {/* Company Info */}
+              <Card className="mb-4">
+                <Card.Header className="bg-light">Company Information</Card.Header>
+                <Card.Body>
+                  <Row>
+                    <Col md={6}>
+                      <p><strong>Company Name:</strong> {viewOrder.company_info?.company_name || 'N/A'}</p>
+                      <p><strong>Company ID:</strong> {viewOrder.company_info?.company_id || 'N/A'}</p>
+                      <p><strong>Address:</strong> {viewOrder.company_info?.company_address || 'N/A'}</p>
+                    </Col>
+                    <Col md={6}>
+                      <p><strong>Email:</strong> {viewOrder.company_info?.company_email || 'N/A'}</p>
+                      <p><strong>Phone:</strong> {viewOrder.company_info?.company_phone || 'N/A'}</p>
+                      <p><strong>Created At:</strong> {viewOrder.company_info?.created_at ? new Date(viewOrder.company_info.created_at).toLocaleDateString() : 'N/A'}</p>
+                    </Col>
+                  </Row>
+                  {viewOrder.company_info?.terms && (
+                    <div className="mt-3">
+                      <p><strong>Terms & Conditions:</strong></p>
+                      <div className="border p-2 rounded bg-light">
+                        {viewOrder.company_info.terms.split('\r\n').map((term, idx) => (
+                          <p key={idx} className="mb-1">{term}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </Card.Body>
+              </Card>
+
+              {/* Shipping Details */}
+              <Card className="mb-4">
+                <Card.Header className="bg-light">Shipping Details</Card.Header>
+                <Card.Body>
+                  <Row>
+                    <Col md={6}>
+                      <h6>Bill To</h6>
+                      <p><strong>Name:</strong> {viewOrder.shipping_details?.bill_to_name || 'N/A'}</p>
+                      <p><strong>Address:</strong> {viewOrder.shipping_details?.bill_to_address || 'N/A'}</p>
+                      <p><strong>Email:</strong> {viewOrder.shipping_details?.bill_to_email || 'N/A'}</p>
+                      <p><strong>Phone:</strong> {viewOrder.shipping_details?.bill_to_phone || 'N/A'}</p>
+                      <p><strong>Attention:</strong> {viewOrder.shipping_details?.bill_to_attention_name || 'N/A'}</p>
+                    </Col>
+                    <Col md={6}>
+                      <h6>Ship To</h6>
+                      <p><strong>Name:</strong> {viewOrder.shipping_details?.ship_to_name || 'N/A'}</p>
+                      <p><strong>Address:</strong> {viewOrder.shipping_details?.ship_to_address || 'N/A'}</p>
+                      <p><strong>Email:</strong> {viewOrder.shipping_details?.ship_to_email || 'N/A'}</p>
+                      <p><strong>Phone:</strong> {viewOrder.shipping_details?.ship_to_phone || 'N/A'}</p>
+                      <p><strong>Attention:</strong> {viewOrder.shipping_details?.ship_to_attention_name || 'N/A'}</p>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+
+              {/* Steps Information */}
+              <Card className="mb-4">
+                <Card.Header className="bg-light">Workflow Steps</Card.Header>
+                <Card.Body>
+                  <Row>
+                    <Col md={6}>
+                      <h6>Quotation</h6>
+                      <p><strong>Status:</strong> {statusBadge(getStepStatus(viewOrder.steps, 'quotation'))}</p>
+                      <p><strong>Quotation No:</strong> {getStepData(viewOrder.steps, 'quotation').quotation_no || 'N/A'}</p>
+                      <p><strong>Date:</strong> {getStepData(viewOrder.steps, 'quotation').quotation_date ? new Date(getStepData(viewOrder.steps, 'quotation').quotation_date).toLocaleDateString() : 'N/A'}</p>
+                      <p><strong>Valid Till:</strong> {getStepData(viewOrder.steps, 'quotation').valid_till ? new Date(getStepData(viewOrder.steps, 'quotation').valid_till).toLocaleDateString() : 'N/A'}</p>
+                      <p><strong>Customer Name:</strong> {getStepData(viewOrder.steps, 'quotation').qoutation_to_customer_name || 'N/A'}</p>
+                      <p><strong>Notes:</strong> {getStepData(viewOrder.steps, 'quotation').notes || 'N/A'}</p>
+                    </Col>
+                    <Col md={6}>
+                      <h6>Sales Order</h6>
+                      <p><strong>Status:</strong> {statusBadge(getStepStatus(viewOrder.steps, 'sales_order'))}</p>
+                      <p><strong>SO No:</strong> {getStepData(viewOrder.steps, 'sales_order').SO_no || 'N/A'}</p>
+                      <p><strong>Manual Ref No:</strong> {getStepData(viewOrder.steps, 'sales_order').manual_ref_no || 'N/A'}</p>
+                    </Col>
+                  </Row>
+                  <Row className="mt-3">
+                    <Col md={6}>
+                      <h6>Delivery Challan</h6>
+                      <p><strong>Status:</strong> {statusBadge(getStepStatus(viewOrder.steps, 'delivery_challan'))}</p>
+                      <p><strong>Challan No:</strong> {getStepData(viewOrder.steps, 'delivery_challan').challan_no || 'N/A'}</p>
+                      <p><strong>Driver Name:</strong> {getStepData(viewOrder.steps, 'delivery_challan').driver_name || 'N/A'}</p>
+                      <p><strong>Driver Phone:</strong> {getStepData(viewOrder.steps, 'delivery_challan').driver_phone || 'N/A'}</p>
+                    </Col>
+                    <Col md={6}>
+                      <h6>Invoice</h6>
+                      <p><strong>Status:</strong> {statusBadge(getStepStatus(viewOrder.steps, 'invoice'))}</p>
+                      <p><strong>Invoice No:</strong> {getStepData(viewOrder.steps, 'invoice').invoice_no || 'N/A'}</p>
+                      <p><strong>Invoice Date:</strong> {getStepData(viewOrder.steps, 'invoice').invoice_date ? new Date(getStepData(viewOrder.steps, 'invoice').invoice_date).toLocaleDateString() : 'N/A'}</p>
+                      <p><strong>Due Date:</strong> {getStepData(viewOrder.steps, 'invoice').due_date ? new Date(getStepData(viewOrder.steps, 'invoice').due_date).toLocaleDateString() : 'N/A'}</p>
+                    </Col>
+                  </Row>
+                  <Row className="mt-3">
+                    <Col md={6}>
+                      <h6>Payment</h6>
+                      <p><strong>Status:</strong> {statusBadge(getStepStatus(viewOrder.steps, 'payment'))}</p>
+                      <p><strong>Payment No:</strong> {getStepData(viewOrder.steps, 'payment').payment_no || 'N/A'}</p>
+                      <p><strong>Payment Date:</strong> {getStepData(viewOrder.steps, 'payment').payment_date ? new Date(getStepData(viewOrder.steps, 'payment').payment_date).toLocaleDateString() : 'N/A'}</p>
+                      <p><strong>Amount Received:</strong> ${getStepData(viewOrder.steps, 'payment').amount_received || '0'}</p>
+                      <p><strong>Payment Note:</strong> {getStepData(viewOrder.steps, 'payment').payment_note || 'N/A'}</p>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+
+              {/* Items Information */}
+              <Card className="mb-4">
+                <Card.Header className="bg-light">Order Items</Card.Header>
+                <Card.Body>
+                  {viewOrder.items && viewOrder.items.length > 0 ? (
+                    <Table striped bordered hover responsive>
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Item Name</th>
+                          <th>Quantity</th>
+                          <th>Rate</th>
+                          <th>Tax %</th>
+                          <th>Discount</th>
+                          <th>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewOrder.items.map((item, idx) => (
+                          <tr key={item.id || idx}>
+                            <td>{idx + 1}</td>
+                            <td>{item.item_name || 'N/A'}</td>
+                            <td>{item.qty || '0'}</td>
+                            <td>${item.rate || '0'}</td>
+                            <td>{item.tax_percent || '0'}%</td>
+                            <td>{item.discount || '0'}</td>
+                            <td>${item.amount || '0'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  ) : (
+                    <p>No items found for this order.</p>
+                  )}
+                  <div className="text-end mt-3">
+                    <h5>Subtotal: ${viewOrder.sub_total || '0'}</h5>
+                    <h4>Total: ${viewOrder.total || '0'}</h4>
+                  </div>
+                </Card.Body>
+              </Card>
+
+              {/* Additional Information */}
+              <Card>
+                <Card.Header className="bg-light">Additional Information</Card.Header>
+                <Card.Body>
+                  <Row>
+                    <Col md={6}>
+                      <p><strong>Signature URL:</strong> {viewOrder.additional_info?.signature_url ? <a href={viewOrder.additional_info.signature_url} target="_blank" rel="noopener noreferrer">View Signature</a> : 'N/A'}</p>
+                      <p><strong>Photo URL:</strong> {viewOrder.additional_info?.photo_url ? <a href={viewOrder.additional_info.photo_url} target="_blank" rel="noopener noreferrer">View Photo</a> : 'N/A'}</p>
+                    </Col>
+                    <Col md={6}>
+                      <p><strong>Attachment URL:</strong> {viewOrder.additional_info?.attachment_url ? <a href={viewOrder.additional_info.attachment_url} target="_blank" rel="noopener noreferrer">View Attachment</a> : 'N/A'}</p>
+                      <p><strong>Files:</strong> {viewOrder.additional_info?.files && viewOrder.additional_info.files.length > 0 ? `${viewOrder.additional_info.files.length} file(s)` : 'N/A'}</p>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseViewModal}>
+            Close
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={() => {
+              handleCloseViewModal();
+              handleCreateNewInvoice(viewOrder);
+            }}
+          >
+            Continue Workflow
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal show={deleteConfirm.show} onHide={() => setDeleteConfirm({ show: false, id: null })} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete this sales order? This action cannot be undone.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setDeleteConfirm({ show: false, id: null })}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={() => handleDeleteOrder(deleteConfirm.id)}>
+            Delete
+          </Button>
+        </Modal.Footer>
       </Modal>
     </div>
   );
