@@ -756,7 +756,6 @@ const MultiStepSalesForm = ({
     }));
   };
 
-
   const removeItem = (tab, index) => {
     const updatedItems = [...formData[tab].items];
     updatedItems.splice(index, 1);
@@ -889,8 +888,6 @@ const MultiStepSalesForm = ({
     }, 0);
   };
 
-
-
   // --- Navigation Buttons ---
   const handleSkip = () => {
     setKey((prev) => {
@@ -905,14 +902,14 @@ const MultiStepSalesForm = ({
   // Helper function to build payload for API
   const buildPayload = () => {
     const currentTab = formData[key];
-    
+
     // Calculate sub_total and total
     const subTotal = calculateTotalAmount(currentTab.items);
     const total = calculateTotalWithTaxAndDiscount(currentTab.items);
-    
+
     // Get company_id
     const company_id = GetCompanyId();
-    
+
     // Build payload structure
     const payload = {
       company_info: {
@@ -934,13 +931,17 @@ const MultiStepSalesForm = ({
         bill_to_email: currentTab.billToEmail || currentTab.customerEmail,
         bill_to_phone: currentTab.billToPhone || currentTab.customerPhone,
         bill_to_attention_name: formData.salesOrder.billToAttn || "",
-        bill_to_company_name: formData.salesOrder.billToCompanyName || currentTab.billToName || currentTab.customerName,
+        bill_to_company_name:
+          formData.salesOrder.billToCompanyName ||
+          currentTab.billToName ||
+          currentTab.customerName,
         ship_to_name: currentTab.shipToName,
         ship_to_address: currentTab.shipToAddress,
         ship_to_email: currentTab.shipToEmail,
         ship_to_phone: currentTab.shipToPhone,
         ship_to_attention_name: formData.salesOrder.shipToAttn || "",
-        ship_to_company_name: formData.salesOrder.shipToCompanyName || currentTab.shipToName,
+        ship_to_company_name:
+          formData.salesOrder.shipToCompanyName || currentTab.shipToName,
       },
       items: currentTab.items.map((item) => ({
         item_name: item.item_name || item.description,
@@ -1034,16 +1035,17 @@ const MultiStepSalesForm = ({
         },
       },
       additional_info: {
-        files: currentTab.files.map(file => file.base64 || file),
+        files: currentTab.files.map((file) => file.base64 || file),
         signature_url: currentTab.signature,
         photo_url: currentTab.photo,
-        attachment_url: currentTab.files.length > 0 ? currentTab.files[0].base64 : "",
+        attachment_url:
+          currentTab.files.length > 0 ? currentTab.files[0].base64 : "",
       },
       sub_total: subTotal,
       total: total,
       current_step: key, // Indicate which step is currently being saved
     };
-    
+
     return payload;
   };
 
@@ -1054,37 +1056,40 @@ const MultiStepSalesForm = ({
 
       // Build payload using our helper function
       const payload = buildPayload();
-      
+
       // Determine if this is the first step (quotation) or a subsequent step
       const isFirstStep = key === "quotation" && !currentSalesOrderId;
-      
+
       // Single endpoint for all steps
       const endpoint = "sales-order/create-sales-order";
       const method = isFirstStep ? "post" : "put"; // POST for first step, PUT for subsequent steps
 
       // Create FormData for file uploads
       const formDataToSend = new FormData();
-      
+
       // Add all payload data to FormData
-      Object.keys(payload).forEach(key => {
-        if (key === 'additional_info') {
+      Object.keys(payload).forEach((key) => {
+        if (key === "additional_info") {
           // Handle files separately
           if (payload[key].files && payload[key].files.length > 0) {
             // Add file objects from the current step
-            if (formData[key].fileObjects && formData[key].fileObjects.length > 0) {
+            if (
+              formData[key].fileObjects &&
+              formData[key].fileObjects.length > 0
+            ) {
               formData[key].fileObjects.forEach((file, index) => {
                 formDataToSend.append(`files[${index}]`, file);
               });
             }
           }
           // Add other additional_info fields
-          formDataToSend.append('signature_url', payload[key].signature_url);
-          formDataToSend.append('photo_url', payload[key].photo_url);
-          formDataToSend.append('attachment_url', payload[key].attachment_url);
-        } else if (key === 'steps') {
+          formDataToSend.append("signature_url", payload[key].signature_url);
+          formDataToSend.append("photo_url", payload[key].photo_url);
+          formDataToSend.append("attachment_url", payload[key].attachment_url);
+        } else if (key === "steps") {
           // Stringify the steps object
           formDataToSend.append(key, JSON.stringify(payload[key]));
-        } else if (key === 'items') {
+        } else if (key === "items") {
           // Stringify the items array
           formDataToSend.append(key, JSON.stringify(payload[key]));
         } else {
@@ -1092,21 +1097,25 @@ const MultiStepSalesForm = ({
           formDataToSend.append(key, payload[key]);
         }
       });
-      
+
       // Add current step
-      formDataToSend.append('current_step', key);
+      formDataToSend.append("current_step", key);
 
       let response;
       if (method === "put" && currentSalesOrderId) {
-        response = await axiosInstance.put(`${endpoint}/${currentSalesOrderId}`, formDataToSend, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+        response = await axiosInstance.put(
+          `${endpoint}/${currentSalesOrderId}`,
+          formDataToSend,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
       } else {
         response = await axiosInstance.post(endpoint, formDataToSend, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         });
       }
@@ -1358,7 +1367,7 @@ const MultiStepSalesForm = ({
     if (file) {
       // Store the file object for binary upload
       handleChange(tab, "signatureFile", file);
-      
+
       // Also create a preview URL for display
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -1373,7 +1382,7 @@ const MultiStepSalesForm = ({
     if (file) {
       // Store the file object for binary upload
       handleChange(tab, "photoFile", file);
-      
+
       // Also create a preview URL for display
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -1387,11 +1396,11 @@ const MultiStepSalesForm = ({
     const files = Array.from(e.target.files);
     const newFiles = [];
     const newFileObjects = [];
-    
+
     files.forEach((file) => {
       // Store the file object for binary upload
       newFileObjects.push(file);
-      
+
       // Also create a preview object for display
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -1401,11 +1410,14 @@ const MultiStepSalesForm = ({
           size: file.size,
           base64: reader.result,
         });
-        
+
         // Update the state when all files are processed
         if (newFiles.length === files.length) {
           handleChange(tab, "files", [...formData[tab].files, ...newFiles]);
-          handleChange(tab, "fileObjects", [...formData[tab].fileObjects, ...newFileObjects]);
+          handleChange(tab, "fileObjects", [
+            ...formData[tab].fileObjects,
+            ...newFileObjects,
+          ]);
         }
       };
       reader.readAsDataURL(file);
@@ -1415,10 +1427,10 @@ const MultiStepSalesForm = ({
   const removeFile = (tab, index) => {
     const updatedFiles = [...formData[tab].files];
     const updatedFileObjects = [...formData[tab].fileObjects];
-    
+
     updatedFiles.splice(index, 1);
     updatedFileObjects.splice(index, 1);
-    
+
     handleChange(tab, "files", updatedFiles);
     handleChange(tab, "fileObjects", updatedFileObjects);
   };
@@ -1456,7 +1468,6 @@ const MultiStepSalesForm = ({
     });
     setShowAdd(false);
   };
-
 
   const handleAddCategory = (e) => {
     e.preventDefault();
@@ -2121,7 +2132,8 @@ const MultiStepSalesForm = ({
                                     filteredItem.item_category
                                       ?.item_category_name ||
                                     ""}{" "}
-                                  - $                                   {filteredItem.price ||
+                                  - ${" "}
+                                  {filteredItem.price ||
                                   filteredItem.sale_price ||
                                   filteredItem.sellingPrice
                                     ? parseFloat(
@@ -2459,7 +2471,6 @@ const MultiStepSalesForm = ({
     ].filter(Boolean);
     return parts.join(", ");
   };
-
 
   // --- Tab Components Inline ---
   const renderQuotationTab = () => {
