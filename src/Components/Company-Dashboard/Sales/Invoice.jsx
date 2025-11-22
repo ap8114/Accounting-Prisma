@@ -204,7 +204,7 @@ const Invoice = () => {
       );
     });
   }, [
-    orders, // This dependency will trigger the memo when orders changes
+    orders, 
     fromDate,
     toDate,
     invoiceNoFilter,
@@ -226,8 +226,7 @@ const Invoice = () => {
         <Button
           variant="primary"
           onClick={() => handleCreateNewInvoice()}
-          style={{ backgroundColor: "#53b2a5", border: "none", padding: "8px 16px" }}
-        >
+          style={{ backgroundColor: "#53b2a5", border: "none", padding: "8px 16px" }}>
           + Create sales order
         </Button>
       </div>
@@ -238,8 +237,7 @@ const Invoice = () => {
           <label className="form-label text-secondary fw-bold">Sales Steps</label>
           <Form.Select
             value={stepNameFilter}
-            onChange={(e) => setStepNameFilter(e.target.value)}
-          >
+            onChange={(e) => setStepNameFilter(e.target.value)}>
             <option value="">Select Steps</option>
             <option value="Quotation">Quotation</option>
             <option value="Sales Order">Sales Order</option>
@@ -511,4 +509,4 @@ const Invoice = () => {
   );
 };
 
-export default Invoice;
+export default Invoice; 

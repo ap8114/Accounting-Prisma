@@ -912,6 +912,147 @@ const MultiStepSalesForm = ({
     }, 0);
   };
 
+  // --- Top Buttons ---
+  const handlePrint = (lang) => {
+    const printContent = pdfRef.current;
+    if (!printContent) {
+      alert("No content to print!");
+      return;
+    }
+    // Mock Arabic translation
+    const getArabicText = (text) => {
+      const translations = {
+        QUOTATION: "عرض أسعار",
+        "SALES ORDER": "طلب بيع",
+        "DELIVERY CHALLAN": "إيصال توصيل",
+        INVOICE: "فاتورة",
+        "PAYMENT RECEIPT": "إيصال دفع",
+        "Company Name": "اسم الشركة",
+        "Quotation No.": "رقم عرض السعر",
+        "SO No.": "رقم أمر المبيعات",
+        "Challan No.": "رقم الإيصال",
+        "Invoice No.": "رقم الفاتورة",
+        "Payment No.": "رقم الدفع",
+        Date: "التاريخ",
+        "Item Name": "اسم الصنف",
+        Qty: "الكمية",
+        Rate: "السعر",
+        Amount: "المبلغ",
+        Total: "الإجمالي",
+        Attachments: "المرفقات",
+        Signature: "التوقيع",
+        Photo: "الصورة",
+        Files: "الملفات",
+        "Terms & Conditions": "الشروط والأحكام",
+        "Thank you for your business!": "شكرًا لتعاملكم معنا!",
+        "Driver Details": "تفاصيل السائق",
+        "Vehicle No.": "رقم المركبة",
+        "Delivery Date": "تاريخ التسليم",
+        "Due Date": "تاريخ الاستحقاق",
+        "Payment Method": "طريقة الدفع",
+        "Bill To": "موجه إلى",
+        "Ship To": "يشحن إلى",
+        "Sub Total:": "المجموع الفرعي:",
+        "Tax:": "الضريبة:",
+        "Discount:": "الخصم:",
+        "Total:": "الإجمالي:",
+        Notes: "ملاحظات",
+        "Bank Details": "بيانات البنك",
+      };
+      return translations[text] || text;
+    };
+
+    const clone = printContent.cloneNode(true);
+    const elements = clone.querySelectorAll("*");
+    if (lang === "arabic" || lang === "both") {
+      clone.style.direction = "rtl";
+      clone.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
+      elements.forEach((el) => {
+        el.style.textAlign = "right";
+      });
+    }
+    if (lang === "both") {
+      elements.forEach((el) => {
+        const text = el.innerText.trim();
+        if (text && !el.querySelector("img") && !el.querySelector("input")) {
+          const arabic = getArabicText(text);
+          if (arabic !== text) {
+            const arSpan = document.createElement("div");
+            arSpan.innerText = arabic;
+            arSpan.style.color = "#0066cc";
+            arSpan.style.marginTop = "4px";
+            arSpan.style.fontSize = "0.9em";
+            el.appendChild(arSpan);
+          }
+        }
+      });
+    } else if (lang === "arabic") {
+      elements.forEach((el) => {
+        const text = el.innerText.trim();
+        const arabic = getArabicText(text);
+        if (arabic !== text) {
+          el.innerText = arabic;
+        }
+      });
+    }
+
+    const printWindow = window.open("", "", "height=800,width=1000");
+    printWindow.document.write("<html><head><title>Print</title>");
+    printWindow.document.write("<style>");
+    printWindow.document.write(`
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+      th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+      .text-end { text-align: right; }
+      .fw-bold { font-weight: bold; }
+      hr { border: 2px solid #28a745; margin: 10px 0; }
+      h2, h4, h5 { color: #28a745; }
+      .attachment-img { max-width: 150px; max-height: 100px; object-fit: contain; margin: 5px 0; }
+    `);
+    printWindow.document.write("</style></head><body>");
+    printWindow.document.write(clone.outerHTML);
+    printWindow.document.write("</body></html>");
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
+  };
+
+  const handleSend = () => {
+    window.location.href = `mailto:?subject=Sales Document&body=Please find the sales document details attached.`;
+  };
+
+  const handleDownloadPDF = () => {
+    const element = pdfRef.current;
+    html2pdf()
+      .from(element)
+      .set({
+        margin: 10,
+        filename: `${key}-${
+          formData[key].quotationNo ||
+          formData[key].salesOrderNo ||
+          formData[key].challanNo ||
+          formData[key].invoiceNo ||
+          formData[key].paymentNo ||
+          "document"
+        }.pdf`,
+        jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
+        html2canvas: { scale: 3 },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      })
+      .save();
+  };
+
+  const handleDownloadExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(formData[key].items);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, key);
+    XLSX.writeFile(
+      workbook,
+      `${key}-${formData[key][`${key}No`] || "draft"}.xlsx`
+    );
+  };
 
   // --- Navigation Buttons ---
   const handleSkip = () => {
@@ -5945,6 +6086,92 @@ const MultiStepSalesForm = ({
           {renderSalesWorkflowTable()}
         </div>
 
+        {/* Top Action Buttons */}
+        <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
+          {/* Print English */}
+          <Button
+            variant="warning"
+            onClick={() => handlePrint("english")}
+            className="flex-fill flex-sm-grow-0"
+            style={{
+              minWidth: "130px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+            }}
+          >
+            Print (English)
+          </Button>
+          {/* Print Arabic */}
+          <Button
+            variant="warning"
+            onClick={() => handlePrint("arabic")}
+            className="flex-fill flex-sm-grow-0"
+            style={{
+              minWidth: "130px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+              backgroundColor: "#d39e00",
+              borderColor: "#c49200",
+            }}
+          >
+            طباعة (العربية)
+          </Button>
+          {/* Print Both */}
+          <Button
+            variant="warning"
+            onClick={() => handlePrint("both")}
+            className="flex-fill flex-sm-grow-0"
+            style={{
+              minWidth: "150px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+              backgroundColor: "#c87f0a",
+              borderColor: "#b87409",
+            }}
+          >
+            Print Both (EN + AR)
+          </Button>
+          {/* Send Button */}
+          <Button
+            variant="info"
+            onClick={handleSend}
+            className="flex-fill flex-sm-grow-0"
+            style={{
+              color: "white",
+              minWidth: "110px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+            }}
+          >
+            Send
+          </Button>
+          {/* Download PDF */}
+          <Button
+            variant="success"
+            onClick={handleDownloadPDF}
+            className="flex-fill flex-sm-grow-0"
+            style={{
+              minWidth: "130px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+            }}
+          >
+            Download PDF
+          </Button>
+          {/* Download Excel */}
+          <Button
+            variant="primary"
+            onClick={handleDownloadExcel}
+            className="flex-fill flex-sm-grow-0"
+            style={{
+              minWidth: "130px",
+              fontSize: "0.95rem",
+              padding: "6px 10px",
+            }}
+          >
+            Download Excel
+          </Button>
+        </div>
         <Tabs activeKey={key} onSelect={setKey} className="mb-4" fill>
           <Tab eventKey="quotation" title="Quotation">
             {renderQuotationTab()}
