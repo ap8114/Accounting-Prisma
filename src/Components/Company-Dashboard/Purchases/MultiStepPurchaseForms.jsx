@@ -9,6 +9,7 @@ import {
   FormControl,
   Tabs,
   Tab,
+  Alert,
 } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -17,7 +18,7 @@ import {
   faSearch,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import AddProductModal from "../Inventory/AddProductModal";
 import GetCompanyId from "../../../Api/GetCompanyId";
 import axiosInstance from "../../../Api/axiosInstance";
@@ -25,8 +26,15 @@ import axiosInstance from "../../../Api/axiosInstance";
 const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   const companyId = GetCompanyId();
   const navigate = useNavigate();
+  const location = useLocation();
   const pdfRef = useRef();
+  const [isSubmitting, setIsSubmitting] = useState(false); // 👈 ADD THIS
+  // State
   const [activeTab, setActiveTab] = useState(initialStep || "purchaseQuotation");
+  const [poId, setPoId] = useState(null); // Critical: ID from POST
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   // ===============================
   // MASTER FORM DATA
@@ -34,9 +42,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   const [formData, setFormData] = useState({
     purchaseQuotation: {
       companyName: "",
-      referenceId: `QRF-${new Date().getFullYear()}-${Math.floor(
-        1000 + Math.random() * 9000
-      )}`,
+      referenceId: `QRF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       manualRefNo: "",
       quotationNo: `PQ-${Date.now().toString().slice(-6)}`,
       manualQuotationNo: "",
@@ -49,33 +55,20 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       vendorAddress: "",
       vendorEmail: "",
       vendorPhone: "",
-      items: [
-        {
-          name: "",
-          qty: "",
-          rate: "",
-          tax: 0,
-          discount: 0,
-          warehouse: "",
-          hsn: "",
-          uom: "PCS",
-        },
-      ],
+      items: [{ name: "", qty: "", rate: "", tax: 0, discount: 0, warehouse: "", hsn: "", uom: "PCS" }],
       bankName: "",
       accountNo: "",
       accountHolder: "",
       ifsc: "",
       notes: "",
-      terms: "",
+      terms_and_conditions: "",
       signature: "",
       photo: "",
       files: [],
       logo: "",
     },
     purchaseOrder: {
-      referenceId: `ORD-${new Date().getFullYear()}-${Math.floor(
-        1000 + Math.random() * 9000
-      )}`,
+      referenceId: `ORD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       manualRefNo: "",
       orderNo: `PO-${Date.now().toString().slice(-6)}`,
       manualOrderNo: "",
@@ -87,26 +80,14 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       vendorAddress: "",
       vendorEmail: "",
       vendorPhone: "",
-      items: [
-        {
-          name: "",
-          qty: "",
-          rate: "",
-          tax: 0,
-          discount: 0,
-          hsn: "",
-          uom: "PCS",
-        },
-      ],
+      items: [{ name: "", qty: "", rate: "", tax: 0, discount: 0, hsn: "", uom: "PCS" }],
       terms: "",
       signature: "",
       photo: "",
       files: [],
     },
     goodsReceipt: {
-      referenceId: `GRN-${new Date().getFullYear()}-${Math.floor(
-        1000 + Math.random() * 9000
-      )}`,
+      referenceId: `GRN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       manualRefNo: "",
       purchaseOrderNo: "",
       receiptNo: `GR-${Date.now().toString().slice(-6)}`,
@@ -127,27 +108,14 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       shipToAddress: "",
       shipToEmail: "",
       shipToPhone: "",
-      items: [
-        {
-          name: "",
-          qty: "",
-          receivedQty: "",
-          rate: "",
-          tax: 0,
-          discount: 0,
-          hsn: "",
-          uom: "PCS",
-        },
-      ],
+      items: [{ name: "", qty: "", receivedQty: "", rate: "", tax: 0, discount: 0, hsn: "", uom: "PCS" }],
       terms: "",
       signature: "",
       photo: "",
       files: [],
     },
     bill: {
-      referenceId: `BILL-${new Date().getFullYear()}-${Math.floor(
-        1000 + Math.random() * 9000
-      )}`,
+      referenceId: `BILL-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       manualRefNo: "",
       billNo: `BILL-${Date.now().toString().slice(-6)}`,
       manualBillNo: "",
@@ -163,27 +131,14 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       vendorAddress: "",
       vendorEmail: "",
       vendorPhone: "",
-      items: [
-        {
-          description: "",
-          qty: "",
-          rate: "",
-          tax: "",
-          discount: "",
-          amount: "",
-          hsn: "",
-          uom: "PCS",
-        },
-      ],
+      items: [{ description: "", qty: "", rate: "", tax: "", discount: "", amount: "", hsn: "", uom: "PCS" }],
       terms: "",
       signature: "",
       photo: "",
       files: [],
     },
     payment: {
-      referenceId: `PAY-${new Date().getFullYear()}-${Math.floor(
-        1000 + Math.random() * 9000
-      )}`,
+      referenceId: `PAY-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       manualRefNo: "",
       paymentNo: `PAY-${Date.now().toString().slice(-6)}`,
       manualPaymentNo: "",
@@ -192,7 +147,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       paymentDate: "",
       amount: "",
       paymentMethod: "",
-      paymentStatus: "Pending", // Default status
+      paymentStatus: "Pending",
       note: "",
       vendorName: "",
       vendorAddress: "",
@@ -252,9 +207,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
     if (!companyId) return;
     try {
       const res = await axiosInstance.get(`/auth/Company`);
-      const current = res.data?.data?.find(
-        (c) => c.id === parseInt(companyId)
-      );
+      const current = res.data?.data?.find((c) => c.id === parseInt(companyId));
       if (current) {
         setCompanyDetails(current);
         setFormData((prev) => ({
@@ -269,35 +222,21 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
             terms_and_conditions: current.terms_and_conditions || "",
             notes: current.notes || "",
           },
-          purchaseOrder: {
-            ...prev.purchaseOrder,
-            companyName: current.name || "",
-            companyAddress: current.address || "",
-            companyEmail: current.email || "",
-            companyPhone: current.phone || "",
-          },
-          goodsReceipt: {
-            ...prev.goodsReceipt,
-            companyName: current.name || "",
-            companyAddress: current.address || "",
-            companyEmail: current.email || "",
-            companyPhone: current.phone || "",
-          },
-          bill: {
-            ...prev.bill,
-            companyName: current.name || "",
-            companyAddress: current.address || "",
-            companyEmail: current.email || "",
-            companyPhone: current.phone || "",
-          },
-          payment: {
-            ...prev.payment,
-            companyName: current.name || "",
-            companyAddress: current.address || "",
-            companyEmail: current.email || "",
-            companyPhone: current.phone || "",
-          },
         }));
+        // Propagate to other tabs
+        ["purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
+          setFormData((prev) => ({
+            ...prev,
+            [tab]: {
+              ...prev[tab], ...{
+                companyName: current.name || "",
+                companyAddress: current.address || "",
+                companyEmail: current.email || "",
+                companyPhone: current.phone || "",
+              }
+            },
+          }));
+        });
       }
     } catch (err) {
       console.error("Error fetching company:", err);
@@ -307,9 +246,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   const fetchVendors = async () => {
     if (!companyId) return;
     try {
-      const res = await axiosInstance.get(
-        `/vendorCustomer/company/${companyId}?type=vender`
-      );
+      const res = await axiosInstance.get(`/vendorCustomer/company/${companyId}?type=vender`);
       if (res.data?.success) setVendors(res.data.data);
     } catch (err) {
       console.error("Error fetching vendors:", err);
@@ -359,9 +296,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
 
   const calculateTotalAmount = (items) => {
     return items.reduce(
-      (t, i) =>
-        t +
-        (parseFloat(i.rate) || 0) * (parseInt(i.qty || i.receivedQty) || 0),
+      (t, i) => t + (parseFloat(i.rate) || 0) * (parseInt(i.qty || i.receivedQty) || 0),
       0
     );
   };
@@ -374,10 +309,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onloadend = () => {
-      setFormData((prev) => ({
-        ...prev,
-        [tab]: { ...prev[tab], [field]: reader.result },
-      }));
+      setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], [field]: reader.result } }));
     };
     reader.readAsDataURL(file);
   };
@@ -388,18 +320,11 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
     files.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        newFiles.push({
-          name: file.name,
-          size: file.size,
-          base64: reader.result,
-        });
+        newFiles.push({ name: file.name, size: file.size, base64: reader.result });
         if (newFiles.length === files.length) {
           setFormData((prev) => ({
             ...prev,
-            [tab]: {
-              ...prev[tab],
-              files: [...(prev[tab].files || []), ...newFiles],
-            },
+            [tab]: { ...prev[tab], files: [...(prev[tab].files || []), ...newFiles] },
           }));
         }
       };
@@ -413,6 +338,318 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       updated.splice(index, 1);
       return { ...prev, [tab]: { ...prev[tab], files: updated } };
     });
+  };
+
+  // ===============================
+  // API INTEGRATION
+  // ===============================
+  const uiStepToApiStep = {
+    purchaseQuotation: "quotation",
+    purchaseOrder: "purchase_order",
+    goodsReceipt: "goods_receipt",
+    bill: "bill",
+    payment: "payment",
+  };
+
+  const apiStepToUiStep = {
+    quotation: "purchaseQuotation",
+    purchase_order: "purchaseOrder",
+    goods_receipt: "goodsReceipt",
+    bill: "bill",
+    payment: "payment",
+  };
+
+  // CREATE (Step 1)
+  const createPurchaseOrder = async (payload) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axiosInstance.post(`/purchase-orders/create-purchase-order`, payload);
+      if (res.data.success) {
+        const id = res.data.data.company_info.id;
+        setPoId(id);
+        setSuccess("Purchase order created!");
+        await loadPurchaseOrder(id);
+        return id;
+      } else {
+        throw new Error(res.data.message || "Creation failed");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to create PO");
+      console.error("POST error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // UPDATE (Steps 2–5)
+  const updatePurchaseOrder = async (id, stepData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const payload = { steps: stepData };
+      const res = await axiosInstance.put(`purchase-orders/create-purchase-order/${id}`, payload);
+      if (res.data.success) {
+        setSuccess("Step updated!");
+        await loadPurchaseOrder(id);
+      } else {
+        throw new Error(res.data.message || "Update failed");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to update step");
+      console.error("PUT error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  // LOAD FULL PO
+  const loadPurchaseOrder = async (id) => {
+    try {
+      const res = await axiosInstance.get(`/purchase-orders/${id}`);
+      if (res.data.success) {
+        const apiData = res.data.data;
+        const newFormData = { ...formData };
+
+        // Sync company info
+        if (apiData.company_info) {
+          const ci = apiData.company_info;
+          ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
+            newFormData[tab] = {
+              ...newFormData[tab],
+              companyName: ci.company_name,
+              companyAddress: ci.company_address,
+              companyEmail: ci.company_email,
+              companyPhone: ci.company_phone,
+            };
+          });
+          newFormData.purchaseQuotation.logo = ci.logo_url;
+        }
+
+        // Sync shipping details (bill_to → vendor)
+        if (apiData.shipping_details) {
+          const sd = apiData.shipping_details;
+          ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
+            newFormData[tab] = {
+              ...newFormData[tab],
+              vendorName: sd.bill_to_attention_name || sd.bill_to_company_name,
+              vendorAddress: sd.bill_to_company_address,
+              vendorEmail: sd.bill_to_company_email,
+              vendorPhone: sd.bill_to_company_phone,
+            };
+          });
+        }
+
+        // Sync items
+        if (apiData.items && apiData.items.length > 0) {
+          const items = apiData.items.map((i) => ({
+            name: i.item_name,
+            qty: i.qty,
+            rate: i.rate,
+            tax: i.tax_percent,
+            discount: i.discount,
+            hsn: "",
+            uom: "PCS",
+          }));
+          newFormData.purchaseQuotation.items = items;
+          newFormData.purchaseOrder.items = items.map(i => ({ ...i }));
+          newFormData.goodsReceipt.items = items.map(i => ({ ...i, receivedQty: i.qty }));
+          newFormData.bill.items = items.map(i => ({ ...i, description: i.name, amount: (parseFloat(i.rate) * parseInt(i.qty)).toFixed(2) }));
+        }
+
+        // Sync steps
+        apiData.steps.forEach((stepObj) => {
+          const uiTab = apiStepToUiStep[stepObj.step];
+          if (uiTab && stepObj.data) {
+            if (uiTab === "purchaseQuotation") {
+              newFormData[uiTab] = {
+                ...newFormData[uiTab],
+                vendorName: stepObj.data.quotation_from_vendor_name,
+                vendorAddress: stepObj.data.quotation_from_vendor_address,
+                vendorEmail: stepObj.data.quotation_from_vendor_email,
+                vendorPhone: stepObj.data.quotation_from_vendor_phone,
+                referenceId: stepObj.data.ref_no,
+                manualRefNo: stepObj.data.manual_ref_ro || stepObj.data.manual_ref_no,
+                quotationNo: stepObj.data.quotation_no,
+                manualQuotationNo: stepObj.data.manual_quo_no,
+                quotationDate: stepObj.data.quotation_date,
+                validDate: stepObj.data.valid_till,
+              };
+            } else if (uiTab === "purchaseOrder") {
+              newFormData[uiTab] = {
+                ...newFormData[uiTab],
+                orderNo: stepObj.data.PO_no,
+                manualOrderNo: stepObj.data.Manual_PO_ref,
+              };
+            } else if (uiTab === "goodsReceipt") {
+              newFormData[uiTab] = {
+                ...newFormData[uiTab],
+                receiptNo: stepObj.data.GR_no,
+                manualReceiptNo: stepObj.data.Manual_GR_no,
+                vehicleNo: stepObj.data.vehicle_no || "",
+                driverName: stepObj.data.driver_name || "",
+                driverPhone: stepObj.data.driver_phone || "",
+              };
+            } else if (uiTab === "bill") {
+              newFormData[uiTab] = {
+                ...newFormData[uiTab],
+                billNo: stepObj.data.Bill_no,
+                manualBillNo: stepObj.data.Manual_Bill_no,
+                dueDate: stepObj.data.due_date,
+              };
+            } else if (uiTab === "payment") {
+              newFormData[uiTab] = {
+                ...newFormData[uiTab],
+                paymentNo: stepObj.data.Payment_no,
+                manualPaymentNo: stepObj.data.Manual_payment_no,
+                amount: stepObj.data.amount_paid,
+                totalAmount: stepObj.data.total_amount,
+                paymentStatus: stepObj.data.payment_status,
+                note: stepObj.data.payment_note,
+              };
+            }
+          }
+        }
+        )
+        setFormData(newFormData);
+
+      }
+    } catch (err) {
+      setError("Failed to load PO");
+      console.error("GET error:", err);
+    }
+  };
+
+  // ===============================
+  // TAB CHANGE → LOAD DATA
+  // ===============================
+
+  useEffect(() => {
+    if (poId && activeTab !== "purchaseQuotation") {
+      loadPurchaseOrder(poId);
+    }
+  }, [activeTab, poId]);
+
+  const handleSaveStep = async () => {
+    setError(null);
+    setSuccess(null);
+    const currentApiStep = uiStepToApiStep[activeTab];
+    if (!currentApiStep) return;
+
+    if (!poId) {
+      // STEP 1: POST
+      const pq = formData.purchaseQuotation;
+      const items = pq.items.map((i) => ({
+        item_name: i.name,
+        qty: i.qty,
+        rate: i.rate,
+        tax_percent: i.tax,
+        discount: i.discount,
+        amount: (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0),
+      }));
+
+      const payload = {
+        company_info: {
+          company_id: companyId,
+          company_name: pq.companyName,
+          company_address: pq.companyAddress,
+          company_email: pq.companyEmail,
+          company_phone: pq.companyPhone,
+          bank_name: pq.bankName,
+          account_no: pq.accountNo,
+          account_holder: pq.accountHolder,
+          ifsc_code: pq.ifsc,
+          terms: pq.terms_and_conditions,
+          notes: pq.notes,
+        },
+        shipping_details: {
+          bill_to_attention_name: pq.vendorName,
+          bill_to_company_name: pq.vendorName,
+          bill_to_company_address: pq.vendorAddress,
+          bill_to_company_email: pq.vendorEmail,
+          bill_to_company_phone: pq.vendorPhone,
+          ship_to_attention_name: pq.vendorName,
+          ship_to_company_name: pq.vendorName,
+          ship_to_company_address: pq.vendorAddress,
+          ship_to_company_email: pq.vendorEmail,
+          ship_to_company_phone: pq.vendorPhone,
+        },
+        items,
+        steps: {
+          quotation: {
+            quotation_from_vendor_name: pq.vendorName,
+            quotation_from_vendor_address: pq.vendorAddress,
+            quotation_from_vendor_email: pq.vendorEmail,
+            quotation_from_vendor_phone: pq.vendorPhone,
+            ref_no: pq.referenceId,
+            manual_ref_ro: pq.manualRefNo,
+            quotation_no: pq.quotationNo,
+            manual_quo_no: pq.manualQuotationNo,
+            quotation_date: pq.quotationDate,
+            valid_till: pq.validDate,
+          },
+          purchase_order: {},
+          goods_receipt: {},
+          bill: {},
+          payment: {},
+        },
+        sub_total: calculateTotalAmount(items),
+        tax: items.reduce((s, i) => {
+          const sub = (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0);
+          return s + (sub * (parseFloat(i.tax_percent) || 0)) / 100;
+        }, 0),
+        discount: items.reduce((s, i) => s + (parseFloat(i.discount) || 0), 0),
+        total: calculateTotalWithTaxAndDiscount(items),
+      };
+
+      const id = await createPurchaseOrder(payload);
+      if (id) {
+        handleNext();
+      }
+    } else {
+      // STEPS 2–5: PUT
+      const currentData = formData[activeTab];
+      let apiStepData = {};
+
+      if (activeTab === "purchaseOrder") {
+        apiStepData = {
+          PO_no: currentData.orderNo,
+          Manual_PO_ref: currentData.manualOrderNo,
+        };
+      } else if (activeTab === "goodsReceipt") {
+        apiStepData = {
+          GR_no: currentData.receiptNo,
+          Manual_GR_no: currentData.manualReceiptNo,
+          vehicle_no: currentData.vehicleNo,
+          driver_name: currentData.driverName,
+          driver_phone: currentData.driverPhone,
+        };
+      } else if (activeTab === "bill") {
+        apiStepData = {
+          Bill_no: currentData.billNo,
+          Manual_Bill_no: currentData.manualBillNo,
+          due_date: currentData.dueDate,
+        };
+      } else if (activeTab === "payment") {
+        const totalAmount = parseFloat(formData.bill?.totalAmount) || calculateTotalAmount(formData.bill?.items || []);
+        apiStepData = {
+          Payment_no: currentData.paymentNo,
+          Manual_payment_no: currentData.manualPaymentNo,
+          amount_paid: parseFloat(currentData.amount) || 0,
+          total_amount: totalAmount,
+          total_bill: totalAmount,
+          balance: totalAmount - (parseFloat(currentData.amount) || 0),
+          payment_note: currentData.note,
+          payment_status: currentData.paymentStatus,
+          payment_made_vendor_name: currentData.vendorName,
+          payment_made_vendor_address: currentData.vendorAddress,
+          payment_made_vendor_email: currentData.vendorEmail,
+          payment_made_vendor_phone: currentData.vendorPhone,
+        };
+      }
+
+      const payload = { [currentApiStep]: apiStepData };
+      await updatePurchaseOrder(poId, payload);
+    }
   };
 
   // ===============================
@@ -541,6 +778,24 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
         uom: "PCS",
       });
       setShowAdd(false);
+    };
+
+    // Save current step AND go to next step
+    const handleSaveAndNext = async () => {
+      await handleSaveStep(); // First save
+      // Only go next if save was successful and we have poId
+      if (activeTab !== "payment") {
+        const tabs = ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"];
+        const idx = tabs.indexOf(activeTab);
+        if (idx < tabs.length - 1) {
+          const nextTab = tabs[idx + 1];
+          setActiveTab(nextTab);
+          // If we have poId and it's not Step 1, load data for next tab
+          if (poId && nextTab !== "purchaseQuotation") {
+            await loadPurchaseOrder(poId);
+          }
+        }
+      }
     };
 
     const handleVendorSearchChange = (value) => {
@@ -1436,13 +1691,13 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
               <Form.Label>Reference No</Form.Label>
               <Form.Control value={data.referenceId} readOnly style={{ backgroundColor: "#f8f9fa" }} />
             </Form.Group>
-            <Form.Group className="mb-2">
+            {/* <Form.Group className="mb-2">
               <Form.Label>Manual Ref. No.</Form.Label>
               <Form.Control
                 value={data.manualRefNo}
                 onChange={(e) => handleChange("manualRefNo", e.target.value)}
               />
-            </Form.Group>
+            </Form.Group> */}
             <Form.Group className="mb-2">
               <Form.Label>Order No.</Form.Label>
               <Form.Control
@@ -1453,7 +1708,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
             <Form.Group className="mb-2">
               <Form.Label>Quotation No.</Form.Label>
               <Form.Control
-                value={data.quotationNo}
+                value={data.quotationNo || "-"}
                 onChange={(e) => handleChange("quotationNo", e.target.value)}
               />
             </Form.Group>
@@ -1469,7 +1724,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
               <Form.Label>Delivery Date</Form.Label>
               <Form.Control
                 type="date"
-                value={data.deliveryDate}
+                value={data.valid_till}
                 onChange={(e) => handleChange("deliveryDate", e.target.value)}
               />
             </Form.Group>
@@ -1723,7 +1978,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
               <Form.Control
                 as="textarea"
                 rows={3}
-                value={data.terms}
+                value={data.terms_and_conditions || ""}
                 onChange={(e) => handleChange("terms", e.target.value)}
                 style={{ border: "1px solid #343a40" }}
               />
@@ -3716,123 +3971,55 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   };
 
   // ===============================
-  // NAVIGATION & ACTIONS
+  // NAVIGATION
   // ===============================
   const handleNext = () => {
-    const tabs = [
-      "purchaseQuotation",
-      "purchaseOrder",
-      "goodsReceipt",
-      "bill",
-      "payment",
-    ];
+    const tabs = ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"];
     const idx = tabs.indexOf(activeTab);
     if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1]);
   };
 
   const handlePrev = () => {
-    const tabs = [
-      "purchaseQuotation",
-      "purchaseOrder",
-      "goodsReceipt",
-      "bill",
-      "payment",
-    ];
+    const tabs = ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"];
     const idx = tabs.indexOf(activeTab);
     if (idx > 0) setActiveTab(tabs[idx - 1]);
   };
 
   const handleSaveDraft = () => onSubmit(formData, activeTab);
 
+  // Save current step AND go to next step
+  const handleSaveAndNext = async () => {
+    await handleSaveStep(); // First save
+    // Only go next if save was successful and we have poId
+    if (activeTab !== "payment") {
+      const tabs = ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"];
+      const idx = tabs.indexOf(activeTab);
+      if (idx < tabs.length - 1) {
+        const nextTab = tabs[idx + 1];
+        setActiveTab(nextTab);
+        // If we have poId and it's not Step 1, load data for next tab
+        if (poId && nextTab !== "purchaseQuotation") {
+          await loadPurchaseOrder(poId);
+        }
+      }
+    }
+  };
   // ===============================
   // RENDER
   // ===============================
   return (
     <div className="container-fluid mt-4 px-2">
       <h4 className="text-center mb-4">Purchase Process</h4>
+      {/* Buttons */}
       <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
-        {/* Print English */}
-        <Button
-          variant="warning"
-
-          className="flex-fill flex-sm-grow-0"
-          style={{
-            minWidth: "130px",
-            fontSize: "0.95rem",
-            padding: "6px 10px",
-          }}
-        >
-          Print (English)
-        </Button>
-        {/* Print Arabic */}
-        <Button
-          variant="warning"
-
-          className="flex-fill flex-sm-grow-0"
-          style={{
-            minWidth: "130px",
-            fontSize: "0.95rem",
-            padding: "6px 10px",
-            backgroundColor: "#d39e00",
-            borderColor: "#c49200",
-          }}
-        >
-          طباعة (العربية)
-        </Button>
-        {/* Print Both */}
-        <Button
-          variant="warning"
-
-          className="flex-fill flex-sm-grow-0"
-          style={{
-            minWidth: "150px",
-            fontSize: "0.95rem",
-            padding: "6px 10px",
-            backgroundColor: "#c87f0a",
-            borderColor: "#b87409",
-          }}
-        >
-          Print Both (EN + AR)
-        </Button>
-        {/* Send Button */}
-        <Button
-          variant="info"
-          className="flex-fill flex-sm-grow-0"
-          style={{
-            color: "white",
-            minWidth: "110px",
-            fontSize: "0.95rem",
-            padding: "6px 10px",
-          }}
-        >
-          Send
-        </Button>
-        {/* Download PDF */}
-        <Button
-          variant="success"
-
-          className="flex-fill flex-sm-grow-0"
-          style={{
-            minWidth: "130px",
-            fontSize: "0.95rem",
-            padding: "6px 10px",
-          }}
-        >
-          Download PDF
-        </Button>
-        {/* Download Excel */}
-        <Button
-          variant="primary"
-          className="flex-fill flex-sm-grow-0"
-          style={{
-            minWidth: "130px",
-            fontSize: "0.95rem",
-            padding: "6px 10px",
-          }}
-        >
-          Download Excel
-        </Button>
+        <Button variant="warning" style={{ minWidth: "130px" }}>Print (English)</Button>
+        <Button variant="warning" style={{ minWidth: "130px" }}>طباعة (العربية)</Button>
+        <Button variant="warning" style={{ minWidth: "150px" }}>Print Both (EN + AR)</Button>
+        <Button variant="info" style={{ minWidth: "110px", color: "white" }}>Send</Button>
+        <Button variant="success" style={{ minWidth: "130px" }}>Download PDF</Button>
+        <Button variant="primary" style={{ minWidth: "130px" }}>Download Excel</Button>
       </div>
+
       <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4" fill>
         <Tab eventKey="purchaseQuotation" title="Purchase Quotation" />
         <Tab eventKey="purchaseOrder" title="Purchase Order" />
@@ -3840,11 +4027,13 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
         <Tab eventKey="bill" title="Bill" />
         <Tab eventKey="payment" title="Payment" />
       </Tabs>
+
       {activeTab === "purchaseQuotation" && renderPurchaseQuotationTab()}
       {activeTab === "purchaseOrder" && renderPurchaseOrderTab()}
       {activeTab === "goodsReceipt" && renderGoodsReceiptTab()}
       {activeTab === "bill" && renderBillTab()}
       {activeTab === "payment" && renderPaymentTab()}
+
       <div className="d-flex justify-content-between mt-4">
         <Button
           variant="secondary"
@@ -3853,15 +4042,19 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
         >
           Previous
         </Button>
-        <Button variant="warning" onClick={handleSaveDraft}>
-          Save
+        <Button
+          variant="warning"
+          onClick={handleSaveStep} // Only save
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Saving..." : "Save"}
         </Button>
         <Button
           variant="primary"
-          onClick={handleNext}
-          disabled={activeTab === "payment"}
+          onClick={handleSaveAndNext} // Save + Next
+          disabled={activeTab === "payment" || isSubmitting}
         >
-          Save Next
+          {isSubmitting ? "Saving..." : "Save & Next"}
         </Button>
       </div>
     </div>
