@@ -1,20 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Table, Button, Badge, Modal, Form } from 'react-bootstrap';
-import { FaArrowLeft } from "react-icons/fa";
+import { FaArrowLeft, FaTrash } from "react-icons/fa";
 import MultiStepSalesForm from './MultiStepSalesForm';
 import GetCompanyId from '../../../Api/GetCompanyId';
 import axiosInstance from '../../../Api/axiosInstance';
 
 // Helper function to get step status
 const getStepStatus = (steps, stepName) => {
-  const step = steps.find(s => s.step === stepName);
-  return step ? step.status : 'pending';
+  if (!steps || !steps[stepName]) return 'pending';
+  return steps[stepName].status || 'pending';
 };
 
 // Helper function to get step data
 const getStepData = (steps, stepName) => {
-  const step = steps.find(s => s.step === stepName);
-  return step ? step.data : {};
+  if (!steps || !steps[stepName]) return {};
+  return steps[stepName] || {};
 };
 
 const statusBadge = (status) => {
@@ -28,6 +28,7 @@ const Invoice = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null });
 
   const [stepModal, setStepModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -48,8 +49,8 @@ const Invoice = () => {
   const getTabKeyFromStepName = (stepName) => {
     const mapping = {
       "Quotation": "quotation",
-      "Sales Order": "sales_order", // Updated to match API
-      "Delivery Challan": "delivery_challan", // Updated to match API
+      "Sales Order": "sales_order",
+      "Delivery Challan": "delivery_challan",
       "Invoice": "invoice",
       "Payment": "payment"
     };
@@ -121,17 +122,16 @@ const Invoice = () => {
         // Update existing order
         console.log(`Updating order with ID: ${selectedOrder.id}`, formData);
         // Note: The PUT endpoint might need adjustment based on how the backend expects the payload
-        // It might expect a specific format, not the raw formData
         await axiosInstance.put(`sales-order/create-sales-order/${selectedOrder.id}`, {
           ...formData,
-          company_id: companyId // Use the correct field name expected by the backend
+          company_id: companyId
         });
       } else {
         // Create new order
         console.log("Creating new order", formData);
         await axiosInstance.post('sales-order/create-sales-order', {
           ...formData,
-          company_id: companyId // Use the correct field name expected by the backend
+          company_id: companyId
         });
       }
 
@@ -149,7 +149,20 @@ const Invoice = () => {
     } catch (err) {
       console.error("Error saving sales order:", err);
       setError("Failed to save sales order. Please check the console for details.");
-      // Optionally show a user-facing error message here (e.g., a toast)
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    try {
+      await axiosInstance.delete(`sales-order/${orderId}`);
+      
+      // Update the orders list after successful deletion
+      setOrders(orders.filter(order => order.id !== orderId));
+      setDeleteConfirm({ show: false, id: null });
+    } catch (err) {
+      console.error("Error deleting sales order:", err);
+      setError("Failed to delete sales order. Please try again later.");
+      setDeleteConfirm({ show: false, id: null });
     }
   };
 
@@ -167,7 +180,7 @@ const Invoice = () => {
       let orderDate = new Date();
       if (quotationData.quotation_date) {
         orderDate = new Date(quotationData.quotation_date);
-      } else if (salesOrderData.SO_date) { // Assuming SO_date might exist
+      } else if (salesOrderData.SO_date) {
         orderDate = new Date(salesOrderData.SO_date);
       }
 
@@ -397,96 +410,113 @@ const Invoice = () => {
         </div>
       )}
 
-      {/* Table */}
-      <Table bordered hover responsive className="text-center align-middle">
-        <thead className="table-light">
-          <tr>
-            <th>#</th>
-            <th>Invoice No</th>
-            <th>Customer</th>
-            <th>Date</th>
-            <th>Amount</th>
-            <th>Completed Stages</th>
-            <th>Payment</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredOrders?.length === 0 ? (
+      {/* Loading State */}
+      {loading ? (
+        <div className="text-center p-4">
+          <div className="spinner-border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : (
+        /* Table */
+        <Table bordered hover responsive className="text-center align-middle">
+          <thead className="table-light">
             <tr>
-              <td colSpan="8" className="text-center text-muted">
-                No records found.
-              </td>
+              <th>#</th>
+              <th>Invoice No</th>
+              <th>Customer</th>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Completed Stages</th>
+              <th>Payment</th>
+              <th>Actions</th>
             </tr>
-          ) : (
-            filteredOrders?.map((order, idx) => {
-              // Extract data for display
-              const quotationData = getStepData(order.steps, 'quotation');
-              const salesOrderData = getStepData(order.steps, 'sales_order');
-              const invoiceData = getStepData(order.steps, 'invoice');
-              const paymentData = getStepData(order.steps, 'payment');
+          </thead>
+          <tbody>
+            {filteredOrders?.length === 0 ? (
+              <tr>
+                <td colSpan="8" className="text-center text-muted">
+                  No records found.
+                </td>
+              </tr>
+            ) : (
+              filteredOrders?.map((order, idx) => {
+                // Extract data for display
+                const quotationData = getStepData(order.steps, 'quotation');
+                const salesOrderData = getStepData(order.steps, 'sales_order');
+                const invoiceData = getStepData(order.steps, 'invoice');
+                const paymentData = getStepData(order.steps, 'payment');
 
-              // Determine customer name
-              const customerName = quotationData.bill_to?.customer_name ||
-                quotationData.bill_to?.company_name ||
-                order.company_info?.company_name || 'Unknown';
+                // Determine customer name
+                const customerName = quotationData.qoutation_to_customer_name ||
+                  order.company_info?.company_name || 'Unknown';
 
-              // Determine date
-              let displayDate = 'N/A';
-              if (quotationData.quotation_date) {
-                displayDate = new Date(quotationData.quotation_date).toLocaleDateString();
-              } else if (salesOrderData.SO_date) {
-                displayDate = new Date(salesOrderData.SO_date).toLocaleDateString();
-              }
+                // Determine date
+                let displayDate = 'N/A';
+                if (quotationData.quotation_date) {
+                  displayDate = new Date(quotationData.quotation_date).toLocaleDateString();
+                } else if (invoiceData.invoice_date) {
+                  displayDate = new Date(invoiceData.invoice_date).toLocaleDateString();
+                }
 
-              // Determine amount
-              let displayAmount = 'N/A';
-              if (invoiceData.total_invoice) {
-                displayAmount = `$${invoiceData.total_invoice}`;
-              } else if (quotationData.total) {
-                displayAmount = `$${quotationData.total}`;
-              }
+                // Calculate total amount from items if not available directly
+                let displayAmount = 'N/A';
+                if (order.total && order.total !== "0") {
+                  displayAmount = `$${order.total}`;
+                } else if (order.items && order.items.length > 0) {
+                  const total = order.items.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+                  displayAmount = `$${total.toFixed(2)}`;
+                }
 
-              return (
-                <tr key={order.id || idx}> {/* Use order.id if available, otherwise fallback to idx */}
-                  <td>{idx + 1}</td>
-                  <td>{invoiceData.invoice_no || '-'}</td>
-                  <td>{customerName}</td>
-                  <td>{displayDate}</td>
-                  <td>{displayAmount}</td>
-                  <td>
-                    {getStepStatus(order.steps, 'quotation') === "completed" && (
-                      <Badge bg="success" className="me-1">Quotation</Badge>
-                    )}
-                    {getStepStatus(order.steps, 'sales_order') === "completed" && (
-                      <Badge bg="success" className="me-1">Sales Order</Badge>
-                    )}
-                    {getStepStatus(order.steps, 'delivery_challan') === "completed" && (
-                      <Badge bg="success" className="me-1">Delivery Challan</Badge>
-                    )}
-                    {getStepStatus(order.steps, 'invoice') === "completed" && (
-                      <Badge bg="success" className="me-1">Invoice</Badge>
-                    )}
-                  </td>
-                  <td>{statusBadge(getStepStatus(order.steps, 'payment'))}</td>
-                  <td>
-                    <Button
-                      size="sm"
-                      className="me-1 mb-1"
-                      variant="outline-primary"
-                      onClick={() => handleCreateNewInvoice(order)}
-                    >
-                      Continue
-                    </Button>
-                  </td>
-                </tr>
-              )
-            })
-          )}
-        </tbody>
-      </Table>
+                return (
+                  <tr key={order.id || idx}>
+                    <td>{idx + 1}</td>
+                    <td>{invoiceData.invoice_no || '-'}</td>
+                    <td>{customerName}</td>
+                    <td>{displayDate}</td>
+                    <td>{displayAmount}</td>
+                    <td>
+                      {getStepStatus(order.steps, 'quotation') === "completed" && (
+                        <Badge bg="success" className="me-1">Quotation</Badge>
+                      )}
+                      {getStepStatus(order.steps, 'sales_order') === "completed" && (
+                        <Badge bg="success" className="me-1">Sales Order</Badge>
+                      )}
+                      {getStepStatus(order.steps, 'delivery_challan') === "completed" && (
+                        <Badge bg="success" className="me-1">Delivery Challan</Badge>
+                      )}
+                      {getStepStatus(order.steps, 'invoice') === "completed" && (
+                        <Badge bg="success" className="me-1">Invoice</Badge>
+                      )}
+                    </td>
+                    <td>{statusBadge(getStepStatus(order.steps, 'payment'))}</td>
+                    <td>
+                      <Button
+                        size="sm"
+                        className="me-1 mb-1"
+                        variant="outline-primary"
+                        onClick={() => handleCreateNewInvoice(order)}
+                      >
+                        Continue
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="mb-1"
+                        variant="outline-danger"
+                        onClick={() => setDeleteConfirm({ show: true, id: order.id })}
+                      >
+                        <FaTrash />
+                      </Button>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </Table>
+      )}
 
-      {/* Modal */}
+      {/* Modal for creating/editing sales order */}
       <Modal show={stepModal} onHide={handleCloseModal} size="xl" centered>
         <Modal.Header closeButton>
           <Modal.Title>
@@ -505,8 +535,26 @@ const Invoice = () => {
           />
         </Modal.Body>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal show={deleteConfirm.show} onHide={() => setDeleteConfirm({ show: false, id: null })} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete this sales order? This action cannot be undone.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setDeleteConfirm({ show: false, id: null })}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={() => handleDeleteOrder(deleteConfirm.id)}>
+            Delete
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
 
-export default Invoice; 
+export default Invoice;

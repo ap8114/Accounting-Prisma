@@ -916,13 +916,12 @@ const MultiStepSalesForm = ({
       // Determine if this is the first step (quotation) or a subsequent step
       const isFirstStep = key === "quotation" && !currentSalesOrderId;
       
-      // Prepare the payload based on the current tab
-      let payload = {};
-      let endpoint = "sales-order/create-sales-order"; // Single endpoint for all steps
-      let method = isFirstStep ? "post" : "put"; // POST for first step, PUT for subsequent steps
+      // Single endpoint for all steps
+      const endpoint = "sales-order/create-sales-order";
+      const method = isFirstStep ? "post" : "put"; // POST for first step, PUT for subsequent steps
 
       // Build a unified payload that includes all steps data
-      payload = {
+      const payload = {
         company_info: {
           company_id: company_id,
           company_name: formData[key].companyName,
@@ -930,14 +929,25 @@ const MultiStepSalesForm = ({
           company_email: formData[key].companyEmail,
           company_phone: formData[key].companyPhone,
           logo_url: formData[key].companyLogo,
+          bank_name: formData.quotation.bankName,
+          account_no: formData.quotation.accountNo,
+          account_holder: formData.quotation.accountHolder,
+          ifsc_code: formData.quotation.ifsc,
           terms: formData[key].terms,
         },
-        customer_info: {
-          customer_id: formData.quotation.customerId,
-          customer_name: formData[key].billToName || formData[key].customerName,
-          customer_address: formData[key].billToAddress || formData[key].customerAddress,
-          customer_email: formData[key].billToEmail || formData[key].customerEmail,
-          customer_phone: formData[key].billToPhone || formData[key].customerPhone,
+        shipping_details: {
+          bill_to_name: formData[key].billToName || formData[key].customerName,
+          bill_to_address: formData[key].billToAddress || formData[key].customerAddress,
+          bill_to_email: formData[key].billToEmail || formData[key].customerEmail,
+          bill_to_phone: formData[key].billToPhone || formData[key].customerPhone,
+          bill_to_attention_name: formData.salesOrder.billToAttn || "",
+          bill_to_company_name: formData.salesOrder.billToCompanyName || formData[key].billToName || formData[key].customerName,
+          ship_to_name: formData[key].shipToName,
+          ship_to_address: formData[key].shipToAddress,
+          ship_to_email: formData[key].shipToEmail,
+          ship_to_phone: formData[key].shipToPhone,
+          ship_to_attention_name: formData.salesOrder.shipToAttn || "",
+          ship_to_company_name: formData.salesOrder.shipToCompanyName || formData[key].shipToName,
         },
         items: formData[key].items.map((item) => ({
           item_name: item.item_name || item.description,
@@ -957,27 +967,28 @@ const MultiStepSalesForm = ({
         steps: {
           quotation: {
             quotation_no: formData.quotation.quotationNo,
-            manual_quotation_ref: formData.quotation.manualQuotationRef,
+            manual_quo_no: formData.quotation.manualQuotationRef,
             quotation_date: formData.quotation.quotationDate,
             valid_till: formData.quotation.validDate,
+            qoutation_to_customer_name: formData.quotation.billToName,
+            qoutation_to_customer_address: formData.quotation.billToAddress,
+            qoutation_to_customer_email: formData.quotation.billToEmail,
+            qoutation_to_customer_phone: formData.quotation.billToPhone,
             notes: formData.quotation.notes,
             customer_ref: formData.quotation.customerReference,
-            bank_name: formData.quotation.bankName,
-            account_no: formData.quotation.accountNo,
-            account_holder: formData.quotation.accountHolder,
-            ifsc_code: formData.quotation.ifsc,
           },
           sales_order: {
             SO_no: formData.salesOrder.salesOrderNo,
             manual_ref_no: formData.salesOrder.manualOrderRef,
+            manual_quo_no: formData.salesOrder.manualQuotationRef,
             order_date: formData.salesOrder.orderDate,
             customer_no: formData.salesOrder.customerNo,
-            bill_to_attn: formData.salesOrder.billToAttn,
+            bill_to_attention_name: formData.salesOrder.billToAttn,
             bill_to_company_name: formData.salesOrder.billToCompanyName,
             bill_to_address: formData.salesOrder.billToAddress,
             bill_to_email: formData.salesOrder.billToEmail,
             bill_to_phone: formData.salesOrder.billToPhone,
-            ship_to_attn: formData.salesOrder.shipToAttn,
+            ship_to_attention_name: formData.salesOrder.shipToAttn,
             ship_to_company_name: formData.salesOrder.shipToCompanyName,
             ship_to_address: formData.salesOrder.shipToAddress,
             ship_to_email: formData.salesOrder.shipToEmail,
@@ -1031,22 +1042,18 @@ const MultiStepSalesForm = ({
           },
         },
         additional_info: {
+          files: formData[key].files,
           signature_url: formData[key].signature,
           photo_url: formData[key].photo,
-          files: formData[key].files,
+          attachment_url: formData[key].files.length > 0 ? formData[key].files[0].base64 : "",
         },
         current_step: key, // Indicate which step is currently being saved
       };
 
       // If we have a sales order ID, use PUT to update, otherwise POST to create
-      if (!isFirstStep && currentSalesOrderId) {
-        endpoint = `sales-order/update-sales-order/${currentSalesOrderId}`;
-      }
-
-      // Send the request to the API
       let response;
-      if (method === "put") {
-        response = await axiosInstance.put(endpoint, payload);
+      if (method === "put" && currentSalesOrderId) {
+        response = await axiosInstance.put(`${endpoint}/${currentSalesOrderId}`, payload);
       } else {
         response = await axiosInstance.post(endpoint, payload);
       }
