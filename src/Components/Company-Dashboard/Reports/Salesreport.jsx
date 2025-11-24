@@ -4,7 +4,7 @@ import { FaFilePdf, FaFileExcel } from 'react-icons/fa';
 import { BsGear } from 'react-icons/bs';
 import { BiSolidReport, BiSolidDollarCircle } from 'react-icons/bi';
 import GetCompanyId from '../../../Api/GetCompanyId';
-import axiosInstance from '../../../Api/axiosInstance'; // ✅ Adjust path if needed
+import axiosInstance from '../../../Api/axiosInstance';
 import {
   Table,
   Card,
@@ -24,10 +24,10 @@ const Salesreport = () => {
   const companyId = GetCompanyId();
 
   const [summary, setSummary] = useState({
-    totalAmount: '$0',
-    totalPaid: '$0',
-    totalUnpaid: '$0',
-    overdue: '$0',
+    totalAmount: '$0.00',
+    totalPaid: '$0.00',
+    totalUnpaid: '$0.00',
+    overdue: '$0.00',
   });
 
   const [detailedData, setDetailedData] = useState([]);
@@ -50,52 +50,47 @@ const Salesreport = () => {
     setErrorToast({ show: false, message: '' });
 
     try {
-      const params = { companyId };
-      if (startDate) params.startDate = startDate;
-      if (endDate) params.endDate = endDate;
+      const params = { company_id: companyId };
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
       if (category) params.category = category;
 
-      const [summaryRes, detailedRes] = await Promise.all([
-        axiosInstance.get('/sales-reports/summary', { params }),
-        axiosInstance.get('/sales-reports/detailed', { params }),
-      ]);
+      const res = await axiosInstance.get('/sales-reports/salesummary', { params });
 
-      // ✅ Process summary
-      if (summaryRes.data?.success && summaryRes.data?.data) {
-        const s = summaryRes.data.data;
+      if (res.data?.success) {
+        const { totals, table } = res.data;
+
+        // Format summary totals
         setSummary({
-          totalAmount: `$${Number(s.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          totalPaid: `$${Number(s.total_paid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          totalUnpaid: `$${Number(s.total_unpaid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          overdue: `$${Number(s.overdue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          totalAmount: `$${Number(totals.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          totalPaid: `$${Number(totals.totalPaid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          totalUnpaid: `$${Number(totals.totalUnpaid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          overdue: `$${Number(totals.overdue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         });
-      } else {
-        setSummary({ totalAmount: '$0', totalPaid: '$0', totalUnpaid: '$0', overdue: '$0' });
-      }
 
-      // ✅ Process detailed data
-      if (detailedRes.data?.success && Array.isArray(detailedRes.data.data)) {
-        const formattedData = detailedRes.data.data.map((item) => ({
+        // Format table rows
+        const formattedData = (table || []).map((item) => ({
           sku: item.sku || 'N/A',
-          customerName: item.customer_name || 'N/A',
-          customerNameArabic: item.customer_name_arabic || 'N/A',
-          productName: item.product_name || 'N/A',
+          customerName: item.customerName || 'N/A',
+          customerNameArabic: item.customerArabicName || 'N/A',
+          productName: item.productName || 'N/A',
           category: item.category || 'N/A',
-          soldQty: item.sold_qty || 0,
-          soldAmount: `$${Number(item.sold_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          instockQty: item.instock_qty || 0,
-          status: item.status || 'Pending',
+          soldQty: item.soldQty || 0,
+          soldAmount: `$${Number(item.soldAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          instockQty: item.instockQty || 0,
+          status: item.status
+            ? item.status.charAt(0).toUpperCase() + item.status.slice(1)
+            : 'Pending',
         }));
-        setDetailedData(formattedData);
 
-        // ✅ Pagination info
-        const pag = detailedRes.data.pagination || {};
+        setDetailedData(formattedData);
         setPagination({
-          showingFrom: pag.showing_from || 0,
-          showingTo: pag.showing_to || 0,
-          totalRecords: pag.total_records || formattedData.length,
+          showingFrom: formattedData.length > 0 ? 1 : 0,
+          showingTo: formattedData.length,
+          totalRecords: formattedData.length,
         });
       } else {
+        setSummary({ totalAmount: '$0.00', totalPaid: '$0.00', totalUnpaid: '$0.00', overdue: '$0.00' });
         setDetailedData([]);
         setPagination({ showingFrom: 0, showingTo: 0, totalRecords: 0 });
       }
@@ -114,13 +109,13 @@ const Salesreport = () => {
     fetchReports();
   }, [companyId]);
 
-  // 🔍 Client-side filtering (only on customer & product name)
+  // Client-side filtering
   const filteredData = detailedData.filter((row) =>
     row.customerName.toLowerCase().includes(customerSearch.toLowerCase()) &&
     row.productName.toLowerCase().includes(productSearch.toLowerCase())
   );
 
-  // 🔁 For demo only — in real app, update via API
+  // Demo: cycle status
   const cycleStatus = (index) => {
     const statuses = ["Paid", "Pending", "Overdue"];
     setDetailedData((prev) =>
@@ -224,6 +219,8 @@ const Salesreport = () => {
               <option value="Computers">Computers</option>
               <option value="Electronics">Electronics</option>
               <option value="Shoe">Shoe</option>
+              <option value="demo1">demo1</option>
+              <option value="Iphone">Iphone</option>
             </select>
           </div>
 
