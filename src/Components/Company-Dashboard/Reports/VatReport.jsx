@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react"; // ✅ added useContext
 import {
   Button,
   Card,
@@ -6,59 +6,69 @@ import {
   Form,
   Row,
   Table,
+  Spinner,
 } from "react-bootstrap";
 import DatePicker from "react-datepicker";
 import { FaFilePdf, FaFileExcel } from "react-icons/fa";
 import "react-datepicker/dist/react-datepicker.css";
+import GetCompanyId from "../../../Api/GetCompanyId";
+import axiosInstance from "../../../Api/axiosInstance";
+import { CurrencyContext } from "../../../hooks/CurrencyContext"; // ✅ only import context, not provider
 
 const VatReport = () => {
-  const [dateRange, setDateRange] = useState([new Date(), new Date()]);
+  const [dateRange, setDateRange] = useState([null, null]);
   const [startDate, endDate] = dateRange;
   const [filterType, setFilterType] = useState("All");
+  const companyId = GetCompanyId();
+  const [vatData, setVatData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // ✅ Get currency context
+  const { convertPrice, symbol } = useContext(CurrencyContext);
 
   const types = ["All", "Outward Supplies", "Inward Supplies", "Adjustments", "Exempt Supplies"];
 
-  const vatEntries = [
-    {
-      type: "Outward Supplies",
-      description: "Sales to GCC customers",
-      taxableAmount: 15000,
-      vatRate: 5,
-      vatAmount: 750,
-    },
-    {
-      type: "Inward Supplies",
-      description: "Purchase from GCC vendors",
-      taxableAmount: 9000,
-      vatRate: 5,
-      vatAmount: 450,
-    },
-    {
-      type: "Adjustments",
-      description: "Credit note issued",
-      taxableAmount: -2000,
-      vatRate: 5,
-      vatAmount: -100,
-    },
-    {
-      type: "Exempt Supplies",
-      description: "Exported goods (zero-rated)",
-      taxableAmount: 5000,
-      vatRate: 0,
-      vatAmount: 0,
-    },
-  ];
+  const fetchVatReport = async () => {
+    if (!companyId) {
+      setError("Company ID is missing.");
+      return;
+    }
 
-  const filteredRows = vatEntries.filter(
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = { company_id: companyId };
+      const response = await axiosInstance.get("/vat-report", { params });
+
+      if (response.data?.success && Array.isArray(response.data.vatSummary)) {
+        setVatData(response.data.vatSummary);
+      } else {
+        setVatData([]);
+        setError("Unexpected response format.");
+      }
+    } catch (err) {
+      console.error("VAT Report fetch error:", err);
+      setError("Failed to load VAT data. Please try again.");
+      setVatData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVatReport();
+  }, [companyId]);
+
+  const filteredRows = vatData.filter(
     (e) => filterType === "All" || e.type === filterType
   );
 
   return (
     <div className="p-4 mt-4">
       <h4 className="fw-bold">GCC VAT Return Report</h4>
-      <p className="text-muted mb-4">
-        Auto-generated VAT summary.
-      </p>
+      <p className="text-muted mb-4">Auto-generated VAT summary.</p>
 
       {/* 🔍 Filter Section */}
       <div className="shadow-sm rounded-4 p-4 mb-4 border">
@@ -73,19 +83,23 @@ const VatReport = () => {
               isClearable
               className="form-control"
               dateFormat="dd/MM/yyyy"
+              placeholderText="Select date range"
+              disabled
             />
           </Col>
           <Col md={4}>
             <Form.Label className="fw-semibold">Transaction Type</Form.Label>
             <Form.Select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
               {types.map((t, i) => (
-                <option key={i}>{t}</option>
+                <option key={i} value={t}>
+                  {t}
+                </option>
               ))}
             </Form.Select>
           </Col>
           <Col md={4}>
             <Button
-              variant="" // remove default variant
+              variant=""
               style={{
                 backgroundColor: "#27b2b6",
                 borderColor: "#27b2b6",
@@ -93,15 +107,23 @@ const VatReport = () => {
                 width: "100%",
               }}
               className="py-2"
+              onClick={fetchVatReport}
+              disabled={loading}
             >
-              Generate Report
+              {loading ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" className="me-2" /> Loading...
+                </>
+              ) : (
+                "Generate Report"
+              )}
             </Button>
           </Col>
         </Row>
       </div>
 
       {/* 📊 VAT Table */}
-      <Card className=" rounded-4 p-4 border-0">
+      <Card className="rounded-4 p-4 border-0">
         <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap">
           <h5 className="fw-bold mb-2 mb-md-0">VAT Summary</h5>
           <div className="d-flex gap-2">
@@ -109,6 +131,8 @@ const VatReport = () => {
             <Button variant="outline-success" size="sm"><FaFileExcel /></Button>
           </div>
         </div>
+
+        {error && <div className="alert alert-danger">{error}</div>}
 
         <Table hover responsive className="text-nowrap mb-0 align-middle">
           <thead className="bg-light text-dark fw-semibold">
@@ -121,36 +145,51 @@ const VatReport = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((row, idx) => (
-              <tr key={idx}>
-                <td>{row.type}</td>
-                <td>{row.description}</td>
-                <td>${row.taxableAmount.toFixed(2)}</td>
-                <td>{row.vatRate}%</td>
-                <td>${row.vatAmount.toFixed(2)}</td>
+            {loading ? (
+              <tr>
+                <td colSpan="5" className="text-center py-3">
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Loading VAT data...
+                </td>
               </tr>
-            ))}
+            ) : filteredRows.length > 0 ? (
+              filteredRows.map((row, idx) => (
+                <tr key={idx}>
+                  <td>{row.type}</td>
+                  <td>{row.description}</td>
+                  <td>
+                    {symbol} {convertPrice(row.taxableAmount)}
+                  </td>
+                  <td>
+                    {parseFloat(row.vatRate).toFixed(2)}%
+                  </td>
+                  <td>
+                    {symbol} {convertPrice(row.vatAmount)}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="text-center text-muted py-3">
+                  No VAT records found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </Table>
       </Card>
-      <small className="text-dark mt-3">
+
+      {/* Page Info */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
-  <Card.Body>
-    {/* Heading */}
-    <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
-
-    {/* VAT Bullet Points */}
-    <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
-      <li>VAT (Value Added Tax) is an indirect tax applied on the sale of goods and services.</li>
-      <li>It is charged at every stage of the supply chain — from manufacturer to retailer.</li>
-      <li>The final consumer ultimately bears the VAT cost while businesses collect and remit it.</li>
-    </ul>
-  </Card.Body>
-</Card>
-
-
-
-      </small>
+        <Card.Body>
+          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
+          <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
+            <li>VAT (Value Added Tax) is an indirect tax applied on the sale of goods and services.</li>
+            <li>It is charged at every stage of the supply chain — from manufacturer to retailer.</li>
+            <li>The final consumer ultimately bears the VAT cost while businesses collect and remit it.</li>
+          </ul>
+        </Card.Body>
+      </Card>
     </div>
   );
 };

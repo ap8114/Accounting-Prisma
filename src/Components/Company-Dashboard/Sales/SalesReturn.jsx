@@ -94,42 +94,62 @@ const SalesReturn = () => {
     }
   };
 
+  // ========= FETCH RETURNS (Updated for real API) =========
   const fetchReturns = async () => {
     try {
       const response = await axiosInstance.get(`/sales-return/get-returns`, {
         params: { company_id: companyId }
       });
-      const data = response.data;
-      const mapped = (data.data || []).map(r => ({
-        id: r.id,
+
+      if (!response.data?.success) {
+        throw new Error("Invalid response from server");
+      }
+
+      const { data: rawReturns, summary } = response.data;
+
+      // ✅ Map only top-level fields (no itemsList in list response)
+      const mapped = (rawReturns || []).map((r) => ({
+        id: r.sr_no, // or use a real ID if available — currently sr_no is used
         returnNo: r.return_no,
         invoiceNo: r.invoice_no,
         customer_id: r.customer_id,
         warehouse_id: r.warehouse_id,
         date: r.return_date ? r.return_date.split('T')[0] : '',
-        items: r.sales_return_items?.reduce((sum, i) => sum + (parseInt(i.quantity) || 0), 0) || 0,
-        status: r.status.charAt(0).toUpperCase() + r.status.slice(1),
-        amount: parseFloat(r.grand_total) || 0,
+        items: r.items || 0,
+        status: r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : 'Pending',
+        amount: parseFloat(r.amount) || 0,
         returnType: r.return_type || 'Sales Return',
-        reason: r.reason_for_return || '',
+        reason: r.reason || '',
         referenceId: r.reference_id || '',
-        voucherNo: r.manual_voucher_no || '',
-        narration: r.notes || '',
-        itemsList: (r.sales_return_items || []).map(i => ({
-          productId: i.product_id,
-          productName: i.item_name,
-          qty: parseInt(i.quantity) || 0,
-          price: parseFloat(i.rate) || 0,
-          total: parseFloat(i.amount) || 0,
-          narration: i.narration || '-'
-        }))
+        voucherNo: r.manual_voucher_no || r.auto_voucher_no || '',
+        narration: '', // Not available in list view
+        // ❌ Do NOT include itemsList here — it's not in the API
       }));
+
       setReturns(mapped);
+
+      // ✅ Set summary stats if available
+      if (summary) {
+        setSummary({
+          totalReturns: summary.totalReturns || 0,
+          processed: summary.processed || 0,
+          pending: summary.pending || 0,
+          totalValue: summary.totalValue || 0,
+        });
+      }
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.message || err.message || 'Failed to load sales returns');
+      console.error("Error fetching returns:", err);
+      setError(err.response?.data?.message || "Failed to load sales returns");
     }
   };
+
+  // Add this near your other state declarations
+  const [summary, setSummary] = useState({
+    totalReturns: 0,
+    processed: 0,
+    pending: 0,
+    totalValue: 0,
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -613,12 +633,13 @@ const SalesReturn = () => {
       </div>
 
       {/* Summary Cards */}
+
       <div className="row mb-4">
         <div className="col-md-3 mb-3">
           <div className="card border-primary">
             <div className="card-body">
               <h6 className="card-title text-muted">Total Returns</h6>
-              <h4 className="text-primary">{returns.length}</h4>
+              <h4 className="text-primary">{summary.totalReturns}</h4>
             </div>
           </div>
         </div>
@@ -626,7 +647,7 @@ const SalesReturn = () => {
           <div className="card border-success">
             <div className="card-body">
               <h6 className="card-title text-muted">Processed</h6>
-              <h4 className="text-success">{returns.filter(r => r.status === 'Processed').length}</h4>
+              <h4 className="text-success">{summary.processed}</h4>
             </div>
           </div>
         </div>
@@ -634,7 +655,7 @@ const SalesReturn = () => {
           <div className="card border-warning">
             <div className="card-body">
               <h6 className="card-title text-muted">Pending</h6>
-              <h4 className="text-warning">{returns.filter(r => r.status === 'Pending').length}</h4>
+              <h4 className="text-warning">{summary.pending}</h4>
             </div>
           </div>
         </div>
@@ -642,7 +663,9 @@ const SalesReturn = () => {
           <div className="card border-danger">
             <div className="card-body">
               <h6 className="card-title text-muted">Total Value</h6>
-              <h4 className="text-danger">₹ {returns.reduce((sum, r) => sum + r.amount, 0).toLocaleString('en-IN')}</h4>
+              <h4 className="text-danger">
+                ₹ {summary.totalValue.toLocaleString('en-IN')}
+              </h4>
             </div>
           </div>
         </div>

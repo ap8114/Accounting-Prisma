@@ -5,16 +5,15 @@ import { BsGear } from "react-icons/bs";
 import { BiSolidReport, BiSolidDollarCircle } from "react-icons/bi";
 import { Card, Table, Row, Col, ToastContainer, Toast } from "react-bootstrap";
 import GetCompanyId from "../../../Api/GetCompanyId";
-import axiosInstance from "../../../Api/axiosInstance"; // 🔸 Adjust path if needed
+import axiosInstance from "../../../Api/axiosInstance";
 
 const Purchasereport = () => {
   const [vendorSearch, setVendorSearch] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
-  const [dateFilter, setDateFilter] = useState(""); // for "Choose Date"
+  const [dateFilter, setDateFilter] = useState("");
 
   const companyId = GetCompanyId();
 
-  // Summary state
   const [summary, setSummary] = useState({
     totalPurchase: "$0.00",
     paidAmount: "$0.00",
@@ -22,7 +21,6 @@ const Purchasereport = () => {
     overdue: "$0.00",
   });
 
-  // Detailed table data
   const [detailedData, setDetailedData] = useState([]);
   const [pagination, setPagination] = useState({
     showingFrom: 0,
@@ -33,7 +31,6 @@ const Purchasereport = () => {
   const [loading, setLoading] = useState(false);
   const [errorToast, setErrorToast] = useState({ show: false, message: "" });
 
-  // Fetch purchase reports 
   const fetchPurchaseReports = async () => {
     if (!companyId) {
       setErrorToast({ show: true, message: "Company ID missing. Please log in again." });
@@ -44,60 +41,52 @@ const Purchasereport = () => {
     setErrorToast({ show: false, message: "" });
 
     try {
-      const params = { companyId };
-      if (dateFilter) params.date = dateFilter; // or use startDate/endDate if your API expects that
+      const params = { company_id: companyId }; // 🔸 Note: API uses `company_id`, not `companyId`
+      if (dateFilter) params.date = dateFilter;
 
-      const [summaryRes, detailedRes] = await Promise.all([
-        axiosInstance.get("/purchase-reports/summary", { params }),
-        axiosInstance.get("/purchase-reports/detailed", { params }),
-      ]);
+      // 🔄 Single endpoint returns both summary + table (based on your response)
+      const response = await axiosInstance.get("/purchase-reports/summary", { params });
 
-      // ✅ Process Summary
-      if (summaryRes.data?.success && summaryRes.data?.data) {
-        const s = summaryRes.data.data;
-        const formatCurrency = (val) =>
-          `$${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        setSummary({
-          totalPurchase: formatCurrency(s.total_purchase),
-          paidAmount: formatCurrency(s.paid_amount),
-          pendingPayment: formatCurrency(s.pending_payment),
-          overdue: formatCurrency(s.overdue),
-        });
-      } else {
-        setSummary({ totalPurchase: "$0.00", paidAmount: "$0.00", pendingPayment: "$0.00", overdue: "$0.00" });
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || "Invalid response from server");
       }
 
-      // ✅ Process Detailed Data
-      if (detailedRes.data?.success && Array.isArray(detailedRes.data.data)) {
-        const formatted = detailedRes.data.data.map((item) => ({
-          po: item.po_number || item.po || "N/A",
-          vendor: item.vendor_name || "N/A",
-          vendorArabic: item.vendor_name_arabic || "N/A",
-          product: item.product_name || "N/A",
-          category: item.category || "N/A",
-          qty: item.qty_ordered || item.quantity || 0,
-          unitPrice: `$${Number(item.unit_price || 0).toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`,
-          total: `$${Number(item.total_amount || 0).toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`,
-          status: item.status || "Pending",
-        }));
-        setDetailedData(formatted);
+      const { summary: apiSummary, table: apiTable } = response.data;
 
-        const pag = detailedRes.data.pagination || {};
-        setPagination({
-          showingFrom: pag.showing_from || 0,
-          showingTo: pag.showing_to || 0,
-          totalRecords: pag.total_records || formatted.length,
-        });
-      } else {
-        setDetailedData([]);
-        setPagination({ showingFrom: 0, showingTo: 0, totalRecords: 0 });
-      }
+      // ✅ Format Summary
+      const formatCurrency = (val) =>
+        `$${Number(val || 0).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
+
+      setSummary({
+        totalPurchase: formatCurrency(apiSummary.totalPurchase),
+        paidAmount: formatCurrency(apiSummary.paidAmount),
+        pendingPayment: formatCurrency(apiSummary.pendingPayment),
+        overdue: formatCurrency(apiSummary.overdue),
+      });
+
+      // ✅ Format Table Data
+      const formatted = (apiTable || []).map((item) => ({
+        po: item.poNumber || "N/A",
+        vendor: item.vendorName || "N/A",
+        vendorArabic: item.vendorArabicName || "N/A",
+        product: item.productName || "N/A",
+        category: item.category || "N/A",
+        qty: item.qtyOrdered || 0,
+        unitPrice: formatCurrency(item.unitPrice),
+        total: formatCurrency(item.totalAmount),
+        status: item.status || "Pending",
+      }));
+
+      setDetailedData(formatted);
+      const total = formatted.length;
+      setPagination({
+        showingFrom: total > 0 ? 1 : 0,
+        showingTo: total,
+        totalRecords: total,
+      });
     } catch (err) {
       console.error("Purchase Report Error:", err);
       setErrorToast({
@@ -113,15 +102,15 @@ const Purchasereport = () => {
     fetchPurchaseReports();
   }, [companyId]);
 
-  // 🔍 Client-side filtering (vendor + category only)
+  // 🔍 Client-side filtering
   const filteredData = detailedData.filter((row) =>
     row.vendor.toLowerCase().includes(vendorSearch.toLowerCase()) &&
     row.category.toLowerCase().includes(categorySearch.toLowerCase())
   );
 
-  // 🔁 For demo only — replace with API call in production
+  // 🔁 Demo-only status cycling (optional)
   const cycleStatus = (index) => {
-    const statuses = ["Paid", "Pending", "Overdue"];
+    const statuses = ["Paid", "Pending", "Overdue", "Partial"];
     setDetailedData((prev) =>
       prev.map((row, i) =>
         i === index
@@ -143,42 +132,23 @@ const Purchasereport = () => {
     <div className="container my-4">
       {/* Summary Cards */}
       <div className="row g-3 mb-4">
-        <div className="col-12 col-md-3">
-          <div className="shadow-sm rounded p-3 bg-white border border-success d-flex align-items-center justify-content-between w-100">
-            <div>
-              <small className="text-muted">Total Purchase</small>
-              <h5 className="fw-bold">{summary.totalPurchase}</h5>
+        {[
+          { label: "Total Purchase", value: summary.totalPurchase, color: "#4CAF50", icon: <BiSolidDollarCircle size={28} color="#4CAF50" /> },
+          { label: "Paid Amount", value: summary.paidAmount, color: "#1A73E8", icon: <BiSolidDollarCircle size={28} color="#1A73E8" /> },
+          { label: "Pending Payment", value: summary.pendingPayment, color: "#EF6C00", icon: <BiSolidDollarCircle size={28} color="#EF6C00" /> },
+          { label: "Overdue", value: summary.overdue, color: "#D32F2F", icon: <BiSolidReport size={28} color="#D32F2F" /> },
+        ].map((card, idx) => (
+          <div className="col-12 col-md-3" key={idx}>
+            <div className="shadow-sm rounded p-3 bg-white border d-flex align-items-center justify-content-between w-100"
+              style={{ borderColor: card.color }}>
+              <div>
+                <small className="text-muted">{card.label}</small>
+                <h5 className="fw-bold">{card.value}</h5>
+              </div>
+              {card.icon}
             </div>
-            <BiSolidDollarCircle size={28} color="#4CAF50" />
           </div>
-        </div>
-        <div className="col-12 col-md-3">
-          <div className="shadow-sm rounded p-3 bg-white border border-primary d-flex align-items-center justify-content-between w-100">
-            <div>
-              <small className="text-muted">Paid Amount</small>
-              <h5 className="fw-bold">{summary.paidAmount}</h5>
-            </div>
-            <BiSolidDollarCircle size={28} color="#1A73E8" />
-          </div>
-        </div>
-        <div className="col-12 col-md-3">
-          <div className="shadow-sm rounded p-3 bg-white border border-warning d-flex align-items-center justify-content-between w-100">
-            <div>
-              <small className="text-muted">Pending Payment</small>
-              <h5 className="fw-bold">{summary.pendingPayment}</h5>
-            </div>
-            <BiSolidDollarCircle size={28} color="#EF6C00" />
-          </div>
-        </div>
-        <div className="col-12 col-md-3">
-          <div className="shadow-sm rounded p-3 bg-white border border-danger d-flex align-items-center justify-content-between w-100">
-            <div>
-              <small className="text-muted">Overdue</small>
-              <h5 className="fw-bold">{summary.overdue}</h5>
-            </div>
-            <BiSolidReport size={28} color="#D32F2F" />
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Filters */}
@@ -231,15 +201,9 @@ const Purchasereport = () => {
         <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <h5 className="fw-bold mb-0">Purchase Report</h5>
           <div className="d-flex gap-2">
-            <button className="btn btn-light">
-              <FaFilePdf className="text-danger" />
-            </button>
-            <button className="btn btn-light">
-              <FaFileExcel className="text-success" />
-            </button>
-            <button className="btn btn-light">
-              <BsGear />
-            </button>
+            <button className="btn btn-light"><FaFilePdf className="text-danger" /></button>
+            <button className="btn btn-light"><FaFileExcel className="text-success" /></button>
+            <button className="btn btn-light"><BsGear /></button>
           </div>
         </div>
 
@@ -260,20 +224,13 @@ const Purchasereport = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan="9" className="text-center text-muted">
-                    Loading...
-                  </td>
-                </tr>
+                <tr><td colSpan="9" className="text-center text-muted">Loading...</td></tr>
               ) : filteredData.length > 0 ? (
                 filteredData.map((row, i) => (
                   <tr key={i}>
                     <td>{row.po}</td>
                     <td>{row.vendor}</td>
-                    <td
-                      className="text-end"
-                      style={{ fontFamily: "Segoe UI, Arial, sans-serif" }}
-                    >
+                    <td style={{ fontFamily: "Segoe UI, Arial, sans-serif", textAlign: "end" }}>
                       {row.vendorArabic}
                     </td>
                     <td>{row.product}</td>
@@ -286,11 +243,10 @@ const Purchasereport = () => {
                         role="button"
                         onClick={() => cycleStatus(i)}
                         className={`badge ${
-                          row.status === "Paid"
-                            ? "bg-success"
-                            : row.status === "Pending"
-                            ? "bg-warning text-dark"
-                            : "bg-danger"
+                          row.status === "Paid" ? "bg-success" :
+                          row.status === "Pending" ? "bg-warning text-dark" :
+                          row.status === "Partial" ? "bg-info" :
+                          "bg-danger"
                         }`}
                         style={{ cursor: "pointer" }}
                       >
@@ -300,11 +256,7 @@ const Purchasereport = () => {
                   </tr>
                 ))
               ) : (
-                <tr>
-                  <td colSpan="9" className="text-center text-muted">
-                    No matching records found
-                  </td>
-                </tr>
+                <tr><td colSpan="9" className="text-center text-muted">No matching records found</td></tr>
               )}
             </tbody>
           </Table>
@@ -312,32 +264,22 @@ const Purchasereport = () => {
           {/* Pagination Footer */}
           <div className="d-flex justify-content-between align-items-center mt-3 px-3">
             <span className="small text-muted">
-              Showing {pagination.showingFrom} to {pagination.showingTo} of{" "}
-              {pagination.totalRecords} results
+              Showing {pagination.showingFrom} to {pagination.showingTo} of {pagination.totalRecords} results
             </span>
             <nav>
               <ul className="pagination pagination-sm mb-0">
-                <li className="page-item disabled">
-                  <button className="page-link rounded-start">&laquo;</button>
-                </li>
+                <li className="page-item disabled"><button className="page-link">&laquo;</button></li>
                 <li className="page-item active">
-                  <button
-                    className="page-link"
-                    style={{ backgroundColor: "#3daaaaff", borderColor: "#3daaaaff" }}
-                  >
-                    1
-                  </button>
+                  <button className="page-link" style={{ backgroundColor: "#3daaaaff", borderColor: "#3daaaaff" }}>1</button>
                 </li>
-                <li className="page-item disabled">
-                  <button className="page-link rounded-end">&raquo;</button>
-                </li>
+                <li className="page-item disabled"><button className="page-link">&raquo;</button></li>
               </ul>
             </nav>
           </div>
         </div>
       </div>
 
-      {/* Toast for Errors */}
+      {/* Toast */}
       <ToastContainer position="top-end" className="p-3">
         <Toast
           bg="danger"
@@ -346,9 +288,7 @@ const Purchasereport = () => {
           delay={5000}
           autohide
         >
-          <Toast.Header>
-            <strong className="me-auto">Error</strong>
-          </Toast.Header>
+          <Toast.Header><strong className="me-auto">Error</strong></Toast.Header>
           <Toast.Body className="text-white">{errorToast.message}</Toast.Body>
         </Toast>
       </ToastContainer>
