@@ -4475,7 +4475,9 @@ const MultiStepSalesForm = ({
             </Form.Group>
           </Col>
           <Col md={6} className="d-flex flex-column align-items-end">
+          
             <h5>SHIP TO</h5>
+
             <div className="w-100 text-end" style={{ maxWidth: "400px" }}>
               <Form.Group className="mb-2">
                 <Form.Control
