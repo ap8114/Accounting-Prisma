@@ -492,7 +492,7 @@ const Invoice = () => {
                     <td>{statusBadge(getStepStatus(order.steps, 'delivery_challan'))}</td>
                     <td>{statusBadge(getStepStatus(order.steps, 'invoice'))}</td>
                     <td>{statusBadge(getStepStatus(order.steps, 'payment'))}</td>
-                    <td>
+                    <td className='d-flex'>
                       <Button
                         size="sm"
                         className="me-1 mb-1"

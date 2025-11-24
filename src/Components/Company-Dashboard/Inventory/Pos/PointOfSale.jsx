@@ -847,6 +847,7 @@ const PointOfSale = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [quantity, setQuantity] = useState({});
+  const [selectedWarehouses, setSelectedWarehouses] = useState({}); // New state for selected warehouses
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
   const [quantityError, setQuantityError] = useState("");
@@ -969,7 +970,8 @@ const PointOfSale = () => {
         products: selectedProducts.map(product => ({
           product_id: product.id,
           quantity: quantity[product.id] || 1,
-          price: parseFloat(priceMap[product.id] ?? product.initial_cost)
+          price: parseFloat(priceMap[product.id] ?? product.initial_cost),
+          warehouse_id: selectedWarehouses[product.id] || (product.warehouses && product.warehouses.length > 0 ? product.warehouses[0].warehouse_id : null)
         })),
         subtotal: calculateSubTotal(),
         total: calculateTotal(),
@@ -1004,6 +1006,7 @@ const PointOfSale = () => {
               selectedProducts,
               quantity,
               priceMap,
+              selectedWarehouses, // Pass selected warehouses
               amountPaid,
               amountDue,
               total: calculateTotal(),
@@ -1029,6 +1032,7 @@ const PointOfSale = () => {
     setSelectedCustomer(null);
     setSelectedProducts([]);
     setQuantity({});
+    setSelectedWarehouses({}); // Clear selected warehouses
     setPaymentStatus("3");
     setAmountPaid(0);
     setAmountDue(0);
@@ -1115,6 +1119,15 @@ const PointOfSale = () => {
     }
   };
 
+  // New handler for warehouse selection
+  const handleWarehouseChange = (e) => {
+    const warehouseId = e.target.value;
+    setSelectedWarehouses(prev => ({
+      ...prev,
+      [currentProduct.id]: warehouseId
+    }));
+  };
+
   const calculateSubTotal = () => {
     const productSubTotal = selectedProducts.reduce((total, item) => {
       const productPrice = parseFloat(priceMap[item.id] ?? item.initial_cost);
@@ -1168,15 +1181,34 @@ const PointOfSale = () => {
       ...prev,
       [product.id]: prev[product.id] || 1,
     }));
+    
+    // Set default warehouse if not already selected
+    if (!selectedWarehouses[product.id] && product.warehouses && product.warehouses.length > 0) {
+      setSelectedWarehouses(prev => ({
+        ...prev,
+        [product.id]: product.warehouses[0].warehouse_id
+      }));
+    }
+    
     setIsModalVisible(true);
   };
 
   const handleOk = () => {
-    const availableStock = warehouseStock[currentProduct.id] || 0;
+    const selectedWarehouseId = selectedWarehouses[currentProduct.id];
+    // Find the warehouse in the current product's warehouses array
+    const selectedWarehouse = currentProduct.warehouses?.find(wh => String(wh.warehouse_id) === String(selectedWarehouseId));
+    
+    // Debug logging
+    console.log("Selected warehouse ID:", selectedWarehouseId);
+    console.log("Selected warehouse:", selectedWarehouse);
+    console.log("All warehouses:", currentProduct.warehouses);
+    
+    // If we can't find the warehouse, try to match by string conversion
+    const availableStock = selectedWarehouse ? selectedWarehouse.stock_qty : 0;
     const requestedQuantity = quantity[currentProduct.id] || 1;
 
     if (requestedQuantity > availableStock) {
-      setQuantityError(`Only ${availableStock} units available in stock.`);
+      setQuantityError(`Only ${availableStock} units available in selected warehouse.`);
       return;
     }
 
@@ -1184,9 +1216,17 @@ const PointOfSale = () => {
     const index = selectedProducts.findIndex((p) => p.id === currentProduct.id);
     const updated = [...selectedProducts];
     if (index > -1) {
-      updated[index] = { ...updated[index], quantity: quantity[currentProduct.id] || 1 };
+      updated[index] = { 
+        ...updated[index], 
+        quantity: quantity[currentProduct.id] || 1,
+        selectedWarehouseId: selectedWarehouseId
+      };
     } else {
-      updated.push({ ...currentProduct, quantity: quantity[currentProduct.id] || 1 });
+      updated.push({ 
+        ...currentProduct, 
+        quantity: quantity[currentProduct.id] || 1,
+        selectedWarehouseId: selectedWarehouseId
+      });
     }
     setSelectedProducts(updated);
     setIsModalVisible(false);
@@ -1428,6 +1468,8 @@ const PointOfSale = () => {
                     const unitPrice = parseFloat(priceMap[product.id] ?? product.initial_cost) || 0;
                     const total = unitPrice * qty;
                     const totalStock = product.warehouses?.reduce((sum, wh) => sum + (wh.stock_qty || 0), 0) || 0;
+                    const selectedWarehouseId = selectedWarehouses[product.id];
+                    const selectedWarehouse = product.warehouses?.find(wh => String(wh.warehouse_id) === String(selectedWarehouseId));
                     
                     return (
                       <Col key={product.id} md={6} className="mb-3">
@@ -1445,16 +1487,9 @@ const PointOfSale = () => {
                               <Card.Text>
                                 <div style={{ maxHeight: "80px", overflowY: "auto" }}>
                                   <small>
-                                    <strong>Warehouses:</strong><br />
-                                    {product.warehouses && product.warehouses.length > 0 ? (
-                                      product.warehouses.map((wh, index) => (
-                                        <div key={index}>
-                                          {wh.warehouse_name}: {wh.stock_qty} units ({wh.location})
-                                        </div>
-                                      ))
-                                    ) : (
-                                      "N/A"
-                                    )}
+                                    <strong>Selected Warehouse:</strong> {selectedWarehouse ? selectedWarehouse.warehouse_name : 'N/A'}<br />
+                                  
+                                   
                                   </small>
                                 </div>
                                 <br />
@@ -1583,48 +1618,54 @@ const PointOfSale = () => {
       {/* Modals */}
       <Modal show={isModalVisible} onHide={handleCancel} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Enter Product Quantity</Modal.Title>
+          <Modal.Title>Product Details</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <h5>{currentProduct?.item_name}</h5>
-          <div className="mb-2">
-            <strong>Warehouses:</strong>
-            <div style={{ maxHeight: "100px", overflowY: "auto" }}>
-              {currentProduct?.warehouses && currentProduct?.warehouses.length > 0 ? (
-                currentProduct.warehouses.map((wh, index) => (
-                  <div key={index} className="mb-1">
-                    <small>
-                      {wh.warehouse_name}: {wh.stock_qty} units ({wh.location})
-                    </small>
-                  </div>
+         
+          <p><strong>Total Stock:</strong> {warehouseStock[currentProduct?.id] || 0} units</p>
+          
+          <Form.Group className="mb-3">
+            <Form.Label>Select Warehouse</Form.Label>
+            <Form.Select
+              value={selectedWarehouses[currentProduct?.id] || ''}
+              onChange={handleWarehouseChange}
+            >
+              {currentProduct?.warehouses && currentProduct.warehouses.length > 0 ? (
+                currentProduct.warehouses.map((warehouse) => (
+                  <option key={warehouse.warehouse_id} value={warehouse.warehouse_id}>
+                    {warehouse.warehouse_name} - {warehouse.stock_qty} units available
+                  </option>
                 ))
               ) : (
-                <small>N/A</small>
+                <option value="">No warehouses available</option>
               )}
-            </div>
-          </div>
-          <p><strong>Total Stock:</strong> {warehouseStock[currentProduct?.id] || 0} units</p>
+            </Form.Select>
+          </Form.Group>
+          
           <Form.Group className="mb-3">
             <Form.Label>Quantity</Form.Label>
             <Form.Control
               type="number"
               min={1}
-              max={warehouseStock[currentProduct?.id] || 1}
               value={quantity[currentProduct?.id] || 1}
               onChange={(e) =>
                 handleQuantityChange(currentProduct.id, parseInt(e.target.value))
               }
             />
           </Form.Group>
+          
           <Form.Group>
             <Form.Label>Price per unit ({symbol})</Form.Label>
             <Form.Control type="number" value={price} onChange={handlePriceChange} />
           </Form.Group>
+          
           <p className="mt-3">
             <strong>Total Price:</strong> {symbol} {isNaN(price * (quantity[currentProduct?.id] || 1))
               ? "0.00"
               : convertPrice(price * (quantity[currentProduct?.id] || 1))}
           </p>
+          
           {quantityError && <Alert variant="danger" className="mt-2">{quantityError}</Alert>}
         </Modal.Body>
         <Modal.Footer>
