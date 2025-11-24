@@ -5,15 +5,15 @@ import { FaArrowRight, FaTrash } from "react-icons/fa";
 import BaseUrl from "../../../Api/BaseUrl";
 import GetCompanyId from "../../../Api/GetCompanyId";
 
-// Utility to map API status to UI status ("Done", "Pending", etc.)
+// Utility to map API status to UI status
 const mapApiStatusToUiStatus = (apiStatus) => {
   if (!apiStatus || apiStatus === "Pending") return "Pending";
   if (["Approved", "Confirmed", "Completed", "completed"].includes(apiStatus))
     return "Done";
-  return "Pending"; // fallback
+  return "Pending";
 };
 
-// Utility to format amount (e.g., "₹9,510")
+// Format INR amount
 const formatAmount = (value) => {
   if (!value || isNaN(value)) return "₹0";
   return new Intl.NumberFormat("en-IN", {
@@ -29,7 +29,7 @@ const PurchaseOrderr = () => {
   const [error, setError] = useState(null);
   const [stepModal, setStepModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, name }
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const companyId = GetCompanyId();
 
   // Filters
@@ -41,17 +41,21 @@ const PurchaseOrderr = () => {
   const [goodsReceiptStatusFilter, setGoodsReceiptStatusFilter] = useState("");
   const [billStatusFilter, setBillStatusFilter] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
-
-  // Fetch orders
+  const data = initialData.quotation;
+  // Fetch all orders for company
   const fetchPurchaseOrders = async () => {
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${BaseUrl}purchase-orders/company/${companyId}`);
-      if (!response.ok) throw new Error("Failed to fetch purchase orders");
-      const result = await response.json();
+      const res = await fetch(`${BaseUrl}purchase-orders/company/${companyId}`);
+      if (!res.ok) throw new Error("Failed to fetch orders");
+      const result = await res.json();
       if (result.success && Array.isArray(result.data)) {
-        const formattedOrders = result.data.map((po) => {
+        const formatted = result.data.map((po) => {
           const quotationStep = po.steps.find((s) => s.step === "quotation");
           const poStep = po.steps.find((s) => s.step === "purchase_order");
           const grStep = po.steps.find((s) => s.step === "goods_receipt");
@@ -74,10 +78,9 @@ const PurchaseOrderr = () => {
             goodsReceiptStatus: mapApiStatusToUiStatus(grStep?.status),
             billStatus: mapApiStatusToUiStatus(billStep?.status),
             paymentStatus: mapApiStatusToUiStatus(paymentStep?.status),
-            draftStep: "purchase_order",
           };
         });
-        setOrders(formattedOrders);
+        setOrders(formatted);
       } else {
         setOrders([]);
       }
@@ -91,47 +94,153 @@ const PurchaseOrderr = () => {
   };
 
   useEffect(() => {
-    if (companyId) fetchPurchaseOrders();
-    else setLoading(false);
+    if (initialData) {
+      if (initialData.quotation) setQuotationData(initialData.quotation);
+      if (initialData.salesOrder) setPOData(initialData.salesOrder);
+      // ... etc
+      setActiveStep(stepOrder.indexOf(initialStep)); // or similar logic
+    }
+  }, [initialData, initialStep]);
+
+  useEffect(() => {
+    fetchPurchaseOrders();
   }, [companyId]);
 
-  // Handle Create / Continue
-  const handleCreateNewPurchase = (order = null) => {
-    setSelectedOrder(order);
+  // ✅ Handle "Continue" — fetch full order by ID
+  // Handle Create / Continue — now fetches full data by ID
+  const handleCreateNewPurchase = async (order = null) => {
+    if (order) {
+      try {
+        const res = await fetch(`${BaseUrl}purchase-orders/${order.id}`);
+        if (!res.ok) throw new Error("Failed to load purchase order details");
+        const result = await res.json();
+
+        if (result.success && result.data) {
+          const po = result.data;
+
+          // Determine the first incomplete step
+          const stepOrder = ["quotation", "purchase_order", "goods_receipt", "bill", "payment"];
+          let draftStep = "quotation";
+          for (const stepName of stepOrder) {
+            const step = po.steps.find((s) => s.step === stepName);
+            const isDone = ["Approved", "Confirmed", "Completed", "completed"].includes(step?.status);
+            if (!isDone) {
+              draftStep = stepName;
+              break;
+            }
+          }
+
+          // Extract step data safely
+          const quotationStep = po.steps.find((s) => s.step === "quotation");
+          const poStep = po.steps.find((s) => s.step === "purchase_order");
+          const grStep = po.steps.find((s) => s.step === "goods_receipt");
+          const billStep = po.steps.find((s) => s.step === "bill");
+          const paymentStep = po.steps.find((s) => s.step === "payment");
+
+          const enrichedOrder = {
+            id: po.company_info.id,
+            orderNo: poStep?.data?.PO_no || poStep?.data?.Manual_PO_ref || "-",
+            vendor: quotationStep?.data?.quotation_from_vendor_name || "-",
+            date: poStep?.data?.PO_date || po.company_info.created_at.split("T")[0],
+            amount: formatAmount(po.total),
+            // Full step data for pre-fill
+            quotation: quotationStep?.data || null,
+            salesOrder: poStep?.data || null,
+            goodsReceipt: grStep?.data || null,
+            invoice: billStep?.data || null,
+            payment: paymentStep?.data || null,
+            // Statuses for UI
+            purchaseQuotationStatus: mapApiStatusToUiStatus(quotationStep?.status),
+            purchaseOrderStatus: mapApiStatusToUiStatus(poStep?.status),
+            goodsReceiptStatus: mapApiStatusToUiStatus(grStep?.status),
+            billStatus: mapApiStatusToUiStatus(billStep?.status),
+            paymentStatus: mapApiStatusToUiStatus(paymentStep?.status),
+            draftStep, // ✅ Start at first incomplete step
+          };
+
+          setSelectedOrder(enrichedOrder);
+        } else {
+          alert("Order details not found.");
+          return;
+        }
+      } catch (err) {
+        console.error("Error loading order:", err);
+        alert("Could not load purchase order details.");
+        return;
+      }
+    } else {
+      setSelectedOrder(null);
+    }
     setStepModal(true);
   };
-
   const handleCloseModal = () => {
     setStepModal(false);
     setSelectedOrder(null);
   };
 
-  const handleFormSubmit = (formData, lastStep = "quotation") => {
-    alert("Form submit logic not connected to backend yet.");
-    handleCloseModal();
-    // Optionally: fetchPurchaseOrders(); // refetch if needed
-  };
+  // ✅ Handle form submit (POST/PUT)
+  const handleFormSubmit = async (formData, lastStep = "quotation") => {
+    const isEdit = selectedOrder?.id;
 
-  // 🔥 DELETE FUNCTION
-  const handleDelete = async () => {
-    if (!deleteConfirm) return;
+    // Prepare payload for backend
+    const payload = {
+      company_id: companyId,
+      ...formData,
+      // Ensure all steps are present in payload (even if empty)
+      quotation: formData.quotation || {},
+      salesOrder: formData.salesOrder || {},
+      goodsReceipt: formData.goodsReceipt || {},
+      invoice: formData.invoice || {},
+      payment: formData.payment || {},
+    };
+
     try {
-      const response = await fetch(`${BaseUrl}purchase-orders/${deleteConfirm.id}`, {
-        method: "DELETE",
+      const url = isEdit
+        ? `${BaseUrl}purchase-orders/${selectedOrder.id}`
+        : `${BaseUrl}purchase-orders`;
+
+      const response = await fetch(url, {
+        method: isEdit ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
+
       if (response.ok) {
-        // Remove from UI or refetch
-        setOrders((prev) => prev.filter((o) => o.id !== deleteConfirm.id));
-        setDeleteConfirm(null);
+        alert(isEdit ? "Purchase order updated!" : "Purchase order created!");
+        fetchPurchaseOrders(); // ✅ Refetch list
+        handleCloseModal();
       } else {
-        alert("Failed to delete purchase order.");
+        const error = await response.json();
+        alert(`Failed: ${error.message || "Unknown error"}`);
       }
     } catch (err) {
-      console.error("Delete error:", err);
-      alert("Error deleting purchase order.");
+      console.error("Submit error:", err);
+      alert("Network error. Please try again.");
     }
   };
 
+  // 🔥 Delete order
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      const res = await fetch(`${BaseUrl}purchase-orders/${deleteConfirm.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setOrders((prev) => prev.filter((o) => o.id !== deleteConfirm.id));
+        setDeleteConfirm(null);
+      } else {
+        alert("Failed to delete order.");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Error deleting order.");
+    }
+  };
+
+  // Filter logic
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const matchesOrderNo =
@@ -185,17 +294,10 @@ const PurchaseOrderr = () => {
   const statusBadge = (status) => {
     let variant;
     switch (status) {
-      case "Done":
-        variant = "success";
-        break;
-      case "Pending":
-        variant = "secondary";
-        break;
-      case "Cancelled":
-        variant = "danger";
-        break;
-      default:
-        variant = "warning";
+      case "Done": variant = "success"; break;
+      case "Pending": variant = "secondary"; break;
+      case "Cancelled": variant = "danger"; break;
+      default: variant = "warning";
     }
     return <Badge bg={variant}>{status}</Badge>;
   };
@@ -214,11 +316,7 @@ const PurchaseOrderr = () => {
           variant="primary"
           className="mb-3"
           onClick={() => handleCreateNewPurchase()}
-          style={{
-            backgroundColor: "#53b2a5",
-            border: "none",
-            padding: "8px 16px",
-          }}
+          style={{ backgroundColor: "#53b2a5", border: "none", padding: "8px 16px" }}
         >
           + Create New Purchase
         </Button>
@@ -227,126 +325,68 @@ const PurchaseOrderr = () => {
       {/* Filters */}
       <Row className="mb-4 g-3">
         <Col md={3}>
-          <Form.Group>
-            <Form.Label>Purchase No</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Search by No"
-              value={searchOrderNo}
-              onChange={(e) => setSearchOrderNo(e.target.value)}
-            />
+          <Form.Group><Form.Label>Purchase No</Form.Label>
+            <Form.Control type="text" placeholder="Search by No" value={searchOrderNo} onChange={(e) => setSearchOrderNo(e.target.value)} />
           </Form.Group>
         </Col>
         <Col md={3}>
-          <Form.Group>
-            <Form.Label>From Date</Form.Label>
-            <Form.Control
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-            />
+          <Form.Group><Form.Label>From Date</Form.Label>
+            <Form.Control type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
           </Form.Group>
         </Col>
         <Col md={3}>
-          <Form.Group>
-            <Form.Label>To Date</Form.Label>
-            <Form.Control
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-            />
+          <Form.Group><Form.Label>To Date</Form.Label>
+            <Form.Control type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
           </Form.Group>
         </Col>
 
         <Col md={3}>
-          <Form.Group>
-            <Form.Label>Purchase Quotation</Form.Label>
-            <Form.Select
-              value={purchaseQuotationStatusFilter}
-              onChange={(e) => setPurchaseQuotationStatusFilter(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Done">Done</option>
-              <option value="Cancelled">Cancelled</option>
+          <Form.Group><Form.Label>Purchase Quotation</Form.Label>
+            <Form.Select value={purchaseQuotationStatusFilter} onChange={(e) => setPurchaseQuotationStatusFilter(e.target.value)}>
+              <option value="">All</option><option value="Pending">Pending</option><option value="Done">Done</option><option value="Cancelled">Cancelled</option>
             </Form.Select>
           </Form.Group>
         </Col>
-
         <Col md={3}>
-          <Form.Group>
-            <Form.Label>Purchase Order</Form.Label>
-            <Form.Select
-              value={purchaseOrderStatusFilter}
-              onChange={(e) => setPurchaseOrderStatusFilter(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Done">Done</option>
-              <option value="Cancelled">Cancelled</option>
+          <Form.Group><Form.Label>Purchase Order</Form.Label>
+            <Form.Select value={purchaseOrderStatusFilter} onChange={(e) => setPurchaseOrderStatusFilter(e.target.value)}>
+              <option value="">All</option><option value="Pending">Pending</option><option value="Done">Done</option><option value="Cancelled">Cancelled</option>
             </Form.Select>
           </Form.Group>
         </Col>
-
         <Col md={3}>
-          <Form.Group>
-            <Form.Label>Goods Receipt</Form.Label>
-            <Form.Select
-              value={goodsReceiptStatusFilter}
-              onChange={(e) => setGoodsReceiptStatusFilter(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Done">Done</option>
-              <option value="Cancelled">Cancelled</option>
+          <Form.Group><Form.Label>Goods Receipt</Form.Label>
+            <Form.Select value={goodsReceiptStatusFilter} onChange={(e) => setGoodsReceiptStatusFilter(e.target.value)}>
+              <option value="">All</option><option value="Pending">Pending</option><option value="Done">Done</option><option value="Cancelled">Cancelled</option>
             </Form.Select>
           </Form.Group>
         </Col>
-
         <Col md={3}>
-          <Form.Group>
-            <Form.Label>Bill</Form.Label>
-            <Form.Select
-              value={billStatusFilter}
-              onChange={(e) => setBillStatusFilter(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Done">Done</option>
-              <option value="Cancelled">Cancelled</option>
+          <Form.Group><Form.Label>Bill</Form.Label>
+            <Form.Select value={billStatusFilter} onChange={(e) => setBillStatusFilter(e.target.value)}>
+              <option value="">All</option><option value="Pending">Pending</option><option value="Done">Done</option><option value="Cancelled">Cancelled</option>
             </Form.Select>
           </Form.Group>
         </Col>
-
         <Col md={3}>
-          <Form.Group>
-            <Form.Label>Payment</Form.Label>
-            <Form.Select
-              value={paymentStatusFilter}
-              onChange={(e) => setPaymentStatusFilter(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Done">Done</option>
-              <option value="Cancelled">Cancelled</option>
+          <Form.Group><Form.Label>Payment</Form.Label>
+            <Form.Select value={paymentStatusFilter} onChange={(e) => setPaymentStatusFilter(e.target.value)}>
+              <option value="">All</option><option value="Pending">Pending</option><option value="Done">Done</option><option value="Cancelled">Cancelled</option>
             </Form.Select>
           </Form.Group>
         </Col>
 
         <Col md={3} className="d-flex align-items-end">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setSearchOrderNo("");
-              setFromDate("");
-              setToDate("");
-              setPurchaseQuotationStatusFilter("");
-              setPurchaseOrderStatusFilter("");
-              setGoodsReceiptStatusFilter("");
-              setBillStatusFilter("");
-              setPaymentStatusFilter("");
-            }}
-          >
+          <Button variant="secondary" onClick={() => {
+            setSearchOrderNo("");
+            setFromDate("");
+            setToDate("");
+            setPurchaseQuotationStatusFilter("");
+            setPurchaseOrderStatusFilter("");
+            setGoodsReceiptStatusFilter("");
+            setBillStatusFilter("");
+            setPaymentStatusFilter("");
+          }}>
             Clear
           </Button>
         </Col>
@@ -361,9 +401,9 @@ const PurchaseOrderr = () => {
             <th>Vendor</th>
             <th>Date</th>
             <th>Amount</th>
-            <th>Purchase Quotation</th>
-            <th>Purchase Order</th>
-            <th>Goods Receipt</th>
+            <th>Quotation</th>
+            <th>PO</th>
+            <th>GR</th>
             <th>Bill</th>
             <th>Payment</th>
             <th>Actions</th>
@@ -371,9 +411,7 @@ const PurchaseOrderr = () => {
         </thead>
         <tbody>
           {filteredOrders.length === 0 ? (
-            <tr>
-              <td colSpan="11">No purchase orders found.</td>
-            </tr>
+            <tr><td colSpan="11">No purchase orders found.</td></tr>
           ) : (
             filteredOrders.map((order, idx) => (
               <tr key={order.id}>
@@ -389,23 +427,10 @@ const PurchaseOrderr = () => {
                 <td>{statusBadge(order.paymentStatus)}</td>
                 <td>
                   <div className="d-flex gap-1 justify-content-center">
-                    <Button
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => handleCreateNewPurchase(order)}
-                    >
+                    <Button size="sm" variant="outline-primary" onClick={() => handleCreateNewPurchase(order)}>
                       Continue
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline-danger"
-                      onClick={() =>
-                        setDeleteConfirm({
-                          id: order.id,
-                          name: order.orderNo || `Order #${order.id}`,
-                        })
-                      }
-                    >
+                    <Button size="sm" variant="outline-danger" onClick={() => setDeleteConfirm({ id: order.id, name: order.orderNo })}>
                       <FaTrash />
                     </Button>
                   </div>
@@ -416,40 +441,39 @@ const PurchaseOrderr = () => {
         </tbody>
       </Table>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       <Modal show={!!deleteConfirm} onHide={() => setDeleteConfirm(null)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirm Delete</Modal.Title>
-        </Modal.Header>
+        <Modal.Header closeButton><Modal.Title>Confirm Delete</Modal.Title></Modal.Header>
         <Modal.Body>
           <Alert variant="warning">
-            Are you sure you want to delete purchase order{" "}
-            <strong>{deleteConfirm?.name}</strong>? This action cannot be undone.
+            Are you sure you want to delete purchase order <strong>{deleteConfirm?.name}</strong>? This cannot be undone.
           </Alert>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDelete}>
-            Delete
-          </Button>
+          <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+          <Button variant="danger" onClick={handleDelete}>Delete</Button>
         </Modal.Footer>
       </Modal>
 
-      {/* Main Form Modal */}
+      {/* Form Modal */}
       <Modal show={stepModal} onHide={handleCloseModal} size="xl" centered>
         <Modal.Header closeButton>
-          <Modal.Title>
-            {selectedOrder ? "Continue Purchase" : "Create Purchase"}
-          </Modal.Title>
+          <Modal.Title>{selectedOrder ? "Continue Purchase" : "Create Purchase"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+
           <MultiStepPurchaseForms
-            initialData={selectedOrder}
-            initialStep={selectedOrder?.draftStep}
+            initialData={selectedOrder}  // ✅ Correct
+            //  initialData={selectedOrder} 
+            initialStep={selectedOrder?.draftStep || "quotation"}
             onSubmit={handleFormSubmit}
           />
+
+          {/* <MultiStepPurchaseForms
+            initialData={selectedOrder}
+            initialStep={selectedOrder?.draftStep || "quotation"}
+            onSubmit={handleFormSubmit}
+          /> */}
         </Modal.Body>
       </Modal>
     </div>
