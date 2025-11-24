@@ -1,4 +1,3 @@
-// MultiStepSalesForm.jsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   Tabs,
@@ -58,6 +57,9 @@ const MultiStepSalesForm = ({
 
   // Current sales order ID for updates
   const [currentSalesOrderId, setCurrentSalesOrderId] = useState(null);
+
+  // Loading flag for final submit to prevent duplicate clicks
+  const [submittingFinal, setSubmittingFinal] = useState(false);
 
   // --- Form Data State ---
   const [formData, setFormData] = useState(() => {
@@ -917,7 +919,7 @@ const MultiStepSalesForm = ({
           ship_to_attention_name: formData.salesOrder.shipToAttn || "",
           ship_to_company_name: formData.salesOrder.shipToCompanyName || formData[key].shipToName,
         },
-        items: formData[key].items.map((item) => ({
+        items: (formData[key] && Array.isArray(formData[key].items) ? formData[key].items : (formData.invoice && Array.isArray(formData.invoice.items) ? formData.invoice.items : [])).map((item) => ({
           item_name: item.item_name || item.description,
           description: item.description,
           qty: item.qty,
@@ -947,20 +949,11 @@ const MultiStepSalesForm = ({
           },
           sales_order: {
             SO_no: formData.salesOrder.salesOrderNo,
-            manual_ref_no: formData.salesOrder.manualOrderRef,
-            manual_quo_no: formData.salesOrder.manualQuotationRef,
+            manual_ref_no: formData.salesOrder.manualQuotationRef,
+         
             order_date: formData.salesOrder.orderDate,
             customer_no: formData.salesOrder.customerNo,
-            bill_to_attention_name: formData.salesOrder.billToAttn,
-            bill_to_company_name: formData.salesOrder.billToCompanyName,
-            bill_to_address: formData.salesOrder.billToAddress,
-            bill_to_email: formData.salesOrder.billToEmail,
-            bill_to_phone: formData.salesOrder.billToPhone,
-            ship_to_attention_name: formData.salesOrder.shipToAttn,
-            ship_to_company_name: formData.salesOrder.shipToCompanyName,
-            ship_to_address: formData.salesOrder.shipToAddress,
-            ship_to_email: formData.salesOrder.shipToEmail,
-            ship_to_phone: formData.salesOrder.shipToPhone,
+    
           },
           delivery_challan: {
             challan_no: formData.deliveryChallan.challanNo,
@@ -969,14 +962,7 @@ const MultiStepSalesForm = ({
             vehicle_no: formData.deliveryChallan.vehicleNo,
             driver_name: formData.deliveryChallan.driverName,
             driver_phone: formData.deliveryChallan.driverPhone,
-            bill_to_name: formData.deliveryChallan.billToName,
-            bill_to_address: formData.deliveryChallan.billToAddress,
-            bill_to_email: formData.deliveryChallan.billToEmail,
-            bill_to_phone: formData.deliveryChallan.billToPhone,
-            ship_to_name: formData.deliveryChallan.shipToName,
-            ship_to_address: formData.deliveryChallan.shipToAddress,
-            ship_to_email: formData.deliveryChallan.shipToEmail,
-            ship_to_phone: formData.deliveryChallan.shipToPhone,
+          
           },
           invoice: {
             invoice_no: formData.invoice.invoiceNo,
@@ -990,10 +976,7 @@ const MultiStepSalesForm = ({
             customer_address: formData.invoice.customerAddress,
             customer_email: formData.invoice.customerEmail,
             customer_phone: formData.invoice.customerPhone,
-            ship_to_name: formData.invoice.shipToName,
-            ship_to_address: formData.invoice.shipToAddress,
-            ship_to_email: formData.invoice.shipToEmail,
-            ship_to_phone: formData.invoice.shipToPhone,
+          
           },
           payment: {
             payment_no: formData.payment.paymentNo,
@@ -1003,17 +986,14 @@ const MultiStepSalesForm = ({
             payment_method: formData.payment.paymentMethod,
             payment_status: formData.payment.paymentStatus,
             payment_note: formData.payment.note,
-            customer_name: formData.payment.customerName,
-            customer_address: formData.payment.customerAddress,
-            customer_email: formData.payment.customerEmail,
-            customer_phone: formData.payment.customerPhone,
+           
           },
         },
         additional_info: {
-          files: formData[key].files,
-          signature_url: formData[key].signature,
-          photo_url: formData[key].photo,
-          attachment_url: formData[key].files.length > 0 ? formData[key].files[0].base64 : "",
+          files: (formData[key] && Array.isArray(formData[key].files) ? formData[key].files : []),
+          signature_url: formData[key] ? formData[key].signature : "",
+          photo_url: formData[key] ? formData[key].photo : "",
+          attachment_url: (formData[key] && Array.isArray(formData[key].files) && formData[key].files.length > 0) ? formData[key].files[0].base64 : "",
         },
         current_step: key, // Indicate which step is currently being saved
       };
@@ -1243,21 +1223,162 @@ const MultiStepSalesForm = ({
   };
 
   const handleFinalSubmit = async () => {
+    console.log("handleFinalSubmit: invoked", { key, currentSalesOrderId });
+    if (submittingFinal) {
+      console.log("handleFinalSubmit: already submitting, ignoring duplicate click");
+      return;
+    }
+    setSubmittingFinal(true);
     try {
-      // Save the payment data
-      await handleSaveDraft();
+      // Resolve company id (try GetCompanyId, then props or initialData). Do not bail out —
+      // proceed with the request even if company id is missing so the API still fires.
+      let company_id = GetCompanyId();
+      if (!company_id && companyDetails && companyDetails.id) company_id = companyDetails.id;
+      if (!company_id && initialData) {
+        company_id = initialData.company_id || (initialData.company_info && initialData.company_info.company_id);
+      }
+      if (!company_id) console.warn("handleFinalSubmit: company_id not found from GetCompanyId/companyDetails/initialData — proceeding without it");
+
+      // Build payload (same structure as handleSaveDraft) and ensure company_id is included
+      const endpoint = "sales-order/create-sales-order";
+      const payload = {
+        company_id: company_id,
+        company_info: {
+          company_id: company_id,
+          company_name: formData[key].companyName,
+          company_address: formData[key].companyAddress,
+          company_email: formData[key].companyEmail,
+          company_phone: formData[key].companyPhone,
+          logo_url: formData[key].companyLogo,
+          bank_name: formData.quotation.bankName,
+          account_no: formData.quotation.accountNo,
+          account_holder: formData.quotation.accountHolder,
+          ifsc_code: formData.quotation.ifsc,
+          terms: formData[key].terms,
+        },
+        shipping_details: {
+          bill_to_name: formData[key].billToName || formData[key].customerName,
+          bill_to_address: formData[key].billToAddress || formData[key].customerAddress,
+          bill_to_email: formData[key].billToEmail || formData[key].customerEmail,
+          bill_to_phone: formData[key].billToPhone || formData[key].customerPhone,
+          bill_to_attention_name: formData.salesOrder.billToAttn || "",
+          bill_to_company_name: formData.salesOrder.billToCompanyName || formData[key].billToName || formData[key].customerName,
+          ship_to_name: formData[key].shipToName,
+          ship_to_address: formData[key].shipToAddress,
+          ship_to_email: formData[key].shipToEmail,
+          ship_to_phone: formData[key].shipToPhone,
+          ship_to_attention_name: formData.salesOrder.shipToAttn || "",
+          ship_to_company_name: formData.salesOrder.shipToCompanyName || formData[key].shipToName,
+        },
+        items: (formData[key] && Array.isArray(formData[key].items) ? formData[key].items : (formData.invoice && Array.isArray(formData.invoice.items) ? formData.invoice.items : [])).map((item) => ({
+          item_name: item.item_name || item.description,
+          description: item.description,
+          qty: item.qty,
+          rate: item.rate,
+          tax_percent: item.tax,
+          discount: item.discount,
+          amount: item.amount,
+          uom: item.uom,
+          hsn: item.hsn,
+          sku: item.sku,
+          barcode: item.barcode,
+          warehouse_id: item.warehouse,
+        })),
+        steps: {
+          quotation: {
+            quotation_no: formData.quotation.quotationNo,
+            manual_quo_no: formData.quotation.manualQuotationRef,
+            quotation_date: formData.quotation.quotationDate,
+            valid_till: formData.quotation.validDate,
+            qoutation_to_customer_name: formData.quotation.billToName,
+            qoutation_to_customer_address: formData.quotation.billToAddress,
+            qoutation_to_customer_email: formData.quotation.billToEmail,
+            qoutation_to_customer_phone: formData.quotation.billToPhone,
+            notes: formData.quotation.notes,
+            customer_ref: formData.quotation.customerReference,
+          },
+          sales_order: {
+            SO_no: formData.salesOrder.salesOrderNo,
+            manual_ref_no: formData.salesOrder.manualQuotationRef,
+            order_date: formData.salesOrder.orderDate,
+            customer_no: formData.salesOrder.customerNo,
+          },
+          delivery_challan: {
+            challan_no: formData.deliveryChallan.challanNo,
+            manual_challan_no: formData.deliveryChallan.manualChallanNo,
+            challan_date: formData.deliveryChallan.challanDate,
+            vehicle_no: formData.deliveryChallan.vehicleNo,
+            driver_name: formData.deliveryChallan.driverName,
+            driver_phone: formData.deliveryChallan.driverPhone,
+          },
+          invoice: {
+            invoice_no: formData.invoice.invoiceNo,
+            manual_invoice_no: formData.invoice.manualInvoiceNo,
+            invoice_date: formData.invoice.invoiceDate,
+            due_date: formData.invoice.dueDate,
+            payment_status: formData.invoice.paymentStatus,
+            payment_method: formData.invoice.paymentMethod,
+            note: formData.invoice.note,
+            customer_name: formData.invoice.customerName,
+            customer_address: formData.invoice.customerAddress,
+            customer_email: formData.invoice.customerEmail,
+            customer_phone: formData.invoice.customerPhone,
+          },
+          payment: {
+            payment_no: formData.payment.paymentNo,
+            manual_payment_no: formData.payment.manualPaymentNo,
+            payment_date: formData.payment.paymentDate,
+            amount_received: formData.payment.amount,
+            payment_method: formData.payment.paymentMethod,
+            payment_status: formData.payment.paymentStatus,
+            payment_note: formData.payment.note,
+          },
+        },
+        additional_info: {
+          files: (formData[key] && Array.isArray(formData[key].files) ? formData[key].files : []),
+          signature_url: formData[key] ? formData[key].signature : "",
+          photo_url: formData[key] ? formData[key].photo : "",
+          attachment_url: (formData[key] && Array.isArray(formData[key].files) && formData[key].files.length > 0) ? formData[key].files[0].base64 : "",
+        },
+        current_step: key,
+      };
+
+      // Execute request(s) and log for debugging
+      if (currentSalesOrderId) {
+        console.log("handleFinalSubmit: calling PUT", `${endpoint}/${currentSalesOrderId}`, payload);
+        const putResp = await axiosInstance.put(`${endpoint}/${currentSalesOrderId}`, payload);
+        console.log("handleFinalSubmit: PUT response", putResp?.data || putResp);
+      } else {
+        console.log("handleFinalSubmit: no currentSalesOrderId, calling POST to create");
+        const createResp = await axiosInstance.post(endpoint, payload);
+        console.log("handleFinalSubmit: POST response", createResp?.data || createResp);
+        const newId = createResp?.data?.data?.sales_order_id || createResp?.data?.data?.id;
+        if (newId) {
+          setCurrentSalesOrderId(newId);
+          console.log("handleFinalSubmit: created id", newId, "calling PUT to update payment step");
+          const putResp2 = await axiosInstance.put(`${endpoint}/${newId}`, payload);
+          console.log("handleFinalSubmit: subsequent PUT response", putResp2?.data || putResp2);
+        }
+      }
 
       // Call the parent's onSubmit function with the complete form data
-      onSubmit(formData, "payment");
+      if (typeof onSubmit === "function") onSubmit(formData, "payment");
 
       // Show success message
       alert("Sales process completed successfully!");
 
       // Redirect to sales workflow page
-      navigate("/Invoice");
+      navigate("/company/Invoice");
     } catch (err) {
-      console.error("Error submitting final form:", err);
+      // Improved error logging to help debugging network/server errors
+      try {
+        console.error("Error submitting final form:", err?.response?.data || err?.message || err);
+      } catch (e) {
+        console.error("Error submitting final form (unable to parse error):", err);
+      }
       alert("Error submitting final form. Please try again.");
+    } finally {
+      setSubmittingFinal(false);
     }
   };
 
@@ -1850,39 +1971,7 @@ const MultiStepSalesForm = ({
           </Modal.Footer>
         </Modal>
 
-        {/* Add Category Modal */}
-        <Modal
-          show={showAddCategoryModal}
-          onHide={() => setShowAddCategoryModal(false)}
-        >
-          <Modal.Header closeButton>
-            <Modal.Title>Add Category</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Form onSubmit={handleAddCategory}>
-              <Form.Group>
-                <Form.Label>New Category Name</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  placeholder="Enter new category"
-                />
-              </Form.Group>
-            </Form>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button
-              variant="secondary"
-              onClick={() => setShowAddCategoryModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleAddCategory}>
-              Add Category
-            </Button>
-          </Modal.Footer>
-        </Modal>
+    
 
         <Table bordered hover size="sm" className="dark-bordered-table">
           <thead className="bg-light">

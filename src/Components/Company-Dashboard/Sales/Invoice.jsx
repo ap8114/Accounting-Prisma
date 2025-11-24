@@ -436,7 +436,10 @@ const Invoice = () => {
               <th>Customer</th>
               <th>Date</th>
               <th>Amount</th>
-              <th>Completed Stages</th>
+              <th>Quotation</th>
+              <th>Sales Order</th>
+              <th>Delivery Challan</th>
+              <th>Invoice</th>
               <th>Payment</th>
               <th>Actions</th>
             </tr>
@@ -444,7 +447,7 @@ const Invoice = () => {
           <tbody>
             {filteredOrders?.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center text-muted">
+                <td colSpan="11" className="text-center text-muted">
                   No records found.
                 </td>
               </tr>
@@ -484,22 +487,12 @@ const Invoice = () => {
                     <td>{customerName}</td>
                     <td>{displayDate}</td>
                     <td>{displayAmount}</td>
-                    <td>
-                      {getStepStatus(order.steps, 'quotation') === "completed" && (
-                        <Badge bg="success" className="me-1">Quotation</Badge>
-                      )}
-                      {getStepStatus(order.steps, 'sales_order') === "completed" && (
-                        <Badge bg="success" className="me-1">Sales Order</Badge>
-                      )}
-                      {getStepStatus(order.steps, 'delivery_challan') === "completed" && (
-                        <Badge bg="success" className="me-1">Delivery Challan</Badge>
-                      )}
-                      {getStepStatus(order.steps, 'invoice') === "completed" && (
-                        <Badge bg="success" className="me-1">Invoice</Badge>
-                      )}
-                    </td>
+                    <td>{statusBadge(getStepStatus(order.steps, 'quotation'))}</td>
+                    <td>{statusBadge(getStepStatus(order.steps, 'sales_order'))}</td>
+                    <td>{statusBadge(getStepStatus(order.steps, 'delivery_challan'))}</td>
+                    <td>{statusBadge(getStepStatus(order.steps, 'invoice'))}</td>
                     <td>{statusBadge(getStepStatus(order.steps, 'payment'))}</td>
-                    <td>
+                    <td className='d-flex'>
                       <Button
                         size="sm"
                         className="me-1 mb-1"
@@ -659,7 +652,7 @@ const Invoice = () => {
                     <Col md={6}>
                       <h6>Payment</h6>
                       <p><strong>Status:</strong> {statusBadge(getStepStatus(viewOrder.steps, 'payment'))}</p>
-                      <p><strong>Payment No:</strong> {getStepData(viewOrder.steps, 'payment').payment_no || 'N/A'}</p>
+                      <p><strong>Payment No:</strong> {getStepData(viewOrder.steps, 'payment').Payment_no || getStepData(viewOrder.steps, 'payment').payment_no || 'N/A'}</p>
                       <p><strong>Payment Date:</strong> {getStepData(viewOrder.steps, 'payment').payment_date ? new Date(getStepData(viewOrder.steps, 'payment').payment_date).toLocaleDateString() : 'N/A'}</p>
                       <p><strong>Amount Received:</strong> ${getStepData(viewOrder.steps, 'payment').amount_received || '0'}</p>
                       <p><strong>Payment Note:</strong> {getStepData(viewOrder.steps, 'payment').payment_note || 'N/A'}</p>
