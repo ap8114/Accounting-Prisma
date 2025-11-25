@@ -160,11 +160,12 @@ const populateFormData = (orderData) => {
       billToAddress: shipping_details.bill_to_address || prev.salesOrder.billToAddress,
       billToEmail: shipping_details.bill_to_email || prev.salesOrder.billToEmail,
       billToPhone: shipping_details.bill_to_phone || prev.salesOrder.billToPhone,
-      shipToAttn: shipping_details.ship_to_attention_name || prev.salesOrder.shipToAttn,
-      shipToCompanyName: shipping_details.ship_to_company_name || prev.salesOrder.shipToCompanyName,
-      shipToAddress: shipping_details.ship_to_address || prev.salesOrder.shipToAddress,
-      shipToEmail: shipping_details.ship_to_email || prev.salesOrder.shipToEmail,
-      shipToPhone: shipping_details.ship_to_phone || prev.salesOrder.shipToPhone,
+      // Require user to manually fill 'Ship To' fields; do not auto-populate
+      shipToAttn: "",
+      shipToCompanyName: "",
+      shipToAddress: "",
+      shipToEmail: "",
+      shipToPhone: "",
       terms: company_info.terms || prev.salesOrder.terms,
       signature: additional_info.signature_url || prev.salesOrder.signature,
       photo: additional_info.photo_url || prev.salesOrder.photo,
@@ -187,10 +188,11 @@ const populateFormData = (orderData) => {
       billToAddress: shipping_details.bill_to_address || prev.deliveryChallan.billToAddress,
       billToEmail: shipping_details.bill_to_email || prev.deliveryChallan.billToEmail,
       billToPhone: shipping_details.bill_to_phone || prev.deliveryChallan.billToPhone,
-      shipToName: shipping_details.ship_to_name || prev.deliveryChallan.shipToName,
-      shipToAddress: shipping_details.ship_to_address || prev.deliveryChallan.shipToAddress,
-      shipToEmail: shipping_details.ship_to_email || prev.deliveryChallan.shipToEmail,
-      shipToPhone: shipping_details.ship_to_phone || prev.deliveryChallan.shipToPhone,
+      // Clear ship-to on delivery challan so user fills manually
+      shipToName: "",
+      shipToAddress: "",
+      shipToEmail: "",
+      shipToPhone: "",
       terms: company_info.terms || prev.deliveryChallan.terms,
       signature: additional_info.signature_url || prev.deliveryChallan.signature,
       photo: additional_info.photo_url || prev.deliveryChallan.photo,
@@ -211,10 +213,11 @@ const populateFormData = (orderData) => {
       customerAddress: shipping_details.bill_to_address || prev.invoice.customerAddress,
       customerEmail: shipping_details.bill_to_email || prev.invoice.customerEmail,
       customerPhone: shipping_details.bill_to_phone || prev.invoice.customerPhone,
-      shipToName: shipping_details.ship_to_name || prev.invoice.shipToName,
-      shipToAddress: shipping_details.ship_to_address || prev.invoice.shipToAddress,
-      shipToEmail: shipping_details.ship_to_email || prev.invoice.shipToEmail,
-      shipToPhone: shipping_details.ship_to_phone || prev.invoice.shipToPhone,
+      // Require manual entry for invoice ship-to fields
+      shipToName: "",
+      shipToAddress: "",
+      shipToEmail: "",
+      shipToPhone: "",
       paymentStatus: steps.invoice.payment_status || prev.invoice.paymentStatus,
       paymentMethod: steps.invoice.payment_method || prev.invoice.paymentMethod,
       note: steps.invoice.note || prev.invoice.note,
@@ -1163,6 +1166,72 @@ useEffect(() => {
     }));
   }
 }, [formData.payment.amount_received, formData.payment.total_invoice, key]);
+
+// When navigating from Sales Order -> Delivery Challan / Invoice, copy ship-to fields
+// from Sales Order into the next steps, but do not override existing values.
+useEffect(() => {
+  // Helper to check empty-ish values
+  const isEmpty = (v) => v === undefined || v === null || String(v).trim() === "";
+
+  if (key === "deliveryChallan") {
+    setFormData((prev) => {
+      const sales = prev.salesOrder || {};
+      const dest = prev.deliveryChallan || {};
+      const updated = { ...dest };
+
+      // Map salesOrder ship fields to deliveryChallan fields
+      if (isEmpty(dest.shipToName) && !isEmpty(sales.shipToCompanyName)) {
+        updated.shipToName = sales.shipToCompanyName;
+      }
+      if (isEmpty(updated.shipToName) && !isEmpty(sales.shipToAttn)) {
+        updated.shipToName = sales.shipToAttn;
+      }
+      if (isEmpty(dest.shipToAddress) && !isEmpty(sales.shipToAddress)) {
+        updated.shipToAddress = sales.shipToAddress;
+      }
+      if (isEmpty(dest.shipToEmail) && !isEmpty(sales.shipToEmail)) {
+        updated.shipToEmail = sales.shipToEmail;
+      }
+      if (isEmpty(dest.shipToPhone) && !isEmpty(sales.shipToPhone)) {
+        updated.shipToPhone = sales.shipToPhone;
+      }
+
+      // If nothing changed, return prev to avoid unnecessary renders
+      const changed = Object.keys(updated).some((k) => updated[k] !== dest[k]);
+      if (!changed) return prev;
+      return { ...prev, deliveryChallan: updated };
+    });
+  }
+
+  if (key === "invoice") {
+    setFormData((prev) => {
+      const sales = prev.salesOrder || {};
+      const dest = prev.invoice || {};
+      const updated = { ...dest };
+
+      // Map salesOrder ship fields to invoice fields
+      if (isEmpty(dest.shipToName) && !isEmpty(sales.shipToCompanyName)) {
+        updated.shipToName = sales.shipToCompanyName;
+      }
+      if (isEmpty(updated.shipToName) && !isEmpty(sales.shipToAttn)) {
+        updated.shipToName = sales.shipToAttn;
+      }
+      if (isEmpty(dest.shipToAddress) && !isEmpty(sales.shipToAddress)) {
+        updated.shipToAddress = sales.shipToAddress;
+      }
+      if (isEmpty(dest.shipToEmail) && !isEmpty(sales.shipToEmail)) {
+        updated.shipToEmail = sales.shipToEmail;
+      }
+      if (isEmpty(dest.shipToPhone) && !isEmpty(sales.shipToPhone)) {
+        updated.shipToPhone = sales.shipToPhone;
+      }
+
+      const changed = Object.keys(updated).some((k) => updated[k] !== dest[k]);
+      if (!changed) return prev;
+      return { ...prev, invoice: updated };
+    });
+  }
+}, [key]);
 const handleSaveDraft = async () => {
   try {
     const company_id = GetCompanyId();
@@ -1385,11 +1454,12 @@ const handleSaveDraft = async () => {
             billToAddress: prevData.quotation.billToAddress,
             billToEmail: prevData.quotation.billToEmail,
             billToPhone: prevData.quotation.billToPhone,
-            shipToAttn: prevData.quotation.billToName, // Map to new fields
-            shipToCompanyName: prevData.quotation.billToName,
-            shipToAddress: prevData.quotation.billToAddress,
-            shipToEmail: prevData.quotation.billToEmail,
-            shipToPhone: prevData.quotation.billToPhone,
+            // Clear ship-to fields to force manual entry by the user
+            shipToAttn: "",
+            shipToCompanyName: "",
+            shipToAddress: "",
+            shipToEmail: "",
+            shipToPhone: "",
             items: prevData.quotation.items.map((item) => ({
               item_name: item.item_name,
               qty: item.qty,
@@ -1421,10 +1491,11 @@ const handleSaveDraft = async () => {
             billToAddress: prevData.salesOrder.billToAddress,
             billToEmail: prevData.salesOrder.billToEmail,
             billToPhone: prevData.salesOrder.billToPhone,
-            shipToName: prevData.salesOrder.shipToCompanyName, // Map from SO
-            shipToAddress: prevData.salesOrder.shipToAddress,
-            shipToEmail: prevData.salesOrder.shipToEmail,
-            shipToPhone: prevData.salesOrder.shipToPhone,
+            // Clear ship-to so user can enter manually
+            shipToName: "",
+            shipToAddress: "",
+            shipToEmail: "",
+            shipToPhone: "",
             items: prevData.salesOrder.items.map((item) => ({
               item_name: item.item_name,
               qty: item.qty,
@@ -1452,10 +1523,11 @@ const handleSaveDraft = async () => {
             customerAddress: prevData.deliveryChallan.billToAddress,
             customerEmail: prevData.deliveryChallan.billToEmail,
             customerPhone: prevData.deliveryChallan.billToPhone,
-            shipToName: prevData.deliveryChallan.shipToName, // Map from DC
-            shipToAddress: prevData.deliveryChallan.shipToAddress,
-            shipToEmail: prevData.deliveryChallan.shipToEmail,
-            shipToPhone: prevData.deliveryChallan.shipToPhone,
+            // Require manual ship-to entry for invoice
+            shipToName: "",
+            shipToAddress: "",
+            shipToEmail: "",
+            shipToPhone: "",
             companyName: prevData.deliveryChallan.companyName,
             companyAddress: prevData.deliveryChallan.companyAddress,
             companyEmail: prevData.deliveryChallan.companyEmail,
