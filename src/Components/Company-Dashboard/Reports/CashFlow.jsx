@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -12,107 +12,81 @@ import {
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { FaFilePdf } from "react-icons/fa";
+import GetCompanyId from "../../../Api/GetCompanyId";
+import axiosInstance from "../../../Api/axiosInstance";
 
-const cashFlowData = [
-  // data same hai
-  {
-    date: "03 Oct 2024",
-    bank: "SWIZ - 3354456565687",
-    desc: "Cash payments for operating",
-    credit: 1100,
-    debit: 0,
-    accBal: 1100,
-    totalBal: 5899,
-    method: "Stripe",
-  },
-  {
-    date: "06 Nov 2024",
-    bank: "NBC - 4324356677889",
-    desc: "Loan received (short-term)",
-    credit: 800,
-    debit: 0,
-    accBal: 800,
-    totalBal: 6896,
-    method: "Cash",
-  },
-  {
-    date: "10 Dec 2024",
-    bank: "SWIZ - 5475878970090",
-    desc: "Cash payments to employees",
-    credit: 0,
-    debit: 1500,
-    accBal: 1500,
-    totalBal: 9899,
-    method: "Paypal",
-  },
-  {
-    date: "10 Sep 2024",
-    bank: "IBO - 3434565776768",
-    desc: "Cash receipts from sales",
-    credit: 1700,
-    debit: 0,
-    accBal: 1700,
-    totalBal: 4568,
-    method: "Cash",
-  },
-  {
-    date: "14 Oct 2024",
-    bank: "IBO - 3453647664889",
-    desc: "Owner’s equity contribution",
-    credit: 1300,
-    debit: 0,
-    accBal: 1300,
-    totalBal: 4568,
-    method: "Paypal",
-  },
-  {
-    date: "18 Nov 2024",
-    bank: "IBO - 4353689870544",
-    desc: "Sale of old equipment",
-    credit: 1000,
-    debit: 1000,
-    accBal: 1000,
-    totalBal: 1562,
-    method: "Paypal",
-  },
-  {
-    date: "20 Sep 2024",
-    bank: "SWIZ - 345656576787",
-    desc: "Cash payments to suppliers",
-    credit: 2300,
-    debit: 0,
-    accBal: 2300,
-    totalBal: 4568,
-    method: "Stripe",
-  },
-  {
-    date: "24 Dec 2024",
-    bank: "HBSC - 3298784309485",
-    desc: "Cash receipts from sales",
-    credit: 1000,
-    debit: 0,
-    accBal: 1000,
-    totalBal: 889898,
-    method: "Stripe",
-  },
-];
+const formatDate = (isoDate) => {
+  const date = new Date(isoDate);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = date.toLocaleString("en-US", { month: "short" });
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
+};
 
-const paymentMethods = [
-  "All",
-  ...Array.from(new Set(cashFlowData.map((d) => d.method))),
-];
-
+// Utility to format currency
 const formatUSD = (num) =>
-  "$" + num.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  "$" + (typeof num === 'number' ? num : 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const CashFlow = () => {
+  const companyId = GetCompanyId();
   const [search, setSearch] = useState("");
   const [method, setMethod] = useState("All");
-
-  // pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [cashFlowData, setCashFlowData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Fetch data
+  useEffect(() => {
+    const fetchCashFlow = async () => {
+      if (!companyId) {
+        setError("Company ID not found");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await axiosInstance.get(`cashflow-reports/cashflow/${companyId}`);
+
+        if (response.data.success && Array.isArray(response.data.data)) {
+          const mappedData = response.data.data.map((item) => ({
+            date: formatDate(item.date),
+            bank: item.bankAccount || "-",
+            desc: item.description || "",
+            credit: item.credit || 0,
+            debit: item.debit || 0,
+            accBal: item.accountBalance || 0,
+            totalBal: item.totalBalance || 0,
+            method: item.paymentMethod || "N/A",
+            raw: item.raw, // optional: keep raw for debugging
+          }));
+          setCashFlowData(mappedData);
+        } else {
+          setError("Invalid data format from API");
+        }
+      } catch (err) {
+        console.error("Failed to fetch cash flow:", err);
+        setError("Failed to load cash flow data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCashFlow();
+  }, [companyId]);
+
+  // Payment methods for filter
+  const paymentMethods = [
+    "All",
+    ...Array.from(new Set(cashFlowData.map((d) => d.method))),
+  ];
+
+  // Filter logic
   const filtered = cashFlowData.filter(
     (row) =>
       (method === "All" || row.method === method) &&
@@ -122,12 +96,13 @@ const CashFlow = () => {
         row.method.toLowerCase().includes(search.toLowerCase()))
   );
 
+  // Pagination
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentData = filtered.slice(indexOfFirst, indexOfLast);
-
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
+  // PDF Export
   const handlePDF = () => {
     const doc = new jsPDF();
     doc.text("Cash Flow Report", 14, 16);
@@ -161,6 +136,23 @@ const CashFlow = () => {
     doc.save("cashflow.pdf");
   };
 
+  // Loading & error UI
+  if (loading) {
+    return (
+      <Container className="py-5 text-center">
+        <div>Loading cash flow data...</div>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container className="py-5 text-center">
+        <div className="text-danger">Error: {error}</div>
+      </Container>
+    );
+  }
+
   return (
     <div style={{ background: "#f7f7f7", minHeight: "100vh", paddingBottom: 40 }}>
       <Container fluid className="py-2">
@@ -170,7 +162,7 @@ const CashFlow = () => {
         <div style={{ color: "#888", fontSize: 17, marginBottom: 24 }}>
           View Your Cashflows
         </div>
-        <Card className=" mb-3">
+        <Card className="mb-3">
           <Card.Body style={{ padding: 0 }}>
             <Row className="g-2 align-items-center p-3 pb-0">
               <Col xs={12} md={6} className="mb-2 mb-md-0">
@@ -204,6 +196,7 @@ const CashFlow = () => {
                   }}
                   onClick={handlePDF}
                   title="Download PDF"
+                  disabled={filtered.length === 0}
                 >
                   <FaFilePdf size={26} color="#ff6f61" />
                 </Button>
@@ -259,14 +252,20 @@ const CashFlow = () => {
             <div className="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
               <span className="small text-muted">
                 Showing {filtered.length === 0 ? 0 : indexOfFirst + 1} to{" "}
-                {Math.min(indexOfLast, filtered.length)} of {filtered.length} results
+                {Math.min(indexOfLast, filtered.length)} of {filtered.length}{" "}
+                results
               </span>
               <nav>
                 <ul className="pagination pagination-sm mb-0">
-                  <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                  <li
+                    className={`page-item ${currentPage === 1 ? "disabled" : ""
+                      }`}
+                  >
                     <button
                       className="page-link rounded-start"
-                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
                     >
                       &laquo;
                     </button>
@@ -274,13 +273,17 @@ const CashFlow = () => {
                   {Array.from({ length: totalPages }, (_, i) => (
                     <li
                       key={i + 1}
-                      className={`page-item ${currentPage === i + 1 ? "active" : ""}`}
+                      className={`page-item ${currentPage === i + 1 ? "active" : ""
+                        }`}
                     >
                       <button
                         className="page-link"
                         style={
                           currentPage === i + 1
-                            ? { backgroundColor: "#3daaaa", borderColor: "#3daaaa" }
+                            ? {
+                              backgroundColor: "#3daaaa",
+                              borderColor: "#3daaaa",
+                            }
                             : {}
                         }
                         onClick={() => setCurrentPage(i + 1)}
@@ -289,11 +292,16 @@ const CashFlow = () => {
                       </button>
                     </li>
                   ))}
-                  <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                  <li
+                    className={`page-item ${currentPage === totalPages ? "disabled" : ""
+                      }`}
+                  >
                     <button
                       className="page-link rounded-end"
                       onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                        setCurrentPage((prev) =>
+                          Math.min(prev + 1, totalPages)
+                        )
                       }
                     >
                       &raquo;
@@ -306,19 +314,26 @@ const CashFlow = () => {
         </Card>
       </Container>
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
-  <Card.Body>
-    {/* Heading */}
-    <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
-
-    {/* Cash Flow Bullet Points */}
-    <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
-      <li>Shows how much cash is flowing in and out of your business over a specific time period.</li>
-      <li>Tracks actual cash movement — not just profits on paper.</li>
-      <li>Helps you manage liquidity, plan payments, and avoid cash shortages.</li>
-    </ul>
-  </Card.Body>
-</Card>
-
+        <Card.Body>
+          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
+            Page Info
+          </h5>
+          <ul
+            className="text-muted fs-6 mb-0"
+            style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
+          >
+            <li>
+              Shows how much cash is flowing in and out of your business over a
+              specific time period.
+            </li>
+            <li>Tracks actual cash movement — not just profits on paper.</li>
+            <li>
+              Helps you manage liquidity, plan payments, and avoid cash
+              shortages.
+            </li>
+          </ul>
+        </Card.Body>
+      </Card>
     </div>
   );
 };

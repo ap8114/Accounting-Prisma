@@ -1,5 +1,5 @@
 // components/LiabilityDetails.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Card,
@@ -9,54 +9,73 @@ import {
   Form,
   Row,
   Col,
+  Spinner,
 } from "react-bootstrap";
-
-const allLiabilityDetails = {
-  current: {
-    title: "Current Liabilities",
-    data: [
-      { supplier: "Alpha Supplies", amount: "$235,000", due: "2025-07-10", status: "Pending" },
-      { supplier: "QuickFin Loans", amount: "$125,000", due: "2025-08-01", status: "Active" },
-      { expense: "Electricity Bill", amount: "$45,000", due: "2025-07-05", status: "Overdue" },
-    ],
-  },
-  longTerm: {
-    title: "Long-term Liabilities",
-    data: [
-      { loan: "Business Term Loan", amount: "$750,000", rate: "8.5%", maturity: "2030" },
-      { loan: "Mortgage Loan", amount: "$425,000", rate: "7.2%", maturity: "2035" },
-    ],
-  },
-  capital: {
-    title: "Owner’s Capital",
-    data: [
-      { owner: "Rajesh Kumar", capital: "$1,000,000", type: "Initial Investment" },
-      { owner: "Retained Earnings", capital: "$520,000", type: "Accumulated Profits" },
-    ],
-  },
-};
-
-// 💡 Reuse the same total calculation function
-const calculateTotal = (data, valueKey = "amount") => {
-  return data.reduce((sum, item) => {
-    const num = parseFloat(item[valueKey].replace(/[$,]/g, "")) || 0;
-    return sum + num;
-  }, 0).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-};
+import GetCompanyId from "../../../Api/GetCompanyId";
+import BaseUrl from "../../../Api/BaseUrl";
 
 const LiabilityDetails = () => {
-  // 🔍 Filters
+  // 📥 API data states
+  const companyId = GetCompanyId();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [apiData, setApiData] = useState({
+    currentLiabilities: { rows: [], total: 0 },
+    longTermLiabilities: { rows: [], total: 0 },
+    ownersCapital: { rows: [], total: 0 },
+  });
+
+  // 🔍 Filter states
   const [currentFilter, setCurrentFilter] = useState({ supplier: "", status: "", due: "" });
   const [longTermFilter, setLongTermFilter] = useState({ loan: "", maturity: "" });
   const [capitalFilter, setCapitalFilter] = useState({ owner: "", type: "" });
 
+  // 🔄 Fetch data on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch(`${BaseUrl}balance-sheet/liability-capital/${companyId}`);
+        if (!response.ok) throw new Error("Failed to fetch liability data");
+        const result = await response.json();
+        if (result.success) {
+          setApiData({
+            currentLiabilities: result.currentLiabilities || { rows: [], total: 0 },
+            longTermLiabilities: result.longTermLiabilities || { rows: [], total: 0 },
+            ownersCapital: result.ownersCapital || { rows: [], total: 0 },
+          });
+        } else {
+          throw new Error("API returned success: false");
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // 💡 Helper: Format as USD
+  const formatUSD = (num) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
+  };
+
+  // 💡 Helper: Parse amount (e.g., "$100,000" → 100000)
+  const parseAmount = (str) => {
+    // Convert to string safely; handle null/undefined/numbers
+    const safeStr = String(str ?? "").trim();
+    // Remove $ and commas, then parse
+    return parseFloat(safeStr.replace(/[$,]/g, "")) || 0;
+  };
   // 🔎 Filtered Data
-  const filteredCurrent = allLiabilityDetails.current.data.filter((item) => {
+  const filteredCurrent = apiData.currentLiabilities.rows.filter((item) => {
     const supplier = item.supplier || item.expense || "";
     return (
       supplier.toLowerCase().includes(currentFilter.supplier.toLowerCase()) &&
@@ -65,46 +84,56 @@ const LiabilityDetails = () => {
     );
   });
 
-  const filteredLongTerm = allLiabilityDetails.longTerm.data.filter((item) => {
+  const filteredLongTerm = apiData.longTermLiabilities.rows.filter((item) => {
     return (
-      item.loan.toLowerCase().includes(longTermFilter.loan.toLowerCase()) &&
+      item.loan?.toLowerCase().includes(longTermFilter.loan.toLowerCase()) &&
       (!longTermFilter.maturity || item.maturity === longTermFilter.maturity)
     );
   });
 
-  const filteredCapital = allLiabilityDetails.capital.data.filter((item) => {
+  const filteredCapital = apiData.ownersCapital.rows.filter((item) => {
     return (
-      item.owner.toLowerCase().includes(capitalFilter.owner.toLowerCase()) &&
-      item.type.toLowerCase().includes(capitalFilter.type.toLowerCase())
+      item.owner?.toLowerCase().includes(capitalFilter.owner.toLowerCase()) &&
+      item.type?.toLowerCase().includes(capitalFilter.type.toLowerCase())
     );
   });
 
-  // 🧮 Totals
-  const totalCurrent = calculateTotal(filteredCurrent, "amount");
-  const totalLongTerm = calculateTotal(filteredLongTerm, "amount");
-  const totalCapital = calculateTotal(filteredCapital, "capital");
+  // 🧮 Compute totals from filtered data (more accurate than API total when filtered)
+  const totalCurrent = filteredCurrent.reduce((sum, item) => sum + parseAmount(item.amount), 0);
+  const totalLongTerm = filteredLongTerm.reduce((sum, item) => sum + parseAmount(item.amount), 0);
+  const totalCapital = filteredCapital.reduce((sum, item) => sum + parseAmount(item.capital), 0);
+  const grandTotal = totalCurrent + totalLongTerm + totalCapital;
 
-  const grandTotal = (
-    parseFloat(totalCurrent.replace(/[$,]/g, "")) +
-    parseFloat(totalLongTerm.replace(/[$,]/g, "")) +
-    parseFloat(totalCapital.replace(/[$,]/g, ""))
-  ).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
+  // ❗ Loading & Error UI
+  if (loading) {
+    return (
+      <Container className="py-5 text-center">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-2">Loading liability & capital details...</p>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container className="py-5 text-center">
+        <h4 className="text-danger">⚠️ Error loading data</h4>
+        <p>{error}</p>
+        <Button variant="secondary" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </Container>
+    );
+  }
 
   return (
     <Container className="py-5">
       <Row className="align-items-center mb-4">
-        {/* Left: Heading */}
         <Col xs={6} className="text-start">
           <h3 className="mb-0" style={{ color: "#002d4d" }}>
             📉 All Liability & Capital Details
           </h3>
         </Col>
-        {/* Right: Back Button */}
         <Col xs={6} className="text-end">
           <Button
             variant="secondary"
@@ -127,7 +156,7 @@ const LiabilityDetails = () => {
       {/* Current Liabilities */}
       <Card className="mb-4">
         <Card.Header bg="danger" text="white">
-          <strong>{allLiabilityDetails.current.title}</strong>
+          <strong>Current Liabilities</strong>
         </Card.Header>
         <Card.Body>
           <Row className="mb-3 g-2">
@@ -136,41 +165,32 @@ const LiabilityDetails = () => {
                 type="text"
                 placeholder="Supplier/Expense"
                 value={currentFilter.supplier}
-                onChange={(e) =>
-                  setCurrentFilter({ ...currentFilter, supplier: e.target.value })
-                }
+                onChange={(e) => setCurrentFilter({ ...currentFilter, supplier: e.target.value })}
               />
             </Col>
             <Col xs={12} md={4}>
-              <Form.Control
-                as="select"
+              <Form.Select
                 value={currentFilter.status}
-                onChange={(e) =>
-                  setCurrentFilter({ ...currentFilter, status: e.target.value })
-                }
+                onChange={(e) => setCurrentFilter({ ...currentFilter, status: e.target.value })}
               >
                 <option value="">All Status</option>
                 <option value="Pending">Pending</option>
                 <option value="Overdue">Overdue</option>
                 <option value="Paid">Paid</option>
-              </Form.Control>
+              </Form.Select>
             </Col>
             <Col xs={12} md={3}>
               <Form.Control
                 type="date"
                 value={currentFilter.due}
-                onChange={(e) =>
-                  setCurrentFilter({ ...currentFilter, due: e.target.value })
-                }
+                onChange={(e) => setCurrentFilter({ ...currentFilter, due: e.target.value })}
               />
             </Col>
             <Col xs={12} md={1}>
               <Button
                 variant="outline-light"
                 size="sm"
-                onClick={() =>
-                  setCurrentFilter({ supplier: "", status: "", due: "" })
-                }
+                onClick={() => setCurrentFilter({ supplier: "", status: "", due: "" })}
               >
                 🗑️
               </Button>
@@ -187,21 +207,35 @@ const LiabilityDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredCurrent.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{row.supplier || row.expense}</td>
-                    <td>{row.amount}</td>
-                    <td>{row.due || "-"}</td>
-                    <td>
-                      <Badge bg={row.status === "Overdue" ? "danger" : row.status === "Pending" ? "warning" : "success"}>
-                        {row.status}
-                      </Badge>
-                    </td>
+                {filteredCurrent.length > 0 ? (
+                  filteredCurrent.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.supplier || row.expense}</td>
+                      <td>{row.amount}</td>
+                      <td>{row.dueDate ? row.dueDate.split('T')[0] : "-"}</td>
+                      <td>
+                        <Badge
+                          bg={
+                            row.status === "Overdue"
+                              ? "danger"
+                              : row.status === "Pending"
+                                ? "warning"
+                                : "success"
+                          }
+                        >
+                          {row.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="text-center">No current liabilities</td>
                   </tr>
-                ))}
+                )}
                 <tr className="table-light font-weight-bold">
                   <td colSpan="2"><strong>Total</strong></td>
-                  <td colSpan="2" className="text-end"><strong>{totalCurrent}</strong></td>
+                  <td colSpan="2" className="text-end"><strong>{formatUSD(totalCurrent)}</strong></td>
                 </tr>
               </tbody>
             </Table>
@@ -212,7 +246,7 @@ const LiabilityDetails = () => {
       {/* Long-term Liabilities */}
       <Card className="mb-4">
         <Card.Header bg="secondary" text="white">
-          <strong>{allLiabilityDetails.longTerm.title}</strong>
+          <strong>Long-term Liabilities</strong>
         </Card.Header>
         <Card.Body>
           <Row className="mb-3 g-2">
@@ -221,23 +255,18 @@ const LiabilityDetails = () => {
                 type="text"
                 placeholder="Loan Type"
                 value={longTermFilter.loan}
-                onChange={(e) =>
-                  setLongTermFilter({ ...longTermFilter, loan: e.target.value })
-                }
+                onChange={(e) => setLongTermFilter({ ...longTermFilter, loan: e.target.value })}
               />
             </Col>
             <Col xs={12} md={5}>
-              <Form.Control
-                as="select"
+              <Form.Select
                 value={longTermFilter.maturity}
-                onChange={(e) =>
-                  setLongTermFilter({ ...longTermFilter, maturity: e.target.value })
-                }
+                onChange={(e) => setLongTermFilter({ ...longTermFilter, maturity: e.target.value })}
               >
                 <option value="">All Years</option>
                 <option value="2030">2030</option>
                 <option value="2035">2035</option>
-              </Form.Control>
+              </Form.Select>
             </Col>
             <Col xs={12} md={1}>
               <Button
@@ -260,17 +289,23 @@ const LiabilityDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredLongTerm.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{row.loan}</td>
-                    <td>{row.amount}</td>
-                    <td>{row.rate}</td>
-                    <td>{row.maturity}</td>
+                {filteredLongTerm.length > 0 ? (
+                  filteredLongTerm.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.loan}</td>
+                      <td>{row.amount}</td>
+                      <td>{row.rate}</td>
+                      <td>{row.maturity}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="text-center">No long-term liabilities</td>
                   </tr>
-                ))}
+                )}
                 <tr className="table-light font-weight-bold">
                   <td colSpan="2"><strong>Total</strong></td>
-                  <td colSpan="2" className="text-end"><strong>{totalLongTerm}</strong></td>
+                  <td colSpan="2" className="text-end"><strong>{formatUSD(totalLongTerm)}</strong></td>
                 </tr>
               </tbody>
             </Table>
@@ -281,7 +316,7 @@ const LiabilityDetails = () => {
       {/* Owner's Capital */}
       <Card className="mb-4">
         <Card.Header bg="success" text="white">
-          <strong>{allLiabilityDetails.capital.title}</strong>
+          <strong>Owner’s Capital</strong>
         </Card.Header>
         <Card.Body>
           <Row className="mb-3 g-2">
@@ -290,23 +325,18 @@ const LiabilityDetails = () => {
                 type="text"
                 placeholder="Owner / Type"
                 value={capitalFilter.owner}
-                onChange={(e) =>
-                  setCapitalFilter({ ...capitalFilter, owner: e.target.value })
-                }
+                onChange={(e) => setCapitalFilter({ ...capitalFilter, owner: e.target.value })}
               />
             </Col>
             <Col xs={12} md={5}>
-              <Form.Control
-                as="select"
+              <Form.Select
                 value={capitalFilter.type}
-                onChange={(e) =>
-                  setCapitalFilter({ ...capitalFilter, type: e.target.value })
-                }
+                onChange={(e) => setCapitalFilter({ ...capitalFilter, type: e.target.value })}
               >
                 <option value="">All Types</option>
                 <option value="Initial Investment">Initial Investment</option>
                 <option value="Accumulated Profits">Accumulated Profits</option>
-              </Form.Control>
+              </Form.Select>
             </Col>
             <Col xs={12} md={1}>
               <Button
@@ -328,16 +358,22 @@ const LiabilityDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredCapital.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{row.owner}</td>
-                    <td>{row.capital}</td>
-                    <td>{row.type}</td>
+                {filteredCapital.length > 0 ? (
+                  filteredCapital.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.owner}</td>
+                      <td>{row.capital}</td>
+                      <td>{row.type}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="3" className="text-center">No capital entries</td>
                   </tr>
-                ))}
+                )}
                 <tr className="table-light font-weight-bold">
                   <td colSpan="1"><strong>Total</strong></td>
-                  <td colSpan="2" className="text-end"><strong>{totalCapital}</strong></td>
+                  <td colSpan="2" className="text-end"><strong>{formatUSD(totalCapital)}</strong></td>
                 </tr>
               </tbody>
             </Table>
@@ -346,9 +382,9 @@ const LiabilityDetails = () => {
       </Card>
 
       {/* 🏁 Grand Total */}
-      <Card text="white" className="text-center p-3 mb-4">
+      <Card bg="dark" text="white" className="text-center p-3 mb-4">
         <h5>
-          Grand Total of Liabilities & Capital: <strong>{grandTotal}</strong>
+          Grand Total of Liabilities & Capital: <strong>{formatUSD(grandTotal)}</strong>
         </h5>
       </Card>
     </Container>

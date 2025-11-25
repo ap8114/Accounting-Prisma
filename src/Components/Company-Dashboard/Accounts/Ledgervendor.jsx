@@ -10,17 +10,7 @@ import {
   FaFilePdf,
   FaGlobe,
 } from "react-icons/fa";
-import {
-  Button,
-  Card,
-  Row,
-  Col,
-  Form,
-  InputGroup,
-  Table,
-  Badge,
-  Nav,
-} from "react-bootstrap";
+import { Button, Card, Row, Col, Form, InputGroup, Table, Badge, Nav, } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 
 const Ledgervendor = () => {
@@ -193,32 +183,8 @@ const Ledgervendor = () => {
   const showNarration = activeTab === "narration";
   const showCountTable = activeTab === "all" || activeTab === "countTable";
   const showTable = ["all", "itemsDetails"].includes(activeTab);
-
-  // Check if any transaction has items
+    // Check if any transaction has items
   const hasItems = transactions.some(transaction => transaction.items && transaction.items.length > 0);
-
-  if (loading) {
-    return (
-      <div className="container mt-4">
-        <div className="text-center py-5">
-          <div className="spinner-border" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-2">Loading vendor ledger...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mt-4">
-        <div className="alert alert-danger" role="alert">
-          Error: {error}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container mt-4">

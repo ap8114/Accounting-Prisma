@@ -12,7 +12,7 @@ import {
 import axios from "axios";
 import BaseUrl from "../../../../Api/BaseUrl";
 import GetCompanyId from "../../../../Api/GetCompanyId";
-import axiosInstance from "../../../../Api/AxiosInstance";
+import axiosInstance from "../../../../Api/axiosInstance";
 import { CurrencyContext } from "../../../../hooks/CurrencyContext";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -23,7 +23,6 @@ function StockTransfer() {
   const [viewTransfer, setViewTransfer] = useState(null);
   const [editTransfer, setEditTransfer] = useState(null);
   const [showModal, setShowModal] = useState(false);
-
   // Form state
   const [voucherNo, setVoucherNo] = useState("");
   const [manualVoucherNo, setManualVoucherNo] = useState("");
@@ -36,7 +35,6 @@ function StockTransfer() {
   const [showWarehouseList, setShowWarehouseList] = useState(false);
   const [showItemList, setShowItemList] = useState(false);
   const { convertPrice, symbol, currency } = useContext(CurrencyContext);
-
   const [filters, setFilters] = useState({
     fromDate: "",
     toDate: "",
@@ -44,21 +42,18 @@ function StockTransfer() {
     source: "",
     searchItem: "",
   });
-
   // Loading states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [dataLoading, setDataLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
   const [warehousesLoading, setWarehousesLoading] = useState(false);
-
   // Dynamic data
   const [products, setProducts] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
-
   const companyId = GetCompanyId();
 
-  // ✅ Fetch products by company (FIXED: Now properly handles warehouse stock information)
+  // ✅ Fetch products by company
   const fetchProductsByCompany = async () => {
     if (!companyId) return;
     setProductsLoading(true);
@@ -66,12 +61,9 @@ function StockTransfer() {
       const response = await axiosInstance.get(`${BaseUrl}products/company/${companyId}`);
       const isSuccess = response.data?.success || response.data?.status;
       const productsData = Array.isArray(response.data?.data) ? response.data.data : [];
-
       if (isSuccess && productsData.length > 0) {
         const transformed = productsData.map(p => {
-          // Extract warehouse information
           const warehouses = Array.isArray(p.warehouses) ? p.warehouses : [];
-          
           return {
             id: p.id || 0,
             name: (p.item_name || "").toString().trim(),
@@ -80,7 +72,7 @@ function StockTransfer() {
             hsn: (p.hsn || "").toString().trim(),
             sale_price: parseFloat(p.sale_price) || 0,
             purchase_price: parseFloat(p.purchase_price) || 0,
-            total_stock: p.total_stock || 0, // Total stock across all warehouses
+            total_stock: p.total_stock || 0,
             warehouses: warehouses.map(w => ({
               id: w.warehouse_id,
               name: w.warehouse_name,
@@ -93,7 +85,6 @@ function StockTransfer() {
             remarks: p.remarks || "",
             image: p.image || null,
             item_category: p.item_category?.item_category_name || "",
-            unit_detail: p.unit_detail?.uom_id || ""
           };
         });
         setProducts(transformed);
@@ -117,7 +108,6 @@ function StockTransfer() {
       const response = await axios.get(`${BaseUrl}warehouses/company/${companyId}`);
       const isSuccess = response.data?.success || response.data?.status;
       const warehousesData = Array.isArray(response.data?.data) ? response.data.data : [];
-
       if (isSuccess && warehousesData.length > 0) {
         const filtered = warehousesData.filter(
           wh => wh.company_id != null && Number(wh.company_id) === Number(companyId)
@@ -139,39 +129,36 @@ function StockTransfer() {
     }
   };
 
-  // ✅ Fetch stock transfers (FIXED: now properly handles 'transfer_items' in API response)
+  // ✅ Fetch stock transfers
   const fetchStockTransfers = async () => {
     if (!companyId) return;
     setDataLoading(true);
     try {
       const response = await axios.get(`${BaseUrl}stocktransfers/company/${companyId}`);
-      console.log("All stock transfers:", response.data);
-
       const isSuccess = response.data?.success || response.data?.status;
       const transfersData = Array.isArray(response.data?.data) ? response.data.data : [];
-
       if (isSuccess && transfersData.length > 0) {
         const transformed = transfersData.map(transfer => {
-          // Process transfer items
           const transferItems = Array.isArray(transfer.transfer_items) ? transfer.transfer_items : [];
-          const items = transferItems.map(item => ({
-            id: item.id,
-            productId: item.product_id,
-            itemName: item.products?.item_name || "",
-            sourceWarehouseId: item.source_warehouse_id,
-            sourceWarehouse: item.warehouses?.warehouse_name || `WH ID: ${item.source_warehouse_id}`,
-            quantity: item.qty || "0",
-            rate: item.rate || "0",
-            amount: (parseFloat(item.qty || 0) * parseFloat(item.rate || 0)).toFixed(2),
-            narration: item.narration || "",
-          }));
-
-          // Calculate total amount
+          const items = transferItems.map(item => {
+            // Resolve source warehouse name
+            const srcWh = warehouses.find(w => w.id === item.source_warehouse_id);
+            return {
+              id: item.id,
+              productId: item.product_id,
+              itemName: item.products?.item_name || `Item ID: ${item.product_id}`,
+              sourceWarehouseId: item.source_warehouse_id,
+              sourceWarehouse: srcWh ? srcWh.name : `WH ID: ${item.source_warehouse_id}`,
+              quantity: String(item.qty || "0"),
+              rate: String(item.rate || "0"),
+              amount: (parseFloat(item.qty || 0) * parseFloat(item.rate || 0)).toFixed(2),
+              narration: item.narration || "",
+            };
+          });
           const totalAmount = items.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-
-          // Get unique source warehouses
           const sourceWarehouses = [...new Set(items.map(item => item.sourceWarehouse))];
-
+          // Resolve destination warehouse name
+          const destWh = warehouses.find(w => w.id === transfer.destination_warehouse_id);
           return {
             id: transfer.id,
             voucherNo: transfer.voucher_no || "",
@@ -180,24 +167,14 @@ function StockTransfer() {
               ? new Date(transfer.transfer_date).toISOString().slice(0, 10)
               : "",
             destinationWarehouseId: transfer.destination_warehouse_id || null,
-            destinationWarehouse: "", // will resolve using warehouse list
+            destinationWarehouse: destWh ? destWh.name : `WH ID: ${transfer.destination_warehouse_id}`,
             sourceWarehouses: sourceWarehouses,
             items: items,
             note: transfer.notes || "",
             totalAmount: totalAmount.toFixed(2),
           };
         });
-
-        // Resolve destination warehouse names
-        const transfersWithNames = transformed.map(t => {
-          const destWh = warehouses.find(w => w.id === t.destinationWarehouseId);
-          return {
-            ...t,
-            destinationWarehouse: destWh ? destWh.name : `WH ID: ${t.destinationWarehouseId}`,
-          };
-        });
-
-        setTransfers(transfersWithNames);
+        setTransfers(transformed);
       } else {
         setTransfers([]);
       }
@@ -218,7 +195,6 @@ function StockTransfer() {
     }
   }, [companyId]);
 
-  // Load transfers only after warehouses are loaded (to resolve names)
   useEffect(() => {
     if (companyId && warehouses.length > 0) {
       fetchStockTransfers();
@@ -236,7 +212,7 @@ function StockTransfer() {
     }
   }, [showModal, editTransfer]);
 
-  // Edit mode
+  // Edit mode: pre-fill form
   useEffect(() => {
     if (editTransfer) {
       setVoucherNo(editTransfer.voucherNo);
@@ -259,7 +235,7 @@ function StockTransfer() {
       sourceWarehouse: "",
       quantity: "1.00",
       rate: product.sale_price.toFixed(2),
-      amount: product.sale_price.toFixed(2),
+      amount: (1 * product.sale_price).toFixed(2),
       narration: "",
     };
     setItems([...items, newItem]);
@@ -297,17 +273,16 @@ function StockTransfer() {
         return;
       }
     }
-
     setLoading(true);
     setError("");
     try {
-      // Use destinationWarehouseId if available, otherwise find by name
       let destWarehouseId = destinationWarehouseId;
       if (!destWarehouseId && destinationWarehouse) {
         const destWh = warehouses.find(w => w.name === destinationWarehouse);
-        destWarehouseId = destWh?.id || 1;
+        destWarehouseId = destWh?.id;
       }
 
+      // ✅ FIX: Send qty and rate as STRINGS to match API
       const transferData = {
         company_id: companyId,
         voucher_no: voucherNo,
@@ -319,9 +294,9 @@ function StockTransfer() {
           const srcWh = warehouses.find(w => w.name === item.sourceWarehouse);
           return {
             product_id: item.productId,
-            source_warehouse_id: srcWh?.id || 1,
-            qty: parseFloat(item.quantity),
-            rate: parseFloat(item.rate),
+            source_warehouse_id: srcWh?.id,
+            qty: String(item.quantity),   // ✅ string
+            rate: String(item.rate),      // ✅ string
             narration: item.narration,
           };
         }),
@@ -329,29 +304,20 @@ function StockTransfer() {
 
       let response;
       if (editTransfer) {
-        // Update existing transfer
         response = await axiosInstance.put(`stocktransfers/${editTransfer.id}`, transferData);
       } else {
-        // Create new transfer
-        response = await axios.post(`${BaseUrl}stocktransfers`, transferData);
+        response = await axiosInstance.post(`stocktransfers`, transferData);
       }
 
       const isSuccess = response.data?.success || response.data?.status;
-
       if (isSuccess) {
         await fetchStockTransfers();
         setShowModal(false);
         resetForm();
         setEditTransfer(null);
-        
-        // Show toast notification based on operation type
-        if (editTransfer) {
-          toast.success("Stock transfer updated successfully!");
-        } else {
-          toast.success("Stock transfer created successfully!");
-        }
+        toast.success(editTransfer ? "Stock transfer updated successfully!" : "Stock transfer created successfully!");
       } else {
-        throw new Error("Failed to save transfer");
+        throw new Error(response.data?.message || "Failed to save transfer");
       }
     } catch (err) {
       setError(err.message || "Failed to save stock transfer");
@@ -387,7 +353,6 @@ function StockTransfer() {
     }
   };
 
-  // ✅ NEW: Handle edit transfer
   const handleEditTransfer = (transfer) => {
     setEditTransfer(transfer);
   };
@@ -423,9 +388,8 @@ function StockTransfer() {
 
   return (
     <div className="container mt-4">
-      {/* Toast Container */}
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
-      
+
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h3>Stock Transfer Records</h3>
@@ -441,11 +405,12 @@ function StockTransfer() {
           <FontAwesomeIcon icon={faPlus} className="me-2" /> Add Stock Transfer
         </button>
       </div>
+
       {/* Filters */}
       <div className="card mb-3">
         <div className="card-body">
           <h5>Filter Transfers</h5>
-          <div className="row g-3">     
+          <div className="row g-3">
             <div className="col-md-3">
               <input type="date" className="form-control" value={filters.fromDate} onChange={e => setFilters({ ...filters, fromDate: e.target.value })} />
             </div>
@@ -501,24 +466,14 @@ function StockTransfer() {
                         <button className="btn btn-sm btn-success me-1" onClick={() => setViewTransfer(t)}>
                           <FontAwesomeIcon icon={faEye} />
                         </button>
-                        {/* ✅ NEW: Edit button */}
-                        <button 
-                          className="btn btn-sm p-2 me-1" 
-                          style={{ backgroundColor: "#ffc107", borderColor: "#ffc107", color: "white", width: "36px", height: "36px", padding: "0", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px" }} 
-                          onClick={() => handleEditTransfer(t)} 
-                          title="Edit Adjustment"
+                        <button
+                          className="btn btn-sm p-2 me-1"
+                          style={{ backgroundColor: "#ffc107", borderColor: "#ffc107", color: "black", width: "36px", height: "36px", padding: "0", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px" }}
+                          onClick={() => handleEditTransfer(t)}
+                          title="Edit Transfer"
                         >
                           <FontAwesomeIcon icon={faEdit} />
                         </button>
-                        {/* Delete button */}
-                        {/* <button 
-                          className="btn btn-sm p-2" 
-                          style={{ backgroundColor: "#dc3545", borderColor: "#dc3545", color: "white", width: "36px", height: "36px", padding: "0", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px" }} 
-                          onClick={() => handleDeleteTransfer(t.id)} 
-                          title="Delete Transfer"
-                        >
-                          <FontAwesomeIcon icon={faTrash} />
-                        </button> */}
                       </td>
                     </tr>
                   ))}
@@ -536,15 +491,14 @@ function StockTransfer() {
             <div className="modal-content">
               <div className="modal-header">
                 <h5>{editTransfer ? "Edit" : "New"} Stock Transfer</h5>
-                <button className="btn-close" onClick={() => { 
-                  setShowModal(false); 
-                  resetForm(); 
+                <button className="btn-close" onClick={() => {
+                  setShowModal(false);
+                  resetForm();
                   setEditTransfer(null);
                 }}></button>
               </div>
               <div className="modal-body">
                 {error && <div className="alert alert-danger">{error}</div>}
-
                 {/* Voucher Info */}
                 <div className="row mb-3">
                   <div className="col-md-4">
@@ -560,7 +514,6 @@ function StockTransfer() {
                     <small>Voucher Date</small>
                   </div>
                 </div>
-
                 {/* Destination Warehouse */}
                 <div className="mb-3">
                   <label>Destination Warehouse</label>
@@ -583,7 +536,7 @@ function StockTransfer() {
                       {warehousesLoading ? (
                         <li className="list-group-item">Loading warehouses...</li>
                       ) : warehouses.length === 0 ? (
-                        <li className="list-group-item">No warehouses available for your company</li>
+                        <li className="list-group-item">No warehouses available</li>
                       ) : (
                         warehouses
                           .filter(w => w.name && w.name.toLowerCase().includes((destinationWarehouse || "").toLowerCase()))
@@ -604,7 +557,6 @@ function StockTransfer() {
                     </ul>
                   )}
                 </div>
-
                 {/* Select Item */}
                 <div className="mb-3">
                   <label>Select Item</label>
@@ -645,10 +597,8 @@ function StockTransfer() {
                               <strong>{p.name}</strong>
                               <div className="small text-muted">
                                 {p.sku && `SKU: ${p.sku}`} {p.barcode && `| Barcode: ${p.barcode}`}
-                                {/* ✅ FIXED: Display total stock across all warehouses */}
                                 {p.total_stock !== undefined && `| Total Stock: ${p.total_stock}`}
                               </div>
-                              {/* ✅ NEW: Display warehouse-specific stock information */}
                               {p.warehouses && p.warehouses.length > 0 && (
                                 <div className="small text-muted">
                                   Warehouses: {p.warehouses.map(w => `${w.name}: ${w.stock_qty}`).join(", ")}
@@ -660,7 +610,6 @@ function StockTransfer() {
                     </ul>
                   )}
                 </div>
-
                 {/* Items Table */}
                 <div className="table-responsive mb-3">
                   <table className="table table-bordered">
@@ -677,9 +626,7 @@ function StockTransfer() {
                     <tbody>
                       {items.length > 0 ? (
                         items.map(item => {
-                          // Find the product to get warehouse stock information
                           const product = products.find(p => p.id === item.productId);
-                          
                           return (
                             <tr key={item.id}>
                               <td>{item.itemName}</td>
@@ -691,12 +638,10 @@ function StockTransfer() {
                                 >
                                   <option value="">-- Select --</option>
                                   {warehouses.map(w => {
-                                    // ✅ FIXED: Disable the destination warehouse in the source dropdown
-                                    // Also show stock availability for each warehouse
                                     const warehouseStock = product?.warehouses?.find(wh => wh.id === w.id)?.stock_qty || 0;
                                     return (
-                                      <option 
-                                        key={w.id} 
+                                      <option
+                                        key={w.id}
                                         value={w.name}
                                         disabled={w.name === destinationWarehouse || warehouseStock <= 0}
                                       >
@@ -744,7 +689,6 @@ function StockTransfer() {
                     </tbody>
                   </table>
                 </div>
-
                 {/* Narration */}
                 <div className="mb-3">
                   <textarea
@@ -755,7 +699,6 @@ function StockTransfer() {
                     onChange={e => setNote(e.target.value)}
                   />
                 </div>
-
                 <div className="d-flex justify-content-between align-items-center">
                   <strong>Total: {symbol}{convertPrice(calculateTotalAmount())}</strong>
                   <button className="btn btn-success" onClick={handleSubmitTransfer} disabled={loading}>
@@ -794,7 +737,7 @@ function StockTransfer() {
                           <th>Rate</th>
                           <th>Amount</th>
                         </tr>
-                        </thead>
+                      </thead>
                       <tbody>
                         {viewTransfer.items.length > 0 ? (
                           viewTransfer.items.map(i => (

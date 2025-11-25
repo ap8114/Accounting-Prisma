@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Button,
   Card,
@@ -12,150 +12,82 @@ import {
 import DatePicker from "react-datepicker";
 import { FaFilePdf, FaFileExcel, FaArrowLeft, FaSearch, FaTimes } from "react-icons/fa";
 import "react-datepicker/dist/react-datepicker.css";
+import GetCompanyId from "../../../Api/GetCompanyId";
+import axiosInstance from "../../../Api/axiosInstance";
 
 const TrialBalance = () => {
-  // Date range filter globally for Trial Balance & Modal
+  const companyId = GetCompanyId();
+
+  // Global filters
   const [dateRange, setDateRange] = useState([null, null]);
   const [startDate, endDate] = dateRange;
-  // Account type filter on main report (All, Asset, etc.)
   const [filterType, setFilterType] = useState("All");
-  // Account name filter (search string) on main report
   const [searchAccount, setSearchAccount] = useState("");
-  // Modal state & selected account
+
+  // Modal state
   const [showModal, setShowModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
-  // Modal - transaction text filter (search by type or particulars)
   const [modalSearchText, setModalSearchText] = useState("");
-  // Pagination states for transactions in modal
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  // Static Account Types for filter dropdown
+
+  // Data & loading states
+  const [trialEntries, setTrialEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Static account types (you may also fetch these if dynamic)
   const types = ["All", "Asset", "Liability", "Expense", "Income", "Equity"];
-  // Sample Data: Accounts with transactions
-  const trialEntries = [
-    {
-      code: "101",
-      name: "Cash in Hand",
-      type: "Asset",
-      opening: 20000,
-      debit: 30000,
-      credit: 0,
-      transactions: [
-        {
-          date: "2025-08-01",
-          type: "Opening Balance",
-          particulars: "",
-          debit: 20000,
-          credit: 0,
-        },
-        {
-          date: "2025-08-03",
-          type: "Cash Sale",
-          particulars: "Sales",
-          debit: 30000,
-          credit: 0,
-        },
-        {
-          date: "2025-08-07",
-          type: "Payment",
-          particulars: "Supplier X",
-          debit: 0,
-          credit: 5000,
-        },
-        {
-          date: "2025-08-09",
-          type: "Receipt",
-          particulars: "Customer Y",
-          debit: 15000,
-          credit: 0,
-        },
-        {
-          date: "2025-08-12",
-          type: "Payment",
-          particulars: "Expenses",
-          debit: 0,
-          credit: 2000,
-        },
-        {
-          date: "2025-08-15",
-          type: "Cash Sale",
-          particulars: "Sales Z",
-          debit: 10000,
-          credit: 0,
-        },
-        {
-          date: "2025-08-20",
-          type: "Payment",
-          particulars: "Supplier A",
-          debit: 0,
-          credit: 8000,
-        },
-      ],
-    },
-    {
-      code: "201",
-      name: "Sales",
-      type: "Income",
-      opening: 0,
-      debit: 0,
-      credit: 50000,
-      transactions: [
-        {
-          date: "2025-08-02",
-          type: "Sales Invoice",
-          particulars: "Customer A",
-          debit: 0,
-          credit: 20000,
-        },
-        {
-          date: "2025-08-10",
-          type: "Sales Invoice",
-          particulars: "Customer B",
-          debit: 0,
-          credit: 30000,
-        },
-      ],
-    },
-    {
-      code: "301",
-      name: "Purchase",
-      type: "Expense",
-      opening: 10000,
-      debit: 40000,
-      credit: 0,
-      transactions: [
-        {
-          date: "2025-08-05",
-          type: "Purchase Invoice",
-          particulars: "Supplier A",
-          debit: 40000,
-          credit: 0,
-        },
-      ],
-    },
-    {
-      code: "401",
-      name: "Capital",
-      type: "Equity",
-      opening: 30000,
-      debit: 0,
-      credit: 0,
-      transactions: [
-        {
-          date: "2025-08-01",
-          type: "Capital Injection",
-          particulars: "",
-          debit: 0,
-          credit: 30000,
-        },
-      ],
-    },
-  ];
-  // Calculate closing balance
+
+  // Fetch trial balance data
+  useEffect(() => {
+    if (!companyId) {
+      setError("Company ID missing");
+      setLoading(false);
+      return;
+    }
+
+    const fetchTrialBalance = async () => {
+      try {
+        setLoading(true);
+        const response = await axiosInstance.get(`trial-balance/${companyId}`);
+
+        if (response.data.success && Array.isArray(response.data.data)) {
+          // Map API fields to your expected structure
+          const mapped = response.data.data.map((item) => ({
+            code: String(item.account_code),
+            name: item.account_name,
+            type: item.type || "Other",
+            opening: Number(item.opening_balance) || 0,
+            debit: Number(item.debit) || 0,
+            credit: Number(item.credit) || 0,
+            closing: Number(item.closing_balance) || 0,
+            // Note: API does NOT return transactions → modal will be empty unless you have another endpoint
+            transactions: [], // ⚠️ You'll need a separate ledger API to populate this
+          }));
+          setTrialEntries(mapped);
+        } else {
+          setError("Invalid API response format");
+        }
+      } catch (err) {
+        console.error("API Error:", err);
+        setError("Failed to load trial balance");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrialBalance();
+  }, [companyId]);
+
+  // NOTE: Since your current API does NOT include transactions,
+  // clicking an account will show an empty ledger unless you have a `/ledger/{accountId}` API.
+  // For now, we'll keep the modal functional but show "No transactions" if none exist.
+
   const calculateClosing = (entry) => {
     return entry.opening + entry.debit - entry.credit;
   };
-  // Filter accounts based on selected type and search string
+
   const filteredRows = trialEntries.filter((entry) => {
     const matchesType = filterType === "All" || entry.type === filterType;
     const matchesSearch =
@@ -163,14 +95,14 @@ const TrialBalance = () => {
       entry.code.toLowerCase().includes(searchAccount.toLowerCase());
     return matchesType && matchesSearch;
   });
-  // When an account name is clicked, open modal and reset pagination & modal filters
+
   const openDetails = (account) => {
     setSelectedAccount(account);
     setShowModal(true);
     setCurrentPage(1);
     setModalSearchText("");
   };
-  // Filter transactions by modal search text and date range
+
   const filteredTransactions = useMemo(() => {
     if (!selectedAccount) return [];
     return selectedAccount.transactions.filter((t) => {
@@ -185,21 +117,19 @@ const TrialBalance = () => {
       return matchesDateRange && matchesText;
     });
   }, [selectedAccount, startDate, endDate, modalSearchText]);
-  // Pagination calculations for modal transactions
+
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentTransactions = filteredTransactions.slice(indexOfFirst, indexOfLast);
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-  // Pagination change handler
+
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
   };
-  // Render pagination items with ellipses for large page counts
+
   const renderPaginationItems = () => {
     let items = [];
-    // For very large page counts, add smart ellipsis handling
     if (totalPages <= 7) {
-      // Show all pages
       for (let number = 1; number <= totalPages; number++) {
         items.push(
           <Pagination.Item
@@ -212,26 +142,18 @@ const TrialBalance = () => {
         );
       }
     } else {
-      // Show first, last, current, neighbors, ellipsis
       const pageNumbers = [];
       pageNumbers.push(1);
-      if (currentPage > 4) {
-        pageNumbers.push("start-ellipsis");
-      }
+      if (currentPage > 4) pageNumbers.push("start-ellipsis");
       let startPage = Math.max(2, currentPage - 1);
       let endPage = Math.min(totalPages - 1, currentPage + 1);
-      for (let i = startPage; i <= endPage; i++) {
-        pageNumbers.push(i);
-      }
-      if (currentPage < totalPages - 3) {
-        pageNumbers.push("end-ellipsis");
-      }
+      for (let i = startPage; i <= endPage; i++) pageNumbers.push(i);
+      if (currentPage < totalPages - 3) pageNumbers.push("end-ellipsis");
       pageNumbers.push(totalPages);
+
       pageNumbers.forEach((number, index) => {
         if (number === "start-ellipsis" || number === "end-ellipsis") {
-          items.push(
-            <Pagination.Ellipsis key={number + index} disabled />
-          );
+          items.push(<Pagination.Ellipsis key={number + index} disabled />);
         } else {
           items.push(
             <Pagination.Item
@@ -247,25 +169,40 @@ const TrialBalance = () => {
     }
     return items;
   };
-  // Close modal and reset filters
+
   const closeModal = () => {
     setShowModal(false);
     setSelectedAccount(null);
     setModalSearchText("");
     setCurrentPage(1);
   };
+
+  // ⚠️ Loading & Error UI
+  if (loading) {
+    return (
+      <div className="p-4 mt-4 text-center">
+        <div>Loading Trial Balance...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 mt-4 text-center">
+        <div className="text-danger">Error: {error}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 mt-4">
       <h4 className="fw-bold">Trial Balance Report</h4>
-      <p className="text-muted mb-4">
-        Auto-generated accounting summary by account head.
-      </p>
+      <p className="text-muted mb-4">Auto-generated accounting summary by account head.</p>
+
       {/* Filter UI */}
       <Card className="p-4 mb-4 border-0 rounded-4 shadow-sm">
         <Form>
           <Row className="gy-3 gx-4 align-items-end">
-      
-            
             <Col md={3}>
               <Form.Group controlId="accountType">
                 <Form.Label className="fw-semibold mb-2">Account Type</Form.Label>
@@ -322,7 +259,7 @@ const TrialBalance = () => {
                 }}
                 className="w-100 w-md-auto"
                 onClick={() => {
-                  /* You can trigger any report generation here */
+                  // Optional: re-fetch or apply advanced logic
                 }}
               >
                 Generate Report
@@ -331,21 +268,19 @@ const TrialBalance = () => {
           </Row>
         </Form>
       </Card>
+
       {/* Trial Balance Table */}
       <Card className="shadow-sm rounded-4 p-4 border-0">
         <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap">
           <h5 className="fw-bold mb-2 mb-md-0">Account Summary</h5>
           <div className="d-flex align-items-center gap-2 flex-wrap">
-  <Button variant="outline-danger" size="sm" className="d-flex align-items-center">
-    <FaFilePdf style={{ fontSize: '1rem', marginRight: '0.5rem' }} />
-    PDF
-  </Button>
-  <Button variant="outline-success" size="sm" className="d-flex align-items-center">
-    <FaFileExcel style={{ fontSize: '1rem', marginRight: '0.5rem' }} />
-    Excel
-  </Button>
-</div>
-
+            <Button variant="outline-danger" size="sm" className="d-flex align-items-center">
+              <FaFilePdf style={{ fontSize: '1rem', marginRight: '0.5rem' }} /> PDF
+            </Button>
+            <Button variant="outline-success" size="sm" className="d-flex align-items-center">
+              <FaFileExcel style={{ fontSize: '1rem', marginRight: '0.5rem' }} /> Excel
+            </Button>
+          </div>
         </div>
         <Table responsive className="text-nowrap mb-0 align-middle">
           <thead className="bg-light text-dark fw-semibold">
@@ -365,21 +300,20 @@ const TrialBalance = () => {
                 <tr key={idx}>
                   <td>{row.code}</td>
                   <td>
-                    <Button 
-                      variant="link" 
+                    <Button
+                      variant="link"
                       onClick={() => openDetails(row)}
-                      className="p-0 text-start "
+                      className="p-0 text-start"
                     >
                       {row.name}
                     </Button>
                   </td>
                   <td>
-                    <span className={`badge bg-${
-                      row.type === "Asset" ? "primary" : 
-                      row.type === "Liability" ? "info" : 
-                      row.type === "Expense" ? "danger" : 
-                      row.type === "Income" ? "success" : "warning"
-                    }`}>
+                    <span className={`badge bg-${row.type === "Asset" ? "primary" :
+                      row.type === "Liability" ? "info" :
+                        row.type === "Expense" ? "danger" :
+                          row.type === "Income" ? "success" : "warning"
+                      }`}>
                       {row.type}
                     </span>
                   </td>
@@ -399,6 +333,7 @@ const TrialBalance = () => {
           </tbody>
         </Table>
       </Card>
+
       {/* Modal for Ledger Details */}
       <Modal
         show={showModal}
@@ -409,21 +344,13 @@ const TrialBalance = () => {
         dialogClassName="custom-modal-width"
       >
         <Modal.Header className="py-3">
-          <Button 
-            variant="light" 
-            className="d-flex align-items-center p-0 me-3"
-            onClick={closeModal}
-          >
+          <Button variant="light" className="d-flex align-items-center p-0 me-3" onClick={closeModal}>
             <FaArrowLeft className="me-2" /> Back
           </Button>
           <Modal.Title className="flex-grow-1 text-center">
             Ledger Details: {selectedAccount ? selectedAccount.name : ""}
           </Modal.Title>
-          <Button 
-            variant="light" 
-            className="p-0"
-            onClick={closeModal}
-          >
+          <Button variant="light" className="p-0" onClick={closeModal}>
             <FaTimes size={20} />
           </Button>
         </Modal.Header>
@@ -456,7 +383,7 @@ const TrialBalance = () => {
                         value={modalSearchText}
                         onChange={(e) => {
                           setModalSearchText(e.target.value);
-                          setCurrentPage(1); // Reset page when filter changes
+                          setCurrentPage(1);
                         }}
                         className="pe-5"
                       />
@@ -477,7 +404,7 @@ const TrialBalance = () => {
               </Row>
             </Card.Body>
           </Card>
-          
+
           <Card className="border-0 shadow-sm">
             <Card.Body className="p-0">
               <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
@@ -502,11 +429,10 @@ const TrialBalance = () => {
                       <tr key={i}>
                         <td>{new Date(tx.date).toLocaleDateString()}</td>
                         <td>
-                          <span className={`badge bg-${
-                            tx.type === "Opening Balance" ? "secondary" :
+                          <span className={`badge bg-${tx.type === "Opening Balance" ? "secondary" :
                             tx.type.includes("Sale") || tx.type.includes("Receipt") ? "success" :
-                            tx.type.includes("Payment") || tx.type.includes("Purchase") ? "danger" : "info"
-                          }`}>
+                              tx.type.includes("Payment") || tx.type.includes("Purchase") ? "danger" : "info"
+                            }`}>
                             {tx.type}
                           </span>
                         </td>
@@ -518,37 +444,24 @@ const TrialBalance = () => {
                   ) : (
                     <tr>
                       <td colSpan={5} className="text-center text-muted py-4">
-                        No transactions found for selected filters.
+                        No transactions available.{/* ⚠️ API doesn't provide transactions */}
                       </td>
                     </tr>
                   )}
                 </tbody>
               </Table>
-              
-              {/* Pagination */}
+
               {totalPages > 1 && (
                 <div className="d-flex justify-content-between align-items-center p-3 border-top">
                   <div className="text-muted">
                     Showing {indexOfFirst + 1} to {Math.min(indexOfLast, filteredTransactions.length)} of {filteredTransactions.length} entries
                   </div>
                   <Pagination className="mb-0">
-                    <Pagination.First
-                      onClick={() => handlePageChange(1)}
-                      disabled={currentPage === 1}
-                    />
-                    <Pagination.Prev
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    />
+                    <Pagination.First onClick={() => handlePageChange(1)} disabled={currentPage === 1} />
+                    <Pagination.Prev onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
                     {renderPaginationItems()}
-                    <Pagination.Next
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                    />
-                    <Pagination.Last
-                      onClick={() => handlePageChange(totalPages)}
-                      disabled={currentPage === totalPages}
-                    />
+                    <Pagination.Next onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} />
+                    <Pagination.Last onClick={() => handlePageChange(totalPages)} disabled={currentPage === totalPages} />
                   </Pagination>
                 </div>
               )}
@@ -556,111 +469,36 @@ const TrialBalance = () => {
           </Card>
         </Modal.Body>
         <Modal.Footer className="py-3">
-          <Button variant="secondary" onClick={closeModal}>
-            Close
-          </Button>
+          <Button variant="secondary" onClick={closeModal}>Close</Button>
         </Modal.Footer>
       </Modal>
+
       {/* Page Info */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-4">
         <Card.Body>
-          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
-            Page Info
-          </h5>
-          <ul
-            className="text-muted fs-6 mb-0"
-            style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
-          >
-            <li>
-              A trial balance lists ledger account balances for verification.
-            </li>
+          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
+          <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
+            <li>A trial balance lists ledger account balances for verification.</li>
             <li>Filter accounts by type and search by name/code above.</li>
             <li>Click on an account name to see detailed ledger transactions.</li>
-            <li>
-              In ledger modal, filter transactions by date range and by text
-              (Type or Particulars).
-            </li>
+            <li>In ledger modal, filter transactions by date range and by text (Type or Particulars).</li>
             <li>Pagination is used for better handling of lots of data.</li>
           </ul>
         </Card.Body>
       </Card>
-      
-      {/* CSS to remove all animations and shake effects */}
+
+      {/* Remove animations */}
       <style jsx global>{`
-        * {
-          transition: none !important;
-          animation: none !important;
-          transform: none !important;
-        }
-        
-        /* Remove hover effects from table rows */
-        tbody tr:hover {
-          background-color: transparent !important;
-        }
-        
-        /* Remove hover effects from buttons */
-        .btn:hover {
+        * { transition: none !important; animation: none !important; transform: none !important; }
+        tbody tr:hover { background-color: transparent !important; }
+        .btn:hover, .page-link:hover, .form-control:hover, .card:hover, .badge:hover {
           transform: none !important;
           box-shadow: none !important;
           background-color: inherit !important;
           border-color: inherit !important;
           color: inherit !important;
         }
-        
-        /* Remove hover effects from pagination */
-        .page-link:hover {
-          background-color: transparent !important;
-          border-color: transparent !important;
-          color: inherit !important;
-        }
-        
-        /* Remove hover effects from form controls */
-        .form-control:hover, .form-select:hover {
-          border-color: inherit !important;
-          box-shadow: none !important;
-        }
-        
-        /* Remove hover effects from cards */
-        .card:hover {
-          box-shadow: inherit !important;
-          transform: none !important;
-        }
-        
-        /* Remove hover effects from badges */
-        .badge:hover {
-          transform: none !important;
-        }
-        
-        /* Remove modal animations */
-        .modal {
-          animation: none !important;
-        }
-        
-        .modal-backdrop {
-          animation: none !important;
-        }
-        
-        .modal.show .modal-dialog {
-          animation: none !important;
-          transform: none !important;
-        }
-        
-        /* Remove date picker animations */
-        .react-datepicker {
-          animation: none !important;
-        }
-        
-        .react-datepicker__triangle {
-          animation: none !important;
-        }
-        
-        /* Remove all transitions from all elements */
-        * {
-          transition-property: none !important;
-          transition-duration: 0s !important;
-          transition-delay: 0s !important;
-          transition-timing-function: ease !important;
-        }
+        .modal, .modal-backdrop, .modal.show .modal-dialog, .react-datepicker { animation: none !important; transform: none !important; }
       `}</style>
     </div>
   );
