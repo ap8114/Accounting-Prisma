@@ -94,22 +94,16 @@ const SalesReturn = () => {
     }
   };
 
-  // ========= FETCH RETURNS (Updated for real API) =========
   const fetchReturns = async () => {
     try {
       const response = await axiosInstance.get(`/sales-return/get-returns`, {
         params: { company_id: companyId }
       });
+      const data = response.data;
 
-      if (!response.data?.success) {
-        throw new Error("Invalid response from server");
-      }
-
-      const { data: rawReturns, summary } = response.data;
-
-      // ✅ Map only top-level fields (no itemsList in list response)
-      const mapped = (rawReturns || []).map((r) => ({
-        id: r.sr_no, // or use a real ID if available — currently sr_no is used
+      // Updated mapping based on the new API response structure
+      const mapped = (data.data || []).map(r => ({
+        id: r.sr_no, // Using sr_no as id since it's unique in the response
         returnNo: r.return_no,
         invoiceNo: r.invoice_no,
         customer_id: r.customer_id,
@@ -121,35 +115,29 @@ const SalesReturn = () => {
         returnType: r.return_type || 'Sales Return',
         reason: r.reason || '',
         referenceId: r.reference_id || '',
-        voucherNo: r.manual_voucher_no || r.auto_voucher_no || '',
-        narration: '', // Not available in list view
-        // ❌ Do NOT include itemsList here — it's not in the API
+        voucherNo: r.manual_voucher_no || '',
+        autoVoucherNo: r.auto_voucher_no || '',
+        narration: '', // Not present in API response
+        itemsList: [] // Not present in API response, would need separate API call
       }));
-
       setReturns(mapped);
-
-      // ✅ Set summary stats if available
-      if (summary) {
-        setSummary({
-          totalReturns: summary.totalReturns || 0,
-          processed: summary.processed || 0,
-          pending: summary.pending || 0,
-          totalValue: summary.totalValue || 0,
-        });
-      }
     } catch (err) {
-      console.error("Error fetching returns:", err);
-      setError(err.response?.data?.message || "Failed to load sales returns");
+      console.error('Error fetching returns:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to load sales returns');
     }
   };
 
-  // Add this near your other state declarations
-  const [summary, setSummary] = useState({
-    totalReturns: 0,
-    processed: 0,
-    pending: 0,
-    totalValue: 0,
-  });
+  // Fetch return details for view/edit
+  const fetchReturnDetails = async (returnId) => {
+    try {
+      // This would be your endpoint to get detailed return information including items
+      const response = await axiosInstance.get(`/sales-return/get-particular/${returnId}`);
+      return response.data;
+    } catch (err) {
+      console.error('Error fetching return details:', err);
+      return null;
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -181,7 +169,6 @@ const SalesReturn = () => {
     return wh ? (wh.warehouse_name || wh.name || `Warehouse ${warehouseId}`) : 'Unknown Warehouse';
   };
 
-  // 🔁 UPDATED: Use `warehouses` instead of `product_warehouses`
   const getAvailableStock = (productId, warehouseId) => {
     const product = products.find(p => p.id === productId);
     if (!product || !warehouseId) return 0;
@@ -201,7 +188,6 @@ const SalesReturn = () => {
     return null;
   };
 
-  // 🔁 UPDATED: Filter products by `warehouses` field
   const getFilteredProducts = (warehouseId) => {
     if (!warehouseId) return products;
     return products.filter(p =>
@@ -226,7 +212,9 @@ const SalesReturn = () => {
         custName,
         item.reason,
         whName,
-        item.narration
+        item.narration,
+        item.referenceId,
+        item.voucherNo
       ].some(field => field?.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
       const matchesType = returnTypeFilter === 'All' || item.returnType === returnTypeFilter;
@@ -241,9 +229,11 @@ const SalesReturn = () => {
       let matchesAmount = true;
       if (amountMin) matchesAmount = item.amount >= parseFloat(amountMin);
       if (amountMax && matchesAmount) matchesAmount = item.amount <= parseFloat(amountMax);
-      return matchesSearch && matchesStatus && matchesType && matchesWarehouse && matchesCustomer && matchesDate && matchesAmount;
+      const matchesVoucher = !voucherNo || item.voucherNo?.toLowerCase().includes(voucherNo.toLowerCase());
+
+      return matchesSearch && matchesStatus && matchesType && matchesWarehouse && matchesCustomer && matchesDate && matchesAmount && matchesVoucher;
     });
-  }, [returns, searchTerm, statusFilter, returnTypeFilter, warehouseFilter, customerFilter, dateFrom, dateTo, amountMin, amountMax, customers, warehouses]);
+  }, [returns, searchTerm, statusFilter, returnTypeFilter, warehouseFilter, customerFilter, dateFrom, dateTo, amountMin, amountMax, voucherNo, customers, warehouses]);
 
   // ========= Handlers =========
   const handleDelete = async (id) => {
@@ -260,9 +250,9 @@ const SalesReturn = () => {
 
   const handleExportAll = () => {
     let csvContent = "text/csv;charset=utf-8,\uFEFF";
-    csvContent += "Reference ID,Return No,Invoice No,Customer,Date,Items,Amount,Status,Return Type,Reason,Warehouse,Narration\n";
+    csvContent += "Reference ID,Return No,Invoice No,Customer,Date,Items,Amount,Status,Return Type,Reason,Warehouse,Narration,Auto Voucher No,Manual Voucher No\n";
     returns.forEach(r => {
-      csvContent += `"${r.referenceId}","${r.returnNo}","${r.invoiceNo}","${getCustomerName(r.customer_id)}","${r.date}",${r.items},${r.amount},"${r.status}","${r.returnType}","${r.reason}","${getWarehouseName(r.warehouse_id)}","${r.narration}"\n`;
+      csvContent += `"${r.referenceId}","${r.returnNo}","${r.invoiceNo}","${getCustomerName(r.customer_id)}","${r.date}",${r.items},${r.amount},"${r.status}","${r.returnType}","${r.reason}","${getWarehouseName(r.warehouse_id)}","${r.narration}","${r.autoVoucherNo}","${r.voucherNo}"\n`;
     });
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -283,6 +273,7 @@ const SalesReturn = () => {
     setDateTo('');
     setAmountMin('');
     setAmountMax('');
+    setVoucherNo('');
   };
 
   const handleAddClick = () => {
@@ -292,7 +283,7 @@ const SalesReturn = () => {
       invoiceNo: '',
       customerId: null,
       customerName: '',
-      date: '',
+      date: new Date().toISOString().split('T')[0],
       items: 0,
       status: 'pending',
       amount: 0,
@@ -333,7 +324,12 @@ const SalesReturn = () => {
         item.total = item.qty * price;
       } else if (field === 'productName') {
         item.productId = value.id;
-        item.productName = value.name;
+        item.productName = value.item_name || value.name;
+        // Auto-set price if product has a price
+        if (value.sale_price) {
+          item.price = parseFloat(value.sale_price);
+          item.total = item.qty * item.price;
+        }
       } else if (field === 'narration') {
         item.narration = value;
       }
@@ -357,19 +353,28 @@ const SalesReturn = () => {
 
   const handleAddReturn = async () => {
     const { returnNo, invoiceNo, customerId, date, itemsList, warehouseId } = newReturn;
-    if (!returnNo || !invoiceNo || !customerId || !date || itemsList.length === 0) {
-      setAddItemError("Please fill all required fields and add at least one item.");
+    if (!returnNo || !invoiceNo || !customerId || !date || itemsList.length === 0 || !warehouseId) {
+      setAddItemError("Please fill all required fields (*) and add at least one item.");
       return;
     }
+
+    // Validate that all items have products selected
+    const invalidItems = itemsList.filter(item => !item.productId);
+    if (invalidItems.length > 0) {
+      setAddItemError("Please select a product for all items.");
+      return;
+    }
+
     const validationError = validateItemsAgainstWarehouseStock(itemsList, warehouseId);
     if (validationError) {
       setAddItemError(validationError);
       return;
     }
+
     const payload = {
       company_id: companyId,
       reference_id: newReturn.referenceId || null,
-      manual_voucher_no: voucherNo || null,
+      manual_voucher_no: newReturn.voucherNo || null,
       customer_id: customerId,
       return_no: returnNo,
       invoice_no: invoiceNo,
@@ -390,6 +395,7 @@ const SalesReturn = () => {
         narration: item.narration
       }))
     };
+
     try {
       const response = await axiosInstance.post('/sales-return/create-sales-return', payload);
       if (response.data.success) {
@@ -406,13 +412,59 @@ const SalesReturn = () => {
     }
   };
 
+  const handleEditClick = async (returnItem) => {
+    try {
+      setAddItemError('');
+      setOpenDropdown(null);
+
+      // Fetch detailed return data including items
+      const detailedReturn = await fetchReturnDetails(returnItem.id);
+
+      if (detailedReturn) {
+        setEditReturn({
+          ...returnItem,
+          itemsList: detailedReturn.itemsList || [],
+          customerName: getCustomerName(returnItem.customer_id),
+          warehouseName: getWarehouseName(returnItem.warehouse_id)
+        });
+      } else {
+        // Fallback to basic data if detailed fetch fails
+        setEditReturn({
+          ...returnItem,
+          itemsList: [],
+          customerName: getCustomerName(returnItem.customer_id),
+          warehouseName: getWarehouseName(returnItem.warehouse_id)
+        });
+      }
+      setShowEditModal(true);
+    } catch (err) {
+      console.error('Error preparing edit:', err);
+      setAddItemError('Failed to load return details for editing.');
+    }
+  };
+
   const handleEditSave = async () => {
     if (!editReturn) return;
-    const validationError = validateItemsAgainstWarehouseStock(editReturn.itemsList, editReturn.warehouseId);
+
+    const { returnNo, invoiceNo, customerId, date, itemsList, warehouseId } = editReturn;
+    if (!returnNo || !invoiceNo || !customerId || !date || itemsList.length === 0 || !warehouseId) {
+      setAddItemError("Please fill all required fields (*) and ensure at least one item is added.");
+      return;
+    }
+
+    // Validate that all items have products selected
+    const invalidItems = itemsList.filter(item => !item.productId);
+    if (invalidItems.length > 0) {
+      setAddItemError("Please select a product for all items.");
+      return;
+    }
+
+    const validationError = validateItemsAgainstWarehouseStock(itemsList, warehouseId);
     if (validationError) {
       setAddItemError(validationError);
       return;
     }
+
     const payload = {
       company_id: companyId,
       reference_id: editReturn.referenceId,
@@ -437,6 +489,7 @@ const SalesReturn = () => {
         narration: item.narration
       }))
     };
+
     try {
       const response = await axiosInstance.put(`/sales-return/update-sale/${editReturn.id}`, payload);
       if (response.data.success) {
@@ -471,7 +524,7 @@ const SalesReturn = () => {
   const renderDropdown = ({ items, onSelect, searchValue, onSearchChange, displayField = "name_english", idField = "id", openKey }) => {
     if (openDropdown !== openKey) return null;
     const filteredItems = items.filter(item =>
-      (item[displayField] || '').toLowerCase().includes(searchValue.toLowerCase())
+      (item[displayField] || '').toLowerCase().includes((searchValue || '').toLowerCase())
     );
     return (
       <div
@@ -574,7 +627,7 @@ const SalesReturn = () => {
       {/* Filters */}
       <div className="bg-light p-3 rounded mb-4">
         <Row className="g-3">
-          <Col md={3}>
+          <Col md={2}>
             <InputGroup>
               <InputGroup.Text><FaSearch /></InputGroup.Text>
               <Form.Control
@@ -623,8 +676,48 @@ const SalesReturn = () => {
           <Col md={2}>
             <InputGroup>
               <InputGroup.Text><FaCalendarAlt /></InputGroup.Text>
-              <Form.Control type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <Form.Control
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                title="Date From"
+              />
             </InputGroup>
+          </Col>
+          <Col md={2}>
+            <InputGroup>
+              <InputGroup.Text><FaCalendarAlt /></InputGroup.Text>
+              <Form.Control
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                title="Date To"
+              />
+            </InputGroup>
+          </Col>
+          <Col md={2}>
+            <Form.Control
+              type="number"
+              placeholder="Min Amount"
+              value={amountMin}
+              onChange={(e) => setAmountMin(e.target.value)}
+            />
+          </Col>
+          <Col md={2}>
+            <Form.Control
+              type="number"
+              placeholder="Max Amount"
+              value={amountMax}
+              onChange={(e) => setAmountMax(e.target.value)}
+            />
+          </Col>
+          <Col md={2}>
+            <Form.Control
+              type="text"
+              placeholder="Voucher No"
+              value={voucherNo}
+              onChange={(e) => setVoucherNo(e.target.value)}
+            />
           </Col>
           <Col md={1}>
             <Button variant="outline-secondary" onClick={clearFilters} size="sm">Clear</Button>
@@ -633,13 +726,12 @@ const SalesReturn = () => {
       </div>
 
       {/* Summary Cards */}
-
       <div className="row mb-4">
         <div className="col-md-3 mb-3">
           <div className="card border-primary">
             <div className="card-body">
               <h6 className="card-title text-muted">Total Returns</h6>
-              <h4 className="text-primary">{summary.totalReturns}</h4>
+              <h4 className="text-primary">{returns.length}</h4>
             </div>
           </div>
         </div>
@@ -647,7 +739,7 @@ const SalesReturn = () => {
           <div className="card border-success">
             <div className="card-body">
               <h6 className="card-title text-muted">Processed</h6>
-              <h4 className="text-success">{summary.processed}</h4>
+              <h4 className="text-success">{returns.filter(r => r.status === 'Processed').length}</h4>
             </div>
           </div>
         </div>
@@ -655,7 +747,7 @@ const SalesReturn = () => {
           <div className="card border-warning">
             <div className="card-body">
               <h6 className="card-title text-muted">Pending</h6>
-              <h4 className="text-warning">{summary.pending}</h4>
+              <h4 className="text-warning">{returns.filter(r => r.status === 'Pending').length}</h4>
             </div>
           </div>
         </div>
@@ -663,31 +755,10 @@ const SalesReturn = () => {
           <div className="card border-danger">
             <div className="card-body">
               <h6 className="card-title text-muted">Total Value</h6>
-              <h4 className="text-danger">
-                ₹ {summary.totalValue.toLocaleString('en-IN')}
-              </h4>
+              <h4 className="text-danger">₹ {returns.reduce((sum, r) => sum + r.amount, 0).toLocaleString('en-IN')}</h4>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Voucher No Section */}
-      <div className="bg-white p-3 rounded shadow-sm mb-4">
-        <Row className="align-items-end g-3">
-          <Col md={4}>
-            <Form.Group>
-              <Form.Label className="fw-bold"> Manual Voucher No</Form.Label>
-              <InputGroup>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter voucher no"
-                  value={voucherNo}
-                  onChange={(e) => setVoucherNo(e.target.value)}
-                />
-              </InputGroup>
-            </Form.Group>
-          </Col>
-        </Row>
       </div>
 
       {/* Table */}
@@ -698,7 +769,8 @@ const SalesReturn = () => {
               <th className="text-center">#</th>
               <th>Return No</th>
               <th>Reference ID</th>
-              <th>Voucher No (Manual)</th>
+              <th>Manual Voucher No</th>
+              <th>Auto Voucher No</th>
               <th>Invoice No</th>
               <th>Customer</th>
               <th>Warehouse</th>
@@ -707,7 +779,6 @@ const SalesReturn = () => {
               <th>Amount (₹)</th>
               <th>Return Type</th>
               <th>Reason</th>
-              <th>Narration</th>
               <th>Status</th>
               <th className="text-center">Action</th>
             </tr>
@@ -720,6 +791,7 @@ const SalesReturn = () => {
                   <td><strong>{item.returnNo}</strong></td>
                   <td>{item.referenceId}</td>
                   <td>{item.voucherNo || "-"}</td>
+                  <td>{item.autoVoucherNo || "-"}</td>
                   <td>{item.invoiceNo}</td>
                   <td>{getCustomerName(item.customer_id)}</td>
                   <td>{getWarehouseName(item.warehouse_id)}</td>
@@ -730,7 +802,6 @@ const SalesReturn = () => {
                   </td>
                   <td>{getReturnTypeBadge(item.returnType)}</td>
                   <td className="small">{item.reason}</td>
-                  <td className="small">{item.narration || "-"}</td>
                   <td>{getStatusBadge(item.status)}</td>
                   <td className="text-center">
                     <div className="d-flex justify-content-center gap-2">
@@ -740,10 +811,7 @@ const SalesReturn = () => {
                       }}>
                         <FaEye size={14} />
                       </Button>
-                      <Button variant="outline-warning" size="sm" onClick={() => {
-                        setEditReturn({ ...item });
-                        setShowEditModal(true);
-                      }}>
+                      <Button variant="outline-warning" size="sm" onClick={() => handleEditClick(item)}>
                         <FaEdit size={14} />
                       </Button>
                       <Button variant="outline-danger" size="sm" onClick={() => handleDelete(item.id)}>
@@ -775,7 +843,8 @@ const SalesReturn = () => {
               <table className="table table-bordered">
                 <tbody>
                   <tr><td className="fw-bold">Reference ID</td><td>{selectedReturn.referenceId}</td></tr>
-                  <tr><td className="fw-bold">Voucher No (Manual)</td><td>{selectedReturn.voucherNo || '-'}</td></tr>
+                  <tr><td className="fw-bold">Manual Voucher No</td><td>{selectedReturn.voucherNo || '-'}</td></tr>
+                  <tr><td className="fw-bold">Auto Voucher No</td><td>{selectedReturn.autoVoucherNo || '-'}</td></tr>
                   <tr><td className="fw-bold">Return No</td><td>{selectedReturn.returnNo}</td></tr>
                   <tr><td className="fw-bold">Invoice No</td><td>{selectedReturn.invoiceNo}</td></tr>
                   <tr><td className="fw-bold">Customer</td><td>{getCustomerName(selectedReturn.customer_id)}</td></tr>
@@ -785,7 +854,6 @@ const SalesReturn = () => {
                   <tr><td className="fw-bold">Amount</td><td>₹{selectedReturn.amount.toLocaleString('en-IN')}</td></tr>
                   <tr><td className="fw-bold">Return Type</td><td>{selectedReturn.returnType}</td></tr>
                   <tr><td className="fw-bold">Reason</td><td>{selectedReturn.reason}</td></tr>
-                  <tr><td className="fw-bold">Narration</td><td>{selectedReturn.narration || '-'}</td></tr>
                   <tr><td className="fw-bold">Status</td><td>{getStatusBadge(selectedReturn.status)}</td></tr>
                 </tbody>
               </table>
@@ -836,34 +904,46 @@ const SalesReturn = () => {
         <Modal.Body>
           {editReturn && (
             <Form>
-              <Form.Group className="mb-3">
-                <Form.Label>Reference ID</Form.Label>
-                <Form.Control type="text" value={editReturn.referenceId} readOnly />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Manual Voucher No</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={editReturn.voucherNo}
-                  onChange={(e) => setEditReturn(prev => ({ ...prev, voucherNo: e.target.value }))}
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Return No *</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={editReturn.returnNo}
-                  onChange={(e) => setEditReturn(prev => ({ ...prev, returnNo: e.target.value }))}
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Invoice No *</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={editReturn.invoiceNo}
-                  onChange={(e) => setEditReturn(prev => ({ ...prev, invoiceNo: e.target.value }))}
-                />
-              </Form.Group>
+              <Row className="g-3 mb-3">
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Reference ID</Form.Label>
+                    <Form.Control type="text" value={editReturn.referenceId} readOnly />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Manual Voucher No</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={editReturn.voucherNo}
+                      onChange={(e) => setEditReturn(prev => ({ ...prev, voucherNo: e.target.value }))}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Row className="g-3 mb-3">
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Return No *</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={editReturn.returnNo}
+                      onChange={(e) => setEditReturn(prev => ({ ...prev, returnNo: e.target.value }))}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Invoice No *</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={editReturn.invoiceNo}
+                      onChange={(e) => setEditReturn(prev => ({ ...prev, invoiceNo: e.target.value }))}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
               {/* Customer Dropdown */}
               <Form.Group className="mb-3">
                 <Form.Label>Customer *</Form.Label>
@@ -877,7 +957,11 @@ const SalesReturn = () => {
                   />
                   {renderDropdown({
                     items: customers,
-                    onSelect: (cust) => setEditReturn(prev => ({ ...prev, customerId: cust.id, customerName: cust.name_english })),
+                    onSelect: (cust) => setEditReturn(prev => ({
+                      ...prev,
+                      customerId: cust.id,
+                      customerName: cust.name_english
+                    })),
                     searchValue: editReturn.customerName,
                     onSearchChange: (val) => setEditReturn(prev => ({ ...prev, customerName: val })),
                     displayField: 'name_english',
@@ -885,14 +969,30 @@ const SalesReturn = () => {
                   })}
                 </div>
               </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Date *</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={editReturn.date}
-                  onChange={(e) => setEditReturn(prev => ({ ...prev, date: e.target.value }))}
-                />
-              </Form.Group>
+              <Row className="g-3 mb-3">
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Date *</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={editReturn.date}
+                      onChange={(e) => setEditReturn(prev => ({ ...prev, date: e.target.value }))}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Return Type</Form.Label>
+                    <Form.Select
+                      value={editReturn.returnType}
+                      onChange={(e) => setEditReturn(prev => ({ ...prev, returnType: e.target.value }))}
+                    >
+                      <option value="Sales Return">Sales Return</option>
+                      <option value="Credit Note">Credit Note</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
               {/* Warehouse Dropdown */}
               <Form.Group className="mb-3">
                 <Form.Label>Warehouse *</Form.Label>
@@ -906,23 +1006,17 @@ const SalesReturn = () => {
                   />
                   {renderDropdown({
                     items: warehouses,
-                    onSelect: (wh) => setEditReturn(prev => ({ ...prev, warehouseId: wh.id, warehouseName: wh.warehouse_name })),
+                    onSelect: (wh) => setEditReturn(prev => ({
+                      ...prev,
+                      warehouseId: wh.id,
+                      warehouseName: wh.warehouse_name
+                    })),
                     searchValue: editReturn.warehouseName,
                     onSearchChange: (val) => setEditReturn(prev => ({ ...prev, warehouseName: val })),
                     displayField: 'warehouse_name',
                     openKey: 'warehouse-edit'
                   })}
                 </div>
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Return Type</Form.Label>
-                <Form.Select
-                  value={editReturn.returnType}
-                  onChange={(e) => setEditReturn(prev => ({ ...prev, returnType: e.target.value }))}
-                >
-                  <option value="Sales Return">Sales Return</option>
-                  <option value="Credit Note">Credit Note</option>
-                </Form.Select>
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Reason</Form.Label>
@@ -959,7 +1053,7 @@ const SalesReturn = () => {
                   const filteredProds = getFilteredProducts(editReturn.warehouseId);
                   const key = `edit-product-${index}`;
                   return (
-                    <Row key={index} className="mb-2">
+                    <Row key={index} className="mb-2 align-items-end">
                       <Col md={4}>
                         <div style={{ position: 'relative' }}>
                           <Form.Control
@@ -969,7 +1063,7 @@ const SalesReturn = () => {
                             onChange={(e) => {
                               const updated = [...editReturn.itemsList];
                               updated[index] = { ...updated[index], productName: e.target.value, productId: null };
-                              setEditReturn({ ...editReturn, itemsList: updated });
+                              setEditReturn(prev => ({ ...prev, itemsList: updated }));
                             }}
                             onFocus={() => setOpenDropdown(key)}
                           />
@@ -980,15 +1074,15 @@ const SalesReturn = () => {
                               updated[index] = {
                                 ...updated[index],
                                 productId: prod.id,
-                                productName: prod.item_name
+                                productName: prod.item_name || prod.name
                               };
-                              setEditReturn({ ...editReturn, itemsList: updated });
+                              setEditReturn(prev => ({ ...prev, itemsList: updated }));
                             },
                             searchValue: item.productName,
                             onSearchChange: (val) => {
                               const updated = [...editReturn.itemsList];
                               updated[index] = { ...updated[index], productName: val };
-                              setEditReturn({ ...editReturn, itemsList: updated });
+                              setEditReturn(prev => ({ ...prev, itemsList: updated }));
                             },
                             displayField: 'item_name',
                             openKey: key
@@ -998,6 +1092,7 @@ const SalesReturn = () => {
                       <Col md={2}>
                         <Form.Control
                           type="number"
+                          placeholder="Qty"
                           value={item.qty}
                           onChange={(e) => handleItemChange(index, 'qty', e.target.value, 'edit')}
                         />
@@ -1005,6 +1100,7 @@ const SalesReturn = () => {
                       <Col md={2}>
                         <Form.Control
                           type="number"
+                          placeholder="Price"
                           value={item.price}
                           onChange={(e) => handleItemChange(index, 'price', e.target.value, 'edit')}
                         />
@@ -1024,12 +1120,25 @@ const SalesReturn = () => {
                     </Row>
                   );
                 })}
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    setEditReturn(prev => ({
+                      ...prev,
+                      itemsList: [...prev.itemsList, { productId: null, productName: '', qty: 1, price: 0, total: 0, narration: '' }]
+                    }));
+                  }}
+                >
+                  + Add Item
+                </Button>
               </div>
             </Form>
           )}
         </Modal.Body>
         {addItemError && (
-          <Alert variant="danger" className="mt-3 mb-0">
+          <Alert variant="danger" className="mt-3 mb-0 mx-3">
             {addItemError}
           </Alert>
         )}
@@ -1042,6 +1151,7 @@ const SalesReturn = () => {
           <Button variant="primary" onClick={handleEditSave} style={{ backgroundColor: '#3daaaa' }}>Save Changes</Button>
         </Modal.Footer>
       </Modal>
+
 
       {/* Add Modal */}
       <Modal show={showAddModal} onHide={() => {
