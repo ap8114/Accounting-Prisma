@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Tabs, Tab,
+import { Tabs,
+ Tab,
   Form,
   Button,
   Table,
@@ -9,6 +10,7 @@ import { Tabs, Tab,
   InputGroup,
   FormControl,
   Dropdown,
+  FormGroup,
 } from "react-bootstrap";
 import html2pdf from "html2pdf.js";
 import * as XLSX from "xlsx";
@@ -5453,7 +5455,7 @@ const handleSkip = () => {
                 />
               </Form.Group>
               <Form.Group className="mb-2">
-                <Form.Label>Total Amount</Form.Label>
+                <Form.Label>Total Invoice</Form.Label>
                 <Form.Control
                   type="number"
                   step="0.01"
@@ -5484,6 +5486,21 @@ const handleSkip = () => {
                     textAlign: "right",
                   }}
                 />
+              </Form.Group>
+
+              <Form.Group>
+                 <tr style={{ backgroundColor: "#f8f9fa" }}>
+                  <td className="fw-bold">Balance:</td>
+                  <td className="fw-bold ">
+                    $
+                    {(
+                      (parseFloat(formData.payment.totalAmount) ||
+                        calculateTotalWithTaxAndDiscount(
+                          formData.invoice.items
+                        )) - (parseFloat(formData.payment.amount) || 0)
+                    ).toFixed(2)}
+                  </td>
+                </tr>
               </Form.Group>
             </div>
           </Col>
