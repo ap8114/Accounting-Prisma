@@ -5983,7 +5983,7 @@ const handleSkip = () => {
         <h4 className="text-center mb-4">Sales Process</h4>
 
     
-        <Tabs activeKey={key} onSelect={setKey} className="mb-4" fill>
+        <Tabs activeKey={key} onSelect={setKey}  className="mb-4 custom-tabs" fill>
           <Tab eventKey="quotation" title="Quotation">
             {renderQuotationTab()}
           </Tab>
