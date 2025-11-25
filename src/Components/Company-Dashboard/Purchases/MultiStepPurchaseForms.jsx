@@ -4129,76 +4129,20 @@ const MultiStepPurchaseForm = ({ initialData, initialStep, onSubmit, onClose }) 
     );
   };
 
-  // ===============================
-  // NAVIGATION
-  // ===============================
-  // const handleNext = () => {
-  //   const tabs = ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"];
-  //   const idx = tabs.indexOf(activeTab);
-  //   if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1]);
-  // };
-
-  // const handlePrev = () => {
-  //   const tabs = ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"];
-  //   const idx = tabs.indexOf(activeTab);
-  //   if (idx > 0) setActiveTab(tabs[idx - 1]);
-  // };
-
-  // const handleSaveDraft = () => onSubmit(formData, activeTab);
-
-  // // Save current step AND go to next step
-  // const handleSaveAndNext = async () => {
-  //   await handleSaveStep(); // First save
-  //   // Only go next if save was successful and we have poId
-  //   if (activeTab !== "payment") {
-  //     const tabs = ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"];
-  //     const idx = tabs.indexOf(activeTab);
-  //     if (idx < tabs.length - 1) {
-  //       const nextTab = tabs[idx + 1];
-  //       setActiveTab(nextTab);
-  //       // If we have poId and it's not Step 1, load data for next tab
-  //       if (poId && nextTab !== "purchaseQuotation") {
-  //         await loadPurchaseOrder(poId);
-  //       }
-  //     }
-  //   }
-  // };
-
-  // const handleSubmitAndClose = async () => {
-  //   // First, save the current (payment) step
-  //   await handleSaveStep(); // This should trigger PUT for "payment" step
-
-  //   // Then close modal or redirect
-  //   // Option 1: If you're inside a modal and have `onClose` prop
-  //   if (onClose && typeof onClose === "function") {
-  //     onClose(); // Closes modal
-  //   }
-
-  //   // Option 2: If you're on a route and want to go back
-  //   // navigate(-1); // or navigate('/purchase-orders');
-
-  //   // Option 3: If `onSubmit` is your success handler (as in your props)
-  //   if (onSubmit && typeof onSubmit === "function") {
-  //     onSubmit(formData, "payment"); // or just call it to signal completion
-  //   }
-  // };
-  // ===============================
-  // RENDER
-  // ===============================
   return (
     <div className="container-fluid mt-4 px-2">
       <h4 className="text-center mb-4">Purchase Process</h4>
       {/* Buttons */}
-      <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
+      {/* <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
         <Button variant="warning" style={{ minWidth: "130px" }}>Print (English)</Button>
         <Button variant="warning" style={{ minWidth: "130px" }}>طباعة (العربية)</Button>
         <Button variant="warning" style={{ minWidth: "150px" }}>Print Both (EN + AR)</Button>
         <Button variant="info" style={{ minWidth: "110px", color: "white" }}>Send</Button>
         <Button variant="success" style={{ minWidth: "130px" }}>Download PDF</Button>
         <Button variant="primary" style={{ minWidth: "130px" }}>Download Excel</Button>
-      </div>
+      </div> */}
 
-      <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4" fill>
+      <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4 custom-tabs" fill>
         <Tab eventKey="purchaseQuotation" title="Purchase Quotation" />
         <Tab eventKey="purchaseOrder" title="Purchase Order" />
         <Tab eventKey="goodsReceipt" title="Goods Receipt" />

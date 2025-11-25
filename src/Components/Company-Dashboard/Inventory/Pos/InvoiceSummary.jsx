@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Table, Button, Badge, Alert, Spinner, Card, Form, InputGroup } from 'react-bootstrap';
+import { Row, Col, Table, Button, Badge, Alert, Spinner, Card, Form, InputGroup, Modal } from 'react-bootstrap';
 import {
   FaEdit, FaPrint, FaMoneyBill, FaPaperPlane, FaEye,
-  FaGlobe, FaExchangeAlt, FaTimes, FaCaretUp, FaArrowLeft, FaSave, FaTimesCircle
+  FaGlobe, FaExchangeAlt, FaTimes, FaCaretUp, FaArrowLeft, FaSave, FaTimesCircle, FaTrash
 } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axiosInstance from '../../../../Api/axiosInstance';
@@ -16,6 +16,8 @@ const InvoiceSummary = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editableProducts, setEditableProducts] = useState([]);
   const [editLoading, setEditLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { convertPrice } = useContext(CurrencyContext);
@@ -167,7 +169,36 @@ const InvoiceSummary = () => {
     }
   };
 
-
+  // Handle delete invoice
+  const handleDeleteInvoice = async () => {
+    if (!invoiceId) return;
+    
+    setDeleteLoading(true);
+    
+    try {
+      // Send delete request
+      const response = await axiosInstance.delete(`/posinvoice/${invoiceId}`);
+      
+      if (response.data && response.data.success) {
+        // Show success message and navigate back
+        setShowDeleteModal(false);
+        navigate('/company/ponitofsale', { 
+          state: { 
+            successMessage: "Invoice deleted successfully" 
+          } 
+        });
+      } else {
+        setError("Failed to delete invoice");
+        setShowDeleteModal(false);
+      }
+    } catch (err) {
+      console.error("Error deleting invoice:", err);
+      setError("Failed to delete invoice. Please try again.");
+      setShowDeleteModal(false);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   // Handle print preview
   const handlePrintPreview = () => {
@@ -284,8 +315,12 @@ const InvoiceSummary = () => {
                 <Button variant="secondary" className="d-flex align-items-center gap-1">
                   <FaExchangeAlt /> <span>Change Status</span>
                 </Button>
-                <Button variant="danger" className="d-flex align-items-center gap-1">
-                  <FaTimes /> <span>Cancel</span>
+                <Button 
+                  variant="danger" 
+                  className="d-flex align-items-center gap-1" 
+                  onClick={() => setShowDeleteModal(true)}
+                >
+                  <FaTrash /> <span>Delete Invoice</span>
                 </Button>
                 <Button variant="success" className="d-flex align-items-center gap-1">
                   <FaEdit /> <span>Delivery Note</span>
@@ -425,6 +460,37 @@ const InvoiceSummary = () => {
           </Row>
         </Card.Body>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete this invoice? This action cannot be undone.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleDeleteInvoice}
+            disabled={deleteLoading}>
+            {deleteLoading ? (
+              <>
+                <Spinner as="span" animation="border" size="sm" />
+                <span className="ms-2">Deleting...</span>
+              </>
+            ) : (
+              <>
+                <FaTrash className="me-2" />
+                Delete
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

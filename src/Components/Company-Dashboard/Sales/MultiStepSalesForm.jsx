@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import {
-  Tabs,
-  Tab,
+import { Tabs, Tab,
   Form,
   Button,
   Table,
@@ -60,6 +58,270 @@ const MultiStepSalesForm = ({
 
   // Loading flag for final submit to prevent duplicate clicks
   const [submittingFinal, setSubmittingFinal] = useState(false);
+
+
+// Add this useEffect to your MultiStepSalesForm component
+useEffect(() => {
+  if (initialData) {
+    // Extract the ID from different possible paths
+    const orderId = initialData.id || 
+                   initialData.sales_order_id || 
+                   (initialData.company_info && initialData.company_info.id);
+    
+    if (orderId) {
+      console.log("Order ID received:", orderId);
+      setCurrentSalesOrderId(orderId);
+      
+      // Fetch the complete order data using the ID
+      fetchOrderData(orderId);
+    }
+    
+    // If there's a draftStep property, set the current step
+    if (initialData.draftStep) {
+      console.log("Setting initial step:", initialData.draftStep);
+      setKey(initialData.draftStep);
+    }
+  }
+}, [initialData]);
+
+// Add this function to fetch order data
+const fetchOrderData = async (orderId) => {
+  try {
+    const response = await axiosInstance.get(`sales-order/${orderId}`);
+    if (response?.data?.success && response?.data?.data) {
+      const orderData = response.data.data;
+      console.log("Order data fetched:", orderData);
+      
+      // Populate form data with the fetched order data
+      populateFormData(orderData);
+      
+      // Find the first pending step and set it as current
+      const firstPendingStep = findFirstPendingStep(orderData.steps);
+      if (firstPendingStep) {
+        console.log("Setting current step to first pending:", firstPendingStep);
+        setKey(firstPendingStep);
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching order data:", err);
+    alert("Failed to load order data. Please try again.");
+  }
+};
+
+// Add this function to populate form data with API response
+const populateFormData = (orderData) => {
+  // Extract data from API response
+  const { company_info, shipping_details, steps, items, additional_info } = orderData;
+  
+  // Update form data with company info
+  setFormData(prev => ({
+    ...prev,
+    quotation: {
+      ...prev.quotation,
+      companyName: company_info.company_name || prev.quotation.companyName,
+      companyAddress: company_info.company_address || prev.quotation.companyAddress,
+      companyEmail: company_info.company_email || prev.quotation.companyEmail,
+      companyPhone: company_info.company_phone || prev.quotation.companyPhone,
+      companyLogo: company_info.logo_url || prev.quotation.companyLogo,
+      bankName: company_info.bank_name || prev.quotation.bankName,
+      accountNo: company_info.account_no || prev.quotation.accountNo,
+      accountHolder: company_info.account_holder || prev.quotation.accountHolder,
+      ifsc: company_info.ifsc_code || prev.quotation.ifsc,
+      terms: company_info.terms || prev.quotation.terms,
+      quotationNo: steps.quotation.quotation_no || prev.quotation.quotationNo,
+      manualQuotationRef: steps.quotation.manual_quo_no || prev.quotation.manualQuotationRef,
+      quotationDate: steps.quotation.quotation_date || prev.quotation.quotationDate,
+      validDate: steps.quotation.valid_till || prev.quotation.validDate,
+      billToName: steps.quotation.qoutation_to_customer_name || prev.quotation.billToName,
+      billToAddress: steps.quotation.qoutation_to_customer_address || prev.quotation.billToAddress,
+      billToEmail: steps.quotation.qoutation_to_customer_email || prev.quotation.billToEmail,
+      billToPhone: steps.quotation.qoutation_to_customer_phone || prev.quotation.billToPhone,
+      notes: steps.quotation.notes || prev.quotation.notes,
+      customerReference: steps.quotation.customer_ref || prev.quotation.customerReference,
+      signature: additional_info.signature_url || prev.quotation.signature,
+      photo: additional_info.photo_url || prev.quotation.photo,
+      files: additional_info.files || prev.quotation.files,
+    },
+    salesOrder: {
+      ...prev.salesOrder,
+      companyName: company_info.company_name || prev.salesOrder.companyName,
+      companyAddress: company_info.company_address || prev.salesOrder.companyAddress,
+      companyEmail: company_info.company_email || prev.salesOrder.companyEmail,
+      companyPhone: company_info.company_phone || prev.salesOrder.companyPhone,
+      companyLogo: company_info.logo_url || prev.salesOrder.companyLogo,
+      salesOrderNo: steps.sales_order.SO_no || prev.salesOrder.salesOrderNo,
+      manualQuotationRef: steps.sales_order.manual_quo_no || prev.salesOrder.manualQuotationRef,
+      orderDate: steps.sales_order.order_date || prev.salesOrder.orderDate,
+      customerNo: steps.sales_order.customer_no || prev.salesOrder.customerNo,
+      billToAttn: shipping_details.bill_to_attention_name || prev.salesOrder.billToAttn,
+      billToCompanyName: shipping_details.bill_to_company_name || prev.salesOrder.billToCompanyName,
+      billToAddress: shipping_details.bill_to_address || prev.salesOrder.billToAddress,
+      billToEmail: shipping_details.bill_to_email || prev.salesOrder.billToEmail,
+      billToPhone: shipping_details.bill_to_phone || prev.salesOrder.billToPhone,
+      shipToAttn: shipping_details.ship_to_attention_name || prev.salesOrder.shipToAttn,
+      shipToCompanyName: shipping_details.ship_to_company_name || prev.salesOrder.shipToCompanyName,
+      shipToAddress: shipping_details.ship_to_address || prev.salesOrder.shipToAddress,
+      shipToEmail: shipping_details.ship_to_email || prev.salesOrder.shipToEmail,
+      shipToPhone: shipping_details.ship_to_phone || prev.salesOrder.shipToPhone,
+      terms: company_info.terms || prev.salesOrder.terms,
+      signature: additional_info.signature_url || prev.salesOrder.signature,
+      photo: additional_info.photo_url || prev.salesOrder.photo,
+      files: additional_info.files || prev.salesOrder.files,
+    },
+    deliveryChallan: {
+      ...prev.deliveryChallan,
+      companyName: company_info.company_name || prev.deliveryChallan.companyName,
+      companyAddress: company_info.company_address || prev.deliveryChallan.companyAddress,
+      companyEmail: company_info.company_email || prev.deliveryChallan.companyEmail,
+      companyPhone: company_info.company_phone || prev.deliveryChallan.companyPhone,
+      companyLogo: company_info.logo_url || prev.deliveryChallan.companyLogo,
+      challanNo: steps.delivery_challan.challan_no || prev.deliveryChallan.challanNo,
+      manualChallanNo: steps.delivery_challan.manual_challan_no || prev.deliveryChallan.manualChallanNo,
+      challanDate: steps.delivery_challan.challan_date || prev.deliveryChallan.challanDate,
+      vehicleNo: steps.delivery_challan.vehicle_no || prev.deliveryChallan.vehicleNo,
+      driverName: steps.delivery_challan.driver_name || prev.deliveryChallan.driverName,
+      driverPhone: steps.delivery_challan.driver_phone || prev.deliveryChallan.driverPhone,
+      billToName: shipping_details.bill_to_name || prev.deliveryChallan.billToName,
+      billToAddress: shipping_details.bill_to_address || prev.deliveryChallan.billToAddress,
+      billToEmail: shipping_details.bill_to_email || prev.deliveryChallan.billToEmail,
+      billToPhone: shipping_details.bill_to_phone || prev.deliveryChallan.billToPhone,
+      shipToName: shipping_details.ship_to_name || prev.deliveryChallan.shipToName,
+      shipToAddress: shipping_details.ship_to_address || prev.deliveryChallan.shipToAddress,
+      shipToEmail: shipping_details.ship_to_email || prev.deliveryChallan.shipToEmail,
+      shipToPhone: shipping_details.ship_to_phone || prev.deliveryChallan.shipToPhone,
+      terms: company_info.terms || prev.deliveryChallan.terms,
+      signature: additional_info.signature_url || prev.deliveryChallan.signature,
+      photo: additional_info.photo_url || prev.deliveryChallan.photo,
+      files: additional_info.files || prev.deliveryChallan.files,
+    },
+    invoice: {
+      ...prev.invoice,
+      companyName: company_info.company_name || prev.invoice.companyName,
+      companyAddress: company_info.company_address || prev.invoice.companyAddress,
+      companyEmail: company_info.company_email || prev.invoice.companyEmail,
+      companyPhone: company_info.company_phone || prev.invoice.companyPhone,
+      companyLogo: company_info.logo_url || prev.invoice.companyLogo,
+      invoiceNo: steps.invoice.invoice_no || prev.invoice.invoiceNo,
+      manualInvoiceNo: steps.invoice.manual_invoice_no || prev.invoice.manualInvoiceNo,
+      invoiceDate: steps.invoice.invoice_date || prev.invoice.invoiceDate,
+      dueDate: steps.invoice.due_date || prev.invoice.dueDate,
+      customerName: shipping_details.bill_to_name || prev.invoice.customerName,
+      customerAddress: shipping_details.bill_to_address || prev.invoice.customerAddress,
+      customerEmail: shipping_details.bill_to_email || prev.invoice.customerEmail,
+      customerPhone: shipping_details.bill_to_phone || prev.invoice.customerPhone,
+      shipToName: shipping_details.ship_to_name || prev.invoice.shipToName,
+      shipToAddress: shipping_details.ship_to_address || prev.invoice.shipToAddress,
+      shipToEmail: shipping_details.ship_to_email || prev.invoice.shipToEmail,
+      shipToPhone: shipping_details.ship_to_phone || prev.invoice.shipToPhone,
+      paymentStatus: steps.invoice.payment_status || prev.invoice.paymentStatus,
+      paymentMethod: steps.invoice.payment_method || prev.invoice.paymentMethod,
+      note: steps.invoice.note || prev.invoice.note,
+      terms: company_info.terms || prev.invoice.terms,
+      signature: additional_info.signature_url || prev.invoice.signature,
+      photo: additional_info.photo_url || prev.invoice.photo,
+      files: additional_info.files || prev.invoice.files,
+    },
+    payment: {
+      ...prev.payment,
+      companyName: company_info.company_name || prev.payment.companyName,
+      companyAddress: company_info.company_address || prev.payment.companyAddress,
+      companyEmail: company_info.company_email || prev.payment.companyEmail,
+      companyPhone: company_info.company_phone || prev.payment.companyPhone,
+      companyLogo: company_info.logo_url || prev.payment.companyLogo,
+      paymentNo: steps.payment.payment_no || prev.payment.paymentNo,
+      manualPaymentNo: steps.payment.manual_payment_no || prev.payment.manualPaymentNo,
+      paymentDate: steps.payment.payment_date || prev.payment.paymentDate,
+      amount: steps.payment.amount_received || prev.payment.amount,
+      totalAmount: steps.payment.total_invoice || prev.payment.totalAmount,
+      paymentMethod: steps.payment.payment_method || prev.payment.paymentMethod,
+      paymentStatus: steps.payment.payment_status || prev.payment.paymentStatus,
+      note: steps.payment.payment_note || prev.payment.note,
+      customerName: shipping_details.bill_to_name || prev.payment.customerName,
+      customerAddress: shipping_details.bill_to_address || prev.payment.customerAddress,
+      customerEmail: shipping_details.bill_to_email || prev.payment.customerEmail,
+      customerPhone: shipping_details.bill_to_phone || prev.payment.customerPhone,
+      signature: additional_info.signature_url || prev.payment.signature,
+      photo: additional_info.photo_url || prev.payment.photo,
+      files: additional_info.files || prev.payment.files,
+    }
+  }));
+  
+  // Update items if available
+  if (items && items.length > 0) {
+    setFormData(prev => {
+      const updatedItems = items.map(item => ({
+        item_name: item.item_name,
+        description: item.description || "",
+        qty: item.qty,
+        rate: item.rate,
+        tax: item.tax_percent || 0,
+        discount: item.discount || 0,
+        amount: item.amount || (item.qty * item.rate),
+        warehouse: item.warehouse_id || "",
+        uom: item.uom || "PCS",
+        hsn: item.hsn || "",
+        sku: item.sku || "",
+        barcode: item.barcode || "",
+      }));
+      
+      return {
+        ...prev,
+        quotation: {
+          ...prev.quotation,
+          items: updatedItems
+        },
+        salesOrder: {
+          ...prev.salesOrder,
+          items: updatedItems
+        },
+        deliveryChallan: {
+          ...prev.deliveryChallan,
+          items: updatedItems.map(item => ({
+            ...item,
+            deliveredQty: item.qty // Default to ordered qty
+          }))
+        },
+        invoice: {
+          ...prev.invoice,
+          items: updatedItems
+        }
+      };
+    });
+  }
+};
+
+// Add this function to find the first pending step
+const findFirstPendingStep = (steps) => {
+  const stepOrder = ['quotation', 'salesOrder', 'deliveryChallan', 'invoice', 'payment'];
+  
+  for (const step of stepOrder) {
+    const stepKey = step === 'quotation' ? 'quotation' : 
+                    step === 'salesOrder' ? 'sales_order' :
+                    step === 'deliveryChallan' ? 'delivery_challan' :
+                    step === 'invoice' ? 'invoice' : 'payment';
+    
+    if (steps[stepKey] && steps[stepKey].status === 'pending') {
+      return step;
+    }
+  }
+  
+  // If all steps are completed, return the last step
+  return 'payment';
+};
+
+// Update the handleSkip function to allow skipping completed steps
+const handleSkip = () => {
+  setKey((prev) => {
+    const stepOrder = ['quotation', 'salesOrder', 'deliveryChallan', 'invoice', 'payment'];
+    const currentIndex = stepOrder.indexOf(prev);
+    
+    if (currentIndex < stepOrder.length - 1) {
+      return stepOrder[currentIndex + 1];
+    }
+    
+    return prev;
+  });
+};
 
   // --- Form Data State ---
   const [formData, setFormData] = useState(() => {
@@ -868,15 +1130,15 @@ const MultiStepSalesForm = ({
   };
 
   // --- Navigation Buttons ---
-  const handleSkip = () => {
-    setKey((prev) => {
-      if (prev === "quotation") return "salesOrder";
-      if (prev === "salesOrder") return "deliveryChallan";
-      if (prev === "deliveryChallan") return "invoice";
-      if (prev === "invoice") return "payment";
-      return "quotation";
-    });
-  };
+  // const handleSkip = () => {
+  //   setKey((prev) => {
+  //     if (prev === "quotation") return "salesOrder";
+  //     if (prev === "salesOrder") return "deliveryChallan";
+  //     if (prev === "deliveryChallan") return "invoice";
+  //     if (prev === "invoice") return "payment";
+  //     return "quotation";
+  //   });
+  // };
 
   const handleSaveDraft = async () => {
     try {
@@ -950,7 +1212,6 @@ const MultiStepSalesForm = ({
           sales_order: {
             SO_no: formData.salesOrder.salesOrderNo,
             manual_ref_no: formData.salesOrder.manualQuotationRef,
-         
             order_date: formData.salesOrder.orderDate,
             customer_no: formData.salesOrder.customerNo,
     
@@ -4619,7 +4880,9 @@ const MultiStepSalesForm = ({
             </Form.Group>
           </Col>
           <Col md={6} className="d-flex flex-column align-items-end">
+
             <h5>SHIP TO</h5>
+
             <div className="w-100 text-end" style={{ maxWidth: "400px" }}>
               <Form.Group className="mb-2">
                 <Form.Control
@@ -5703,7 +5966,7 @@ const MultiStepSalesForm = ({
         <h4 className="text-center mb-4">Sales Process</h4>
 
     
-        <Tabs activeKey={key} onSelect={setKey} className="mb-4" fill>
+        <Tabs activeKey={key} onSelect={setKey}  className="mb-4 custom-tabs" fill>
           <Tab eventKey="quotation" title="Quotation">
             {renderQuotationTab()}
           </Tab>
