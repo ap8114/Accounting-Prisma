@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Tabs, Tab,
+import { Tabs,
+ Tab,
   Form,
   Button,
   Table,
@@ -9,6 +10,7 @@ import { Tabs, Tab,
   InputGroup,
   FormControl,
   Dropdown,
+  FormGroup,
 } from "react-bootstrap";
 import html2pdf from "html2pdf.js";
 import * as XLSX from "xlsx";
@@ -232,6 +234,9 @@ const populateFormData = (orderData) => {
       manualPaymentNo: steps.payment.manual_payment_no || prev.payment.manualPaymentNo,
       paymentDate: steps.payment.payment_date || prev.payment.paymentDate,
       amount: steps.payment.amount_received || prev.payment.amount,
+        amount_received: steps.payment.amount_received || prev.payment.amount_received || 0,
+      total_invoice: steps.payment.total_invoice || prev.payment.total_invoice || 0,
+      balance: steps.payment.balance || prev.payment.balance || 0,
       totalAmount: steps.payment.total_invoice || prev.payment.totalAmount,
       paymentMethod: steps.payment.payment_method || prev.payment.paymentMethod,
       paymentStatus: steps.payment.payment_status || prev.payment.paymentStatus,
@@ -526,7 +531,10 @@ const handleSkip = () => {
         manualRefNo: "", // Fallback manual ref
         paymentDate: new Date().toISOString().split("T")[0],
         amount: "",
-        totalAmount: 0, // Calculated from invoice
+       amount_received: 0, // Amount received from customer
+        total_invoice: 0, // Total invoice amount
+        balance: 0, // Balance amount
+    
         paymentMethod: "",
         paymentStatus: "Pending",
         note: "",
@@ -1087,7 +1095,7 @@ const handleSkip = () => {
   };
 
   const handleSelectSearchedWarehouse = (tab, index, warehouse) => {
-    handleItemChange(tab, index, "warehouse", warehouse.warehouse_name);
+    handleItemChange(tab, index, "warehouse", warehouse.warehouse_id);
     setShowWarehouseSearch((prev) => ({
       ...prev,
       [`${tab}-${index}`]: false,
@@ -1139,155 +1147,185 @@ const handleSkip = () => {
   //     return "quotation";
   //   });
   // };
-
-  const handleSaveDraft = async () => {
-    try {
-      const company_id = GetCompanyId();
-      if (!company_id) return;
-
-      // Single endpoint for all steps
-      const endpoint = "sales-order/create-sales-order";
-      
-      // Determine if this is the first step (quotation) or a subsequent step
-      const isFirstStep = key === "quotation" && !currentSalesOrderId;
-      const method = isFirstStep ? "post" : "put"; // POST for first step, PUT for subsequent steps
-
-      // Build a unified payload that includes all steps data
-      const payload = {
-        company_info: {
-          company_id: company_id,
-          company_name: formData[key].companyName,
-          company_address: formData[key].companyAddress,
-          company_email: formData[key].companyEmail,
-          company_phone: formData[key].companyPhone,
-          logo_url: formData[key].companyLogo,
-          bank_name: formData.quotation.bankName,
-          account_no: formData.quotation.accountNo,
-          account_holder: formData.quotation.accountHolder,
-          ifsc_code: formData.quotation.ifsc,
-          terms: formData[key].terms,
-        },
-        shipping_details: {
-          bill_to_name: formData[key].billToName || formData[key].customerName,
-          bill_to_address: formData[key].billToAddress || formData[key].customerAddress,
-          bill_to_email: formData[key].billToEmail || formData[key].customerEmail,
-          bill_to_phone: formData[key].billToPhone || formData[key].customerPhone,
-          bill_to_attention_name: formData.salesOrder.billToAttn || "",
-          bill_to_company_name: formData.salesOrder.billToCompanyName || formData[key].billToName || formData[key].customerName,
-          ship_to_name: formData[key].shipToName,
-          ship_to_address: formData[key].shipToAddress,
-          ship_to_email: formData[key].shipToEmail,
-          ship_to_phone: formData[key].shipToPhone,
-          ship_to_attention_name: formData.salesOrder.shipToAttn || "",
-          ship_to_company_name: formData.salesOrder.shipToCompanyName || formData[key].shipToName,
-        },
-        items: (formData[key] && Array.isArray(formData[key].items) ? formData[key].items : (formData.invoice && Array.isArray(formData.invoice.items) ? formData.invoice.items : [])).map((item) => ({
-          item_name: item.item_name || item.description,
-          description: item.description,
-          qty: item.qty,
-          rate: item.rate,
-          tax_percent: item.tax,
-          discount: item.discount,
-          amount: item.amount,
-          uom: item.uom,
-          hsn: item.hsn,
-          sku: item.sku,
-          barcode: item.barcode,
-          warehouse_id: item.warehouse,
-        })),
-        // Include all step-specific data
-        steps: {
-          quotation: {
-            quotation_no: formData.quotation.quotationNo,
-            manual_quo_no: formData.quotation.manualQuotationRef,
-            quotation_date: formData.quotation.quotationDate,
-            valid_till: formData.quotation.validDate,
-            qoutation_to_customer_name: formData.quotation.billToName,
-            qoutation_to_customer_address: formData.quotation.billToAddress,
-            qoutation_to_customer_email: formData.quotation.billToEmail,
-            qoutation_to_customer_phone: formData.quotation.billToPhone,
-            notes: formData.quotation.notes,
-            customer_ref: formData.quotation.customerReference,
-          },
-          sales_order: {
-            SO_no: formData.salesOrder.salesOrderNo,
-            manual_ref_no: formData.salesOrder.manualQuotationRef,
-            order_date: formData.salesOrder.orderDate,
-            customer_no: formData.salesOrder.customerNo,
+useEffect(() => {
+  if (key === 'payment') {
+    const totalInvoice = parseFloat(formData.payment.total_invoice) || 0;
+    const amountReceived = parseFloat(formData.payment.amount_received) || 0;
+    const balance = totalInvoice - amountReceived;
     
-          },
-          delivery_challan: {
-            challan_no: formData.deliveryChallan.challanNo,
-            manual_challan_no: formData.deliveryChallan.manualChallanNo,
-            challan_date: formData.deliveryChallan.challanDate,
-            vehicle_no: formData.deliveryChallan.vehicleNo,
-            driver_name: formData.deliveryChallan.driverName,
-            driver_phone: formData.deliveryChallan.driverPhone,
-          
-          },
-          invoice: {
-            invoice_no: formData.invoice.invoiceNo,
-            manual_invoice_no: formData.invoice.manualInvoiceNo,
-            invoice_date: formData.invoice.invoiceDate,
-            due_date: formData.invoice.dueDate,
-            payment_status: formData.invoice.paymentStatus,
-            payment_method: formData.invoice.paymentMethod,
-            note: formData.invoice.note,
-            customer_name: formData.invoice.customerName,
-            customer_address: formData.invoice.customerAddress,
-            customer_email: formData.invoice.customerEmail,
-            customer_phone: formData.invoice.customerPhone,
-          
-          },
-          payment: {
-            payment_no: formData.payment.paymentNo,
-            manual_payment_no: formData.payment.manualPaymentNo,
-            payment_date: formData.payment.paymentDate,
-            amount_received: formData.payment.amount,
-            payment_method: formData.payment.paymentMethod,
-            payment_status: formData.payment.paymentStatus,
-            payment_note: formData.payment.note,
-           
-          },
-        },
-        additional_info: {
-          files: (formData[key] && Array.isArray(formData[key].files) ? formData[key].files : []),
-          signature_url: formData[key] ? formData[key].signature : "",
-          photo_url: formData[key] ? formData[key].photo : "",
-          attachment_url: (formData[key] && Array.isArray(formData[key].files) && formData[key].files.length > 0) ? formData[key].files[0].base64 : "",
-        },
-        current_step: key, // Indicate which step is currently being saved
-      };
-
-      // Send the request to the API
-      let response;
-      if (method === "put" && currentSalesOrderId) {
-        response = await axiosInstance.put(`${endpoint}/${currentSalesOrderId}`, payload);
-      } else {
-        response = await axiosInstance.post(endpoint, payload);
+    // Update the balance in the form data
+    setFormData(prev => ({
+      ...prev,
+      payment: {
+        ...prev.payment,
+        balance: balance.toFixed(2)
       }
+    }));
+  }
+}, [formData.payment.amount_received, formData.payment.total_invoice, key]);
+const handleSaveDraft = async () => {
+  try {
+    const company_id = GetCompanyId();
+    if (!company_id) return;
 
-      if (response?.data?.success) {
-        alert("Draft saved successfully!");
+    // Calculate total invoice amount from invoice items if not already set
+    const totalInvoiceAmount = key === 'payment' 
+      ? (parseFloat(formData.payment.total_invoice) || calculateTotalWithTaxAndDiscount(formData.invoice.items))
+      : 0;
 
-        // If we just created a sales order, store its ID for future updates
-        if (
-          isFirstStep &&
-          response.data.data?.sales_order_id
-        ) {
-          setCurrentSalesOrderId(response.data.data.sales_order_id);
+    // Update payment form data with calculated total invoice
+    if (key === 'payment') {
+      setFormData(prev => ({
+        ...prev,
+        payment: {
+          ...prev.payment,
+          total_invoice: totalInvoiceAmount.toFixed(2),
+          balance: (totalInvoiceAmount - (parseFloat(prev.payment.amount_received) || 0)).toFixed(2)
         }
-
-        // Refresh the sales workflow
-        fetchSalesWorkflow();
-      } else {
-        alert("Failed to save draft. Please try again.");
-      }
-    } catch (err) {
-      console.error("Error saving draft:", err);
-      alert("Error saving draft. Please try again.");
+      }));
     }
-  };
+
+    // Single endpoint for all steps
+    const endpoint = "sales-order/create-sales-order";
+    
+    // Determine if this is the first step (quotation) or a subsequent step
+    const isFirstStep = key === "quotation" && !currentSalesOrderId;
+    const method = isFirstStep ? "post" : "put"; // POST for first step, PUT for subsequent steps
+
+    // Build a unified payload that includes all steps data
+    const payload = {
+      company_info: {
+        company_id: company_id,
+        company_name: formData[key].companyName,
+        company_address: formData[key].companyAddress,
+        company_email: formData[key].companyEmail,
+        company_phone: formData[key].companyPhone,
+        logo_url: formData[key].companyLogo,
+        bank_name: formData.quotation.bankName,
+        account_no: formData.quotation.accountNo,
+        account_holder: formData.quotation.accountHolder,
+        ifsc_code: formData.quotation.ifsc,
+        terms: formData[key].terms,
+      },
+      shipping_details: {
+        bill_to_name: formData[key].billToName || formData[key].customerName,
+        bill_to_address: formData[key].billToAddress || formData[key].customerAddress,
+        bill_to_email: formData[key].billToEmail || formData[key].customerEmail,
+        bill_to_phone: formData[key].billToPhone || formData[key].customerPhone,
+        bill_to_attention_name: formData.salesOrder.billToAttn || "",
+        bill_to_company_name: formData.salesOrder.billToCompanyName || formData[key].billToName || formData[key].customerName,
+        ship_to_name: formData[key].shipToName,
+        ship_to_address: formData[key].shipToAddress,
+        ship_to_email: formData[key].shipToEmail,
+        ship_to_phone: formData[key].shipToPhone,
+        ship_to_attention_name: formData.salesOrder.shipToAttn || "",
+        ship_to_company_name: formData.salesOrder.shipToCompanyName || formData[key].shipToName,
+      },
+      items: (formData[key] && Array.isArray(formData[key].items) ? formData[key].items : (formData.invoice && Array.isArray(formData.invoice.items) ? formData.invoice.items : [])).map((item) => ({
+        item_name: item.item_name || item.description,
+        description: item.description,
+        qty: item.qty,
+        rate: item.rate,
+        tax_percent: item.tax,
+        discount: item.discount,
+        amount: item.amount,
+        uom: item.uom,
+        hsn: item.hsn,
+        sku: item.sku,
+        barcode: item.barcode,
+        warehouse_id: item.warehouse,
+      })),
+      // Include all step-specific data
+      steps: {
+        quotation: {
+          quotation_no: formData.quotation.quotationNo,
+          manual_quo_no: formData.quotation.manualQuotationRef,
+          quotation_date: formData.quotation.quotationDate,
+          valid_till: formData.quotation.validDate,
+          qoutation_to_customer_name: formData.quotation.billToName,
+          qoutation_to_customer_address: formData.quotation.billToAddress,
+          qoutation_to_customer_email: formData.quotation.billToEmail,
+          qoutation_to_customer_phone: formData.quotation.billToPhone,
+          notes: formData.quotation.notes,
+          customer_ref: formData.quotation.customerReference,
+        },
+        sales_order: {
+          SO_no: formData.salesOrder.salesOrderNo,
+          manual_ref_no: formData.salesOrder.manualQuotationRef,
+          order_date: formData.salesOrder.orderDate,
+          customer_no: formData.salesOrder.customerNo,
+        },
+        delivery_challan: {
+          challan_no: formData.deliveryChallan.challanNo,
+          manual_challan_no: formData.deliveryChallan.manualChallanNo,
+          challan_date: formData.deliveryChallan.challanDate,
+          vehicle_no: formData.deliveryChallan.vehicleNo,
+          driver_name: formData.deliveryChallan.driverName,
+          driver_phone: formData.deliveryChallan.driverPhone,
+        },
+        invoice: {
+          invoice_no: formData.invoice.invoiceNo,
+          manual_invoice_no: formData.invoice.manualInvoiceNo,
+          invoice_date: formData.invoice.invoiceDate,
+          due_date: formData.invoice.dueDate,
+          payment_status: formData.invoice.paymentStatus,
+          payment_method: formData.invoice.paymentMethod,
+          note: formData.invoice.note,
+          customer_name: formData.invoice.customerName,
+          customer_address: formData.invoice.customerAddress,
+          customer_email: formData.invoice.customerEmail,
+          customer_phone: formData.invoice.customerPhone,
+        },
+        payment: {
+          payment_no: formData.payment.paymentNo,
+          manual_payment_no: formData.payment.manualPaymentNo,
+          payment_date: formData.payment.paymentDate,
+          amount_received: parseFloat(formData.payment.amount_received) || 0,
+          total_invoice: parseFloat(formData.payment.total_invoice) || totalInvoiceAmount,
+          balance: parseFloat(formData.payment.balance) || (totalInvoiceAmount - (parseFloat(formData.payment.amount_received) || 0)),
+          payment_method: formData.payment.paymentMethod,
+          payment_status: formData.payment.paymentStatus,
+          payment_note: formData.payment.note,
+        },
+      },
+      additional_info: {
+        files: (formData[key] && Array.isArray(formData[key].files) ? formData[key].files : []),
+        signature_url: formData[key] ? formData[key].signature : "",
+        photo_url: formData[key] ? formData[key].photo : "",
+        attachment_url: (formData[key] && Array.isArray(formData[key].files) && formData[key].files.length > 0) ? formData[key].files[0].base64 : "",
+      },
+      current_step: key, // Indicate which step is currently being saved
+    };
+
+    // Send the request to the API
+    let response;
+    if (method === "put" && currentSalesOrderId) {
+      response = await axiosInstance.put(`${endpoint}/${currentSalesOrderId}`, payload);
+    } else {
+      response = await axiosInstance.post(endpoint, payload);
+    }
+
+    if (response?.data?.success) {
+      alert("Draft saved successfully!");
+
+      // If we just created a sales order, store its ID for future updates
+      if (
+        isFirstStep &&
+        response.data.data?.sales_order_id
+      ) {
+        setCurrentSalesOrderId(response.data.data.sales_order_id);
+      }
+
+      // Refresh the sales workflow
+      fetchSalesWorkflow();
+    } else {
+      alert("Failed to save draft. Please try again.");
+    }
+  } catch (err) {
+    console.error("Error saving draft:", err);
+    alert("Error saving draft. Please try again.");
+  }
+};
 
   const fetchSalesWorkflow = async () => {
     try {
@@ -1451,8 +1489,8 @@ const handleSkip = () => {
             ...prevData.payment,
             invoiceNo: prevData.invoice.invoiceNo,
             paymentDate: new Date().toISOString().split("T")[0],
-            totalAmount: totalInvoiceAmount,
-            amount: "", // User needs to fill this
+            total_invoice: totalInvoiceAmount.toFixed(2),
+              amount: "", // User needs to fill this
             customerName: prevData.invoice.customerName, // Map from INV
             customerAddress: prevData.invoice.customerAddress,
             customerEmail: prevData.invoice.customerEmail,
@@ -1483,165 +1521,183 @@ const handleSkip = () => {
     });
   };
 
-  const handleFinalSubmit = async () => {
-    console.log("handleFinalSubmit: invoked", { key, currentSalesOrderId });
-    if (submittingFinal) {
-      console.log("handleFinalSubmit: already submitting, ignoring duplicate click");
-      return;
-    }
-    setSubmittingFinal(true);
-    try {
-      // Resolve company id (try GetCompanyId, then props or initialData). Do not bail out —
-      // proceed with the request even if company id is missing so the API still fires.
-      let company_id = GetCompanyId();
-      if (!company_id && companyDetails && companyDetails.id) company_id = companyDetails.id;
-      if (!company_id && initialData) {
-        company_id = initialData.company_id || (initialData.company_info && initialData.company_info.company_id);
+ const handleFinalSubmit = async () => {
+  console.log("handleFinalSubmit: invoked", { key, currentSalesOrderId });
+  if (submittingFinal) {
+    console.log("handleFinalSubmit: already submitting, ignoring duplicate click");
+    return;
+  }
+  setSubmittingFinal(true);
+  try {
+    // Calculate total invoice amount from invoice items
+    const totalInvoiceAmount = calculateTotalWithTaxAndDiscount(formData.invoice.items);
+    
+    // Update payment form data with calculated total invoice and balance
+    const amountReceived = parseFloat(formData.payment.amount_received) || 0;
+    const balance = totalInvoiceAmount - amountReceived;
+    
+    setFormData(prev => ({
+      ...prev,
+      payment: {
+        ...prev.payment,
+        total_invoice: totalInvoiceAmount.toFixed(2),
+        balance: balance.toFixed(2)
       }
-      if (!company_id) console.warn("handleFinalSubmit: company_id not found from GetCompanyId/companyDetails/initialData — proceeding without it");
+    }));
+    
+    // Resolve company id (try GetCompanyId, then props or initialData). Do not bail out —
+    // proceed with the request even if company id is missing so the API still fires.
+    let company_id = GetCompanyId();
+    if (!company_id && companyDetails && companyDetails.id) company_id = companyDetails.id;
+    if (!company_id && initialData) {
+      company_id = initialData.company_id || (initialData.company_info && initialData.company_info.company_id);
+    }
+    if (!company_id) console.warn("handleFinalSubmit: company_id not found from GetCompanyId/companyDetails/initialData — proceeding without it");
 
-      // Build payload (same structure as handleSaveDraft) and ensure company_id is included
-      const endpoint = "sales-order/create-sales-order";
-      const payload = {
+    // Build payload (same structure as handleSaveDraft) and ensure company_id is included
+    const endpoint = "sales-order/create-sales-order";
+    const payload = {
+      company_id: company_id,
+      company_info: {
         company_id: company_id,
-        company_info: {
-          company_id: company_id,
-          company_name: formData[key].companyName,
-          company_address: formData[key].companyAddress,
-          company_email: formData[key].companyEmail,
-          company_phone: formData[key].companyPhone,
-          logo_url: formData[key].companyLogo,
-          bank_name: formData.quotation.bankName,
-          account_no: formData.quotation.accountNo,
-          account_holder: formData.quotation.accountHolder,
-          ifsc_code: formData.quotation.ifsc,
-          terms: formData[key].terms,
+        company_name: formData[key].companyName,
+        company_address: formData[key].companyAddress,
+        company_email: formData[key].companyEmail,
+        company_phone: formData[key].companyPhone,
+        logo_url: formData[key].companyLogo,
+        bank_name: formData.quotation.bankName,
+        account_no: formData.quotation.accountNo,
+        account_holder: formData.quotation.accountHolder,
+        ifsc_code: formData.quotation.ifsc,
+        terms: formData[key].terms,
+      },
+      shipping_details: {
+        bill_to_name: formData[key].billToName || formData[key].customerName,
+        bill_to_address: formData[key].billToAddress || formData[key].customerAddress,
+        bill_to_email: formData[key].billToEmail || formData[key].customerEmail,
+        bill_to_phone: formData[key].billToPhone || formData[key].customerPhone,
+        bill_to_attention_name: formData.salesOrder.billToAttn || "",
+        bill_to_company_name: formData.salesOrder.billToCompanyName || formData[key].billToName || formData[key].customerName,
+        ship_to_name: formData[key].shipToName,
+        ship_to_address: formData[key].shipToAddress,
+        ship_to_email: formData[key].shipToEmail,
+        ship_to_phone: formData[key].shipToPhone,
+        ship_to_attention_name: formData.salesOrder.shipToAttn || "",
+        ship_to_company_name: formData.salesOrder.shipToCompanyName || formData[key].shipToName,
+      },
+      items: (formData[key] && Array.isArray(formData[key].items) ? formData[key].items : (formData.invoice && Array.isArray(formData.invoice.items) ? formData.invoice.items : [])).map((item) => ({
+        item_name: item.item_name || item.description,
+        description: item.description,
+        qty: item.qty,
+        rate: item.rate,
+        tax_percent: item.tax,
+        discount: item.discount,
+        amount: item.amount,
+        uom: item.uom,
+        hsn: item.hsn,
+        sku: item.sku,
+        barcode: item.barcode,
+        warehouse_id: item.warehouse,
+      })),
+      steps: {
+        quotation: {
+          quotation_no: formData.quotation.quotationNo,
+          manual_quo_no: formData.quotation.manualQuotationRef,
+          quotation_date: formData.quotation.quotationDate,
+          valid_till: formData.quotation.validDate,
+          qoutation_to_customer_name: formData.quotation.billToName,
+          qoutation_to_customer_address: formData.quotation.billToAddress,
+          qoutation_to_customer_email: formData.quotation.billToEmail,
+          qoutation_to_customer_phone: formData.quotation.billToPhone,
+          notes: formData.quotation.notes,
+          customer_ref: formData.quotation.customerReference,
         },
-        shipping_details: {
-          bill_to_name: formData[key].billToName || formData[key].customerName,
-          bill_to_address: formData[key].billToAddress || formData[key].customerAddress,
-          bill_to_email: formData[key].billToEmail || formData[key].customerEmail,
-          bill_to_phone: formData[key].billToPhone || formData[key].customerPhone,
-          bill_to_attention_name: formData.salesOrder.billToAttn || "",
-          bill_to_company_name: formData.salesOrder.billToCompanyName || formData[key].billToName || formData[key].customerName,
-          ship_to_name: formData[key].shipToName,
-          ship_to_address: formData[key].shipToAddress,
-          ship_to_email: formData[key].shipToEmail,
-          ship_to_phone: formData[key].shipToPhone,
-          ship_to_attention_name: formData.salesOrder.shipToAttn || "",
-          ship_to_company_name: formData.salesOrder.shipToCompanyName || formData[key].shipToName,
+        sales_order: {
+          SO_no: formData.salesOrder.salesOrderNo,
+          manual_ref_no: formData.salesOrder.manualQuotationRef,
+          order_date: formData.salesOrder.orderDate,
+          customer_no: formData.salesOrder.customerNo,
         },
-        items: (formData[key] && Array.isArray(formData[key].items) ? formData[key].items : (formData.invoice && Array.isArray(formData.invoice.items) ? formData.invoice.items : [])).map((item) => ({
-          item_name: item.item_name || item.description,
-          description: item.description,
-          qty: item.qty,
-          rate: item.rate,
-          tax_percent: item.tax,
-          discount: item.discount,
-          amount: item.amount,
-          uom: item.uom,
-          hsn: item.hsn,
-          sku: item.sku,
-          barcode: item.barcode,
-          warehouse_id: item.warehouse,
-        })),
-        steps: {
-          quotation: {
-            quotation_no: formData.quotation.quotationNo,
-            manual_quo_no: formData.quotation.manualQuotationRef,
-            quotation_date: formData.quotation.quotationDate,
-            valid_till: formData.quotation.validDate,
-            qoutation_to_customer_name: formData.quotation.billToName,
-            qoutation_to_customer_address: formData.quotation.billToAddress,
-            qoutation_to_customer_email: formData.quotation.billToEmail,
-            qoutation_to_customer_phone: formData.quotation.billToPhone,
-            notes: formData.quotation.notes,
-            customer_ref: formData.quotation.customerReference,
-          },
-          sales_order: {
-            SO_no: formData.salesOrder.salesOrderNo,
-            manual_ref_no: formData.salesOrder.manualQuotationRef,
-            order_date: formData.salesOrder.orderDate,
-            customer_no: formData.salesOrder.customerNo,
-          },
-          delivery_challan: {
-            challan_no: formData.deliveryChallan.challanNo,
-            manual_challan_no: formData.deliveryChallan.manualChallanNo,
-            challan_date: formData.deliveryChallan.challanDate,
-            vehicle_no: formData.deliveryChallan.vehicleNo,
-            driver_name: formData.deliveryChallan.driverName,
-            driver_phone: formData.deliveryChallan.driverPhone,
-          },
-          invoice: {
-            invoice_no: formData.invoice.invoiceNo,
-            manual_invoice_no: formData.invoice.manualInvoiceNo,
-            invoice_date: formData.invoice.invoiceDate,
-            due_date: formData.invoice.dueDate,
-            payment_status: formData.invoice.paymentStatus,
-            payment_method: formData.invoice.paymentMethod,
-            note: formData.invoice.note,
-            customer_name: formData.invoice.customerName,
-            customer_address: formData.invoice.customerAddress,
-            customer_email: formData.invoice.customerEmail,
-            customer_phone: formData.invoice.customerPhone,
-          },
-          payment: {
-            payment_no: formData.payment.paymentNo,
-            manual_payment_no: formData.payment.manualPaymentNo,
-            payment_date: formData.payment.paymentDate,
-            amount_received: formData.payment.amount,
-            payment_method: formData.payment.paymentMethod,
-            payment_status: formData.payment.paymentStatus,
-            payment_note: formData.payment.note,
-          },
+        delivery_challan: {
+          challan_no: formData.deliveryChallan.challanNo,
+          manual_challan_no: formData.deliveryChallan.manualChallanNo,
+          challan_date: formData.deliveryChallan.challanDate,
+          vehicle_no: formData.deliveryChallan.vehicleNo,
+          driver_name: formData.deliveryChallan.driverName,
+          driver_phone: formData.deliveryChallan.driverPhone,
         },
-        additional_info: {
-          files: (formData[key] && Array.isArray(formData[key].files) ? formData[key].files : []),
-          signature_url: formData[key] ? formData[key].signature : "",
-          photo_url: formData[key] ? formData[key].photo : "",
-          attachment_url: (formData[key] && Array.isArray(formData[key].files) && formData[key].files.length > 0) ? formData[key].files[0].base64 : "",
+        invoice: {
+          invoice_no: formData.invoice.invoiceNo,
+          manual_invoice_no: formData.invoice.manualInvoiceNo,
+          invoice_date: formData.invoice.invoiceDate,
+          due_date: formData.invoice.dueDate,
+          payment_status: formData.invoice.paymentStatus,
+          payment_method: formData.invoice.paymentMethod,
+          note: formData.invoice.note,
+          customer_name: formData.invoice.customerName,
+          customer_address: formData.invoice.customerAddress,
+          customer_email: formData.invoice.customerEmail,
+          customer_phone: formData.invoice.customerPhone,
         },
-        current_step: key,
-      };
+        payment: {
+          payment_no: formData.payment.paymentNo,
+          manual_payment_no: formData.payment.manualPaymentNo,
+          payment_date: formData.payment.paymentDate,
+          amount_received: amountReceived,
+          total_invoice: totalInvoiceAmount,
+          balance: balance,
+          payment_method: formData.payment.paymentMethod,
+          payment_status: formData.payment.paymentStatus,
+          payment_note: formData.payment.note,
+        },
+      },
+      additional_info: {
+        files: (formData[key] && Array.isArray(formData[key].files) ? formData[key].files : []),
+        signature_url: formData[key] ? formData[key].signature : "",
+        photo_url: formData[key] ? formData[key].photo : "",
+        attachment_url: (formData[key] && Array.isArray(formData[key].files) && formData[key].files.length > 0) ? formData[key].files[0].base64 : "",
+      },
+      current_step: key,
+    };
 
-      // Execute request(s) and log for debugging
-      if (currentSalesOrderId) {
-        console.log("handleFinalSubmit: calling PUT", `${endpoint}/${currentSalesOrderId}`, payload);
-        const putResp = await axiosInstance.put(`${endpoint}/${currentSalesOrderId}`, payload);
-        console.log("handleFinalSubmit: PUT response", putResp?.data || putResp);
-      } else {
-        console.log("handleFinalSubmit: no currentSalesOrderId, calling POST to create");
-        const createResp = await axiosInstance.post(endpoint, payload);
-        console.log("handleFinalSubmit: POST response", createResp?.data || createResp);
-        const newId = createResp?.data?.data?.sales_order_id || createResp?.data?.data?.id;
-        if (newId) {
-          setCurrentSalesOrderId(newId);
-          console.log("handleFinalSubmit: created id", newId, "calling PUT to update payment step");
-          const putResp2 = await axiosInstance.put(`${endpoint}/${newId}`, payload);
-          console.log("handleFinalSubmit: subsequent PUT response", putResp2?.data || putResp2);
-        }
+    // Execute request(s) and log for debugging
+    if (currentSalesOrderId) {
+      console.log("handleFinalSubmit: calling PUT", `${endpoint}/${currentSalesOrderId}`, payload);
+      const putResp = await axiosInstance.put(`${endpoint}/${currentSalesOrderId}`, payload);
+      console.log("handleFinalSubmit: PUT response", putResp?.data || putResp);
+    } else {
+      console.log("handleFinalSubmit: no currentSalesOrderId, calling POST to create");
+      const createResp = await axiosInstance.post(endpoint, payload);
+      console.log("handleFinalSubmit: POST response", createResp?.data || createResp);
+      const newId = createResp?.data?.data?.sales_order_id || createResp?.data?.data?.id;
+      if (newId) {
+        setCurrentSalesOrderId(newId);
+        console.log("handleFinalSubmit: created id", newId, "calling PUT to update payment step");
+        const putResp2 = await axiosInstance.put(`${endpoint}/${newId}`, payload);
+        console.log("handleFinalSubmit: subsequent PUT response", putResp2?.data || putResp2);
       }
-
-      // Call the parent's onSubmit function with the complete form data
-      if (typeof onSubmit === "function") onSubmit(formData, "payment");
-
-      // Show success message
-      alert("Sales process completed successfully!");
-
-      // Redirect to sales workflow page
-      navigate("/company/Invoice");
-    } catch (err) {
-      // Improved error logging to help debugging network/server errors
-      try {
-        console.error("Error submitting final form:", err?.response?.data || err?.message || err);
-      } catch (e) {
-        console.error("Error submitting final form (unable to parse error):", err);
-      }
-      alert("Error submitting final form. Please try again.");
-    } finally {
-      setSubmittingFinal(false);
     }
-  };
+
+    // Call the parent's onSubmit function with the complete form data
+    if (typeof onSubmit === "function") onSubmit(formData, "payment");
+
+    // Show success message
+    alert("Sales process completed successfully!");
+
+    // Redirect to sales workflow page
+    navigate("/company/Invoice");
+  } catch (err) {
+    // Improved error logging to help debugging network/server errors
+    try {
+      console.error("Error submitting final form:", err?.response?.data || err?.message || err);
+    } catch (e) {
+      console.error("Error submitting final form (unable to parse error):", err);
+    }
+    alert("Error submitting final form. Please try again.");
+  } finally {
+    setSubmittingFinal(false);
+  }
+};
 
   // Navigate to a specific step in the workflow
   const navigateToStep = (step) => {
@@ -5295,36 +5351,7 @@ const handleSkip = () => {
               {/* Manual Invoice No (Optional) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
-                  {/* <Form.Label
-                    className="mb-0 flex-shrink-0 me-2"
-                    style={{
-                      fontSize: "0.9rem",
-                      color: "#6c757d",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Manual Invoice No (Optional)
-                  </Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.payment.manualInvoiceRef || ""}
-                    onChange={(e) =>
-                      handleChange(
-                        "payment",
-                        "manualInvoiceRef",
-                        e.target.value
-                      )
-                    }
-                    placeholder="e.g. INV-CUST-001"
-                    className="form-control-no-border text-end flex-grow-1"
-                    style={{
-                      fontSize: "1rem",
-                      lineHeight: "1.5",
-                      minHeight: "auto",
-                      padding: "0.375rem 0.75rem",
-                      textAlign: "right",
-                    }}
-                  /> */}
+               
                 </div>
               </Form.Group>
               {/* Payment Method */}
@@ -5359,181 +5386,190 @@ const handleSkip = () => {
             marginBottom: "10px",
           }}
         />
-        <Row className="mb-4 d-flex justify-content-between">
-          <Col md={6} className="d-flex flex-column align-items-start">
-            <h5>RECEIVED FROM</h5>
-            <Form.Control
-              type="text"
-              value={formData.payment.customerName || ""}
-              onChange={(e) =>
-                handleChange("payment", "customerName", e.target.value)
-              }
-              placeholder="Enter Customer Name. . . . ."
-              className="form-control-no-border"
-              style={{
-                fontSize: "1rem",
-                lineHeight: "1.5",
-                minHeight: "auto",
-                padding: "0",
-              }}
-            />
-            <Form.Group className="mb-1 w-100">
-              <Form.Control
-                rows={2}
-                value={formData.payment.customerAddress || ""}
-                onChange={(e) =>
-                  handleChange("payment", "customerAddress", e.target.value)
-                }
-                placeholder="Customer Address. . . .  ."
-                className="form-control-no-border"
-                style={{
-                  fontSize: "1rem",
-                  lineHeight: "1.5",
-                  minHeight: "auto",
-                  padding: "0",
-                }}
-              />
-            </Form.Group>
-            <Form.Group className="mb-2 w-100">
-              <Form.Control
-                type="email"
-                value={formData.payment.customerEmail || ""}
-                onChange={(e) =>
-                  handleChange("payment", "customerEmail", e.target.value)
-                }
-                placeholder="Email. . . . . "
-                className="form-control-no-border"
-                style={{
-                  fontSize: "1rem",
-                  lineHeight: "1.5",
-                  minHeight: "auto",
-                  padding: "0",
-                }}
-              />
-            </Form.Group>
-            <Form.Group className="mb-2 w-100">
-              <Form.Control
-                type="text"
-                value={formData.payment.customerPhone || ""}
-                onChange={(e) =>
-                  handleChange("payment", "customerPhone", e.target.value)
-                }
-                placeholder="Phone. . . . . ."
-                className="form-control-no-border"
-                style={{
-                  fontSize: "1rem",
-                  lineHeight: "1.5",
-                  minHeight: "auto",
-                  padding: "0",
-                }}
-              />
-            </Form.Group>
-          </Col>
-          <Col md={6} className="d-flex flex-column align-items-end">
-            <h5>PAYMENT DETAILS</h5>
-            <div className="w-100 text-end" style={{ maxWidth: "400px" }}>
-              <Form.Group className="mb-2">
-                <Form.Label>Amount Received</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  value={formData.payment.amount}
-                  onChange={(e) =>
-                    handleChange("payment", "amount", e.target.value)
-                  }
-                  placeholder="Amount"
-                  className="form-control-no-border text-end"
-                  style={{
-                    fontSize: "1rem",
-                    lineHeight: "1.5",
-                    minHeight: "auto",
-                    padding: "0",
-                    textAlign: "right",
-                  }}
-                />
-              </Form.Group>
-              <Form.Group className="mb-2">
-                <Form.Label>Total Amount</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  value={(
-                    parseFloat(formData.payment.totalAmount) ||
-                    calculateTotalAmount(formData.invoice.items)
-                  ).toFixed(2)}
-                  readOnly
-                  className="form-control-no-border text-end"
-                  style={{ textAlign: "right" }}
-                />
-              </Form.Group>
-              <Form.Group className="mb-2">
-                <Form.Label>Payment Status</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={formData.payment.paymentStatus}
-                  onChange={(e) =>
-                    handleChange("payment", "paymentStatus", e.target.value)
-                  }
-                  placeholder="Payment Status"
-                  className="form-control-no-border text-end"
-                  style={{
-                    fontSize: "1rem",
-                    lineHeight: "1.5",
-                    minHeight: "auto",
-                    padding: "0",
-                    textAlign: "right",
-                  }}
-                />
-              </Form.Group>
-            </div>
-          </Col>
-        </Row>
-        <hr
+   <Row className="mb-4 d-flex justify-content-between">
+  <Col md={6} className="d-flex flex-column align-items-start">
+    <h5>RECEIVED FROM</h5>
+    <Form.Control
+      type="text"
+      value={formData.payment.customerName || ""}
+      onChange={(e) =>
+        handleChange("payment", "customerName", e.target.value)
+      }
+      placeholder="Enter Customer Name. . . . ."
+      className="form-control-no-border"
+      style={{
+        fontSize: "1rem",
+        lineHeight: "1.5",
+        minHeight: "auto",
+        padding: "0",
+      }}
+    />
+    <Form.Group className="mb-1 w-100">
+      <Form.Control
+        rows={2}
+        value={formData.payment.customerAddress || ""}
+        onChange={(e) =>
+          handleChange("payment", "customerAddress", e.target.value)
+        }
+        placeholder="Customer Address. . . .  ."
+        className="form-control-no-border"
+        style={{
+          fontSize: "1rem",
+          lineHeight: "1.5",
+          minHeight: "auto",
+          padding: "0",
+        }}
+      />
+    </Form.Group>
+    <Form.Group className="mb-2 w-100">
+      <Form.Control
+        type="email"
+        value={formData.payment.customerEmail || ""}
+        onChange={(e) =>
+          handleChange("payment", "customerEmail", e.target.value)
+        }
+        placeholder="Email. . . . . "
+        className="form-control-no-border"
+        style={{
+          fontSize: "1rem",
+          lineHeight: "1.5",
+          minHeight: "auto",
+          padding: "0",
+        }}
+      />
+    </Form.Group>
+    <Form.Group className="mb-2 w-100">
+      <Form.Control
+        type="text"
+        value={formData.payment.customerPhone || ""}
+        onChange={(e) =>
+          handleChange("payment", "customerPhone", e.target.value)
+        }
+        placeholder="Phone. . . . . ."
+        className="form-control-no-border"
+        style={{
+          fontSize: "1rem",
+          lineHeight: "1.5",
+          minHeight: "auto",
+          padding: "0",
+        }}
+      />
+    </Form.Group>
+  </Col>
+  <Col md={6} className="d-flex flex-column align-items-end">
+    <h5>PAYMENT DETAILS</h5>
+    <div className="w-100 text-end" style={{ maxWidth: "400px" }}>
+      <Form.Group className="mb-2">
+        <Form.Label>Amount Received</Form.Label>
+        <Form.Control
+          type="number"
+          step="0.01"
+          // CHANGED: 'amount' ki jagah 'amount_received' use kiya
+          value={formData.payment.amount_received || ""}
+          onChange={(e) =>
+            // CHANGED: 'amount' ki jagah 'amount_received' update kiya
+            handleChange("payment", "amount_received", e.target.value)
+          }
+          placeholder="Amount"
+          className="form-control-no-border text-end"
           style={{
-            width: "100%",
-            height: "4px",
-            backgroundColor: "#28a745",
-            border: "none",
-            marginTop: "5px",
-            marginBottom: "10px",
+            fontSize: "1rem",
+            lineHeight: "1.5",
+            minHeight: "auto",
+            padding: "0",
+            textAlign: "right",
           }}
         />
-        <Row className="mb-4 mt-2">
-          <Col md={4}>
-            <Table bordered size="sm" className="dark-bordered-table">
-              <tbody>
-                <tr>
-                  <td className="fw-bold">Total Invoice:</td>
-                  <td>
-                    $
-                    {(
-                      parseFloat(formData.payment.totalAmount) ||
-                      calculateTotalWithTaxAndDiscount(formData.invoice.items)
-                    ).toFixed(2)}
-                  </td>
-                </tr>
-                <tr className="fw-bold">
-                  <td>Amount Received:</td>
-                  <td>
-                    ${(parseFloat(formData.payment.amount) || 0).toFixed(2)}
-                  </td>
-                </tr>
-                <tr style={{ backgroundColor: "#f8f9fa" }}>
-                  <td className="fw-bold">Balance:</td>
-                  <td className="fw-bold text-danger">
-                    $
-                    {(
-                      (parseFloat(formData.payment.totalAmount) ||
-                        calculateTotalWithTaxAndDiscount(
-                          formData.invoice.items
-                        )) - (parseFloat(formData.payment.amount) || 0)
-                    ).toFixed(2)}
-                  </td>
-                </tr>
-              </tbody>
-            </Table>
-          </Col>
-        </Row>
+      </Form.Group>
+      <Form.Group className="mb-2">
+        <Form.Label>Total Invoice</Form.Label>
+        <Form.Control
+          type="number"
+          step="0.01"
+          // CHANGED: 'totalAmount' ki jagah 'total_invoice' use kiya
+          value={(
+            parseFloat(formData.payment.total_invoice) ||
+            calculateTotalAmount(formData.invoice.items)
+          ).toFixed(2)}
+          readOnly
+          className="form-control-no-border text-end"
+          style={{ textAlign: "right" }}
+        />
+      </Form.Group>
+      <Form.Group className="mb-2">
+        <Form.Label>Payment Status</Form.Label>
+        <Form.Control
+          type="text"
+          value={formData.payment.paymentStatus}
+          onChange={(e) =>
+            handleChange("payment", "paymentStatus", e.target.value)
+          }
+          placeholder="Payment Status"
+          className="form-control-no-border text-end"
+          style={{
+            fontSize: "1rem",
+            lineHeight: "1.5",
+            minHeight: "auto",
+            padding: "0",
+            textAlign: "right",
+          }}
+        />
+      </Form.Group>
+
+      <Form.Group>
+        {/* CHANGED: Balance ab directly state se aa raha hai */}
+        <tr style={{ backgroundColor: "#f8f9fa" }}>
+          <td className="fw-bold">Balance:</td>
+          <td className="fw-bold ">${formData.payment.balance || "0.00"}</td>
+        </tr>
+      </Form.Group>
+    </div>
+  </Col>
+</Row>
+<hr
+  style={{
+    width: "100%",
+    height: "4px",
+    backgroundColor: "#28a745",
+    border: "none",
+    marginTop: "5px",
+    marginBottom: "10px",
+  }}
+/>
+<Row className="mb-4 mt-2">
+  <Col md={4}>
+    <Table bordered size="sm" className="dark-bordered-table">
+      <tbody>
+        <tr>
+          <td className="fw-bold">Total Invoice:</td>
+          {/* CHANGED: 'totalAmount' ki jagah 'total_invoice' use kiya */}
+          <td>
+            $             {(
+              parseFloat(formData.payment.total_invoice) ||
+              calculateTotalWithTaxAndDiscount(formData.invoice.items)
+            ).toFixed(2)}
+          </td>
+        </tr>
+        <tr className="fw-bold">
+          <td>Amount Received:</td>
+          {/* CHANGED: 'amount' ki jagah 'amount_received' use kiya */}
+          <td>
+            ${(parseFloat(formData.payment.amount_received) || 0).toFixed(2)}
+          </td>
+        </tr>
+        <tr style={{ backgroundColor: "#f8f9fa" }}>
+          <td className="fw-bold">Balance:</td>
+          {/* CHANGED: Balance ab directly state se aa raha hai */}
+          <td className="fw-bold text-danger">
+            ${formData.payment.balance || "0.00"}
+          </td>
+        </tr>
+      </tbody>
+    </Table>
+  </Col>
+</Row>
+
+
         <Form.Group className="mt-4">
           <Form.Label>Note</Form.Label>
           <Form.Control

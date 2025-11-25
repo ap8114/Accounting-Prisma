@@ -642,7 +642,9 @@ const Invoice = () => {
                       <p><strong>Status:</strong> {statusBadge(getStepStatus(viewOrder.steps, 'payment'))}</p>
                       <p><strong>Payment No:</strong> {getStepData(viewOrder.steps, 'payment').Payment_no || getStepData(viewOrder.steps, 'payment').payment_no || 'N/A'}</p>
                       <p><strong>Payment Date:</strong> {getStepData(viewOrder.steps, 'payment').payment_date ? new Date(getStepData(viewOrder.steps, 'payment').payment_date).toLocaleDateString() : 'N/A'}</p>
-                      <p><strong>Amount Received:</strong> ${getStepData(viewOrder.steps, 'payment').amount_received || '0'}</p>
+                      <p><strong>Total Invoice :</strong> ${getStepData(viewOrder.steps, 'payment').total_invoice || '0'}</p>
+                         <p><strong>Due Balance  :</strong> ${getStepData(viewOrder.steps, 'payment').balance || '0'}</p>
+                         <p><strong>Amount Received:</strong> ${getStepData(viewOrder.steps, 'payment').amount_received || '0'}</p>
                       <p><strong>Payment Note:</strong> {getStepData(viewOrder.steps, 'payment').payment_note || 'N/A'}</p>
                     </Col>
                   </Row>
@@ -684,8 +686,9 @@ const Invoice = () => {
                     <p>No items found for this order.</p>
                   )}
                   <div className="text-end mt-3">
-                    <h5>Subtotal: ${viewOrder.sub_total || '0'}</h5>
-                    <h4>Total: ${viewOrder.total || '0'}</h4>
+                 <p><strong>Total Invoice :</strong> ${getStepData(viewOrder.steps, 'payment').total_invoice || '0'}</p>
+                         <p><strong>Due Balance  :</strong> ${getStepData(viewOrder.steps, 'payment').balance || '0'}</p>
+                         <p><strong>Amount Received:</strong> ${getStepData(viewOrder.steps, 'payment').amount_received || '0'}</p>
                   </div>
                 </Card.Body>
               </Card>
