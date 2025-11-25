@@ -255,19 +255,7 @@ const Invoice = () => {
 
       {/* 🔥 Sales Steps Dropdown + Show Filters Button */}
       <div className="d-flex justify-content-between align-items-end mb-3">
-        <div style={{ minWidth: "180px" }}>
-          <label className="form-label text-secondary fw-bold">Sales Steps</label>
-          <Form.Select
-            value={stepNameFilter}
-            onChange={(e) => setStepNameFilter(e.target.value)}>
-            <option value="">Select Steps</option>
-            <option value="Quotation">Quotation</option>
-            <option value="Sales Order">Sales Order</option>
-            <option value="Delivery Challan">Delivery Challan</option>
-            <option value="Invoice">Invoice</option>
-            <option value="Payment">Payment</option>
-          </Form.Select>
-        </div>
+       
 
         <Button
           variant="outline-secondary"
@@ -753,7 +741,7 @@ const Invoice = () => {
             Delete
           </Button>
         </Modal.Footer>
-      </Modal>
+      </Modal>    
     </div>
   );
 };

@@ -476,8 +476,7 @@ const InvoiceSummary = () => {
           <Button 
             variant="danger" 
             onClick={handleDeleteInvoice}
-            disabled={deleteLoading}
-          >
+            disabled={deleteLoading}>
             {deleteLoading ? (
               <>
                 <Spinner as="span" animation="border" size="sm" />
