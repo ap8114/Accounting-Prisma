@@ -332,11 +332,11 @@ function AppContent() {
 // ✅ Main App
 export default function App() {
   return (
-    <CurrencyProvider>
-      <Router>
-        <ScrollToTop />
-        <AppContent />
-      </Router>
-    </CurrencyProvider>
+     <CurrencyProvider> 
+    <Router>
+      <ScrollToTop />
+      <AppContent />
+    </Router>
+       </CurrencyProvider>
   );
 }
