@@ -1,147 +1,177 @@
 // components/AssetDetails.js
-import React, { useState } from "react";
-import { Container, Card, Button, Table, Badge, Form, Row, Col } from "react-bootstrap";
-
-const allAssetDetails = {
-  cash: {
-    title: "Cash Inflows",
-    data: [
-      { customer: "ABC Traders", amount: "$15,000", date: "2025-07-01", mode: "Cash" },
-      { customer: "Retail Shop", amount: "$22,000", date: "2025-07-03", mode: "Cash" },
-      { customer: "John Doe", amount: "$38,000", date: "2025-07-05", mode: "Cash" },
-    ],
-  },
-  bank: {
-    title: "Bank Transactions",
-    data: [
-      { customer: "TechCorp", amount: "$85,000", date: "2025-07-02", ref: "NEFT-8890", bank: "HDFC" },
-      { customer: "Global Ltd", amount: "$60,000", date: "2025-07-04", ref: "IMPS-1234", bank: "SBI" },
-      { customer: "Innovate Inc", amount: "$100,000", date: "2025-07-06", ref: "RTGS-5678", bank: "Axis" },
-    ],
-  },
-  stock: {
-    title: "Inventory Details",
-    data: [
-      { product: "Laptops", qty: 50, value: "$150,000", category: "Electronics" },
-      { product: "Chairs", qty: 200, value: "$70,000", category: "Furniture" },
-      { product: "Cables", qty: 1000, value: "$100,000", category: "Accessories" },
-    ],
-  },
-  receivable: {
-    title: "Outstanding Receivables",
-    data: [
-      { customer: "FutureTech", amount: "$95,000", due: "2025-07-15", status: "Overdue" },
-      { customer: "Smart Solutions", amount: "$90,000", due: "2025-07-20", status: "Pending" },
-    ],
-  },
-};
-
-// 💡 फंक्शन: अमाउंट को नंबर में बदलें और जोड़ें
-const calculateTotal = (data, valueKey = "amount") => {
-  return data.reduce((sum, item) => {
-    const num = parseFloat(item[valueKey].replace(/[$,]/g, "")) || 0;
-    return sum + num;
-  }, 0).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-};
+import React, { useState, useEffect } from "react";
+import { Container, Card, Button, Table, Badge, Form, Row, Col, Spinner } from "react-bootstrap";
+import BaseUrl from "../../../Api/BaseUrl";
+import GetCompanyId from "../../../Api/GetCompanyId";
 
 const AssetDetails = () => {
-  // 🔍 फ़िल्टर स्टेट्स
+  // 📥 State for API data
+  const companyId = GetCompanyId();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [apiData, setApiData] = useState({
+    cashInflows: [],
+    bankTransactions: [],
+    inventory: [],
+    receivables: [],
+    inventoryTotal: 0,
+    receivableTotal: 0,
+  });
+
+  // 🔍 Filter states (unchanged)
   const [cashFilter, setCashFilter] = useState({ customer: "", date: "" });
   const [bankFilter, setBankFilter] = useState({ customer: "", bank: "", date: "" });
   const [stockFilter, setStockFilter] = useState({ product: "", category: "" });
   const [receivableFilter, setReceivableFilter] = useState({ customer: "", status: "", due: "" });
 
-  // 🔎 फ़िल्टर्ड डेटा
-  const filteredCash = allAssetDetails.cash.data.filter((item) => {
+  // 🔄 Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch(`${BaseUrl}balance-sheet/AssetsDetails/${companyId}`);
+        if (!response.ok) throw new Error("Failed to fetch asset data");
+        const result = await response.json();
+        if (result.success) {
+          setApiData({
+            cashInflows: result.cashInflows || [],
+            bankTransactions: result.bankTransactions || [],
+            inventory: result.inventory || [],
+            receivables: result.receivables || [],
+            inventoryTotal: result.inventoryTotal || 0,
+            receivableTotal: result.receivableTotal || 0,
+          });
+        } else {
+          throw new Error("API returned success: false");
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // 💡 Helper: Format numbers as USD
+  const formatUSD = (num) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
+  };
+
+  // 💡 Helper: Parse amount strings (e.g., "$15,000" → 15000)
+  const parseAmount = (str) => {
+    // Convert to string if it's not already
+    const amountStr = String(str ?? "").trim();
+    // Remove $ and commas, then parse
+    return parseFloat(amountStr.replace(/[$,]/g, "")) || 0;
+  };
+
+  // 🔎 Filtered Data
+  const filteredCash = apiData.cashInflows.filter((item) => {
+    const customer = String(item.customer ?? "").toLowerCase();
+    const filterCustomer = cashFilter.customer.toLowerCase();
     return (
-      item.customer.toLowerCase().includes(cashFilter.customer.toLowerCase()) &&
+      customer.includes(filterCustomer) &&
       (!cashFilter.date || item.date === cashFilter.date)
     );
   });
 
-  const filteredBank = allAssetDetails.bank.data.filter((item) => {
+  const filteredBank = apiData.bankTransactions.filter((item) => {
+    const customer = String(item.customer ?? "").toLowerCase();
+    const bank = String(item.bank ?? "").toLowerCase();
     return (
-      item.customer.toLowerCase().includes(bankFilter.customer.toLowerCase()) &&
-      item.bank.toLowerCase().includes(bankFilter.bank.toLowerCase()) &&
+      customer.includes(bankFilter.customer.toLowerCase()) &&
+      bank.includes(bankFilter.bank.toLowerCase()) &&
       (!bankFilter.date || item.date === bankFilter.date)
     );
   });
 
-  const filteredStock = allAssetDetails.stock.data.filter((item) => {
+  const filteredStock = apiData.inventory.filter((item) => {
+    const product = String(item.product ?? "").toLowerCase();
+    const category = String(item.category ?? "").toLowerCase();
     return (
-      item.product.toLowerCase().includes(stockFilter.product.toLowerCase()) &&
-      item.category.toLowerCase().includes(stockFilter.category.toLowerCase())
+      product.includes(stockFilter.product.toLowerCase()) &&
+      category.includes(stockFilter.category.toLowerCase())
     );
   });
 
-  const filteredReceivable = allAssetDetails.receivable.data.filter((item) => {
+  const filteredReceivable = apiData.receivables.filter((item) => {
     return (
-      item.customer.toLowerCase().includes(receivableFilter.customer.toLowerCase()) &&
+      item.customer?.toLowerCase().includes(receivableFilter.customer.toLowerCase()) &&
       (!receivableFilter.status || item.status === receivableFilter.status) &&
       (!receivableFilter.due || item.due === receivableFilter.due)
     );
   });
 
-  // 🧮 टोटल्स
-  const totalCash = calculateTotal(filteredCash, "amount");
-  const totalBank = calculateTotal(filteredBank, "amount");
-  const totalStock = calculateTotal(filteredStock, "value");
-  const totalReceivable = calculateTotal(filteredReceivable, "amount");
+  // 🧮 Totals
+  const totalCash = filteredCash.reduce((sum, item) => sum + parseAmount(item.amount), 0);
+  const totalBank = filteredBank.reduce((sum, item) => sum + parseAmount(item.amount), 0);
+  const totalStock = filteredStock.reduce((sum, item) => sum + parseAmount(item.value), 0);
+  const totalReceivable = filteredReceivable.reduce((sum, item) => sum + parseAmount(item.amount), 0);
 
-  const grandTotal = (
-    parseFloat(totalCash.replace(/[$,]/g, "")) +
-    parseFloat(totalBank.replace(/[$,]/g, "")) +
-    parseFloat(totalStock.replace(/[$,]/g, "")) +
-    parseFloat(totalReceivable.replace(/[$,]/g, ""))
-  ).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
+  const grandTotal = totalCash + totalBank + totalStock + totalReceivable;
+
+  // ❗ Handle loading & error
+  if (loading) {
+    return (
+      <Container className="py-5 text-center">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-2">Loading asset details...</p>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container className="py-5 text-center">
+        <h4 className="text-danger">⚠️ Error loading data</h4>
+        <p>{error}</p>
+        <Button variant="secondary" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </Container>
+    );
+  }
 
   return (
     <Container className="py-5">
       <Row className="align-items-center mb-4">
-  {/* Left: Heading */}
-  <Col xs={6} className="text-start">
-    <h3 className="mb-0" style={{ color: "#002d4d" }}>
-      📊 All Asset Details
-    </h3>
-  </Col>
-
-  {/* Right: Back Button */}
-  <Col xs={6} className="text-end">
-    <Button
-      variant="secondary"
-      onClick={() => window.history.back()}
-      style={{
-        backgroundColor: "#53b2a5",
-        borderColor: "#53b2a5",
-        padding: "6px 12px",
-        fontSize: "14px",
-        fontWeight: 500,
-        borderRadius: "8px",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-      }}
-    >
-      ← Back to Balance Sheet
-    </Button>
-  </Col>
-</Row>
+        <Col xs={6} className="text-start">
+          <h3 className="mb-0" style={{ color: "#002d4d" }}>
+            📊 All Asset Details
+          </h3>
+        </Col>
+        <Col xs={6} className="text-end">
+          <Button
+            variant="secondary"
+            onClick={() => window.history.back()}
+            style={{
+              backgroundColor: "#53b2a5",
+              borderColor: "#53b2a5",
+              padding: "6px 12px",
+              fontSize: "14px",
+              fontWeight: 500,
+              borderRadius: "8px",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+            }}
+          >
+            ← Back to Balance Sheet
+          </Button>
+        </Col>
+      </Row>
 
       {/* Cash */}
       <Card className="mb-4">
         <Card.Header bg="success" text="white">
-          <strong>{allAssetDetails.cash.title}</strong>
+          <strong>Cash Inflows</strong>
         </Card.Header>
         <Card.Body>
-          {/* Cash Filters */}
           <Row className="mb-3 g-2">
             <Col xs={12} md={5}>
               <Form.Control
@@ -176,17 +206,23 @@ const AssetDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredCash.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{row.customer}</td>
-                    <td>{row.amount}</td>
-                    <td>{row.date}</td>
-                    <td>{row.mode}</td>
+                {filteredCash.length > 0 ? (
+                  filteredCash.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.customer}</td>
+                      <td>{row.amount}</td>
+                      <td>{row.date}</td>
+                      <td>{row.mode}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="text-center">No cash inflows</td>
                   </tr>
-                ))}
+                )}
                 <tr className="table-light font-weight-bold">
                   <td colSpan="1"><strong>Total</strong></td>
-                  <td colSpan="3" className="text-end"><strong>{totalCash}</strong></td>
+                  <td colSpan="3" className="text-end"><strong>{formatUSD(totalCash)}</strong></td>
                 </tr>
               </tbody>
             </Table>
@@ -197,10 +233,9 @@ const AssetDetails = () => {
       {/* Bank */}
       <Card className="mb-4">
         <Card.Header bg="primary" text="white">
-          <strong>{allAssetDetails.bank.title}</strong>
+          <strong>Bank Transactions</strong>
         </Card.Header>
         <Card.Body>
-          {/* Bank Filters */}
           <Row className="mb-3 g-2">
             <Col xs={12} md={4}>
               <Form.Control
@@ -244,18 +279,24 @@ const AssetDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredBank.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{row.customer}</td>
-                    <td>{row.amount}</td>
-                    <td>{row.date}</td>
-                    <td>{row.ref}</td>
-                    <td>{row.bank}</td>
+                {filteredBank.length > 0 ? (
+                  filteredBank.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.customer}</td>
+                      <td>{row.amount}</td>
+                      <td>{row.date}</td>
+                      <td>{row.ref}</td>
+                      <td>{row.bank}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="text-center">No bank transactions</td>
                   </tr>
-                ))}
+                )}
                 <tr className="table-light font-weight-bold">
                   <td colSpan="2"><strong>Total</strong></td>
-                  <td colSpan="3" className="text-end"><strong>{totalBank}</strong></td>
+                  <td colSpan="3" className="text-end"><strong>{formatUSD(totalBank)}</strong></td>
                 </tr>
               </tbody>
             </Table>
@@ -266,10 +307,9 @@ const AssetDetails = () => {
       {/* Stock */}
       <Card className="mb-4">
         <Card.Header bg="info" text="white">
-          <strong>{allAssetDetails.stock.title}</strong>
+          <strong>Inventory Details</strong>
         </Card.Header>
         <Card.Body>
-          {/* Stock Filters */}
           <Row className="mb-3 g-2">
             <Col xs={12} md={6}>
               <Form.Control
@@ -280,8 +320,7 @@ const AssetDetails = () => {
               />
             </Col>
             <Col xs={12} md={5}>
-              <Form.Control
-                as="select"
+              <Form.Select
                 value={stockFilter.category}
                 onChange={(e) => setStockFilter({ ...stockFilter, category: e.target.value })}
               >
@@ -289,7 +328,7 @@ const AssetDetails = () => {
                 <option value="Electronics">Electronics</option>
                 <option value="Furniture">Furniture</option>
                 <option value="Accessories">Accessories</option>
-              </Form.Control>
+              </Form.Select>
             </Col>
             <Col xs={12} md={1}>
               <Button variant="outline-secondary" size="sm" onClick={() => setStockFilter({ product: "", category: "" })}>
@@ -309,17 +348,23 @@ const AssetDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredStock.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{row.product}</td>
-                    <td>{row.qty}</td>
-                    <td>{row.value}</td>
-                    <td>{row.category}</td>
+                {filteredStock.length > 0 ? (
+                  filteredStock.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.product}</td>
+                      <td>{row.qty}</td>
+                      <td>{row.value}</td>
+                      <td>{row.category}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="text-center">No inventory items</td>
                   </tr>
-                ))}
+                )}
                 <tr className="table-light font-weight-bold">
                   <td colSpan="2"><strong>Total</strong></td>
-                  <td colSpan="2" className="text-end"><strong>{totalStock}</strong></td>
+                  <td colSpan="2" className="text-end"><strong>{formatUSD(totalStock)}</strong></td>
                 </tr>
               </tbody>
             </Table>
@@ -330,10 +375,9 @@ const AssetDetails = () => {
       {/* Receivables */}
       <Card className="mb-4">
         <Card.Header bg="warning" text="dark">
-          <strong>{allAssetDetails.receivable.title}</strong>
+          <strong>Outstanding Receivables</strong>
         </Card.Header>
         <Card.Body>
-          {/* Receivable Filters */}
           <Row className="mb-3 g-2">
             <Col xs={12} md={4}>
               <Form.Control
@@ -344,15 +388,14 @@ const AssetDetails = () => {
               />
             </Col>
             <Col xs={12} md={4}>
-              <Form.Control
-                as="select"
+              <Form.Select
                 value={receivableFilter.status}
                 onChange={(e) => setReceivableFilter({ ...receivableFilter, status: e.target.value })}
               >
                 <option value="">All Status</option>
                 <option value="Overdue">Overdue</option>
                 <option value="Pending">Pending</option>
-              </Form.Control>
+              </Form.Select>
             </Col>
             <Col xs={12} md={3}>
               <Form.Control
@@ -379,21 +422,27 @@ const AssetDetails = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredReceivable.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{row.customer}</td>
-                    <td>{row.amount}</td>
-                    <td>{row.due}</td>
-                    <td>
-                      <Badge bg={row.status === "Overdue" ? "danger" : "warning"}>
-                        {row.status}
-                      </Badge>
-                    </td>
+                {filteredReceivable.length > 0 ? (
+                  filteredReceivable.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.customer}</td>
+                      <td>{row.amount}</td>
+                      <td>{row.due}</td>
+                      <td>
+                        <Badge bg={row.status === "Overdue" ? "danger" : "warning"}>
+                          {row.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="text-center">No receivables</td>
                   </tr>
-                ))}
+                )}
                 <tr className="table-light font-weight-bold">
                   <td colSpan="2"><strong>Total</strong></td>
-                  <td colSpan="2" className="text-end"><strong>{totalReceivable}</strong></td>
+                  <td colSpan="2" className="text-end"><strong>{formatUSD(totalReceivable)}</strong></td>
                 </tr>
               </tbody>
             </Table>
@@ -402,9 +451,9 @@ const AssetDetails = () => {
       </Card>
 
       {/* 🏁 Grand Total */}
-      <Card  text="white" className="text-center p-3 mb-4">
+      <Card bg="dark" text="white" className="text-center p-3 mb-4">
         <h5>
-          Grand Total of All Assets: <strong>{grandTotal}</strong>
+          Grand Total of All Assets: <strong>{formatUSD(grandTotal)}</strong>
         </h5>
       </Card>
     </Container>
