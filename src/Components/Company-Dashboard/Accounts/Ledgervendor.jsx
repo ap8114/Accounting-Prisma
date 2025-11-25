@@ -10,7 +10,7 @@ import {
   FaFilePdf,
   FaGlobe,
 } from "react-icons/fa";
-import { Button, Card, Row, Col, Form, InputGroup, Table, Badge, Nav, } from "react-bootstrap";
+import { Button, Card, Row, Col, Form, InputGroup, Table, Badge, Nav } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 
 const Ledgervendor = () => {
@@ -54,60 +54,30 @@ const Ledgervendor = () => {
 
       try {
         setLoading(true);
-        const response = await axiosInstance.get(`/vendorCustomer/vendor-ledger/${passedVendor.id}/${companyId}`);
+        const response = await axiosInstance.get(
+          `/vendorCustomer/vendor-ledger/${passedVendor.id}/${companyId}`
+        );
         const result = response.data;
 
-        if (result) {
-          // Process vendor data according to new API response
-          const processedVendor = {
-            id: result.vendor.id,
-            company_id: result.vendor.company_id,
-            name: result.vendor.name_english || result.vendor.name_arabic || "Unknown Vendor",
-            company_name: result.vendor.company_name || "N/A",
-            email: result.vendor.email || "N/A",
-            phone: result.vendor.phone || "N/A",
-            address: result.vendor.address || "N/A",
-            shipping_address: result.vendor.shipping_address || "Same as above",
-            country: result.vendor.country || "India",
-            state: result.vendor.state || "N/A",
-            pincode: result.vendor.pincode || "N/A",
-            state_code: result.vendor.state_code || "N/A",
-            gstin: result.vendor.gstIn || "N/A",
-            payable: result.vendor.account_balance || 0,
-            account_name: result.vendor.account_name || "Sundry Creditors",
-            opening_balance: result.vendor.account_balance || 0,
-            credit_period: result.vendor.credit_period_days || "30",
-            bank_account_number: result.vendor.bank_account_number || "N/A",
-            bank_ifsc: result.vendor.bank_ifsc || "N/A",
-            bank_name: result.vendor.bank_name_branch || "N/A",
-            creation_date: result.vendor.creation_date ? new Date(result.vendor.creation_date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-            company_location: result.vendor.google_location || "",
-            id_card_image: result.vendor.id_card_image || "",
-            any_file: result.vendor.any_file || "",
-            account_type: result.vendor.account_type || null,
-            balance_type: result.vendor.balance_type || null,
-            enable_gst: result.vendor.enable_gst || false,
-            type: result.vendor.type || "vendor",
-            company: result.vendor.company || {}
-          };
-
-          setVendorData(processedVendor);
+        if (result.vendor) {
+          // Map vendor data exactly as in API
+          setVendorData(result.vendor);
           setLedgerSummary(result.ledger_summary);
           setTransactionSummary(result.transaction_summary);
 
-          // Process transactions according to new API response
-          const processedTransactions = result.transactions.map((t, index) => ({
-            id: t.id || `api_${index}`,
+          // Map transactions
+          const processedTransactions = (result.transactions || []).map((t, index) => ({
+            id: index, // API doesn't provide ID, so use index
             date: t.date ? new Date(t.date).toISOString().split("T")[0] : "N/A",
             particulars: t.particulars || "",
             vch_type: t.vch_type || "",
             vch_no: t.vch_no || "",
             debit: parseFloat(t.debit) || 0,
             credit: parseFloat(t.credit) || 0,
-            balance: t.balance || 0,
-            balanceType: t.balance >= 0 ? "Dr" : "Cr", // Calculate balance type based on value
+            balance: parseFloat(t.balance) || 0,
+            balanceType: t.balance >= 0 ? "Dr" : "Cr",
             items: t.items || [],
-            narration: t.narration || ""
+            narration: t.narration || "",
           }));
 
           setTransactions(processedTransactions);
@@ -123,9 +93,10 @@ const Ledgervendor = () => {
     fetchVendorLedger();
   }, [companyId, passedVendor]);
 
-  // Use API data if available
+  // Use API data if available, with safe fallbacks
   const currentVendor = vendorData || {
-    name: "Unknown Vendor",
+    name_english: "Unknown Vendor",
+    name_arabic: "",
     company_name: "N/A",
     email: "N/A",
     phone: "N/A",
@@ -135,26 +106,25 @@ const Ledgervendor = () => {
     state: "N/A",
     pincode: "N/A",
     state_code: "N/A",
-    gstin: "N/A",
-    payable: 0,
+    gstIn: "N/A",
+    account_balance: 0,
     account_name: "Sundry Creditors",
-    opening_balance: 0,
-    credit_period: "30",
+    credit_period_days: "30",
     bank_account_number: "N/A",
     bank_ifsc: "N/A",
-    bank_name: "N/A",
-    creation_date: new Date().toISOString().split("T")[0],
-    company_location: "",
+    bank_name_branch: "N/A",
+    google_location: "",
+    creation_date: new Date().toISOString(),
+    company: {},
   };
 
   const currentSummary = ledgerSummary || {
     opening_balance: 0,
-    opening_balance_type: "Dr",
     total_purchases: 0,
     total_returns: 0,
     total_payments: 0,
     balance: 0,
-    balance_type: "Cr"
+    balance_type: "Cr",
   };
 
   const resetFilters = () => {
@@ -183,9 +153,18 @@ const Ledgervendor = () => {
   const showNarration = activeTab === "narration";
   const showCountTable = activeTab === "all" || activeTab === "countTable";
   const showTable = ["all", "itemsDetails"].includes(activeTab);
-    // Check if any transaction has items
-  const hasItems = transactions.some(transaction => transaction.items && transaction.items.length > 0);
 
+  // Check if any transaction has items
+  const hasItems = transactions.some((transaction) => transaction.items && transaction.items.length > 0);
+  const getOpeningBalanceInfo = (descSummary) => {
+    const opening = descSummary?.find(item => item.description === "Opening Balance");
+    return {
+      amount: opening?.amount || 0,
+      type: opening?.type || "Cr"
+    };
+  };
+
+  const openingInfo = getOpeningBalanceInfo(ledgerSummary?.description_summary);
   return (
     <div className="container mt-4">
       {/* Top Bar */}
@@ -199,7 +178,7 @@ const Ledgervendor = () => {
           <span className="me-1">←</span> Back to Vendors
         </Button>
         <h4 className="fw-bold mb-0 text-dark text-center flex-grow-1">
-          Vendor Ledger - {currentVendor.name_english || currentVendor.name}
+          Vendor Ledger - {currentVendor.name_english}
         </h4>
       </div>
 
@@ -214,14 +193,21 @@ const Ledgervendor = () => {
                     Opening Balance
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
-                    {typeof currentSummary.opening_balance === 'number'
-                      ? Math.abs(currentSummary.opening_balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                      : '₹0.00'} {currentSummary.opening_balance_type}
+                    {typeof openingInfo.amount === "number"
+                      ? openingInfo.amount.toLocaleString("en-IN", {
+                        style: "currency",
+                        currency: "INR",
+                      })
+                      : "₹0.00"}{" "}
+                    {openingInfo.type}
                   </div>
                 </div>
                 <div className="col-auto">
-                  <div className={`btn-circle btn-sm btn-${currentSummary.opening_balance_type === 'Cr' ? 'info' : 'secondary'}`}>
-                    {currentSummary.opening_balance_type}
+                  <div
+                    className={`btn-circle btn-sm btn-${openingInfo.type === "Cr" ? "info" : "secondary"
+                      }`}
+                  >
+                    {openingInfo.type}
                   </div>
                 </div>
               </div>
@@ -237,9 +223,12 @@ const Ledgervendor = () => {
                     Total Payments (Dr)
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
-                    {typeof currentSummary.total_payments === 'number'
-                      ? currentSummary.total_payments.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                      : '₹0.00'}
+                    {typeof currentSummary.total_payments === "number"
+                      ? currentSummary.total_payments.toLocaleString("en-IN", {
+                        style: "currency",
+                        currency: "INR",
+                      })
+                      : "₹0.00"}
                   </div>
                 </div>
                 <div className="col-auto">
@@ -258,9 +247,12 @@ const Ledgervendor = () => {
                     Total Purchases (Cr)
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
-                    {typeof currentSummary.total_purchases === 'number'
-                      ? currentSummary.total_purchases.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                      : '₹0.00'}
+                    {typeof currentSummary.total_purchases === "number"
+                      ? currentSummary.total_purchases.toLocaleString("en-IN", {
+                        style: "currency",
+                        currency: "INR",
+                      })
+                      : "₹0.00"}
                   </div>
                 </div>
                 <div className="col-auto">
@@ -271,21 +263,29 @@ const Ledgervendor = () => {
           </Card>
         </Col>
         <Col md={3}>
-          <Card className={`border-left-${currentSummary.balance_type === 'Cr' ? 'info' : 'danger'} shadow h-100 py-2`}>
+          <Card
+            className={`border-left-${currentSummary.balance_type === "Cr" ? "info" : "danger"
+              } shadow h-100 py-2`}
+          >
             <Card.Body>
               <div className="row align-items-center">
                 <div className="col">
-                  <div className="text-xs font-weight-bold text-uppercase mb-1">
-                    Current Balance
-                  </div>
+                  <div className="text-xs font-weight-bold text-uppercase mb-1">Current Balance</div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
-                    {typeof currentSummary.balance === 'number'
-                      ? Math.abs(currentSummary.balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                      : '₹0.00'} {currentSummary.balance_type}
+                    {typeof currentSummary.balance === "number"
+                      ? Math.abs(currentSummary.balance).toLocaleString("en-IN", {
+                        style: "currency",
+                        currency: "INR",
+                      })
+                      : "₹0.00"}{" "}
+                    {currentSummary.balance_type}
                   </div>
                 </div>
                 <div className="col-auto">
-                  <div className={`btn-circle btn-sm btn-${currentSummary.balance_type === 'Cr' ? 'info' : 'danger'}`}>
+                  <div
+                    className={`btn-circle btn-sm btn-${currentSummary.balance_type === "Cr" ? "info" : "danger"
+                      }`}
+                  >
                     {currentSummary.balance_type}
                   </div>
                 </div>
@@ -332,9 +332,7 @@ const Ledgervendor = () => {
             <Nav.Item>
               <Nav.Link eventKey="confirmLetter">Confirm Balance</Nav.Link>
             </Nav.Item>
-            <button className="btn btn-success">
-              Send to Email
-            </button>
+            <button className="btn btn-success">Send to Email</button>
           </Nav>
         </Card.Body>
       </div>
@@ -346,23 +344,23 @@ const Ledgervendor = () => {
             <div className="d-flex justify-content-between align-items-start mb-4">
               <div>
                 <h5 className="mb-3 fw-bold text-primary">Our Company</h5>
-                <p><strong>Company Name:</strong> ABC Textiles Pvt Ltd</p>
-                <p><strong>Address:</strong> 123, Textile Market, Indore, MP 452001</p>
-                <p><strong>Contact:</strong> +91 98765 43210</p>
-                <p><strong>GSTIN:</strong> 23AABCCDD123E1Z</p>
+                <p><strong>Company Name:</strong> {currentVendor.company?.name || "N/A"}</p>
+                <p><strong>Address:</strong> {currentVendor.company?.address || "N/A"}</p>
+                <p><strong>Contact:</strong> {currentVendor.company?.phone || "N/A"}</p>
+                <p><strong>GSTIN:</strong> N/A</p>
                 <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
               </div>
               <div className="text-end">
                 <h5 className="mb-3 fw-bold text-success">Vendor Details</h5>
-                <p><strong>Name:</strong> {currentVendor.name_english || currentVendor.name || "N/A"}</p>
-                <p><strong>Company:</strong> {currentVendor.company_name || currentVendor.company?.name || "N/A"}</p>
+                <p><strong>Name:</strong> {currentVendor.name_english || "N/A"}</p>
+                <p><strong>Company:</strong> {currentVendor.company_name || "N/A"}</p>
                 <p><strong>Email:</strong> {currentVendor.email || "N/A"}</p>
                 <p><strong>Phone:</strong> {currentVendor.phone || "N/A"}</p>
-                <p><strong>GSTIN:</strong> {currentVendor.gstIn || currentVendor.gstin || "N/A"}</p>
+                <p><strong>GSTIN:</strong> {currentVendor.gstIn || "N/A"}</p>
               </div>
             </div>
             <hr />
-            <h6 className="mb-3">Dear {currentVendor.name_english || currentVendor.name},</h6>
+            <h6 className="mb-3">Dear {currentVendor.name_english},</h6>
             <p>This is to confirm that as per our records, your account stands at the following balance:</p>
             <Table bordered size="sm" className="mb-4">
               <thead className="table-light">
@@ -376,45 +374,55 @@ const Ledgervendor = () => {
                 <tr>
                   <td>Opening Balance</td>
                   <td>
-                    {typeof currentSummary.opening_balance === 'number'
-                      ? Math.abs(currentSummary.opening_balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                      : '₹0.00'}
+                    {typeof currentSummary.opening_balance === "number"
+                      ? Math.abs(currentSummary.opening_balance).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })
+                      : "0.00"}
                   </td>
-                  <td>{currentSummary.opening_balance_type}</td>
+                  <td>{currentSummary.opening_balance_type || "Cr"}</td>
                 </tr>
                 <tr>
                   <td>Total Purchases (Cr)</td>
                   <td>
-                    {typeof currentSummary.total_purchases === 'number'
-                      ? currentSummary.total_purchases.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                      : '₹0.00'}
+                    {typeof currentSummary.total_purchases === "number"
+                      ? currentSummary.total_purchases.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })
+                      : "0.00"}
                   </td>
                   <td>Cr</td>
                 </tr>
                 <tr>
                   <td>Total Returns (Dr)</td>
                   <td>
-                    {typeof currentSummary.total_returns === 'number'
-                      ? currentSummary.total_returns.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                      : '₹0.00'}
+                    {typeof currentSummary.total_returns === "number"
+                      ? currentSummary.total_returns.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })
+                      : "0.00"}
                   </td>
                   <td>Dr</td>
                 </tr>
                 <tr>
                   <td>Total Payments (Dr)</td>
                   <td>
-                    {typeof currentSummary.total_payments === 'number'
-                      ? currentSummary.total_payments.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                      : '₹0.00'}
+                    {typeof currentSummary.total_payments === "number"
+                      ? currentSummary.total_payments.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })
+                      : "0.00"}
                   </td>
                   <td>Dr</td>
                 </tr>
                 <tr className="table-info fw-bold">
                   <td>Current Balance</td>
                   <td>
-                    {typeof currentSummary.balance === 'number'
-                      ? Math.abs(currentSummary.balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                      : '₹0.00'}
+                    {typeof currentSummary.balance === "number"
+                      ? Math.abs(currentSummary.balance).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })
+                      : "0.00"}
                   </td>
                   <td>{currentSummary.balance_type}</td>
                 </tr>
@@ -426,9 +434,9 @@ const Ledgervendor = () => {
                 <p><strong>For the Company</strong></p>
                 <div style={{ height: "40px", borderBottom: "1px solid #000" }}></div>
                 <p className="mt-2">
-                  <strong>Name:</strong> Rajesh Sharma<br />
+                  <strong>Name:</strong> Accountant<br />
                   <strong>Designation:</strong> Accountant<br />
-                  <strong>Place:</strong> Indore<br />
+                  <strong>Place:</strong> {currentVendor.company?.address?.split(",")[1] || "N/A"}<br />
                   <strong>Date:</strong> {new Date().toLocaleDateString()}
                 </p>
               </div>
@@ -436,7 +444,7 @@ const Ledgervendor = () => {
                 <p><strong>For Vendor</strong></p>
                 <div style={{ height: "40px", borderBottom: "1px solid #000" }}></div>
                 <p className="mt-2">
-                  <strong>Name:</strong> {currentVendor.name_english || currentVendor.name || "N/A"}<br />
+                  <strong>Name:</strong> {currentVendor.name_english || "N/A"}<br />
                   <strong>Signature:</strong><br />
                   <strong>Date:</strong> _______________
                 </p>
@@ -462,109 +470,25 @@ const Ledgervendor = () => {
               <head>
                 <title>Balance Confirmation</title>
                 <style>
-                  @page {
-                    size: A4;
-                    margin: 10mm;
-                  }
-                  body {
-                    font-family: Arial, sans-serif;
-                    font-size: 12px;
-                    line-height: 1.4;
-                    margin: 0;
-                    padding: 0;
-                  }
-                  .container {
-                    width: 100%;
-                    max-width: 800px;
-                    margin: 0 auto;
-                  }
-                  .header {
-                    text-align: center;
-                    margin-bottom: 15px;
-                  }
-                  .header h2 {
-                    margin: 0;
-                    font-size: 18px;
-                  }
-                  .company-info {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 20px;
-                  }
-                  .company-info div {
-                    width: 48%;
-                  }
-                  .company-info p {
-                    margin: 3px 0;
-                    font-size: 12px;
-                  }
-                  .company-info h5 {
-                    margin: 0 0 8px 0;
-                    font-size: 14px;
-                  }
-                  hr {
-                    border: none;
-                    border-top: 1px solid #ccc;
-                    margin: 15px 0;
-                  }
-                  .greeting {
-                    margin-bottom: 10px;
-                  }
-                  .balance-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin: 15px 0;
-                    font-size: 12px;
-                  }
-                  .balance-table th, .balance-table td {
-                    border: 1px solid #ddd;
-                    padding: 6px;
-                    text-align: left;
-                  }
-                  .balance-table th {
-                    background-color: #f2f2f2;
-                    font-weight: bold;
-                  }
-                  .balance-table .total-row {
-                    background-color: #e9f7fe;
-                    font-weight: bold;
-                  }
-                  .confirmation-text {
-                    font-weight: bold;
-                    margin: 15px 0;
-                  }
-                  .signatures {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-top: 30px;
-                  }
-                  .signature-block {
-                    width: 48%;
-                  }
-                  .signature-block p {
-                    margin: 3px 0;
-                    font-size: 12px;
-                  }
-                  .signature-line {
-                    border-bottom: 1px solid black;
-                    height: 20px;
-                    margin: 8px 0;
-                  }
-                  .text-center {
-                    text-align: center;
-                    margin-top: 20px;
-                  }
-                  @media print {
-                    body {
-                      font-size: 11px;
-                    }
-                    .balance-table th, .balance-table td {
-                      padding: 4px;
-                    }
-                    .signature-line {
-                      height: 15px;
-                    }
-                  }
+                  @page { size: A4; margin: 10mm; }
+                  body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.4; }
+                  .container { max-width: 800px; margin: 0 auto; }
+                  .header { text-align: center; margin-bottom: 15px; }
+                  .company-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
+                  .company-info div { width: 48%; }
+                  .company-info p { margin: 3px 0; font-size: 12px; }
+                  .company-info h5 { margin: 0 0 8px 0; font-size: 14px; }
+                  hr { border: none; border-top: 1px solid #ccc; margin: 15px 0; }
+                  .greeting { margin-bottom: 10px; }
+                  .balance-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 12px; }
+                  .balance-table th, .balance-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+                  .balance-table th { background-color: #f2f2f2; font-weight: bold; }
+                  .balance-table .total-row { background-color: #e9f7fe; font-weight: bold; }
+                  .confirmation-text { font-weight: bold; margin: 15px 0; }
+                  .signatures { display: flex; justify-content: space-between; margin-top: 30px; }
+                  .signature-block { width: 48%; }
+                  .signature-block p { margin: 3px 0; font-size: 12px; }
+                  .signature-line { border-bottom: 1px solid black; height: 20px; margin: 8px 0; }
                 </style>
               </head>
               <body>
@@ -573,32 +497,28 @@ const Ledgervendor = () => {
                     <h2>BALANCE CONFIRMATION LETTER</h2>
                     <p>Date: ${new Date().toLocaleDateString()}</p>
                   </div>
-                  
                   <div class="company-info">
                     <div>
                       <h5 style="color: #0d6efd;">Our Company</h5>
-                      <p><strong>Company Name:</strong> ABC Textiles Pvt Ltd</p>
-                      <p><strong>Address:</strong> 123, Textile Market, Indore, MP 452001</p>
-                      <p><strong>Contact:</strong> +91 98765 43210</p>
-                      <p><strong>GSTIN:</strong> 23AABCCDD123E1Z</p>
+                      <p><strong>Company Name:</strong> ${currentVendor.company?.name || "N/A"}</p>
+                      <p><strong>Address:</strong> ${currentVendor.company?.address || "N/A"}</p>
+                      <p><strong>Contact:</strong> ${currentVendor.company?.phone || "N/A"}</p>
+                      <p><strong>GSTIN:</strong> N/A</p>
                     </div>
                     <div style="text-align: right;">
                       <h5 style="color: #198754;">Vendor Details</h5>
-                      <p><strong>Name:</strong> ${currentVendor.name_english || currentVendor.name || "N/A"}</p>
-                      <p><strong>Company:</strong> ${currentVendor.company_name || currentVendor.company?.name || "N/A"}</p>
+                      <p><strong>Name:</strong> ${currentVendor.name_english || "N/A"}</p>
+                      <p><strong>Company:</strong> ${currentVendor.company_name || "N/A"}</p>
                       <p><strong>Email:</strong> ${currentVendor.email || "N/A"}</p>
                       <p><strong>Phone:</strong> ${currentVendor.phone || "N/A"}</p>
-                      <p><strong>GSTIN:</strong> ${currentVendor.gstIn || currentVendor.gstin || "N/A"}</p>
+                      <p><strong>GSTIN:</strong> ${currentVendor.gstIn || "N/A"}</p>
                     </div>
                   </div>
-                  
                   <hr>
-                  
                   <div class="greeting">
-                    <p>Dear ${currentVendor.name_english || currentVendor.name || ""},</p>
+                    <p>Dear ${currentVendor.name_english || ""},</p>
                     <p>This is to confirm that as per our records, your account stands at the following balance:</p>
                   </div>
-                  
                   <table class="balance-table">
                     <thead>
                       <tr>
@@ -610,47 +530,45 @@ const Ledgervendor = () => {
                     <tbody>
                       <tr>
                         <td>Opening Balance</td>
-                        <td>${typeof currentSummary.opening_balance === 'number' ? Math.abs(currentSummary.opening_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}</td>
-                        <td>${currentSummary.opening_balance_type}</td>
+                        <td>${typeof currentSummary.opening_balance === "number" ? Math.abs(currentSummary.opening_balance).toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}</td>
+                        <td>${currentSummary.opening_balance_type || "Cr"}</td>
                       </tr>
                       <tr>
                         <td>Total Purchases (Cr)</td>
-                        <td>${typeof currentSummary.total_purchases === 'number' ? currentSummary.total_purchases.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}</td>
+                        <td>${typeof currentSummary.total_purchases === "number" ? currentSummary.total_purchases.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}</td>
                         <td>Cr</td>
                       </tr>
                       <tr>
                         <td>Total Returns (Dr)</td>
-                        <td>${typeof currentSummary.total_returns === 'number' ? currentSummary.total_returns.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}</td>
+                        <td>${typeof currentSummary.total_returns === "number" ? currentSummary.total_returns.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}</td>
                         <td>Dr</td>
                       </tr>
                       <tr>
                         <td>Total Payments (Dr)</td>
-                        <td>${typeof currentSummary.total_payments === 'number' ? currentSummary.total_payments.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}</td>
+                        <td>${typeof currentSummary.total_payments === "number" ? currentSummary.total_payments.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}</td>
                         <td>Dr</td>
                       </tr>
                       <tr class="total-row">
                         <td>Current Balance</td>
-                        <td>${typeof currentSummary.balance === 'number' ? Math.abs(currentSummary.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}</td>
+                        <td>${typeof currentSummary.balance === "number" ? Math.abs(currentSummary.balance).toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}</td>
                         <td>${currentSummary.balance_type}</td>
                       </tr>
                     </tbody>
                   </table>
-                  
                   <p class="confirmation-text">We hereby confirm the above balance as correct.</p>
-                  
                   <div class="signatures">
                     <div class="signature-block">
                       <p><strong>For the Company</strong></p>
                       <div class="signature-line"></div>
-                      <p><strong>Name:</strong> Rajesh Sharma</p>
+                      <p><strong>Name:</strong> Accountant</p>
                       <p><strong>Designation:</strong> Accountant</p>
-                      <p><strong>Place:</strong> Indore</p>
+                      <p><strong>Place:</strong> ${currentVendor.company?.address?.split(",")[1] || "N/A"}</p>
                       <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
                     </div>
                     <div class="signature-block">
                       <p><strong>For Vendor</strong></p>
                       <div class="signature-line"></div>
-                      <p><strong>Name:</strong> ${currentVendor.name_english || currentVendor.name || "N/A"}</p>
+                      <p><strong>Name:</strong> ${currentVendor.name_english || "N/A"}</p>
                       <p><strong>Signature:</strong></p>
                       <p><strong>Date:</strong> _______________</p>
                     </div>
@@ -684,39 +602,96 @@ const Ledgervendor = () => {
 
       {/* Vendor Details */}
       {showVendorDetails && (
-        <Card className="mt-3 mb-3" style={{ borderRadius: "12px", border: "1px solid #dee2e6", backgroundColor: "#fff", boxShadow: "0 2px 6px rgba(0,0,0,0.05)" }}>
+        <Card
+          className="mt-3 mb-3"
+          style={{
+            borderRadius: "12px",
+            border: "1px solid #dee2e6",
+            backgroundColor: "#fff",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+          }}
+        >
           <Card.Body className="p-3">
             <h5 className="fw-bold mb-3 border-bottom pb-2">Vendor Details</h5>
             <Row className="g-3">
               <Col md={4}>
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Personal Info</h6>
-                  <p className="mb-2"><i className="bi bi-person text-success me-2"></i><strong>Name:</strong> {currentVendor.name_english || currentVendor.name || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-building text-success me-2"></i><strong>Company:</strong> {currentVendor.company_name || currentVendor.company?.name || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-telephone text-success me-2"></i><strong>Phone:</strong> {currentVendor.phone || "N/A"}</p>
-                  <p className="mb-0"><i className="bi bi-envelope text-success me-2"></i><strong>Email:</strong> {currentVendor.email || "N/A"}</p>
+                  <p className="mb-2">
+                    <i className="bi bi-person text-success me-2"></i>
+                    <strong>Name:</strong> {currentVendor.name_english || "N/A"}
+                  </p>
+                  <p className="mb-2">
+                    <i className="bi bi-building text-success me-2"></i>
+                    <strong>Company:</strong> {currentVendor.company_name || "N/A"}
+                  </p>
+                  <p className="mb-2">
+                    <i className="bi bi-telephone text-success me-2"></i>
+                    <strong>Phone:</strong> {currentVendor.phone || "N/A"}
+                  </p>
+                  <p className="mb-0">
+                    <i className="bi bi-envelope text-success me-2"></i>
+                    <strong>Email:</strong> {currentVendor.email || "N/A"}
+                  </p>
                   <p className="mb-0 d-flex align-items-center">
                     <FaGlobe className="me-2" style={{ color: "#53b2a5" }} />
-                    <span><strong>Location:</strong> <a href={currentVendor.google_location || currentVendor.company_location || '#'} target="_blank" rel="noopener noreferrer" style={{ color: "#007bff" }}>Click Location</a></span>
+                    <span>
+                      <strong>Location:</strong>{" "}
+                      <a
+                        href={currentVendor.google_location || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "#007bff" }}
+                      >
+                        Click Location
+                      </a>
+                    </span>
                   </p>
                 </div>
               </Col>
               <Col md={4}>
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Address Info</h6>
-                  <p className="mb-2"><i className="bi bi-geo-alt text-success me-2"></i><strong>Address:</strong> {currentVendor.address}</p>
-                  <p className="mb-2"><i className="bi bi-truck text-success me-2"></i><strong>Shipping:</strong> {currentVendor.shipping_address || "Same as above"}</p>
-                  <p className="mb-2"><i className="bi bi-globe text-success me-2"></i><strong>Country:</strong> {currentVendor.country || "India"}</p>
-                  <p className="mb-0"><i className="bi bi-flag text-success me-2"></i><strong>State:</strong> {currentVendor.state || "N/A"}</p>
+                  <p className="mb-2">
+                    <i className="bi bi-geo-alt text-success me-2"></i>
+                    <strong>Address:</strong> {currentVendor.address}
+                  </p>
+                  <p className="mb-2">
+                    <i className="bi bi-truck text-success me-2"></i>
+                    <strong>Shipping:</strong> {currentVendor.shipping_address || "Same as above"}
+                  </p>
+                  <p className="mb-2">
+                    <i className="bi bi-globe text-success me-2"></i>
+                    <strong>Country:</strong> {currentVendor.country || "India"}
+                  </p>
+                  <p className="mb-0">
+                    <i className="bi bi-flag text-success me-2"></i>
+                    <strong>State:</strong> {currentVendor.state || "N/A"}
+                  </p>
                 </div>
               </Col>
               <Col md={4}>
                 <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "15px" }}>
                   <h6 className="fw-semibold mb-3 text-muted">Financial Info</h6>
-                  <p className="mb-2"><i className="bi bi-hash text-success me-2"></i><strong>Pincode:</strong> {currentVendor.pincode || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-file-earmark-text text-success me-2"></i><strong>GSTIN:</strong> {currentVendor.gstIn || currentVendor.gstin || "N/A"}</p>
-                  <p className="mb-2"><i className="bi bi-calendar text-success me-2"></i><strong>Credit Period:</strong> {currentVendor.credit_period || "N/A"} days</p>
-                  <p className="mb-0"><i className="bi bi-cash-stack text-success me-2"></i><strong>Balance:</strong> ₹{parseFloat(currentVendor.payable || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+                  <p className="mb-2">
+                    <i className="bi bi-hash text-success me-2"></i>
+                    <strong>Pincode:</strong> {currentVendor.pincode || "N/A"}
+                  </p>
+                  <p className="mb-2">
+                    <i className="bi bi-file-earmark-text text-success me-2"></i>
+                    <strong>GSTIN:</strong> {currentVendor.gstIn || "N/A"}
+                  </p>
+                  <p className="mb-2">
+                    <i className="bi bi-calendar text-success me-2"></i>
+                    <strong>Credit Period:</strong> {currentVendor.credit_period_days || "N/A"} days
+                  </p>
+                  <p className="mb-0">
+                    <i className="bi bi-cash-stack text-success me-2"></i>
+                    <strong>Balance:</strong> ₹
+                    {parseFloat(currentVendor.account_balance || 0).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </p>
                 </div>
               </Col>
             </Row>
@@ -740,11 +715,26 @@ const Ledgervendor = () => {
                 <tbody>
                   {(() => {
                     const countsToUse = transactionSummary || {};
-                    const apiKeysOrder = ["opening_balance", "purchase", "payment", "purchase_return", "expense", "receipt", "sales_return", "manufacturing", "stock_journal", "stock_adjustment", "banking", "journal"];
-
+                    const apiKeysOrder = [
+                      "opening_balance",
+                      "purchase",
+                      "payment",
+                      "purchase_return",
+                      "expense",
+                      "receipt",
+                      "sales_return",
+                      "manufacturing",
+                      "stock_journal",
+                      "stock_adjustment",
+                      "banking",
+                      "journal",
+                    ];
                     return apiKeysOrder.map((key) => {
                       const count = countsToUse[key] || 0;
-                      const displayLabel = key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                      const displayLabel = key
+                        .split("_")
+                        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(" ");
                       return (
                         <tr key={key}>
                           <td className="py-2">{displayLabel}</td>
@@ -757,7 +747,9 @@ const Ledgervendor = () => {
                 <tfoot>
                   <tr className="bg-light fw-bold">
                     <td>Total Transactions</td>
-                    <td className="text-center">{transactionSummary?.total_transactions || transactions.length}</td>
+                    <td className="text-center">
+                      {transactionSummary?.total_transactions || transactions.length}
+                    </td>
                   </tr>
                 </tfoot>
               </Table>
@@ -773,21 +765,40 @@ const Ledgervendor = () => {
             <Card.Header className="text-white d-flex justify-content-between align-items-center">
               <Badge bg="light" text="dark">{transactions.length} transaction(s)</Badge>
               <div className="d-flex align-items-center gap-2">
-                <Button variant="light" size="sm" className="d-flex align-items-center px-3 py-2 shadow-sm border" onClick={exportToExcel}>
-                  <FaFileExport className="me-2" /><span className="small fw-medium">Excel</span>
+                <Button
+                  variant="light"
+                  size="sm"
+                  className="d-flex align-items-center px-3 py-2 shadow-sm border"
+                  onClick={exportToExcel}
+                >
+                  <FaFileExport className="me-2" />
+                  <span className="small fw-medium">Excel</span>
                 </Button>
-                <Button variant="light" size="sm" className="d-flex align-items-center px-3 py-2 shadow-sm border" onClick={exportToPDF}>
-                  <FaFilePdf className="me-2" /><span className="small fw-medium">PDF</span>
+                <Button
+                  variant="light"
+                  size="sm"
+                  className="d-flex align-items-center px-3 py-2 shadow-sm border"
+                  onClick={exportToPDF}
+                >
+                  <FaFilePdf className="me-2" />
+                  <span className="small fw-medium">PDF</span>
                 </Button>
               </div>
             </Card.Header>
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <div className="d-flex align-items-center">
-                  <Button variant="outline-secondary" size="sm" onClick={() => setShowFilters(!showFilters)} className="me-2">
-                    {showFilters ? 'Hide Filters' : 'Show Filters'}
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="me-2"
+                  >
+                    {showFilters ? "Hide Filters" : "Show Filters"}
                   </Button>
-                  <Button variant="outline-secondary" size="sm" onClick={resetFilters}>Reset</Button>
+                  <Button variant="outline-secondary" size="sm" onClick={resetFilters}>
+                    Reset
+                  </Button>
                 </div>
                 <Badge bg="warning" text="dark">Vendor Ledger</Badge>
               </div>
@@ -799,8 +810,14 @@ const Ledgervendor = () => {
                         <Form.Group>
                           <Form.Label>From Date</Form.Label>
                           <InputGroup>
-                            <InputGroup.Text><FaCalendarAlt /></InputGroup.Text>
-                            <Form.Control type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                            <InputGroup.Text>
+                              <FaCalendarAlt />
+                            </InputGroup.Text>
+                            <Form.Control
+                              type="date"
+                              value={fromDate}
+                              onChange={(e) => setFromDate(e.target.value)}
+                            />
                           </InputGroup>
                         </Form.Group>
                       </Col>
@@ -808,15 +825,24 @@ const Ledgervendor = () => {
                         <Form.Group>
                           <Form.Label>To Date</Form.Label>
                           <InputGroup>
-                            <InputGroup.Text><FaCalendarAlt /></InputGroup.Text>
-                            <Form.Control type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+                            <InputGroup.Text>
+                              <FaCalendarAlt />
+                            </InputGroup.Text>
+                            <Form.Control
+                              type="date"
+                              value={toDate}
+                              onChange={(e) => setToDate(e.target.value)}
+                            />
                           </InputGroup>
                         </Form.Group>
                       </Col>
                       <Col xs={12} sm={6} md={3}>
                         <Form.Group>
                           <Form.Label>Balance Type</Form.Label>
-                          <Form.Select value={balanceType} onChange={(e) => setBalanceType(e.target.value)}>
+                          <Form.Select
+                            value={balanceType}
+                            onChange={(e) => setBalanceType(e.target.value)}
+                          >
                             <option value="all">All Transactions</option>
                             <option value="debit">Payments Only (Debit)</option>
                             <option value="credit">Purchases Only (Credit)</option>
@@ -826,7 +852,10 @@ const Ledgervendor = () => {
                       <Col xs={12} sm={6} md={3}>
                         <Form.Group>
                           <Form.Label>Voucher Type</Form.Label>
-                          <Form.Select value={voucherTypeFilter} onChange={(e) => setVoucherTypeFilter(e.target.value)}>
+                          <Form.Select
+                            value={voucherTypeFilter}
+                            onChange={(e) => setVoucherTypeFilter(e.target.value)}
+                          >
                             <option value="all">All Types</option>
                             <option value="Opening">Opening</option>
                             <option value="Purchase">Purchase</option>
@@ -842,7 +871,9 @@ const Ledgervendor = () => {
                         <Form.Group>
                           <Form.Label>Search</Form.Label>
                           <InputGroup>
-                            <InputGroup.Text><FaSearch /></InputGroup.Text>
+                            <InputGroup.Text>
+                              <FaSearch />
+                            </InputGroup.Text>
                             <Form.Control
                               type="text"
                               placeholder="Search by voucher, description, narration, or item..."
@@ -889,11 +920,11 @@ const Ledgervendor = () => {
                                 }}
                               >
                                 <span className="me-2">
-                                  {entry.items && entry.items.length > 0 ? (
-                                    expandedRows[entry.id] ? "▼" : "▶"
-                                  ) : (
-                                    " "
-                                  )}
+                                  {entry.items && entry.items.length > 0
+                                    ? expandedRows[entry.id]
+                                      ? "▼"
+                                      : "▶"
+                                    : " "}
                                 </span>
                                 <span>{entry.particulars}</span>
                               </div>
@@ -919,13 +950,30 @@ const Ledgervendor = () => {
                               </Badge>
                             </td>
                             <td className="text-end">
-                              {entry.debit ? entry.debit.toLocaleString("en-IN", { style: "currency", currency: "INR" }) : ""}
+                              {entry.debit
+                                ? entry.debit.toLocaleString("en-IN", {
+                                  style: "currency",
+                                  currency: "INR",
+                                })
+                                : ""}
                             </td>
                             <td className="text-end">
-                              {entry.credit ? entry.credit.toLocaleString("en-IN", { style: "currency", currency: "INR" }) : ""}
+                              {entry.credit
+                                ? entry.credit.toLocaleString("en-IN", {
+                                  style: "currency",
+                                  currency: "INR",
+                                })
+                                : ""}
                             </td>
-                            <td className={`text-end ${entry.balanceType === "Cr" ? "text-success" : "text-danger"}`}>
-                              {Math.abs(entry.balance).toLocaleString("en-IN", { style: "currency", currency: "INR" })} {entry.balanceType}
+                            <td
+                              className={`text-end ${entry.balanceType === "Cr" ? "text-success" : "text-danger"
+                                }`}
+                            >
+                              {Math.abs(entry.balance).toLocaleString("en-IN", {
+                                style: "currency",
+                                currency: "INR",
+                              })}{" "}
+                              {entry.balanceType}
                             </td>
                             {showNarration && (
                               <td className="text-muted small" style={{ maxWidth: "200px", whiteSpace: "normal" }}>
@@ -935,7 +983,9 @@ const Ledgervendor = () => {
                           </tr>
                           {entry.items && entry.items.length > 0 && expandedRows[entry.id] && (
                             <tr>
-                              <td className="text-muted" style={{ fontSize: "0.8rem" }}>•••</td>
+                              <td className="text-muted" style={{ fontSize: "0.8rem" }}>
+                                •••
+                              </td>
                               <td colSpan={showNarration ? 7 : 6} className="p-0">
                                 <div className="bg-light border-top">
                                   <Table striped hover className="mb-0" size="sm">
@@ -974,20 +1024,31 @@ const Ledgervendor = () => {
                   </tbody>
                   <tfoot className="table-light">
                     <tr>
-                      <td colSpan={showNarration ? 4 : 3} className="text-end fw-bold">Total</td>
-                      <td className="text-end fw-bold">
-                        {typeof totals.totalDebit === 'number'
-                          ? totals.totalDebit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                          : '₹0.00'}
+                      <td colSpan={showNarration ? 4 : 3} className="text-end fw-bold">
+                        Total
                       </td>
                       <td className="text-end fw-bold">
-                        {typeof totals.totalCredit === 'number'
-                          ? totals.totalCredit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                          : '₹0.00'}
+                        {typeof totals.totalDebit === "number"
+                          ? totals.totalDebit.toLocaleString("en-IN", {
+                            style: "currency",
+                            currency: "INR",
+                          })
+                          : "₹0.00"}
                       </td>
                       <td className="text-end fw-bold">
-                        {currentSummary && typeof currentSummary.balance === 'number'
-                          ? `${Math.abs(currentSummary.balance).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })} ${currentSummary.balance_type}`
+                        {typeof totals.totalCredit === "number"
+                          ? totals.totalCredit.toLocaleString("en-IN", {
+                            style: "currency",
+                            currency: "INR",
+                          })
+                          : "₹0.00"}
+                      </td>
+                      <td className="text-end fw-bold">
+                        {currentSummary && typeof currentSummary.balance === "number"
+                          ? `${Math.abs(currentSummary.balance).toLocaleString("en-IN", {
+                            style: "currency",
+                            currency: "INR",
+                          })} ${currentSummary.balance_type}`
                           : "₹0.00 Cr"}
                       </td>
                     </tr>
