@@ -4122,16 +4122,16 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
     <div className="container-fluid mt-4 px-2">
       <h4 className="text-center mb-4">Purchase Process</h4>
       {/* Buttons */}
-      <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
+      {/* <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
         <Button variant="warning" style={{ minWidth: "130px" }}>Print (English)</Button>
         <Button variant="warning" style={{ minWidth: "130px" }}>طباعة (العربية)</Button>
         <Button variant="warning" style={{ minWidth: "150px" }}>Print Both (EN + AR)</Button>
         <Button variant="info" style={{ minWidth: "110px", color: "white" }}>Send</Button>
         <Button variant="success" style={{ minWidth: "130px" }}>Download PDF</Button>
         <Button variant="primary" style={{ minWidth: "130px" }}>Download Excel</Button>
-      </div>
+      </div> */}
 
-      <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4" fill>
+      <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4 custom-tabs" fill>
         <Tab eventKey="purchaseQuotation" title="Purchase Quotation" />
         <Tab eventKey="purchaseOrder" title="Purchase Order" />
         <Tab eventKey="goodsReceipt" title="Goods Receipt" />
