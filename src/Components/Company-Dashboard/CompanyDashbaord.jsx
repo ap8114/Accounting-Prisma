@@ -537,6 +537,7 @@ const CompanyDashboard = () => {
                 </Dropdown.Menu>
               </Dropdown>
             </Card.Header>
+            
             <Card.Body className="p-0">
               {recentSales.map((sale, i) => (
                 <div key={i} className="p-3 border-bottom">
