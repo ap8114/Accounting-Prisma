@@ -2,4 +2,3 @@
   from = "/*"
   to = "/index.html"
   status = 200
- intregrte post a[i here or make a full code jo jo key mene de he keval vhi key rhgi or jese ki ye post ki api ka payload h company info ek bar hi rhega keval har step me dikhega bank info bhi har step me rhega keval har step me dikhega or product ja bhi or bill shil bhi jo step me bai ki key e vo lelo or usme bi step me repet he jese pehli me quatiton nu. he to sales order me bhi quatation numbe vhi rhega 2 key mt bna sahi kr or data post kr or full code de POST: https://02x4fc84-8080.inc1.devtunnels.ms/api/v1/sales-order/create-sales-order   update kakre full cod de mujhe 5000 line 
