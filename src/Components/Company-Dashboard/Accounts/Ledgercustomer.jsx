@@ -16,8 +16,11 @@ import {
 } from "react-icons/fa";
 import { Button, Card, Row, Col, Form, InputGroup, Table, Badge, Nav, Tab, Spinner, Alert } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
+import GetCompanyId from '../../../Api/GetCompanyId';
+import axiosInstance from '../../../Api/axiosInstance';
 
 const Ledgercustomer = () => {
+  const companyId = GetCompanyId();
   const navigate = useNavigate();
   const location = useLocation();
   const passedCustomer = location.state?.customer;
@@ -36,130 +39,131 @@ const Ledgercustomer = () => {
   const [showFilters, setShowFilters] = useState(true);
   const [voucherTypeFilter, setVoucherTypeFilter] = useState("all");
   const [expandedRows, setExpandedRows] = useState({});
-  const [activeTab, setActiveTab] = useState("all"); // New: tab state
+  const [activeTab, setActiveTab] = useState("all");
 
   const [manualVoucherNo, setManualVoucherNo] = useState("");
   const [autoVoucherNo] = useState("VCH-" + Date.now());
 
   // Fetch data from API
-useEffect(() => {
-  const fetchCustomerData = async () => {
-    try {
-      setLoading(true);
-      
-      // Check if we have a valid customer ID
-      if (!passedCustomer?.id) {
-        setError("No customer ID provided. Please select a customer from the list.");
-        return;
+  useEffect(() => {
+    const fetchCustomerData = async () => {
+      try {
+        setLoading(true);
+        
+        // Check if we have a valid customer ID
+        if (!passedCustomer?.id) {
+          setError("No customer ID provided. Please select a customer from the list.");
+          setLoading(false);
+          return;
+        }
+        
+        // Get customer ID from passed customer
+        const customerId = passedCustomer.id;
+        
+        // Make API call
+        const response = await axiosInstance.get(`/vendorCustomer/customer-ledger/${customerId}/${companyId}`);
+        setApiData(response.data);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching customer data:", err);
+        setError("Failed to load customer data. Please try again.");
+      } finally {
+        setLoading(false);
       }
-      
-      // Get customer ID from passed customer
-      const customerId = passedCustomer.id;
-      
-      // Make API call
-      const response = await axiosInstance.get(`/vendorCustomer/customer-ledger/${customerId}/${companyId}`);
-      setApiData(response.data);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching customer data:", err);
-      setError("Failed to load customer data. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  fetchCustomerData();
-}, [passedCustomer, companyId]);
+    fetchCustomerData();
+  }, [passedCustomer, companyId]);
 
   // Transform API data to match our component structure
-const customer = useMemo(() => {
-  if (apiData && apiData.customer) {
-    const cust = apiData.customer;
+  const customer = useMemo(() => {
+    if (apiData && apiData.customer) {
+      const cust = apiData.customer;
+      return {
+        id: cust.id,
+        name: cust.name_english,
+        nameArabic: cust.name_arabic,
+        companyName: cust.company_name,
+        companyLocation: cust.google_location,
+        accountName: cust.account_name,
+        accountBalance: cust.account_balance,
+        creationDate: new Date(cust.creation_date).toISOString().split('T')[0],
+        bankAccountNumber: cust.bank_account_number,
+        bankIFSC: cust.bank_ifsc,
+        bankName: cust.bank_name_branch,
+        country: cust.country,
+        state: cust.state,
+        pincode: cust.pincode,
+        address: cust.address,
+        stateCode: cust.state_code,
+        shippingAddress: cust.shipping_address,
+        phone: cust.phone,
+        email: cust.email,
+        creditPeriod: cust.credit_period_days,
+        gst: cust.gstIn,
+        openingBalance: 0, // Will be set from transactions
+        idCardImage: cust.id_card_image,
+        extraFile: cust.any_file,
+        company: cust.company
+      };
+    }
+    
+    // Fallback to passed customer data if API data is not available
+    if (passedCustomer) {
+      return {
+        id: passedCustomer.id,
+        name: passedCustomer.name,
+        nameArabic: passedCustomer.nameArabic || "",
+        companyName: passedCustomer.companyName || "N/A",
+        companyLocation: passedCustomer.companyLocation || "",
+        accountName: passedCustomer.accountName || "Accounts Receivable",
+        accountBalance: passedCustomer.accountBalance || "0.00",
+        creationDate: passedCustomer.creationDate || new Date().toISOString().split("T")[0],
+        bankAccountNumber: passedCustomer.bankAccountNumber || "",
+        bankIFSC: passedCustomer.bankIFSC || "",
+        bankName: passedCustomer.bankName || "",
+        country: passedCustomer.country || "India",
+        state: passedCustomer.state || "N/A",
+        pincode: passedCustomer.pincode || "N/A",
+        address: passedCustomer.address || "",
+        stateCode: passedCustomer.stateCode || "",
+        shippingAddress: passedCustomer.shippingAddress || "Same as above",
+        phone: passedCustomer.phone || "",
+        email: passedCustomer.email || "",
+        creditPeriod: passedCustomer.creditPeriod || "30",
+        gst: passedCustomer.gst || "",
+        openingBalance: passedCustomer.openingBalance || 0,
+        idCardImage: passedCustomer.idCardImage || null,
+        extraFile: passedCustomer.extraFile || null,
+        company: passedCustomer.company || null
+      };
+    }
+    
+    // Default fallback
     return {
-      id: cust.id,
-      name: cust.name_english,
-      nameArabic: cust.name_arabic,
-      companyName: cust.company_name,
-      companyLocation: cust.google_location,
-      accountName: cust.account_name,
-      accountBalance: cust.account_balance,
-      creationDate: new Date(cust.creation_date).toISOString().split('T')[0],
-      bankAccountNumber: cust.bank_account_number,
-      bankIFSC: cust.bank_ifsc,
-      bankName: cust.bank_name_branch,
-      country: cust.country,
-      state: cust.state,
-      pincode: cust.pincode,
-      address: cust.address,
-      stateCode: cust.state_code,
-      shippingAddress: cust.shipping_address,
-      phone: cust.phone,
-      email: cust.email,
-      creditPeriod: cust.credit_period_days,
-      gst: cust.gstIn,
-      openingBalance: 0, // Will be set from transactions
-      idCardImage: cust.id_card_image,
-      extraFile: cust.any_file,
-      company: cust.company
+      name: "Demo Customer",
+      nameArabic: "",
+      companyName: "ABC Traders",
+      companyLocation: "https://maps.google.com/?q=Indore",
+      accountName: "Accounts Receivable",
+      accountBalance: 5000,
+      creationDate: "2025-04-01",
+      bankAccountNumber: "1234567890",
+      bankIFSC: "HDFC0000001",
+      bankName: "HDFC Bank, Indore Branch",
+      country: "India",
+      state: "Madhya Pradesh",
+      pincode: "452001",
+      address: "Indore, MP",
+      stateCode: "MP-23",
+      shippingAddress: "Same as above",
+      phone: "9999999999",
+      email: "demo@email.com",
+      creditPeriod: "30",
+      gst: "22AAAAA0000A1Z5",
+      openingBalance: 5000,
     };
-  }
-  
-  // Fallback to passed customer data if API data is not available
-  if (passedCustomer) {
-    return {
-      id: passedCustomer.id,
-      name: passedCustomer.name,
-      nameArabic: passedCustomer.nameArabic || "",
-      companyName: passedCustomer.companyName || "N/A",
-      companyLocation: passedCustomer.companyLocation || "",
-      accountName: passedCustomer.accountName || "Accounts Receivable",
-      accountBalance: passedCustomer.accountBalance || "0.00",
-      creationDate: passedCustomer.creationDate || new Date().toISOString().split("T")[0],
-      bankAccountNumber: passedCustomer.bankAccountNumber || "",
-      bankIFSC: passedCustomer.bankIFSC || "",
-      bankName: passedCustomer.bankName || "",
-      country: passedCustomer.country || "India",
-      state: passedCustomer.state || "N/A",
-      pincode: passedCustomer.pincode || "N/A",
-      address: passedCustomer.address || "",
-      stateCode: passedCustomer.stateCode || "",
-      shippingAddress: passedCustomer.shippingAddress || "Same as above",
-      phone: passedCustomer.phone || "",
-      email: passedCustomer.email || "",
-      creditPeriod: passedCustomer.creditPeriod || "30",
-      gst: passedCustomer.gst || "",
-      openingBalance: passedCustomer.openingBalance || 0,
-      idCardImage: passedCustomer.idCardImage || null,
-      extraFile: passedCustomer.extraFile || null,
-      company: passedCustomer.company || null
-    };
-  }
-  
-  // Default fallback
-  return {
-    name: "Demo Customer",
-    nameArabic: "",
-    companyName: "ABC Traders",
-    companyLocation: "https://maps.google.com/?q=Indore",
-    accountName: "Accounts Receivable",
-    accountBalance: 5000,
-    creationDate: "2025-04-01",
-    bankAccountNumber: "1234567890",
-    bankIFSC: "HDFC0000001",
-    bankName: "HDFC Bank, Indore Branch",
-    country: "India",
-    state: "Madhya Pradesh",
-    pincode: "452001",
-    address: "Indore, MP",
-    stateCode: "MP-23",
-    shippingAddress: "Same as above",
-    phone: "9999999999",
-    email: "demo@email.com",
-    creditPeriod: "30",
-    gst: "22AAAAA0000A1Z5",
-    openingBalance: 5000,
-  };
-}, [apiData, passedCustomer]);
+  }, [apiData, passedCustomer]);
 
   // Transform transactions from API
   const ledgerData = useMemo(() => {
@@ -388,7 +392,7 @@ const customer = useMemo(() => {
     );
   }
 
-  // Reusable Components (same as before)
+  // Reusable Components
   const CustomerDetailsTab = () => (
     <Card className="mb-4 shadow-sm border-0 rounded-3">
       <Card.Header className="bg-white border-bottom">
@@ -490,7 +494,7 @@ const customer = useMemo(() => {
         {Object.values(expandedRows).some(Boolean) ? "Collapse All Items" : "Expand All Items"}
       </Button>
 
-      {/* Ledger Table — Always Visible */}
+      {/* Ledger Table */}
       <Card className="mb-4 shadow-sm">
         <Card className="mb-4 border-0 shadow-sm rounded-4">
           <Card.Header className="bg-white border-0 py-3 px-4 d-flex flex-wrap justify-content-between align-items-center custom-ledger-header">
@@ -830,7 +834,7 @@ const customer = useMemo(() => {
 
   const NarrationTab = () => (
     <div>
-      {/* Ledger Table — Always Visible */}
+      {/* Ledger Table */}
       <Card className="mb-4 shadow-sm">
         <Card className="mb-4 border-0 shadow-sm rounded-4">
           <Card.Header className="bg-white border-0 py-3 px-4 d-flex flex-wrap justify-content-between align-items-center custom-ledger-header">
@@ -1600,7 +1604,7 @@ const customer = useMemo(() => {
           </Col>
         </Row>
 
-        {/* Tabs Instead of Checkboxes */}
+        {/* Tabs */}
         <div className="mb-4 border-3 p-1">
           <Card.Body className="p-0">
             <Nav
