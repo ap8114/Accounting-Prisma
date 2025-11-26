@@ -363,7 +363,7 @@ const AllAccounts = () => {
       console.error("Account ID not found for ledger navigation");
       alert("Unable to open ledger: Account ID missing");
       return;
-    }
+    }     
 
     const accountName = row.sub_of_subgroup_name || row.name || name;
 
