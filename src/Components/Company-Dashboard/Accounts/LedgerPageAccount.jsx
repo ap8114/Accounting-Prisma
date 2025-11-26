@@ -1,6 +1,5 @@
-// LedgerPage.jsx
-import React from 'react';
-import { Container, Table, Button, Card } from 'react-bootstrap';
+import React, { useEffect, useState } from 'react';
+import { Container, Table, Button, Card, Spinner } from 'react-bootstrap';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa';
 import GetCompanyId from '../../../Api/GetCompanyId';
@@ -11,49 +10,56 @@ const LedgerPageAccount = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Receive account data from navigation state
-  const { accountName, accountType } = location.state || {};
+  // Expect accountName, accountType, and accountId from route state
+  const { accountName, accountType, accountId } = location.state || {};
 
-  // Mock ledger data (in real app, fetch from API)
-  const mockLedgerData = [
-    {
-      date: "2025-01-10",
-      particulars: "Opening Balance",
-      vchNo: "",
-      refNo: "",
-      vchType: "",
-      debit: 50000,
-      credit: 0,
-      runningBalance: 50000,
-    },
-    {
-      date: "2025-01-15",
-      particulars: "Sales to Customer A",
-      vchNo: "S001",
-      refNo: "REF1001",
-      vchType: "Sales",
-      debit: 25000,
-      credit: 0,
-      runningBalance: 75000,
-    },
-    {
-      date: "2025-01-20",
-      particulars: "Payment to Supplier X",
-      vchNo: "P005",
-      refNo: "REF1002",
-      vchType: "Payment",
-      debit: 0,
-      credit: 15000,
-      runningBalance: 60000,
-    },
-  ];
+  const [ledgerData, setLedgerData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (!accountName || !accountType) {
+  useEffect(() => {
+    if (!accountId || !companyId) {
+      setError('Missing account or company ID');
+      setLoading(false);
+      return;
+    }
+
+    const fetchLedger = async () => {
+      try {
+        const response = await axiosInstance.get(`account/ledger/${companyId}/${accountId}`);
+        if (response.data.success) {
+          setLedgerData(response.data);
+        } else {
+          setError('Failed to load ledger data');
+        }
+      } catch (err) {
+        console.error('API Error:', err);
+        setError('Network or server error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLedger();
+  }, [companyId, accountId]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <Container className="py-5 text-center">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-2">Loading ledger...</p>
+      </Container>
+    );
+  }
+
+  // Error state
+  if (error || !accountName || !accountType) {
     return (
       <Container className="py-4">
         <Card className="p-4 text-center">
-          <h5 className="text-danger">Invalid Account Data</h5>
-          <p>No account selected. Please go back and try again.</p>
+          <h5 className="text-danger">Error</h5>
+          <p>{error || 'Invalid account data. Please go back and try again.'}</p>
           <Button variant="primary" onClick={() => navigate(-1)}>
             ← Back
           </Button>
@@ -61,6 +67,8 @@ const LedgerPageAccount = () => {
       </Container>
     );
   }
+
+  const { opening_balance, closing_balance, ledger } = ledgerData;
 
   return (
     <Container fluid className="py-4">
@@ -102,26 +110,30 @@ const LedgerPageAccount = () => {
           </thead>
           <tbody>
             {/* Opening Balance */}
-            <tr>
+            <tr className='table-secondary'>
               <td colSpan="5" className="text-end fw-bold">Opening Balance</td>
               <td></td>
               <td></td>
-              <td className="text-end">
-                KWD{mockLedgerData[0]?.runningBalance?.toFixed(2) || "0.00"}
+              <td className="text-end fw-bold">
+                KWD-{parseFloat(opening_balance).toFixed(2)}
               </td>
             </tr>
 
             {/* Transactions */}
-            {mockLedgerData.map((tx, index) => (
+            {ledger.map((tx, index) => (
               <tr key={index}>
-                <td>{tx.date}</td>
+                <td>{new Date(tx.date).toLocaleDateString()}</td>
                 <td className="text-start">{tx.particulars}</td>
-                <td>{tx.vchNo}</td>
-                <td>{tx.refNo}</td>
-                <td>{tx.vchType}</td>
-                <td className="text-end">{tx.debit > 0 ? `KWD${tx.debit.toFixed(2)}` : ""}</td>
-                <td className="text-end">{tx.credit > 0 ? `KWD${tx.credit.toFixed(2)}` : ""}</td>
-                <td className="text-end">KWD{tx.runningBalance.toFixed(2)}</td>
+                <td>{tx.vch_no}</td>
+                <td>{tx.ref_no}</td>
+                <td>{tx.vch_type}</td>
+                <td className="text-end">
+                  {tx.debit > 0 ? `KWD${parseFloat(tx.debit).toFixed(2)}` : ''}
+                </td>
+                <td className="text-end">
+                  {tx.credit > 0 ? `KWD${parseFloat(tx.credit).toFixed(2)}` : ''}
+                </td>
+                <td className="text-end">KWD{parseFloat(tx.running_balance).toFixed(2)}</td>
               </tr>
             ))}
 
@@ -131,17 +143,12 @@ const LedgerPageAccount = () => {
               <td></td>
               <td></td>
               <td className="text-end">
-                KWD{mockLedgerData[mockLedgerData.length - 1]?.runningBalance?.toFixed(2) || "0.00"}
+                KWD{parseFloat(closing_balance).toFixed(2)}
               </td>
             </tr>
           </tbody>
         </Table>
       </Card>
-
-      {/* Note */}
-      <div className="mt-3 text-muted small">
-        <p><strong>Note:</strong> This is a sample ledger. Transactions will be fetched from the backend in production.</p>
-      </div>
     </Container>
   );
 };

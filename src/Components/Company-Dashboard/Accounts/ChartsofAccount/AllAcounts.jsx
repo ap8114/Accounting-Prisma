@@ -358,13 +358,23 @@ const AllAccounts = () => {
     const row = accountGroup?.rows.find(
       (r) => r.name === name || r.originalName === name
     );
-    const accountName = row ? row.sub_of_subgroup_name || row.name : name;
+
+    if (!row || !row.id) {
+      console.error("Account ID not found for ledger navigation");
+      alert("Unable to open ledger: Account ID missing");
+      return;
+    }
+
+    const accountName = row.sub_of_subgroup_name || row.name || name;
 
     navigate("/company/ledgerpageaccount", {
-      state: { accountName: accountName, accountType: type },
+      state: {
+        accountName: accountName,
+        accountType: type,
+        accountId: row.id, // 👈 THIS IS CRITICAL
+      },
     });
   };
-
   const handleSaveEditedAccount = async (updatedAccount) => {
     if (apiCallLock.current) return;
 
