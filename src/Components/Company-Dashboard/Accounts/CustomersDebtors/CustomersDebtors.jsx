@@ -705,59 +705,65 @@ const CustomersDebtors = () => {
                           >
                             <FaTrash />
                           </Button>
-                          <Button
-                            variant="none"
-                            className="p-0 text-primary text-decoration-none"
-                            onClick={() => {
-                              navigate(`/company/Ledgercustomer`, {
-                                state: {
-                                  customer: {
-                                    name: cust.name,
-                                    nameArabic: cust.nameArabic || "",
-                                    companyName: cust.companyName || "N/A",
-                                    email: cust.email,
-                                    phone: cust.contact,
-                                    altPhone: cust.altPhone || "",
-                                    address: `${cust.billing.address}, ${cust.billing.city}, ${cust.billing.state}`,
-                                    shippingAddress:
-                                      cust.shippingAddress || "Same as above",
-                                    country: cust.billing.country || "India",
-                                    state: cust.billing.state || "N/A",
-                                    pincode: cust.billing.zip || "N/A",
-                                    gst: cust.taxNumber,
-                                    gstEnabled: !!cust.taxNumber,
-                                    pan: cust.pan || "",
-                                    stateCode: cust.stateCode || "",
-                                    openingBalance: parseFloat(
-                                      cust.balance || 0
-                                    ),
-                                    accountName:
-                                      cust.accountName || "Sundry Debtors",
-                                    accountBalance:
-                                      cust.accountBalance || "0.00",
-                                    creditPeriod: cust.creditPeriod || "30",
-                                    bankAccountNumber:
-                                      cust.bankAccountNumber || "",
-                                    bankIFSC: cust.bankIFSC || "",
-                                    bankName: cust.bankName || "",
-                                    creationDate:
-                                      cust.creationDate ||
-                                      new Date().toISOString().split("T")[0],
-                                    companyLocation: cust.companyLocation || "",
-                                  },
-                                },
-                              });
-                            }}
-                            title="View Ledger"
-                            style={{
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              padding: "4px 8px",
-                              borderRadius: "4px",
-                            }}
-                          >
-                            View Ledger
-                          </Button>
+                      <Button
+                        variant="none"
+                        className="p-0 text-primary text-decoration-none"
+                        onClick={() => {
+                          navigate(`/company/Ledgercustomer`, {
+                            state: {
+                              customer: {
+                                id: cust.id, // Make sure to pass the customer ID
+                                // Basic Info
+                                name: cust.name,
+                                nameArabic: cust.nameArabic || "",
+                                companyName: cust.companyName || "N/A",
+                                email: cust.email,
+                                phone: cust.contact,
+                                altPhone: cust.altPhone || "",
+                                address: `${cust.billing.address}, ${cust.billing.city}, ${cust.billing.state}`,
+                                shippingAddress:
+                                  cust.shippingAddress || "Same as above",
+                                country: cust.billing.country || "India",
+                                state: cust.billing.state || "N/A",
+                                pincode: cust.billing.pincode || "N/A",
+
+                                // Tax & IDs
+                                gst: cust.taxNumber,
+                                gstEnabled: !!cust.taxNumber,
+                                pan: cust.pan || "",
+                                stateCode: cust.stateCode || "",
+
+                                // Financial Info
+                                openingBalance: parseFloat(cust.balance || 0),
+                                accountName:
+                                  cust.accountName || "Sundry Debtors",
+                                accountBalance: cust.accountBalance || "0.00",
+                                creditPeriod: cust.creditPeriod || "30",
+
+                                // Bank Info
+                                bankAccountNumber: cust.bankAccountNumber || "",
+                                bankIFSC: cust.bankIFSC || "",
+                                bankName: cust.bankName || "",
+
+                                // Meta Info
+                                creationDate:
+                                  cust.creationDate ||
+                                  new Date().toISOString().split("T")[0],
+                                companyLocation: cust.companyLocation || "",
+                              },
+                            },
+                          });
+                        }}
+                        title="View Ledger"
+                        style={{
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        View Ledger
+                      </Button>
                         </div>
                       </td>
                     </tr>
