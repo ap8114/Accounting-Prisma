@@ -16,11 +16,8 @@ import {
 } from "react-icons/fa";
 import { Button, Card, Row, Col, Form, InputGroup, Table, Badge, Nav, Tab, Spinner, Alert } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
-import GetCompanyId from '../../../Api/GetCompanyId';
-import axiosInstance from '../../../Api/axiosInstance';
 
 const Ledgercustomer = () => {
-  const companyId = GetCompanyId();
   const navigate = useNavigate();
   const location = useLocation();
   const passedCustomer = location.state?.customer;
