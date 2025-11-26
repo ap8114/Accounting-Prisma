@@ -3,8 +3,11 @@ import React from 'react';
 import { Container, Table, Button, Card } from 'react-bootstrap';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa';
+import GetCompanyId from '../../../Api/GetCompanyId';
+import axiosInstance from '../../../Api/axiosInstance';
 
-const LedgerPageAccount= () => {
+const LedgerPageAccount = () => {
+  const companyId = GetCompanyId();
   const location = useLocation();
   const navigate = useNavigate();
 
