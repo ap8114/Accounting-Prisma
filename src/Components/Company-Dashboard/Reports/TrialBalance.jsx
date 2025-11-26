@@ -317,7 +317,7 @@ const TrialBalance = () => {
         <Table responsive className="text-nowrap mb-0 align-middle">
           <thead className="bg-light text-dark fw-semibold">
             <tr>
-              <th>Account Code</th>
+              <th>S.No</th>
               <th>Account Name</th>
               <th>Type</th>
               <th>Opening Balance</th>
@@ -330,7 +330,7 @@ const TrialBalance = () => {
             {filteredRows.length > 0 ? (
               filteredRows.map((row, idx) => (
                 <tr key={row.code || idx}>
-                  <td>{row.code}</td>
+                  <td>{idx + 1}</td>
                   <td>
                     <Button
                       variant="link"
