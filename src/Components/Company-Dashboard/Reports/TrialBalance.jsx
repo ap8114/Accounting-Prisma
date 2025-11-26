@@ -29,6 +29,8 @@ const TrialBalance = () => {
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [modalSearchText, setModalSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState(null);
   const itemsPerPage = 5;
 
   // Data & loading states
@@ -36,7 +38,6 @@ const TrialBalance = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Static account types (you may also fetch these if dynamic)
   const types = ["All", "Asset", "Liability", "Expense", "Income", "Equity"];
 
   // Fetch trial balance data
@@ -53,7 +54,6 @@ const TrialBalance = () => {
         const response = await axiosInstance.get(`trial-balance/${companyId}`);
 
         if (response.data.success && Array.isArray(response.data.data)) {
-          // Map API fields to your expected structure
           const mapped = response.data.data.map((item) => ({
             code: String(item.account_code),
             name: item.account_name,
@@ -62,8 +62,7 @@ const TrialBalance = () => {
             debit: Number(item.debit) || 0,
             credit: Number(item.credit) || 0,
             closing: Number(item.closing_balance) || 0,
-            // Note: API does NOT return transactions → modal will be empty unless you have another endpoint
-            transactions: [], // ⚠️ You'll need a separate ledger API to populate this
+            accountId: item.account_id, // IMPORTANT: assuming API returns account_id
           }));
           setTrialEntries(mapped);
         } else {
@@ -80,10 +79,6 @@ const TrialBalance = () => {
     fetchTrialBalance();
   }, [companyId]);
 
-  // NOTE: Since your current API does NOT include transactions,
-  // clicking an account will show an empty ledger unless you have a `/ledger/{accountId}` API.
-  // For now, we'll keep the modal functional but show "No transactions" if none exist.
-
   const calculateClosing = (entry) => {
     return entry.opening + entry.debit - entry.credit;
   };
@@ -96,15 +91,55 @@ const TrialBalance = () => {
     return matchesType && matchesSearch;
   });
 
-  const openDetails = (account) => {
-    setSelectedAccount(account);
-    setShowModal(true);
-    setCurrentPage(1);
-    setModalSearchText("");
+  // FETCH LEDGER WHEN ACCOUNT IS SELECTED
+  const openDetails = async (account) => {
+    if (!companyId || !account.code) {
+      setModalError("Missing company or account ID");
+      setShowModal(true);
+      return;
+    }
+
+    setModalLoading(true);
+    setModalError(null);
+    try {
+      const response = await axiosInstance.get(
+        `trial-balance/ledger/${companyId}/${account.code}`
+      );
+
+      if (response.data.success) {
+        const ledgerData = {
+          ...account,
+          opening_balance: response.data.opening_balance || 0,
+          total_debit: response.data.total_debit || 0,
+          total_credit: response.data.total_credit || 0,
+          current_balance: response.data.current_balance || 0,
+          transactions: Array.isArray(response.data.transactions)
+            ? response.data.transactions.map((tx) => ({
+                date: tx.date,
+                type: tx.type || "Other",
+                particulars: tx.particulars || "-",
+                debit: Number(tx.debit) || 0,
+                credit: Number(tx.credit) || 0,
+              }))
+            : [],
+        };
+        setSelectedAccount(ledgerData);
+      } else {
+        setModalError("Failed to load ledger data");
+      }
+    } catch (err) {
+      console.error("Ledger API Error:", err);
+      setModalError("Error loading transactions");
+    } finally {
+      setModalLoading(false);
+      setShowModal(true);
+      setCurrentPage(1);
+      setModalSearchText("");
+    }
   };
 
   const filteredTransactions = useMemo(() => {
-    if (!selectedAccount) return [];
+    if (!selectedAccount || !selectedAccount.transactions) return [];
     return selectedAccount.transactions.filter((t) => {
       const txDate = new Date(t.date);
       const matchesDateRange =
@@ -175,9 +210,9 @@ const TrialBalance = () => {
     setSelectedAccount(null);
     setModalSearchText("");
     setCurrentPage(1);
+    setModalError(null);
   };
 
-  // ⚠️ Loading & Error UI
   if (loading) {
     return (
       <div className="p-4 mt-4 text-center">
@@ -258,9 +293,6 @@ const TrialBalance = () => {
                   borderRadius: "50px",
                 }}
                 className="w-100 w-md-auto"
-                onClick={() => {
-                  // Optional: re-fetch or apply advanced logic
-                }}
               >
                 Generate Report
               </Button>
@@ -297,7 +329,7 @@ const TrialBalance = () => {
           <tbody>
             {filteredRows.length > 0 ? (
               filteredRows.map((row, idx) => (
-                <tr key={idx}>
+                <tr key={row.code || idx}>
                   <td>{row.code}</td>
                   <td>
                     <Button
@@ -348,125 +380,133 @@ const TrialBalance = () => {
             <FaArrowLeft className="me-2" /> Back
           </Button>
           <Modal.Title className="flex-grow-1 text-center">
-            Ledger Details: {selectedAccount ? selectedAccount.name : ""}
+            Ledger: {selectedAccount ? selectedAccount.name : ""}
           </Modal.Title>
           <Button variant="light" className="p-0" onClick={closeModal}>
             <FaTimes size={20} />
           </Button>
         </Modal.Header>
         <Modal.Body className="p-4">
-          <Card className="mb-4 border-0 shadow-sm">
-            <Card.Body className="p-3">
-              <Row className="gx-3 align-items-end">
-                <Col md={6}>
-                  <Form.Group controlId="modalDateRange">
-                    <Form.Label className="fw-semibold mb-2">Filter by Date Range</Form.Label>
-                    <DatePicker
-                      selectsRange
-                      startDate={startDate}
-                      endDate={endDate}
-                      onChange={(update) => setDateRange(update)}
-                      isClearable
-                      className="form-control"
-                      dateFormat="dd/MM/yyyy"
-                      placeholderText="Select date range"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group controlId="modalSearchText">
-                    <Form.Label className="fw-semibold mb-2">Search by Type / Particulars</Form.Label>
-                    <div className="position-relative">
-                      <Form.Control
-                        type="text"
-                        placeholder="Type or Particulars..."
-                        value={modalSearchText}
-                        onChange={(e) => {
-                          setModalSearchText(e.target.value);
-                          setCurrentPage(1);
-                        }}
-                        className="pe-5"
-                      />
-                      {modalSearchText ? (
-                        <Button
-                          variant="link"
-                          className="position-absolute end-0 top-50 translate-middle-y text-muted"
-                          onClick={() => setModalSearchText("")}
-                        >
-                          <FaTimes />
-                        </Button>
-                      ) : (
-                        <FaSearch className="position-absolute end-0 top-50 translate-middle-y me-3 text-muted" />
-                      )}
-                    </div>
-                  </Form.Group>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
+          {modalLoading ? (
+            <div className="text-center py-4">Loading ledger...</div>
+          ) : modalError ? (
+            <div className="text-center py-4 text-danger">{modalError}</div>
+          ) : (
+            <>
+              <Card className="mb-4 border-0 shadow-sm">
+                <Card.Body className="p-3">
+                  <Row className="gx-3 align-items-end">
+                    <Col md={6}>
+                      <Form.Group controlId="modalDateRange">
+                        <Form.Label className="fw-semibold mb-2">Filter by Date Range</Form.Label>
+                        <DatePicker
+                          selectsRange
+                          startDate={startDate}
+                          endDate={endDate}
+                          onChange={(update) => setDateRange(update)}
+                          isClearable
+                          className="form-control"
+                          dateFormat="dd/MM/yyyy"
+                          placeholderText="Select date range"
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group controlId="modalSearchText">
+                        <Form.Label className="fw-semibold mb-2">Search by Type / Particulars</Form.Label>
+                        <div className="position-relative">
+                          <Form.Control
+                            type="text"
+                            placeholder="Type or Particulars..."
+                            value={modalSearchText}
+                            onChange={(e) => {
+                              setModalSearchText(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                            className="pe-5"
+                          />
+                          {modalSearchText ? (
+                            <Button
+                              variant="link"
+                              className="position-absolute end-0 top-50 translate-middle-y text-muted"
+                              onClick={() => setModalSearchText("")}
+                            >
+                              <FaTimes />
+                            </Button>
+                          ) : (
+                            <FaSearch className="position-absolute end-0 top-50 translate-middle-y me-3 text-muted" />
+                          )}
+                        </div>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
 
-          <Card className="border-0 shadow-sm">
-            <Card.Body className="p-0">
-              <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-                <h5 className="mb-0 fw-bold">Transactions</h5>
-                <span className="badge bg-primary">
-                  {filteredTransactions.length} records found
-                </span>
-              </div>
-              <Table responsive className="text-nowrap align-middle mb-0">
-                <thead className="bg-light fw-semibold">
-                  <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Particulars</th>
-                    <th>Debit (₹)</th>
-                    <th>Credit (₹)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentTransactions.length > 0 ? (
-                    currentTransactions.map((tx, i) => (
-                      <tr key={i}>
-                        <td>{new Date(tx.date).toLocaleDateString()}</td>
-                        <td>
-                          <span className={`badge bg-${tx.type === "Opening Balance" ? "secondary" :
-                            tx.type.includes("Sale") || tx.type.includes("Receipt") ? "success" :
-                              tx.type.includes("Payment") || tx.type.includes("Purchase") ? "danger" : "info"
-                            }`}>
-                            {tx.type}
-                          </span>
-                        </td>
-                        <td>{tx.particulars || "-"}</td>
-                        <td>{tx.debit ? `₹${tx.debit.toLocaleString()}` : "-"}</td>
-                        <td>{tx.credit ? `₹${tx.credit.toLocaleString()}` : "-"}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="text-center text-muted py-4">
-                        No transactions available.{/* ⚠️ API doesn't provide transactions */}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </Table>
-
-              {totalPages > 1 && (
-                <div className="d-flex justify-content-between align-items-center p-3 border-top">
-                  <div className="text-muted">
-                    Showing {indexOfFirst + 1} to {Math.min(indexOfLast, filteredTransactions.length)} of {filteredTransactions.length} entries
+              <Card className="border-0 shadow-sm">
+                <Card.Body className="p-0">
+                  <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+                    <h5 className="mb-0 fw-bold">Transactions</h5>
+                    <span className="badge bg-primary">
+                      {filteredTransactions.length} records found
+                    </span>
                   </div>
-                  <Pagination className="mb-0">
-                    <Pagination.First onClick={() => handlePageChange(1)} disabled={currentPage === 1} />
-                    <Pagination.Prev onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
-                    {renderPaginationItems()}
-                    <Pagination.Next onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} />
-                    <Pagination.Last onClick={() => handlePageChange(totalPages)} disabled={currentPage === totalPages} />
-                  </Pagination>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
+                  <Table responsive className="text-nowrap align-middle mb-0">
+                    <thead className="bg-light fw-semibold">
+                      <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Particulars</th>
+                        <th>Debit (₹)</th>
+                        <th>Credit (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentTransactions.length > 0 ? (
+                        currentTransactions.map((tx, i) => (
+                          <tr key={i}>
+                            <td>{new Date(tx.date).toLocaleDateString()}</td>
+                            <td>
+                              <span className={`badge bg-${tx.type === "Opening Balance" ? "secondary" :
+                                tx.type.includes("Sale") || tx.type.includes("Receipt") ? "success" :
+                                  tx.type.includes("Payment") || tx.type.includes("Purchase") ? "danger" : "info"
+                                }`}>
+                                {tx.type}
+                              </span>
+                            </td>
+                            <td>{tx.particulars}</td>
+                            <td>{tx.debit > 0 ? `₹${tx.debit.toLocaleString()}` : "-"}</td>
+                            <td>{tx.credit > 0 ? `₹${tx.credit.toLocaleString()}` : "0"}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="text-center text-muted py-4">
+                            No transactions available.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
+
+                  {totalPages > 1 && (
+                    <div className="d-flex justify-content-between align-items-center p-3 border-top">
+                      <div className="text-muted">
+                        Showing {indexOfFirst + 1} to {Math.min(indexOfLast, filteredTransactions.length)} of {filteredTransactions.length} entries
+                      </div>
+                      <Pagination className="mb-0">
+                        <Pagination.First onClick={() => handlePageChange(1)} disabled={currentPage === 1} />
+                        <Pagination.Prev onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
+                        {renderPaginationItems()}
+                        <Pagination.Next onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} />
+                        <Pagination.Last onClick={() => handlePageChange(totalPages)} disabled={currentPage === totalPages} />
+                      </Pagination>
+                    </div>
+                  )}
+                </Card.Body>
+              </Card>
+            </>
+          )}
         </Modal.Body>
         <Modal.Footer className="py-3">
           <Button variant="secondary" onClick={closeModal}>Close</Button>
@@ -487,7 +527,6 @@ const TrialBalance = () => {
         </Card.Body>
       </Card>
 
-      {/* Remove animations */}
       <style jsx global>{`
         * { transition: none !important; animation: none !important; transform: none !important; }
         tbody tr:hover { background-color: transparent !important; }
