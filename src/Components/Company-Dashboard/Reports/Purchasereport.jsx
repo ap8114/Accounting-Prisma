@@ -203,7 +203,7 @@ const Purchasereport = () => {
           <div className="d-flex gap-2">
             <button className="btn btn-light"><FaFilePdf className="text-danger" /></button>
             <button className="btn btn-light"><FaFileExcel className="text-success" /></button>
-            <button className="btn btn-light"><BsGear /></button>
+            {/* <button className="btn btn-light"><BsGear /></button> */}
           </div>
         </div>
 
