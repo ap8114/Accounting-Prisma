@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
   FaFilter, FaCalendarAlt, FaSearch, FaUndo, FaFileExport, FaFilePdf, FaUser,
@@ -14,7 +14,7 @@ import {
   FaWallet,
   FaGlobe
 } from "react-icons/fa";
-import { Button, Card, Row, Col, Form, InputGroup, Table, Badge, Nav, Tab } from "react-bootstrap";
+import { Button, Card, Row, Col, Form, InputGroup, Table, Badge, Nav, Tab, Spinner, Alert } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
 import GetCompanyId from '../../../Api/GetCompanyId';
 import axiosInstance from '../../../Api/axiosInstance';
@@ -24,8 +24,122 @@ const Ledgercustomer = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const passedCustomer = location.state?.customer;
-  // Dummy default customer (fallback)
-  const defaultCustomer = {
+  
+  // State for API data
+  const [apiData, setApiData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // State for filters and UI
+  const [ledgerType] = useState("customer");
+  const [fromDate, setFromDate] = useState("2025-04-01");
+  const [toDate, setToDate] = useState("2025-04-30");
+  const [balanceType, setBalanceType] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(true);
+  const [voucherTypeFilter, setVoucherTypeFilter] = useState("all");
+  const [expandedRows, setExpandedRows] = useState({});
+  const [activeTab, setActiveTab] = useState("all"); // New: tab state
+
+  const [manualVoucherNo, setManualVoucherNo] = useState("");
+  const [autoVoucherNo] = useState("VCH-" + Date.now());
+
+  // Fetch data from API
+useEffect(() => {
+  const fetchCustomerData = async () => {
+    try {
+      setLoading(true);
+      
+      // Check if we have a valid customer ID
+      if (!passedCustomer?.id) {
+        setError("No customer ID provided. Please select a customer from the list.");
+        return;
+      }
+      
+      // Get customer ID from passed customer
+      const customerId = passedCustomer.id;
+      
+      // Make API call
+      const response = await axiosInstance.get(`/vendorCustomer/customer-ledger/${customerId}/${companyId}`);
+      setApiData(response.data);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching customer data:", err);
+      setError("Failed to load customer data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchCustomerData();
+}, [passedCustomer, companyId]);
+
+  // Transform API data to match our component structure
+const customer = useMemo(() => {
+  if (apiData && apiData.customer) {
+    const cust = apiData.customer;
+    return {
+      id: cust.id,
+      name: cust.name_english,
+      nameArabic: cust.name_arabic,
+      companyName: cust.company_name,
+      companyLocation: cust.google_location,
+      accountName: cust.account_name,
+      accountBalance: cust.account_balance,
+      creationDate: new Date(cust.creation_date).toISOString().split('T')[0],
+      bankAccountNumber: cust.bank_account_number,
+      bankIFSC: cust.bank_ifsc,
+      bankName: cust.bank_name_branch,
+      country: cust.country,
+      state: cust.state,
+      pincode: cust.pincode,
+      address: cust.address,
+      stateCode: cust.state_code,
+      shippingAddress: cust.shipping_address,
+      phone: cust.phone,
+      email: cust.email,
+      creditPeriod: cust.credit_period_days,
+      gst: cust.gstIn,
+      openingBalance: 0, // Will be set from transactions
+      idCardImage: cust.id_card_image,
+      extraFile: cust.any_file,
+      company: cust.company
+    };
+  }
+  
+  // Fallback to passed customer data if API data is not available
+  if (passedCustomer) {
+    return {
+      id: passedCustomer.id,
+      name: passedCustomer.name,
+      nameArabic: passedCustomer.nameArabic || "",
+      companyName: passedCustomer.companyName || "N/A",
+      companyLocation: passedCustomer.companyLocation || "",
+      accountName: passedCustomer.accountName || "Accounts Receivable",
+      accountBalance: passedCustomer.accountBalance || "0.00",
+      creationDate: passedCustomer.creationDate || new Date().toISOString().split("T")[0],
+      bankAccountNumber: passedCustomer.bankAccountNumber || "",
+      bankIFSC: passedCustomer.bankIFSC || "",
+      bankName: passedCustomer.bankName || "",
+      country: passedCustomer.country || "India",
+      state: passedCustomer.state || "N/A",
+      pincode: passedCustomer.pincode || "N/A",
+      address: passedCustomer.address || "",
+      stateCode: passedCustomer.stateCode || "",
+      shippingAddress: passedCustomer.shippingAddress || "Same as above",
+      phone: passedCustomer.phone || "",
+      email: passedCustomer.email || "",
+      creditPeriod: passedCustomer.creditPeriod || "30",
+      gst: passedCustomer.gst || "",
+      openingBalance: passedCustomer.openingBalance || 0,
+      idCardImage: passedCustomer.idCardImage || null,
+      extraFile: passedCustomer.extraFile || null,
+      company: passedCustomer.company || null
+    };
+  }
+  
+  // Default fallback
+  return {
     name: "Demo Customer",
     nameArabic: "",
     companyName: "ABC Traders",
@@ -48,121 +162,146 @@ const Ledgercustomer = () => {
     gst: "22AAAAA0000A1Z5",
     openingBalance: 5000,
   };
-  const customer = passedCustomer || defaultCustomer;
-  const [ledgerType] = useState("customer");
-  const [fromDate, setFromDate] = useState("2025-04-01");
-  const [toDate, setToDate] = useState("2025-04-30");
-  const [balanceType, setBalanceType] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(true);
-  const [voucherTypeFilter, setVoucherTypeFilter] = useState("all");
-  const [expandedRows, setExpandedRows] = useState({});
-  const [activeTab, setActiveTab] = useState("all"); // New: tab state
+}, [apiData, passedCustomer]);
 
-  const [manualVoucherNo, setManualVoucherNo] = useState("");
-  const [autoVoucherNo] = useState("VCH-" + Date.now());
-
-  const ledgerData = [
-    {
-      id: 1,
-      date: "2025-04-01",
-      particulars: "Opening Balance",
-      narration: "Initial opening balance carried forward",
-      voucherNo: "--",
-      voucherType: "Opening",
-      debit: customer.openingBalance > 0 ? customer.openingBalance : 0,
-      credit: customer.openingBalance < 0 ? Math.abs(customer.openingBalance) : 0,
-      items: [],
-    },
-    {
-      id: 2,
-      date: "2025-04-03",
-      particulars: "Sales Invoice INV101",
-      narration: "Goods sold on credit to Ravi Traders",
-      voucherNo: "INV101",
-      voucherType: "Invoice",
-      debit: 10000,
-      credit: 0,
-      items: [
-        {
-          item: "SNB CH 58 LOT WHITE",
-          quantity: "100.00 yds",
-          rate: "0.400",
-          discount: "0.000",
-          tax: "0.000",
-          taxAmt: "0.000",
-          value: "40.00",
-          description: "4 PCS",
-        },
-      ],
-    },
-    {
-      id: 3,
-      date: "2025-04-07",
-      particulars: "Payment / Receipt",
-      narration: "Payment received against invoice INV101",
-      voucherNo: "RC001",
-      voucherType: "Payment",
-      debit: 0,
-      credit: 5000,
-      items: [],
-    },
-    {
-      id: 4,
-      date: "2025-04-12",
-      particulars: "Return",
-      narration: "Returned damaged goods",
-      voucherNo: "CN001",
-      voucherType: "Return",
-      debit: 0,
-      credit: 1000,
-      items: [
-        {
-          item: "SNB CH 58 LOT WHITE",
-          quantity: "50.00 yds",
-          rate: "0.400",
-          discount: "0.000",
-          tax: "0.000",
-          taxAmt: "0.000",
-          value: "20.00",
-          description: "2 PCS",
-        },
-      ],
-    },
-    {
-      id: 5,
-      date: "2025-04-15",
-      particulars: "Sales Invoice INV102",
-      narration: "Second sale of cotton fabric",
-      voucherNo: "INV102",
-      voucherType: "Invoice",
-      debit: 7500,
-      credit: 0,
-      items: [
-        {
-          item: "COTTON BLUE 600GSM",
-          quantity: "250.00 mtrs",
-          rate: "0.300",
-          discount: "0.000",
-          tax: "0.000",
-          taxAmt: "0.000",
-          value: "75.00",
-          description: "10 ROLLS",
-        },
-      ],
-    },
-    {
-      id: 6,
-      date: "2025-04-18",
-      particulars: "Payment Received",
-      narration: "Partial payment received",
-      voucherNo: "RC002",
-      voucherType: "Payment",
-      debit: 0,
-      credit: 3000,
-      items: [],
-    },
-  ];
+  // Transform transactions from API
+  const ledgerData = useMemo(() => {
+    if (apiData && apiData.transactions) {
+      // Find opening balance transaction
+      const openingBalanceTx = apiData.transactions.find(tx => tx.vch_type === "Opening");
+      const openingBalance = openingBalanceTx ? openingBalanceTx.credit - openingBalanceTx.debit : 0;
+      
+      // Update customer opening balance
+      customer.openingBalance = openingBalance;
+      
+      // Transform transactions
+      return apiData.transactions.map(tx => ({
+        id: tx.id || Math.random().toString(36).substring(7),
+        date: new Date(tx.date).toISOString().split('T')[0],
+        particulars: tx.particulars,
+        narration: tx.narration,
+        voucherNo: tx.vch_no,
+        voucherType: tx.vch_type,
+        debit: tx.debit,
+        credit: tx.credit,
+        balance: tx.balance,
+        balanceType: tx.balance_type,
+        items: tx.items ? tx.items.map(item => ({
+          item: item.item_name,
+          quantity: item.quantity,
+          rate: item.rate,
+          discount: item.discount,
+          tax: item.tax_percent,
+          taxAmt: item.tax_amount,
+          value: item.value,
+          description: item.description
+        })) : []
+      }));
+    }
+    
+    // Fallback to dummy data if API data is not available
+    return [
+      {
+        id: 1,
+        date: "2025-04-01",
+        particulars: "Opening Balance",
+        narration: "Initial opening balance carried forward",
+        voucherNo: "--",
+        voucherType: "Opening",
+        debit: customer.openingBalance > 0 ? customer.openingBalance : 0,
+        credit: customer.openingBalance < 0 ? Math.abs(customer.openingBalance) : 0,
+        items: [],
+      },
+      {
+        id: 2,
+        date: "2025-04-03",
+        particulars: "Sales Invoice INV101",
+        narration: "Goods sold on credit to Ravi Traders",
+        voucherNo: "INV101",
+        voucherType: "Invoice",
+        debit: 10000,
+        credit: 0,
+        items: [
+          {
+            item: "SNB CH 58 LOT WHITE",
+            quantity: "100.00 yds",
+            rate: "0.400",
+            discount: "0.000",
+            tax: "0.000",
+            taxAmt: "0.000",
+            value: "40.00",
+            description: "4 PCS",
+          },
+        ],
+      },
+      {
+        id: 3,
+        date: "2025-04-07",
+        particulars: "Payment / Receipt",
+        narration: "Payment received against invoice INV101",
+        voucherNo: "RC001",
+        voucherType: "Payment",
+        debit: 0,
+        credit: 5000,
+        items: [],
+      },
+      {
+        id: 4,
+        date: "2025-04-12",
+        particulars: "Return",
+        narration: "Returned damaged goods",
+        voucherNo: "CN001",
+        voucherType: "Return",
+        debit: 0,
+        credit: 1000,
+        items: [
+          {
+            item: "SNB CH 58 LOT WHITE",
+            quantity: "50.00 yds",
+            rate: "0.400",
+            discount: "0.000",
+            tax: "0.000",
+            taxAmt: "0.000",
+            value: "20.00",
+            description: "2 PCS",
+          },
+        ],
+      },
+      {
+        id: 5,
+        date: "2025-04-15",
+        particulars: "Sales Invoice INV102",
+        narration: "Second sale of cotton fabric",
+        voucherNo: "INV102",
+        voucherType: "Invoice",
+        debit: 7500,
+        credit: 0,
+        items: [
+          {
+            item: "COTTON BLUE 600GSM",
+            quantity: "250.00 mtrs",
+            rate: "0.300",
+            discount: "0.000",
+            tax: "0.000",
+            taxAmt: "0.000",
+            value: "75.00",
+            description: "10 ROLLS",
+          },
+        ],
+      },
+      {
+        id: 6,
+        date: "2025-04-18",
+        particulars: "Payment Received",
+        narration: "Partial payment received",
+        voucherNo: "RC002",
+        voucherType: "Payment",
+        debit: 0,
+        credit: 3000,
+        items: [],
+      },
+    ];
+  }, [apiData, customer]);
 
   const filteredData = useMemo(() => {
     let runningBalance = customer.openingBalance || 0;
@@ -179,6 +318,14 @@ const Ledgercustomer = () => {
   }, [ledgerData, customer.openingBalance]);
 
   const totals = useMemo(() => {
+    if (apiData && apiData.ledger_summary) {
+      return {
+        totalDebit: apiData.ledger_summary.total_debit,
+        totalCredit: apiData.ledger_summary.total_credit
+      };
+    }
+    
+    // Fallback to calculated totals
     return filteredData.reduce(
       (acc, e) => {
         acc.totalDebit += e.debit || 0;
@@ -187,11 +334,16 @@ const Ledgercustomer = () => {
       },
       { totalDebit: 0, totalCredit: 0 }
     );
-  }, [filteredData]);
+  }, [filteredData, apiData]);
 
   const currentBalance = useMemo(() => {
+    if (apiData && apiData.ledger_summary && apiData.ledger_summary.outstanding_balance) {
+      return apiData.ledger_summary.outstanding_balance.amount * (apiData.ledger_summary.outstanding_balance.type === "Dr" ? 1 : -1);
+    }
+    
+    // Fallback to calculated balance
     return filteredData.length > 0 ? filteredData[filteredData.length - 1].balanceValue : 0;
-  }, [filteredData]);
+  }, [filteredData, apiData]);
 
   const resetFilters = () => {
     setFromDate("2025-04-01");
@@ -212,7 +364,34 @@ const Ledgercustomer = () => {
     setExpandedRows(anyExpanded ? {} : Object.fromEntries(filteredData.filter(e => e.items?.length > 0).map(e => [e.id, true])));
   };
 
-  // Reusable Components
+  // Loading state
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "80vh" }}>
+        <Spinner animation="border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </Spinner>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="container-fluid py-4" style={{ backgroundColor: "#f8f9fa", minHeight: "100vh" }}>
+        <div className="container">
+          <Alert variant="danger">
+            {error}
+          </Alert>
+          <Button variant="primary" onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Reusable Components (same as before)
   const CustomerDetailsTab = () => (
     <Card className="mb-4 shadow-sm border-0 rounded-3">
       <Card.Header className="bg-white border-bottom">
@@ -227,6 +406,12 @@ const Ledgercustomer = () => {
                 <FaUser className="me-2" style={{ color: "#53b2a5" }} />
                 <span><strong>Name:</strong> {customer.name}</span>
               </p>
+              {customer.nameArabic && (
+                <p className="mb-2 d-flex align-items-center">
+                  <span className="me-2" style={{ color: "#53b2a5" }}>🌐</span>
+                  <span><strong>Name (Arabic):</strong> {customer.nameArabic}</span>
+                </p>
+              )}
               <p className="mb-2 d-flex align-items-center">
                 <FaBuilding className="me-2" style={{ color: "#53b2a5" }} />
                 <span><strong>Company:</strong> {customer.companyName || "N/A"}</span>
@@ -591,6 +776,26 @@ const Ledgercustomer = () => {
             </thead>
             <tbody>
               {(() => {
+                // Use API data if available
+                if (apiData && apiData.transaction_summary) {
+                  const summary = apiData.transaction_summary;
+                  return [
+                    { type: "Opening Balance", count: summary.opening_balance },
+                    { type: "Sales", count: summary.sales },
+                    { type: "Receipt", count: summary.receipt },
+                    { type: "Sales Return", count: summary.sales_return },
+                    { type: "Journal", count: summary.journal },
+                    { type: "Contra", count: summary.contra },
+                    { type: "Adjustments", count: summary.adjustments },
+                  ].map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="fw-bold">{item.type}</td>
+                      <td className="text-center">{item.count}</td>
+                    </tr>
+                  ));
+                }
+                
+                // Fallback to calculated counts
                 const counts = {};
                 filteredData.forEach((item) => {
                   const type = item.voucherType;
@@ -613,7 +818,11 @@ const Ledgercustomer = () => {
             <tfoot>
               <tr className="bg-light fw-bold">
                 <td>Total Transactions</td>
-                <td className="text-center">{filteredData.length}</td>
+                <td className="text-center">
+                  {apiData && apiData.transaction_summary 
+                    ? apiData.transaction_summary.total_transactions 
+                    : filteredData.length}
+                </td>
               </tr>
             </tfoot>
           </Table>
@@ -901,9 +1110,9 @@ const Ledgercustomer = () => {
           <div className="d-flex justify-content-between align-items-start mb-4">
             <div>
               <h5 className="mb-3 fw-bold text-success">Our Company</h5>
-              <p><strong>Company Name:</strong> ABC Textiles Pvt Ltd</p>
-              <p><strong>Address:</strong> 123, Textile Market, Indore, MP 452001</p>
-              <p><strong>Contact:</strong> +91 98765 43210</p>
+              <p><strong>Company Name:</strong> {customer.company?.name || "ABC Textiles Pvt Ltd"}</p>
+              <p><strong>Address:</strong> {customer.company?.address || "123, Textile Market, Indore, MP 452001"}</p>
+              <p><strong>Contact:</strong> {customer.company?.phone || "+91 98765 43210"}</p>
               <p><strong>GSTIN:</strong> 23AABCCDD123E1Z</p>
               <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
             </div>
@@ -936,18 +1145,29 @@ const Ledgercustomer = () => {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>Opening Balance</td>
-                <td>{customer.openingBalance.toLocaleString('en-IN')}</td>
-              </tr>
-              <tr>
-                <td>Total Sales (Dr)</td>
-                <td>{totals.totalDebit.toLocaleString('en-IN')}</td>
-              </tr>
-              <tr>
-                <td>Total Payments (Cr)</td>
-                <td>{totals.totalCredit.toLocaleString('en-IN')}</td>
-              </tr>
+              {apiData && apiData.description_summary ? (
+                apiData.description_summary.map((item, idx) => (
+                  <tr key={idx}>
+                    <td>{item.description}</td>
+                    <td>{item.amount.toLocaleString('en-IN')}</td>
+                  </tr>
+                ))
+              ) : (
+                <>
+                  <tr>
+                    <td>Opening Balance</td>
+                    <td>{customer.openingBalance.toLocaleString('en-IN')}</td>
+                  </tr>
+                  <tr>
+                    <td>Total Sales (Dr)</td>
+                    <td>{totals.totalDebit.toLocaleString('en-IN')}</td>
+                  </tr>
+                  <tr>
+                    <td>Total Payments (Cr)</td>
+                    <td>{totals.totalCredit.toLocaleString('en-IN')}</td>
+                  </tr>
+                </>
+              )}
               <tr className="table-info fw-bold">
                 <td>Current Balance</td>
                 <td>
@@ -1162,9 +1382,9 @@ const Ledgercustomer = () => {
                       <div class="d-flex justify-content-between align-items-start mb-4">
                         <div class="company-info">
                           <h5 class="mb-3 fw-bold text-success">Our Company</h5>
-                          <p><strong>Company Name:</strong> ABC Textiles Pvt Ltd</p>
-                          <p><strong>Address:</strong> 123, Textile Market, Indore, MP 452001</p>
-                          <p><strong>Contact:</strong> +91 98765 43210</p>
+                          <p><strong>Company Name:</strong> ${customer.company?.name || "ABC Textiles Pvt Ltd"}</p>
+                          <p><strong>Address:</strong> ${customer.company?.address || "123, Textile Market, Indore, MP 452001"}</p>
+                          <p><strong>Contact:</strong> ${customer.company?.phone || "+91 98765 43210"}</p>
                           <p><strong>GSTIN:</strong> 23AABCCDD123E1Z</p>
                           <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
                         </div>
@@ -1188,18 +1408,27 @@ const Ledgercustomer = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          <tr>
-                            <td>Opening Balance</td>
-                            <td>${customer.openingBalance.toLocaleString('en-IN')}</td>
-                          </tr>
-                          <tr>
-                            <td>Total Sales (Dr)</td>
-                            <td>${totals.totalDebit.toLocaleString('en-IN')}</td>
-                          </tr>
-                          <tr>
-                            <td>Total Payments (Cr)</td>
-                            <td>${totals.totalCredit.toLocaleString('en-IN')}</td>
-                          </tr>
+                          ${apiData && apiData.description_summary ? 
+                            apiData.description_summary.map(item => 
+                              `<tr>
+                                <td>${item.description}</td>
+                                <td>${item.amount.toLocaleString('en-IN')}</td>
+                              </tr>`
+                            ).join('')
+                            : 
+                            `<tr>
+                              <td>Opening Balance</td>
+                              <td>${customer.openingBalance.toLocaleString('en-IN')}</td>
+                            </tr>
+                            <tr>
+                              <td>Total Sales (Dr)</td>
+                              <td>${totals.totalDebit.toLocaleString('en-IN')}</td>
+                            </tr>
+                            <tr>
+                              <td>Total Payments (Cr)</td>
+                              <td>${totals.totalCredit.toLocaleString('en-IN')}</td>
+                            </tr>`
+                          }
                           <tr class="table-info fw-bold">
                             <td>Current Balance</td>
                             <td>
