@@ -627,8 +627,8 @@ const CompanyDashboard = () => {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <RechartTooltip />
-                  <Bar dataKey="revenue" fill="#D0EBFF" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expense" fill="#E3D7FF" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="revenue" fill="#D0EBFF"  radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expense" fill="#E3D7FF"  radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </Card.Body>

@@ -123,7 +123,6 @@ const PurchaseOrderr = () => {
               break;
             }
           }
-
           // Map API step to UI tab key
           const apiToUiStep = {
             quotation: "purchaseQuotation",
