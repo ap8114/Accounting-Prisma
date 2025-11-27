@@ -29,6 +29,10 @@ const ThemeProvider = ({ children }) => {
         return localStorage.getItem("sidebarColor") || "#032d45";
     });
 
+    const [sidebarMenuColor, setSidebarMenuColor] = useState(() => {
+        return localStorage.getItem("sidebarMenuColor") || "#09b9abff";
+    });
+
     const [topbarColor, setTopbarColor] = useState(() => {
         return localStorage.getItem("topbarColor") || "#032d45";
     });
@@ -36,10 +40,10 @@ const ThemeProvider = ({ children }) => {
     useEffect(() => {
         document.documentElement.setAttribute("data-theme", theme);
         localStorage.setItem("theme", theme);
-        
+
         // Apply CSS custom properties for dynamic theming
         const root = document.documentElement;
-        
+
         if (theme === "dark") {
             root.style.setProperty("--bs-body-bg", "#1a1a1a");
             root.style.setProperty("--bs-body-color", "#ffffff");
@@ -74,8 +78,9 @@ const ThemeProvider = ({ children }) => {
         // Apply sidebar and topbar colors
         root.style.setProperty("--sidebar-bg", sidebarColor);
         root.style.setProperty("--topbar-bg", topbarColor);
-        
-    }, [theme, customColors, sidebarColor, topbarColor]);
+        // ✅ CRITICAL: Sync sidebar link hover background with sidebar color
+        root.style.setProperty("--sidebar-link-hover-bg", sidebarMenuColor);
+    }, [theme, customColors, sidebarColor, topbarColor , sidebarMenuColor]);
 
     const toggleTheme = () => {
         setTheme((prev) => (prev === "light" ? "dark" : "light"));
@@ -94,6 +99,11 @@ const ThemeProvider = ({ children }) => {
     const updateSidebarColor = (color) => {
         setSidebarColor(color);
         localStorage.setItem("sidebarColor", color);
+    };
+
+    const updateSidebarMenuColor = (color) => {
+        setSidebarMenuColor(color);
+        localStorage.setItem("sidebarMenuColor", color);
     };
 
     const updateTopbarColor = (color) => {
@@ -116,18 +126,19 @@ const ThemeProvider = ({ children }) => {
         setLayout("default");
         setSidebarColor("#032d45");
         setTopbarColor("#032d45");
-        
+
         localStorage.removeItem("theme");
         localStorage.removeItem("customColors");
         localStorage.removeItem("layout");
         localStorage.removeItem("sidebarColor");
         localStorage.removeItem("topbarColor");
+        localStorage.removeItem("sidebarMenuColor");
     };
 
     return (
-        <ThemeContext.Provider value={{ 
-            theme, 
-            setTheme, 
+        <ThemeContext.Provider value={{
+            theme,
+            setTheme,
             toggleTheme,
             customColors,
             updateCustomColors,
@@ -137,7 +148,9 @@ const ThemeProvider = ({ children }) => {
             updateSidebarColor,
             topbarColor,
             updateTopbarColor,
-            resetTheme
+            resetTheme,
+            sidebarMenuColor,
+            updateSidebarMenuColor
         }}>
             {children}
         </ThemeContext.Provider>
