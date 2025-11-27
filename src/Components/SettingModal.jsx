@@ -8,16 +8,16 @@ import withoutheader from "../../src/assets/withoutheader.jpeg";
 import ThemeSetting from "./SettingModal/ThemeSetting";
 
 const SettingModal = ({ show, handleClose }) => {
-  const { 
-    layout, 
-    updateLayout, 
-    sidebarColor, 
-    updateSidebarColor, 
-    topbarColor, 
+  const {
+    layout,
+    updateLayout,
+    sidebarColor,
+    updateSidebarColor,
+    topbarColor,
     updateTopbarColor,
-    resetTheme 
+    resetTheme
   } = useTheme();
-  
+
   const [layoutWidth, setLayoutWidth] = useState("fluid");
 
   const layoutImages = [
@@ -26,9 +26,9 @@ const SettingModal = ({ show, handleClose }) => {
     // { id: "no-header", src: withoutheader, alt: "No Header", name: "No-Header" },
   ];
 
-  const topbarColors = ["#ffffff", "#000000", "#6c757d", "#0d6efd", "#6610f2", "#20c997", "#6366f1"];
+  const topbarColors = ["#ffffff", "#000000", "#6c757d", "#0d6efd", "#6610f2", "#20c997", "#6366f1", "#032d45", "#343a40", "#f8f9fa", "#6f42c1", "#d63384", "#198754"];
 
-  const sidebarColors = ["#032d45", "#343a40", "#f8f9fa", "#6f42c1", "#d63384", "#198754"];
+  const sidebarColors = ["#ffffff", "#000000", "#6c757d", "#0d6efd", "#6610f2", "#20c997", "#6366f1", "#032d45", "#343a40", "#f8f9fa", "#6f42c1", "#d63384", "#198754"];
 
   // Save settings and close
   const handleApply = () => {
@@ -95,6 +95,25 @@ const SettingModal = ({ show, handleClose }) => {
               ></div>
             ))}
           </div>
+
+          {/* Topbar Color */}
+          <div className="mb-4 mt-4">
+            <div className="d-flex align-items-center gap-2">
+              <input
+                type="color"
+                value={topbarColor}
+                onChange={(e) => updateTopbarColor(e.target.value)}
+                className="form-control form-control-color"
+                style={{ width: "40px", height: "30px", padding: "2px" }}
+              />
+              <Form.Control
+                type="text"
+                value={topbarColor}
+                onChange={(e) => updateTopbarColor(e.target.value)}
+                size="sm"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Sidebar Color */}
@@ -109,6 +128,24 @@ const SettingModal = ({ show, handleClose }) => {
                 onClick={() => updateSidebarColor(color)}
               ></div>
             ))}
+          </div>
+        </div>
+
+        <div className="mb-4 mt-4">
+          <div className="d-flex align-items-center gap-2">
+            <input
+              type="color"
+              value={sidebarColor}
+              onChange={(e) => updateSidebarColor(e.target.value)}
+              className="form-control form-control-color"
+              style={{ width: "40px", height: "30px", padding: "2px" }}
+            />
+            <Form.Control
+              type="text"
+              value={sidebarColor}
+              onChange={(e) => updateSidebarColor(e.target.value)}
+              size="sm"
+            />
           </div>
         </div>
 
