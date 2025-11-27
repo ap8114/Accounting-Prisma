@@ -214,7 +214,7 @@ const Pricing = () => {
           {plans.map((plan, idx) => (
             <Col
               md={6}
-              lg={3}
+              lg={4}
               key={idx}
               className="mb-4"
               data-aos="zoom-in"
@@ -273,7 +273,7 @@ const Pricing = () => {
           ))}
 
           {/* Enterprise Plan */}
-          <Col md={12} lg={4} className="mb-4" data-aos="fade-left" data-aos-delay="650">
+          {/* <Col md={12} lg={4} className="mb-4" data-aos="fade-left" data-aos-delay="650">
             <div
               className="border rounded p-4 h-100 shadow-lg position-relative"
               style={{
@@ -315,7 +315,7 @@ const Pricing = () => {
                 </a>
               </div>
             </div>
-          </Col>
+          </Col> */}
         </Row>
 
         <hr data-aos="fade-in" />

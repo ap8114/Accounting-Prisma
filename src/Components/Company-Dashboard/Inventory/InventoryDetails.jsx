@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Row, Col, Table, Button, Badge } from "react-bootstrap";
+import { Row, Col, Table, Button, Badge, Card } from "react-bootstrap";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import axiosInstance from "../../../Api/axiosInstance";
 import GetCompanyId from "../../../Api/GetCompanyId";
@@ -62,17 +62,27 @@ const InventoryDetails = () => {
             }
           );
 
-          // Transform the product info for UI
+          // Transform the product info for UI - Now including all missing fields
           const transformedItem = {
             id: data.product_info.id,
             itemName: data.product_info.item_name,
             hsn: data.product_info.hsn || "N/A",
             barcode: data.product_info.barcode || "N/A",
-            sku: data.product_info.sku,
+            sku: data.product_info.sku || "N/A",
             itemCategory:
               data.product_info.item_category?.item_category_name || "Unknown",
             unit: data.product_info.unit_detail?.uom_name || "Units",
             quantity: data.product_info.total_stock,
+            initialQty: data.product_info.initial_qty || 0,
+            minOrderQty: data.product_info.min_order_qty || "N/A",
+            asOfDate: data.product_info.as_of_date || "N/A",
+            initialCost: parseFloat(data.product_info.initial_cost || 0),
+            salePrice: parseFloat(data.product_info.sale_price || 0),
+            purchasePrice: parseFloat(data.product_info.purchase_price || 0),
+            discount: parseFloat(data.product_info.discount || 0),
+            taxAccount: data.product_info.tax_account || "N/A",
+            remarks: data.product_info.remarks || "N/A",
+            image: data.product_info.image || "https://via.placeholder.com/150",
             value:
               data.product_info.total_stock *
               parseFloat(data.product_info.sale_price || 0),
@@ -92,6 +102,7 @@ const InventoryDetails = () => {
                 name: w.warehouse.warehouse_name,
                 location: w.warehouse.location,
                 stockQty: w.stock_qty,
+                address: `${w.warehouse.address_line1 || ""}, ${w.warehouse.city || ""}, ${w.warehouse.state || ""}, ${w.warehouse.pincode || ""}`,
               })) || [],
           };
 
@@ -268,52 +279,177 @@ const InventoryDetails = () => {
           </Button>
         </div>
 
-        {/* Item Details Card */}
+        {/* Item Details Card with Image */}
         <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-100">
-          <div className="flex justify-between items-start">
-            <div>
-              <h4 className="text-xl font-bold text-blue-800">
-                {item.itemName}
-              </h4>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <p>
-                  <span className="font-medium">HSN:</span> {item.hsn}
-                </p>
-                <p>
-                  <span className="font-medium">Barcode:</span> {item.barcode}
-                </p>
-                <p>
-                  <span className="font-medium">Category:</span>{" "}
-                  {item.itemCategory}
-                </p>
-                <p>
-                  <span className="font-medium">Warehouse:</span>{" "}
-                  {item.warehouse}
-                </p>
-                <p>
-                  <span className="font-medium">Current Stock:</span>{" "}
-                  {item.quantity} {item.unit}
-                </p>
-                <p>
-                  <span className="font-medium">Status:</span>
-                  <Badge
-                    bg={item.status === "In Stock" ? "success" : "danger"}
-                    className="ms-2"
-                  >
-                    {item.status}
-                  </Badge>
-                </p>
-              </div>
+          <div className="flex flex-col md:flex-row">
+            {/* Product Image */}
+            <div className="md:w-1/4 d-flex justify-content-center align-items-center">
+              <img
+                src={item.image}
+                alt={item.itemName}
+                className="w-50 h-50 rounded-circle border-gray-200"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "https://via.placeholder.com/150";
+                }}
+              />
             </div>
-            <div className="text-right">
-              <p className="font-medium">Item Value</p>
-              <p className="text-2xl font-bold text-blue-700">
-                ₹{item.value.toFixed(2)}
-              </p>
-              <p className="text-sm text-gray-600">Cost: ₹{item.cost}/unit</p>
+            
+            {/* Product Details */}
+            <div className="md:w-3/4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="text-xl font-bold text-blue-800">
+                    {item.itemName}
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                    <p>
+                      <span className="font-medium">HSN:</span> {item.hsn}
+                    </p>
+                    <p>
+                      <span className="font-medium">Barcode:</span> {item.barcode}
+                    </p>
+                    <p>
+                      <span className="font-medium">SKU:</span> {item.sku}
+                    </p>
+                    <p>
+                      <span className="font-medium">Category:</span>{" "}
+                      {item.itemCategory}
+                    </p>
+                    <p>
+                      <span className="font-medium">Unit:</span> {item.unit}
+                    </p>
+                    <p>
+                      <span className="font-medium">Warehouse:</span>{" "}
+                      {item.warehouse}
+                    </p>
+                    <p>
+                      <span className="font-medium">Current Stock:</span>{" "}
+                      {item.quantity} {item.unit}
+                    </p>
+                    <p>
+                      <span className="font-medium">Initial Qty:</span>{" "}
+                      {item.initialQty || "N/A"}
+                    </p>
+                    <p>
+                      <span className="font-medium">Min Order Qty:</span>{" "}
+                      {item.minOrderQty}
+                    </p>
+                    <p>
+                      <span className="font-medium">As of Date:</span>{" "}
+                      {item.asOfDate}
+                    </p>
+                    <p>
+                      <span className="font-medium">Status:</span>
+                      <Badge
+                        bg={item.status === "In Stock" ? "success" : "danger"}
+                        className="ms-2"
+                      >
+                        {item.status}
+                      </Badge>
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium">Item Value</p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    ₹{item.value.toFixed(2)}
+                  </p>
+                  <p className="text-sm text-gray-600">Sale Price: ₹{item.salePrice}/unit</p>
+                  <p className="text-sm text-gray-600">Purchase Price: ₹{item.purchasePrice}/unit</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Additional Product Details Card */}
+        <Card className="mb-6">
+          <Card.Header className="bg-light">
+            <h5 className="mb-0">Additional Product Details</h5>
+          </Card.Header>
+          <Card.Body>
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <h6>Pricing Information</h6>
+                <table className="table table-sm">
+                  <tbody>
+                    <tr>
+                      <td width="40%">Initial Cost:</td>
+                      <td>₹{item.initialCost.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td>Sale Price:</td>
+                      <td>₹{item.salePrice.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td>Purchase Price:</td>
+                      <td>₹{item.purchasePrice.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td>Discount:</td>
+                      <td>{item.discount}%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div className="col-md-6 mb-3">
+                <h6>Other Information</h6>
+                <table className="table table-sm">
+                  <tbody>
+                    <tr>
+                      <td width="40%">Tax Account:</td>
+                      <td>{item.taxAccount}</td>
+                    </tr>
+                    <tr>
+                      <td>Remarks:</td>
+                      <td>{item.remarks}</td>
+                    </tr>
+                    <tr>
+                      <td>Description:</td>
+                      <td>{item.description}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </Card.Body>
+        </Card>
+
+        {/* Warehouse Details Card */}
+        <Card className="mb-6">
+          <Card.Header className="bg-light">
+            <h5 className="mb-0">Warehouse Details</h5>
+          </Card.Header>
+          <Card.Body>
+            {item.warehouses && item.warehouses.length > 0 ? (
+              <div className="table-responsive">
+                <table className="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Warehouse Name</th>
+                      <th>Location</th>
+                      <th>Stock Quantity</th>
+                      <th>Address</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {item.warehouses.map((warehouse, index) => (
+                      <tr key={index}>
+                        <td>{warehouse.name}</td>
+                        <td>{warehouse.location}</td>
+                        <td>{warehouse.stockQty} {item.unit}</td>
+                        <td>{warehouse.address}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-muted">No warehouse information available.</p>
+            )}
+          </Card.Body>
+        </Card>
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4 mb-6">
