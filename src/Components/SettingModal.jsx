@@ -26,9 +26,9 @@ const SettingModal = ({ show, handleClose }) => {
     { id: "no-header", src: withoutheader, alt: "No Header", name: "No-Header" },
   ];
 
-  const topbarColors = ["#ffffff", "#000000", "#6c757d", "#0d6efd", "#6610f2", "#20c997", "#6366f1"];
+  const topbarColors = [ "#6c757d", "#0d6efd", "#6610f2", "#20c997", "#6366f1" , "#032d45", "#343a40", "#f8f9fa", "#6f42c1", "#d63384", "#198754"];
 
-  const sidebarColors = ["#032d45", "#343a40", "#f8f9fa", "#6f42c1", "#d63384", "#198754"];
+  const sidebarColors = ["#6c757d", "#0d6efd", "#6610f2", "#20c997", "#6366f1" , "#032d45", "#343a40", "#f8f9fa", "#6f42c1", "#d63384", "#198754"];
 
   // Save settings and close
   const handleApply = () => {
