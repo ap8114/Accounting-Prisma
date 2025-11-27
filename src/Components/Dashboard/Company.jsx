@@ -1832,11 +1832,6 @@ const Company = () => {
                             </td>
                             <td>
                               <div className="d-flex align-items-center">
-                                <div className="user-avatar me-2">
-                                  {user.name
-                                    ? user.name.charAt(0).toUpperCase()
-                                    : "U"}
-                                </div>
                                 {user.name}
                               </div>
                             </td>
