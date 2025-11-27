@@ -33,13 +33,21 @@ const ThemeProvider = ({ children }) => {
         return localStorage.getItem("topbarColor") || "#032d45";
     });
 
+    const [sidebarMenuColor, setSidebarMenuColor] = useState(() => {
+        return localStorage.getItem("sidebarMenuColor") || "#53b2a5";
+    });
+
+    const [buttonsColor, setButtonsColor] = useState(() => {
+        return localStorage.getItem("buttonsColor") || "#53b2a5";
+    });
+
     useEffect(() => {
         document.documentElement.setAttribute("data-theme", theme);
         localStorage.setItem("theme", theme);
-        
+
         // Apply CSS custom properties for dynamic theming
         const root = document.documentElement;
-        
+
         if (theme === "dark") {
             root.style.setProperty("--bs-body-bg", "#1a1a1a");
             root.style.setProperty("--bs-body-color", "#ffffff");
@@ -74,8 +82,10 @@ const ThemeProvider = ({ children }) => {
         // Apply sidebar and topbar colors
         root.style.setProperty("--sidebar-bg", sidebarColor);
         root.style.setProperty("--topbar-bg", topbarColor);
-        
-    }, [theme, customColors, sidebarColor, topbarColor]);
+        root.style.setProperty("--sidebar-link-hover-bg", sidebarMenuColor);
+        root.style.setProperty("--buttons-bg", buttonsColor);
+
+    }, [theme, customColors, sidebarColor, topbarColor, sidebarMenuColor, buttonsColor]);
 
     const toggleTheme = () => {
         setTheme((prev) => (prev === "light" ? "dark" : "light"));
@@ -94,6 +104,16 @@ const ThemeProvider = ({ children }) => {
     const updateSidebarColor = (color) => {
         setSidebarColor(color);
         localStorage.setItem("sidebarColor", color);
+    };
+
+    const updateSidebarMenuColor = (color) => {
+        setSidebarMenuColor(color);
+        localStorage.setItem("sidebarMenuColor", color);
+    }
+
+    const updateButtonsColor = (color) => {
+        setButtonsColor(color);
+        localStorage.setItem("buttonsColor", color);
     };
 
     const updateTopbarColor = (color) => {
@@ -116,18 +136,21 @@ const ThemeProvider = ({ children }) => {
         setLayout("default");
         setSidebarColor("#032d45");
         setTopbarColor("#032d45");
-        
+        setSidebarMenuColor("#0dbd88ff");
+
         localStorage.removeItem("theme");
         localStorage.removeItem("customColors");
         localStorage.removeItem("layout");
         localStorage.removeItem("sidebarColor");
         localStorage.removeItem("topbarColor");
+        localStorage.removeItem("sidebarMenuColor");
+        localStorage.removeItem("buttonsColor");
     };
 
     return (
-        <ThemeContext.Provider value={{ 
-            theme, 
-            setTheme, 
+        <ThemeContext.Provider value={{
+            theme,
+            setTheme,
             toggleTheme,
             customColors,
             updateCustomColors,
@@ -137,7 +160,11 @@ const ThemeProvider = ({ children }) => {
             updateSidebarColor,
             topbarColor,
             updateTopbarColor,
-            resetTheme
+            resetTheme,
+            sidebarMenuColor,
+            updateSidebarMenuColor,
+            buttonsColor,
+            updateButtonsColor
         }}>
             {children}
         </ThemeContext.Provider>

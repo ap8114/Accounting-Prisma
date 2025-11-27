@@ -46,8 +46,8 @@
   color: var(--sidebar-link-hover-text) !important;
 }
 
-.button {
- background-color: var(--button-bg) !important;
+.buttons {
+ background-color: var(--buttons-bg) !important;
   color: var(--button-text) !important;
 }
 
