@@ -532,7 +532,7 @@ const CompanyDashboard = () => {
                         <img
                           src={customer.image?.trim()}
                           alt={customer.name}
-                          className="rounded-circle"
+                          style={{ borderRadius: "50%" , height: "40px"}}
                           width="40"
                           onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/40")}
                         />

@@ -23,7 +23,7 @@ const SettingModal = ({ show, handleClose }) => {
   const layoutImages = [
     { id: "default", src: defaultsidebar, alt: "Default", name: "Default" },
     { id: "mini", src: minilayout, alt: "Mini", name: "Mini Layout" },
-    { id: "no-header", src: withoutheader, alt: "No Header", name: "No-Header" },
+    // { id: "no-header", src: withoutheader, alt: "No Header", name: "No-Header" },
   ];
 
   const topbarColors = ["#ffffff", "#000000", "#6c757d", "#0d6efd", "#6610f2", "#20c997", "#6366f1"];
