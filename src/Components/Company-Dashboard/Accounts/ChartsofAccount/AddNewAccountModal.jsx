@@ -6,11 +6,11 @@ import GetCompanyId from "../../../../Api/GetCompanyId";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const AddNewAccountModal = ({ 
-  show, 
-  onHide, 
-  onSave, 
-  newAccountData, 
+const AddNewAccountModal = ({
+  show,
+  onHide,
+  onSave,
+  newAccountData,
   setNewAccountData,
   showBankDetails,
   setShowBankDetails,
@@ -30,9 +30,9 @@ const AddNewAccountModal = ({
   const [subgroups, setSubgroups] = useState([]);
   const [loadingSubgroups, setLoadingSubgroups] = useState(true);
   const companyId = GetCompanyId();
-  
 
-    const handleAccountTypeChange = (e) => {
+
+  const handleAccountTypeChange = (e) => {
     const selectedType = e.target.value;
     setCustomerFormData({
       ...customerFormData,
@@ -45,7 +45,7 @@ const AddNewAccountModal = ({
     });
   };
 
-  
+
   // Static categories
   const [categories] = useState([
     { id: 'assets', name: 'Assets' },
@@ -54,7 +54,7 @@ const AddNewAccountModal = ({
     { id: 'income', name: 'Income' },
     { id: 'expenses', name: 'Expenses' }
   ]);
-  
+
   // New state for Add Sub of Subgroup modal
   const [showAddSubOfSubgroupModal, setShowAddSubOfSubgroupModal] = useState(false);
   const [subOfSubgroupForm, setSubOfSubgroupForm] = useState({
@@ -62,11 +62,11 @@ const AddNewAccountModal = ({
   });
   const [isSubOfSubgroupSubmitting, setIsSubOfSubgroupSubmitting] = useState(false);
   const [subOfSubgroupError, setSubOfSubgroupError] = useState('');
-  
+
   // New state for accounts (sub of subgroups)
   const [subOfSubgroups, setSubOfSubgroups] = useState([]);
   const [loadingSubOfSubgroups, setLoadingSubOfSubgroups] = useState(false);
-  
+
   // Error states
   const [accountError, setAccountError] = useState('');
   const [parentError, setParentError] = useState('');
@@ -135,17 +135,17 @@ const AddNewAccountModal = ({
     try {
       setAccountError('');
       const response = await axiosInstance.delete(`${BaseUrl}account/sub-of-subgroup/${id}`);
-      
+
       if (response.data.success) {
         // Show success toast
         toast.success('Account deleted successfully');
-        
+
         // Refresh sub of subgroups list
         const selectedSubgroup = subgroups.find(sub => sub.subgroup_name === newAccountData.subgroup);
         if (selectedSubgroup) {
           await fetchSubOfSubgroups(selectedSubgroup.id);
         }
-        
+
         // Reset form if the deleted sub of subgroup was selected
         if (newAccountData.subOfSubgroupId === id) {
           setNewAccountData({
@@ -186,22 +186,22 @@ const AddNewAccountModal = ({
 
       // Call handleAddNewParent callback with response data
       handleAddNewParent(response.data);
-      
+
       // Show success toast
       toast.success('Parent account added successfully');
-      
+
       // Reset form after successful submission
       setParentAccountForm({
         mainCategory: '',
         subgroupName: ''
       });
-      
+
       // Refresh subgroups list
       await fetchSubgroups();
-      
+
       // Close modal
       setShowAddParentModal(false);
-      
+
     } catch (error) {
       console.error('Error saving parent account:', error);
       if (error.response?.data?.message) {
@@ -223,7 +223,7 @@ const AddNewAccountModal = ({
     try {
       // Find the selected subgroup ID
       const selectedSubgroup = subgroups.find(sub => sub.subgroup_name === newAccountData.subgroup);
-      
+
       // Prepare payload with new structure
       const payload = {
         company_id: companyId,
@@ -239,10 +239,10 @@ const AddNewAccountModal = ({
 
       // Call onSave callback with response data
       onSave(response.data);
-      
+
       // Show success toast
       toast.success('Account saved successfully');
-      
+
       // Close modal
       onHide();
 
@@ -251,7 +251,7 @@ const AddNewAccountModal = ({
         // Reload the page
         window.location.reload();
       }, 500);
-      
+
     } catch (error) {
       console.error('Error saving account:', error);
       if (error.response?.data?.message) {
@@ -273,13 +273,13 @@ const AddNewAccountModal = ({
     try {
       // Find the selected subgroup ID
       const selectedSubgroup = subgroups.find(sub => sub.subgroup_name === newAccountData.subgroup);
-      
+
       if (!selectedSubgroup) {
         setSubOfSubgroupError('Please select a subgroup first');
         toast.error('Please select a subgroup first');
         return;
       }
-      
+
       // Prepare payload with the required structure
       const payload = {
         subgroup_id: selectedSubgroup.id,
@@ -291,18 +291,18 @@ const AddNewAccountModal = ({
 
       // Show success toast
       toast.success('Sub of subgroup added successfully');
-      
+
       // Reset form after successful submission
       setSubOfSubgroupForm({
         name: ''
       });
-      
+
       // Close modal
       setShowAddSubOfSubgroupModal(false);
-      
+
       // Refresh sub of subgroups list
       fetchSubOfSubgroups(selectedSubgroup.id);
-      
+
     } catch (error) {
       console.error('Error saving sub of subgroup:', error);
       if (error.response?.data?.message) {
@@ -363,13 +363,13 @@ const AddNewAccountModal = ({
         backdrop="static"
         size="xl"
         dialogClassName="w-100"
-         
+
         keyboard={false}
       >
         <div>
           <Modal.Header
             closeButton
-            className="bg-light d-flex justify-content-between align-items-center"
+            className="d-flex justify-content-between align-items-center"
           >
             <Modal.Title className="m-2">Add New Account</Modal.Title>
           </Modal.Header>
@@ -398,9 +398,9 @@ const AddNewAccountModal = ({
                     + Add Parent
                   </Button>
                 </div>
-                <Dropdown>
-                  <Dropdown.Toggle 
-                    variant="light" 
+                <Dropdown className="border-1 rounded-1">
+                  <Dropdown.Toggle
+                    variant=""
                     className="w-100 text-start"
                     id="subgroup-dropdown"
                   >
@@ -411,7 +411,7 @@ const AddNewAccountModal = ({
                       <Dropdown.Item disabled>Loading subgroups...</Dropdown.Item>
                     ) : (
                       subgroups.map((subgroup) => (
-                        <Dropdown.Item 
+                        <Dropdown.Item
                           key={subgroup.id}
                           className="d-flex justify-content-between align-items-center"
                           onClick={() => handleSubgroupSelect(subgroup.subgroup_name)}
@@ -452,10 +452,10 @@ const AddNewAccountModal = ({
                     + Add Sub of Subgroup
                   </Button>
                 </div>
-                <Dropdown>
-                  <Dropdown.Toggle 
-                    variant="light" 
-                    className="w-100 text-start"
+                <Dropdown className="border-1 rounded-1">
+                  <Dropdown.Toggle
+                    variant=""
+                    className="w-100 text-start border-1"
                     id="sub-of-subgroup-dropdown"
                   >
                     {newAccountData.name || "-- Select Account Name --"}
@@ -465,7 +465,7 @@ const AddNewAccountModal = ({
                       <Dropdown.Item disabled>Loading accounts...</Dropdown.Item>
                     ) : (
                       subOfSubgroups.map((subOfSubgroup) => (
-                        <Dropdown.Item 
+                        <Dropdown.Item
                           key={subOfSubgroup.id}
                           className="d-flex justify-content-between align-items-center"
                           onClick={() => handleSubOfSubgroupSelect(subOfSubgroup.id, subOfSubgroup.name)}
@@ -473,8 +473,8 @@ const AddNewAccountModal = ({
                           <span>
                             {subOfSubgroup.name}
                           </span>
-                          <Button 
-                            variant="danger" 
+                          <Button
+                            variant="danger"
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -490,39 +490,39 @@ const AddNewAccountModal = ({
                 </Dropdown>
               </Form.Group>
 
-              {(newAccountData.subgroup === "Sundry Debtors" || 
+              {(newAccountData.subgroup === "Sundry Debtors" ||
                 newAccountData.subgroup === "Sundry Creditors") && (
-                <>
-                  <Row className="mb-3">
-                    <Col md={6}>
-                      <Form.Group>
-                        <Form.Label>Phone</Form.Label>
-                        <Form.Control
-                          type="text"
-                          value={newAccountData.phone || ""}
-                          onChange={(e) =>
-                            setNewAccountData({ ...newAccountData, phone: e.target.value })
-                          }
-                          placeholder="Enter phone number"
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group>
-                        <Form.Label>Email</Form.Label>
-                        <Form.Control
-                          type="email"
-                          value={newAccountData.email || ""}
-                          onChange={(e) =>
-                            setNewAccountData({ ...newAccountData, email: e.target.value })
-                          }
-                          placeholder="Enter email address"
-                        />
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                </>
-              )}
+                  <>
+                    <Row className="mb-3">
+                      <Col md={6}>
+                        <Form.Group>
+                          <Form.Label>Phone</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={newAccountData.phone || ""}
+                            onChange={(e) =>
+                              setNewAccountData({ ...newAccountData, phone: e.target.value })
+                            }
+                            placeholder="Enter phone number"
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group>
+                          <Form.Label>Email</Form.Label>
+                          <Form.Control
+                            type="email"
+                            value={newAccountData.email || ""}
+                            onChange={(e) =>
+                              setNewAccountData({ ...newAccountData, email: e.target.value })
+                            }
+                            placeholder="Enter email address"
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  </>
+                )}
 
               <Form.Group className="mb-3">
                 <Form.Check
@@ -654,8 +654,8 @@ const AddNewAccountModal = ({
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             onClick={() => {
               setShowAddParentModal(false);
               setParentError('');
@@ -723,8 +723,8 @@ const AddNewAccountModal = ({
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             onClick={() => {
               setShowAddSubOfSubgroupModal(false);
               setSubOfSubgroupError('');
@@ -742,7 +742,7 @@ const AddNewAccountModal = ({
           </Button>
         </Modal.Footer>
       </Modal>
-      
+
       {/* Toast Container */}
       <ToastContainer
         position="top-right"

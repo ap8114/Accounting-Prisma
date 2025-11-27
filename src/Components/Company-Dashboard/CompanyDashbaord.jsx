@@ -268,7 +268,7 @@ const CompanyDashboard = () => {
         <Col md={12}>
           <Card className="h-100 border-0 shadow-sm rounded-4 p-4">
             <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-              <h6 className="fw-semibold mb-0" style={{ color: "#1a237e" }}>
+              <h6 className="fw-semibold mb-0">
                 <i className="fa fa-chart-bar"></i> Sales & Purchase Report
               </h6>
               <Dropdown>
@@ -478,7 +478,7 @@ const CompanyDashboard = () => {
               </Dropdown>
             </Card.Header>
             <Card.Body className="p-0">
-              <div className="d-flex gap-2 p-3 bg-light rounded-2 mb-3">
+              <div className="d-flex gap-2 p-3 rounded-2 mb-3">
                 <div className="flex-grow-1 text-center">
                   <div className="fw-bold">{formatNumber(salesStatics.totalRevenue)}</div>
                   <small className="text-muted">Revenue</small>

@@ -5,18 +5,16 @@ const ThemeContext = createContext();
 // 👉 Function to detect if color is light or dark
 const isColorLight = (hex) => {
     if (!hex) return false;
-    const cleaned = hex.replace('#', '');
+    const cleaned = hex.replace("#", "");
     const bigint = parseInt(cleaned, 16);
     const r = (bigint >> 16) & 255;
     const g = (bigint >> 8) & 255;
     const b = bigint & 255;
-
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 155; // threshold
+    return brightness > 155;
 };
 
 const ThemeProvider = ({ children }) => {
-
     const [theme, setTheme] = useState(() =>
         localStorage.getItem("theme") || "light"
     );
@@ -49,6 +47,10 @@ const ThemeProvider = ({ children }) => {
         localStorage.getItem("sidebarMenuColor") || "#09b9abff"
     );
 
+    const [buttonColor, setButtonColor] = useState(() =>
+        localStorage.getItem("buttonColor") || "#053d3cff"
+    );
+
     const [topbarColor, setTopbarColor] = useState(() =>
         localStorage.getItem("topbarColor") || "#032d45"
     );
@@ -56,58 +58,76 @@ const ThemeProvider = ({ children }) => {
     useEffect(() => {
         const root = document.documentElement;
 
-        // Set Theme Mode
-        root.setAttribute("data-theme", theme);
-        localStorage.setItem("theme", theme);
-
+        // 🌙 DARK THEME FIXED COMPLETELY
         if (theme === "dark") {
-            root.style.setProperty("--bs-body-bg", "#1a1a1a");
+            root.setAttribute("data-theme", "dark");
+
+            root.style.setProperty("--bs-body-bg", "#292929ff");
             root.style.setProperty("--bs-body-color", "#ffffff");
-            root.style.setProperty("--bs-card-bg", "#2d2d2d");
-            root.style.setProperty("--bs-border-color", "#404040");
-            root.style.setProperty("--bs-table-bg", "#2d2d2d");
-            root.style.setProperty("--bs-table-striped-bg", "#363636");
-            root.style.setProperty("--bs-table-hover-bg", "#404040");
-            root.style.setProperty("--bs-form-control-bg", "#2d2d2d");
+            root.style.setProperty("--bs-card-bg", "#000000ff");
+            root.style.setProperty("--bs-card-color", "#ffffff");
+            root.style.setProperty("--bs-border-color", "#969696ff");
+
+            // 🟣 Table Fix
+            root.style.setProperty("--bs-table-bg", "#1e1e1e");
+            root.style.setProperty("--bs-table-color", "#ffffff");
+            root.style.setProperty("--bs-table-striped-bg", "#242424");
+            root.style.setProperty("--bs-table-hover-bg", "#2a2a2a");
+
+            // Input / Form Fix
+            root.style.setProperty("--bs-form-control-bg", "#1e1e1e");
             root.style.setProperty("--bs-form-control-color", "#ffffff");
-            root.style.setProperty("--bs-modal-bg", "#2d2d2d");
+            root.style.setProperty("--bs-form-control-border-color", "#444");
+
+            // Modal Fix
+            root.style.setProperty("--bs-modal-bg", "#1e1e1e");
             root.style.setProperty("--bs-modal-color", "#ffffff");
         } else {
+            // ☀️ LIGHT THEME
+            root.setAttribute("data-theme", "light");
+
             root.style.setProperty("--bs-body-bg", "#ffffff");
             root.style.setProperty("--bs-body-color", "#212529");
             root.style.setProperty("--bs-card-bg", "#ffffff");
+            root.style.setProperty("--bs-card-color", "#212529");
             root.style.setProperty("--bs-border-color", "#dee2e6");
+
             root.style.setProperty("--bs-table-bg", "#ffffff");
+            root.style.setProperty("--bs-table-color", "#212529");
             root.style.setProperty("--bs-table-striped-bg", "#f8f9fa");
-            root.style.setProperty("--bs-table-hover-bg", "#f5f5f5");
+            root.style.setProperty("--bs-table-hover-bg", "#f4f4f4");
+
             root.style.setProperty("--bs-form-control-bg", "#ffffff");
             root.style.setProperty("--bs-form-control-color", "#212529");
             root.style.setProperty("--bs-modal-bg", "#ffffff");
             root.style.setProperty("--bs-modal-color", "#212529");
         }
 
-        // Apply custom theme colors
+        // Custom Colors
         Object.entries(customColors).forEach(([key, value]) => {
             root.style.setProperty(`--bs-${key}`, value);
         });
 
-        // Sidebar & Topbar Background Colors
+        // Sidebar / Topbar / Hover
         root.style.setProperty("--sidebar-bg", sidebarColor);
         root.style.setProperty("--topbar-bg", topbarColor);
-
-        // Sidebar Hover Background Color
         root.style.setProperty("--sidebar-link-hover-bg", sidebarMenuColor);
 
-        // 👉 Auto Detect Text Color Based on Hover Background
+        // Button
+        root.style.setProperty("--button-bg", buttonColor);
+
+        // Auto-detect text color on hover
         const hoverTextColor = isColorLight(sidebarMenuColor)
             ? "#000000"
             : "#ffffff";
 
         root.style.setProperty("--sidebar-link-hover-text", hoverTextColor);
 
+        // LocalStorage
+        localStorage.setItem("theme", theme);
+        localStorage.setItem("buttonColor", buttonColor);
         localStorage.setItem("sidebarMenuColor", sidebarMenuColor);
-
-    }, [theme, customColors, sidebarColor, topbarColor, sidebarMenuColor]);
+    }, [theme, customColors, sidebarColor, topbarColor, sidebarMenuColor, buttonColor]);
 
     // ---------------- Actions -------------------
 
@@ -128,6 +148,11 @@ const ThemeProvider = ({ children }) => {
     const updateSidebarColor = (color) => {
         setSidebarColor(color);
         localStorage.setItem("sidebarColor", color);
+    };
+
+    const updateButtonColor = (color) => {
+        setButtonColor(color);
+        localStorage.setItem("buttonColor", color);
     };
 
     const updateSidebarMenuColor = (color) => {
@@ -178,6 +203,8 @@ const ThemeProvider = ({ children }) => {
                 resetTheme,
                 sidebarMenuColor,
                 updateSidebarMenuColor,
+                buttonColor,
+                updateButtonColor,
             }}
         >
             {children}

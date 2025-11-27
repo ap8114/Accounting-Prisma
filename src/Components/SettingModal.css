@@ -46,6 +46,14 @@
   color: var(--sidebar-link-hover-text) !important;
 }
 
+.button {
+ background-color: var(--button-bg) !important;
+  color: var(--button-text) !important;
+}
+
+/* button {
+  background-color: var(--button-bg) !important;
+} */
 
 .sidebar-icons {
   color: var(--sidebar-link-hover-text) !important;

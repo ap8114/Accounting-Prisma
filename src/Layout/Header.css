@@ -68,8 +68,9 @@ body {
 #google_translate_element .goog-te-gadget-simple,
 #google_translate_element .goog-te-gadget-icon,
 #google_translate_element .goog-te-menu-value {
+  background-image: url("https://i.ibb.co/QvG9FDqc/image.png");
   border: none !important;
-  background: transparent !important;
+  background: trablasparent !important;
   padding: 0 !important;
   margin: 0 !important;
   box-shadow: none !important;
@@ -144,6 +145,8 @@ body {
   font-weight: 600 !important;
   display: inline-block !important;
 }
+
+
 
 /* Keep arrow aligned and small */
 #google_translate_element .goog-te-menu-value span:nth-child(3) {

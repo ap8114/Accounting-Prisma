@@ -161,11 +161,11 @@ const Invoice = () => {
   const handleDeleteOrder = async (orderId) => {
     try {
       await axiosInstance.delete(`sales-order/${orderId}`);
-      
+
       // Update the orders list after successful deletion
       setOrders(orders.filter(order => order.id !== orderId));
       setDeleteConfirm({ show: false, id: null });
-      
+
       // Refetch orders to ensure the list is up to date
       await fetchOrders();
     } catch (err) {
@@ -226,7 +226,7 @@ const Invoice = () => {
       );
     });
   }, [
-    orders, 
+    orders,
     fromDate,
     toDate,
     invoiceNoFilter,
@@ -255,7 +255,7 @@ const Invoice = () => {
 
       {/* 🔥 Sales Steps Dropdown + Show Filters Button */}
       <div className="d-flex justify-content-between align-items-end mb-3">
-       
+
 
         <Button
           variant="outline-secondary"
@@ -417,7 +417,7 @@ const Invoice = () => {
       ) : (
         /* Table */
         <Table bordered hover responsive className="text-center align-middle">
-          <thead className="table-light">
+          <thead className="">
             <tr>
               <th>#</th>
               <th>Invoice No</th>
@@ -643,8 +643,8 @@ const Invoice = () => {
                       <p><strong>Payment No:</strong> {getStepData(viewOrder.steps, 'payment').Payment_no || getStepData(viewOrder.steps, 'payment').payment_no || 'N/A'}</p>
                       <p><strong>Payment Date:</strong> {getStepData(viewOrder.steps, 'payment').payment_date ? new Date(getStepData(viewOrder.steps, 'payment').payment_date).toLocaleDateString() : 'N/A'}</p>
                       <p><strong>Total Invoice :</strong> ${getStepData(viewOrder.steps, 'payment').total_invoice || '0'}</p>
-                         <p><strong>Due Balance  :</strong> ${getStepData(viewOrder.steps, 'payment').balance || '0'}</p>
-                         <p><strong>Amount Received:</strong> ${getStepData(viewOrder.steps, 'payment').amount_received || '0'}</p>
+                      <p><strong>Due Balance  :</strong> ${getStepData(viewOrder.steps, 'payment').balance || '0'}</p>
+                      <p><strong>Amount Received:</strong> ${getStepData(viewOrder.steps, 'payment').amount_received || '0'}</p>
                       <p><strong>Payment Note:</strong> {getStepData(viewOrder.steps, 'payment').payment_note || 'N/A'}</p>
                     </Col>
                   </Row>
@@ -686,9 +686,9 @@ const Invoice = () => {
                     <p>No items found for this order.</p>
                   )}
                   <div className="text-end mt-3">
-                 <p><strong>Total Invoice :</strong> ${getStepData(viewOrder.steps, 'payment').total_invoice || '0'}</p>
-                         <p><strong>Due Balance  :</strong> ${getStepData(viewOrder.steps, 'payment').balance || '0'}</p>
-                         <p><strong>Amount Received:</strong> ${getStepData(viewOrder.steps, 'payment').amount_received || '0'}</p>
+                    <p><strong>Total Invoice :</strong> ${getStepData(viewOrder.steps, 'payment').total_invoice || '0'}</p>
+                    <p><strong>Due Balance  :</strong> ${getStepData(viewOrder.steps, 'payment').balance || '0'}</p>
+                    <p><strong>Amount Received:</strong> ${getStepData(viewOrder.steps, 'payment').amount_received || '0'}</p>
                   </div>
                 </Card.Body>
               </Card>
@@ -716,8 +716,8 @@ const Invoice = () => {
           <Button variant="secondary" onClick={handleCloseViewModal}>
             Close
           </Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={() => {
               handleCloseViewModal();
               handleCreateNewInvoice(viewOrder);
@@ -744,9 +744,9 @@ const Invoice = () => {
             Delete
           </Button>
         </Modal.Footer>
-      </Modal>    
+      </Modal>
     </div>
   );
 };
-  
+
 export default Invoice;
