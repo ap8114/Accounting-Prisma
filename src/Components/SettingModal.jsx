@@ -26,9 +26,17 @@ const SettingModal = ({ show, handleClose }) => {
     // { id: "no-header", src: withoutheader, alt: "No Header", name: "No-Header" },
   ];
 
-  const topbarColors = ["#343a40", "#0d6efd", "#6610f2", "#6366f1", "#032d45", "#6f42c1", "#d63384", "#198754"];
+  const topbarColors = [
+    "#343a40", "#0d6efd", "#6610f2", "#6366f1", "#032d45", "#6f42c1", "#d63384", "#198754",
+    "#ff5733", "#ffc300", "#28a745", "#20c997", "#17a2b8", "#fd7e14", "#6c757d", "#0dcaf0",
+    "#ff6b6b", "#845ec2", "#2c73d2", "#0081cf", "#0089ba", "#008e9b", "#00c9a7", "#4b4453"
+  ];
 
-  const sidebarColors = ["#343a40", "#0d6efd", "#6610f2", "#6366f1", "#032d45", "#6f42c1", "#d63384", "#198754"];
+  const sidebarColors = [
+    "#343a40", "#0d6efd", "#6610f2", "#6366f1", "#032d45", "#6f42c1", "#d63384", "#198754",
+    "#ffbe0b", "#fb5607", "#ff006e", "#8338ec", "#3a86ff", "#06d6a0", "#118ab2", "#073b4c",
+    "#ef476f", "#ffd166", "#06d6a0", "#26547c", "#fffcf2", "#ccc5b9", "#403d39", "#252422"
+  ];
 
   const { sidebarMenuColor, updateSidebarMenuColor } = useTheme();
   // Save settings and close

@@ -148,63 +148,6 @@ const ThemeSetting = () => {
                     ))}
                 </Row>
             </div>
-
-            {/* <div className="mb-4">
-                <h6 className="fw-semibold mb-3">Sidebar Color</h6>
-                <div className="d-flex align-items-center gap-2">
-                    <input
-                        type="color"
-                        value={sidebarColor}
-                        onChange={(e) => updateSidebarColor(e.target.value)}
-                        className="form-control form-control-color"
-                        style={{ width: "40px", height: "30px", padding: "2px" }}
-                    />
-                    <Form.Control
-                        type="text"
-                        value={sidebarColor}
-                        onChange={(e) => updateSidebarColor(e.target.value)}
-                        size="sm"
-                    />
-                </div>
-            </div>
-
-            <div className="mb-4">
-                <h6 className="fw-semibold mb-3">Topbar Color</h6>
-                <div className="d-flex align-items-center gap-2">
-                    <input
-                        type="color"
-                        value={topbarColor}
-                        onChange={(e) => updateTopbarColor(e.target.value)}
-                        className="form-control form-control-color"
-                        style={{ width: "40px", height: "30px", padding: "2px" }}
-                    />
-                    <Form.Control
-                        type="text"
-                        value={topbarColor}
-                        onChange={(e) => updateTopbarColor(e.target.value)}
-                        size="sm"
-                    />
-                </div>
-            </div> */}
-
-            {/* Layout Options */}
-            {/* <div className="mb-4">
-                <h6 className="fw-semibold mb-3">Layout Style</h6>
-                <div className="d-flex flex-column gap-2">
-                    {["default", "mini", "no-header"].map((layoutOption) => (
-                        <Button
-                            key={layoutOption}
-                            variant={layout === layoutOption ? "primary" : "outline-secondary"}
-                            size="sm"
-                            onClick={() => updateLayout(layoutOption)}
-                            className="text-start"
-                        >
-                            {layoutOption.charAt(0).toUpperCase() + layoutOption.slice(1).replace("-", " ")}
-                        </Button>
-                    ))}
-                </div>
-            </div> */}
-
             {/* Reset Button */}
             <div className="mt-4">
                 <Button

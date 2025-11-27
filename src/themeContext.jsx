@@ -2,47 +2,63 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 const ThemeContext = createContext();
 
+// 👉 Function to detect if color is light or dark
+const isColorLight = (hex) => {
+    if (!hex) return false;
+    const cleaned = hex.replace('#', '');
+    const bigint = parseInt(cleaned, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 155; // threshold
+};
+
 const ThemeProvider = ({ children }) => {
-    const [theme, setTheme] = useState(() => {
-        return localStorage.getItem("theme") || "light";
-    });
+
+    const [theme, setTheme] = useState(() =>
+        localStorage.getItem("theme") || "light"
+    );
 
     const [customColors, setCustomColors] = useState(() => {
         const saved = localStorage.getItem("customColors");
-        return saved ? JSON.parse(saved) : {
-            primary: "#53b2a5",
-            secondary: "#6c757d",
-            success: "#198754",
-            danger: "#dc3545",
-            warning: "#ffc107",
-            info: "#0dcaf0",
-            light: "#f8f9fa",
-            dark: "#212529"
-        };
+        return saved
+            ? JSON.parse(saved)
+            : {
+                  primary: "#53b2a5",
+                  secondary: "#6c757d",
+                  success: "#198754",
+                  danger: "#dc3545",
+                  warning: "#ffc107",
+                  info: "#0dcaf0",
+                  light: "#f8f9fa",
+                  dark: "#212529",
+              };
     });
 
-    const [layout, setLayout] = useState(() => {
-        return localStorage.getItem("layout") || "default";
-    });
+    const [layout, setLayout] = useState(() =>
+        localStorage.getItem("layout") || "default"
+    );
 
-    const [sidebarColor, setSidebarColor] = useState(() => {
-        return localStorage.getItem("sidebarColor") || "#032d45";
-    });
+    const [sidebarColor, setSidebarColor] = useState(() =>
+        localStorage.getItem("sidebarColor") || "#032d45"
+    );
 
-    const [sidebarMenuColor, setSidebarMenuColor] = useState(() => {
-        return localStorage.getItem("sidebarMenuColor") || "#09b9abff";
-    });
+    const [sidebarMenuColor, setSidebarMenuColor] = useState(() =>
+        localStorage.getItem("sidebarMenuColor") || "#09b9abff"
+    );
 
-    const [topbarColor, setTopbarColor] = useState(() => {
-        return localStorage.getItem("topbarColor") || "#032d45";
-    });
+    const [topbarColor, setTopbarColor] = useState(() =>
+        localStorage.getItem("topbarColor") || "#032d45"
+    );
 
     useEffect(() => {
-        document.documentElement.setAttribute("data-theme", theme);
-        localStorage.setItem("theme", theme);
-
-        // Apply CSS custom properties for dynamic theming
         const root = document.documentElement;
+
+        // Set Theme Mode
+        root.setAttribute("data-theme", theme);
+        localStorage.setItem("theme", theme);
 
         if (theme === "dark") {
             root.style.setProperty("--bs-body-bg", "#1a1a1a");
@@ -70,17 +86,30 @@ const ThemeProvider = ({ children }) => {
             root.style.setProperty("--bs-modal-color", "#212529");
         }
 
-        // Apply custom colors
+        // Apply custom theme colors
         Object.entries(customColors).forEach(([key, value]) => {
             root.style.setProperty(`--bs-${key}`, value);
         });
 
-        // Apply sidebar and topbar colors
+        // Sidebar & Topbar Background Colors
         root.style.setProperty("--sidebar-bg", sidebarColor);
         root.style.setProperty("--topbar-bg", topbarColor);
-        // ✅ CRITICAL: Sync sidebar link hover background with sidebar color
+
+        // Sidebar Hover Background Color
         root.style.setProperty("--sidebar-link-hover-bg", sidebarMenuColor);
-    }, [theme, customColors, sidebarColor, topbarColor , sidebarMenuColor]);
+
+        // 👉 Auto Detect Text Color Based on Hover Background
+        const hoverTextColor = isColorLight(sidebarMenuColor)
+            ? "#000000"
+            : "#ffffff";
+
+        root.style.setProperty("--sidebar-link-hover-text", hoverTextColor);
+
+        localStorage.setItem("sidebarMenuColor", sidebarMenuColor);
+
+    }, [theme, customColors, sidebarColor, topbarColor, sidebarMenuColor]);
+
+    // ---------------- Actions -------------------
 
     const toggleTheme = () => {
         setTheme((prev) => (prev === "light" ? "dark" : "light"));
@@ -113,6 +142,7 @@ const ThemeProvider = ({ children }) => {
 
     const resetTheme = () => {
         setTheme("light");
+
         setCustomColors({
             primary: "#53b2a5",
             secondary: "#6c757d",
@@ -121,37 +151,35 @@ const ThemeProvider = ({ children }) => {
             warning: "#ffc107",
             info: "#0dcaf0",
             light: "#f8f9fa",
-            dark: "#212529"
+            dark: "#212529",
         });
+
         setLayout("default");
         setSidebarColor("#032d45");
         setTopbarColor("#032d45");
 
-        localStorage.removeItem("theme");
-        localStorage.removeItem("customColors");
-        localStorage.removeItem("layout");
-        localStorage.removeItem("sidebarColor");
-        localStorage.removeItem("topbarColor");
-        localStorage.removeItem("sidebarMenuColor");
+        localStorage.clear();
     };
 
     return (
-        <ThemeContext.Provider value={{
-            theme,
-            setTheme,
-            toggleTheme,
-            customColors,
-            updateCustomColors,
-            layout,
-            updateLayout,
-            sidebarColor,
-            updateSidebarColor,
-            topbarColor,
-            updateTopbarColor,
-            resetTheme,
-            sidebarMenuColor,
-            updateSidebarMenuColor
-        }}>
+        <ThemeContext.Provider
+            value={{
+                theme,
+                setTheme,
+                toggleTheme,
+                customColors,
+                updateCustomColors,
+                layout,
+                updateLayout,
+                sidebarColor,
+                updateSidebarColor,
+                topbarColor,
+                updateTopbarColor,
+                resetTheme,
+                sidebarMenuColor,
+                updateSidebarMenuColor,
+            }}
+        >
             {children}
         </ThemeContext.Provider>
     );

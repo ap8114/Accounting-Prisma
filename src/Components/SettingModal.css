@@ -34,10 +34,21 @@
   background-color: #f8f9fa !important;
 }
 
-.sidebar-link:hover,
+/* .sidebar-link:hover,
 .active-link {
   background-color: var(--sidebar-link-hover-bg) !important;
   color: #ffffff !important;
+} */
+
+.sidebar-link:hover,
+.active-link {
+  background-color: var(--sidebar-link-hover-bg) !important;
+  color: var(--sidebar-link-hover-text) !important;
+}
+
+
+.sidebar-icons {
+  color: var(--sidebar-link-hover-text) !important;
 }
 
 .sidebar-bg-purple {
