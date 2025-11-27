@@ -89,14 +89,14 @@ const ThemeSetting = () => {
                         size="sm"
                         onClick={() => theme !== "light" && toggleTheme()}
                     >
-                        ☀️ Light
+                        Light
                     </Button>
                     <Button
-                        variant={theme === "dark" ? "primary" : "outline-primary"}
+                        variant={theme === "dark" ? "primary" : "outline-secondary"}
                         size="sm"
                         onClick={() => theme !== "dark" && toggleTheme()}
                     >
-                        🌙 Dark
+                        Dark
                     </Button>
                 </div>
             </div>
@@ -149,8 +149,7 @@ const ThemeSetting = () => {
                 </Row>
             </div>
 
-            {/* Sidebar Color */}
-            <div className="mb-4">
+            {/* <div className="mb-4">
                 <h6 className="fw-semibold mb-3">Sidebar Color</h6>
                 <div className="d-flex align-items-center gap-2">
                     <input
@@ -169,7 +168,6 @@ const ThemeSetting = () => {
                 </div>
             </div>
 
-            {/* Topbar Color */}
             <div className="mb-4">
                 <h6 className="fw-semibold mb-3">Topbar Color</h6>
                 <div className="d-flex align-items-center gap-2">
@@ -187,10 +185,10 @@ const ThemeSetting = () => {
                         size="sm"
                     />
                 </div>
-            </div>
+            </div> */}
 
             {/* Layout Options */}
-            <div className="mb-4">
+            {/* <div className="mb-4">
                 <h6 className="fw-semibold mb-3">Layout Style</h6>
                 <div className="d-flex flex-column gap-2">
                     {["default", "mini", "no-header"].map((layoutOption) => (
@@ -205,7 +203,7 @@ const ThemeSetting = () => {
                         </Button>
                     ))}
                 </div>
-            </div>
+            </div> */}
 
             {/* Reset Button */}
             <div className="mt-4">
