@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Table, Button, Badge, Modal, Form, Row, Col, Alert } from "react-bootstrap";
+import { Table, Button, Badge, Modal, Form, Row, Col, Alert, Card } from "react-bootstrap";
 import MultiStepPurchaseForm from "./MultiStepPurchaseForms";
-import { FaArrowRight, FaTrash } from "react-icons/fa";
+import { FaArrowRight, FaTrash, FaEye } from "react-icons/fa";
 import BaseUrl from "../../../Api/BaseUrl";
 import GetCompanyId from "../../../Api/GetCompanyId";
 import axiosInstance from "../../../Api/axiosInstance";
@@ -31,6 +31,8 @@ const PurchaseOrderr = () => {
   const [stepModal, setStepModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [viewOrder, setViewOrder] = useState(null);
+  const [viewModal, setViewModal] = useState(false);
   const companyId = GetCompanyId();
 
   // Filters
@@ -79,6 +81,8 @@ const PurchaseOrderr = () => {
             goodsReceiptStatus: mapApiStatusToUiStatus(grStep?.status),
             billStatus: mapApiStatusToUiStatus(billStep?.status),
             paymentStatus: mapApiStatusToUiStatus(paymentStep?.status),
+            // Store the complete order data for viewing
+            fullOrderData: po
           };
         });
         setOrders(formatted);
@@ -180,6 +184,29 @@ const PurchaseOrderr = () => {
     } catch (err) {
       console.error("Delete error:", err);
       alert("Error deleting order.");
+    }
+  };
+
+  // Handle view order
+  const handleViewOrder = async (order) => {
+    try {
+      // If we already have the full data, use it
+      if (order.fullOrderData) {
+        setViewOrder(order.fullOrderData);
+      } else {
+        // Otherwise fetch it
+        const res = await axiosInstance.get(`purchase-orders/${order.id}`);
+        if (res.data.success && res.data.data) {
+          setViewOrder(res.data.data);
+        } else {
+          alert("Failed to load order details.");
+          return;
+        }
+      }
+      setViewModal(true);
+    } catch (err) {
+      console.error("View error:", err);
+      alert("Error loading order details.");
     }
   };
 
@@ -434,6 +461,14 @@ const PurchaseOrderr = () => {
                   <div className="d-flex gap-1 justify-content-center">
                     <Button
                       size="sm"
+                      variant="outline-info"
+                      onClick={() => handleViewOrder(order)}
+                      title="View Details"
+                    >
+                      <FaEye />
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="outline-primary"
                       onClick={() => handleCreateNewPurchase(order)}
                     >
@@ -473,6 +508,185 @@ const PurchaseOrderr = () => {
           </Button>
           <Button variant="danger" onClick={handleDelete}>
             Delete
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* View Order Modal */}
+      <Modal 
+        show={viewModal} 
+        onHide={() => setViewModal(false)} 
+        size="xl" 
+        centered
+        scrollable
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Purchase Order Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {viewOrder && (
+            <>
+              {/* Company Info */}
+              <Card className="mb-4">
+                <Card.Header as="h5">Company Information</Card.Header>
+                <Card.Body>
+                  <Row>
+                    <Col md={6}>
+                      <p><strong>Company Name:</strong> {viewOrder.company_info.company_name}</p>
+                      <p><strong>Address:</strong> {viewOrder.company_info.company_address}</p>
+                      <p><strong>Email:</strong> {viewOrder.company_info.company_email}</p>
+                      <p><strong>Phone:</strong> {viewOrder.company_info.company_phone}</p>
+                    </Col>
+                    <Col md={6}>
+                      <p><strong>Bank Name:</strong> {viewOrder.company_info.bank_name}</p>
+                      <p><strong>Account No:</strong> {viewOrder.company_info.account_no}</p>
+                      <p><strong>Account Holder:</strong> {viewOrder.company_info.account_holder}</p>
+                      <p><strong>IFSC Code:</strong> {viewOrder.company_info.ifsc_code}</p>
+                    </Col>
+                  </Row>
+                  <Row className="mt-3">
+                    <Col md={12}>
+                      <p><strong>Terms:</strong></p>
+                      <p>{viewOrder.company_info.terms.replace(/["\\r\\n]/g, '')}</p>
+                      <p><strong>Notes:</strong></p>
+                      <p>{viewOrder.company_info.notes.replace(/["\\r\\n]/g, '')}</p>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+
+              {/* Shipping Details */}
+              <Card className="mb-4">
+                <Card.Header as="h5">Shipping Details</Card.Header>
+                <Card.Body>
+                  <Row>
+                    <Col md={6}>
+                      <h6>Bill To</h6>
+                      <p><strong>Attention:</strong> {viewOrder.shipping_details.bill_to_attention_name}</p>
+                      <p><strong>Company:</strong> {viewOrder.shipping_details.bill_to_company_name}</p>
+                      <p><strong>Address:</strong> {viewOrder.shipping_details.bill_to_company_address}</p>
+                      <p><strong>Email:</strong> {viewOrder.shipping_details.bill_to_company_email}</p>
+                      <p><strong>Phone:</strong> {viewOrder.shipping_details.bill_to_company_phone}</p>
+                    </Col>
+                    <Col md={6}>
+                      <h6>Ship To</h6>
+                      <p><strong>Attention:</strong> {viewOrder.shipping_details.ship_to_attention_name}</p>
+                      <p><strong>Company:</strong> {viewOrder.shipping_details.ship_to_company_name}</p>
+                      <p><strong>Address:</strong> {viewOrder.shipping_details.ship_to_company_address}</p>
+                      <p><strong>Email:</strong> {viewOrder.shipping_details.ship_to_company_email}</p>
+                      <p><strong>Phone:</strong> {viewOrder.shipping_details.ship_to_company_phone}</p>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+
+              {/* Items */}
+              <Card className="mb-4">
+                <Card.Header as="h5">Items</Card.Header>
+                <Card.Body>
+                  <Table striped bordered hover>
+                    <thead>
+                      <tr>
+                        <th>Item Name</th>
+                        <th>Quantity</th>
+                        <th>Rate</th>
+                        <th>Tax %</th>
+                        <th>Discount</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewOrder.items.map((item, idx) => (
+                        <tr key={idx}>
+                          <td>{item.item_name}</td>
+                          <td>{item.qty}</td>
+                          <td>{formatAmount(item.rate)}</td>
+                          <td>{item.tax_percent}%</td>
+                          <td>{item.discount}</td>
+                          <td>{formatAmount(item.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                   
+                  </Table>
+                </Card.Body>
+              </Card>
+
+              {/* Steps */}
+              <Card className="mb-4">
+                <Card.Header as="h5">Workflow Steps</Card.Header>
+                <Card.Body>
+                  {viewOrder.steps.map((step, idx) => (
+                    <div key={idx} className="mb-3">
+                      <h6 className="text-capitalize">{step.step.replace('_', ' ')} 
+                        <Badge className="ms-2" bg={
+                          step.status === 'completed' ? 'success' : 
+                          step.status === 'Pending' ? 'secondary' : 'danger'
+                        }>
+                          {step.status}
+                        </Badge>
+                      </h6>
+                      <Row>
+                        {Object.entries(step.data).map(([key, value]) => (
+                          <Col md={4} key={key} className="mb-2">
+                            <strong>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> {value}
+                          </Col>
+                        ))}
+                      </Row>
+                      {idx < viewOrder.steps.length - 1 && <hr />}
+                    </div>
+                  ))}
+                </Card.Body>
+              </Card>
+
+              {/* Additional Info */}
+              <Card className="mb-4">
+                <Card.Header as="h5">Additional Information</Card.Header>
+                <Card.Body>
+                  <Row>
+                    {viewOrder.additional_info.files && viewOrder.additional_info.files.length > 0 && (
+                      <Col md={12}>
+                        <p><strong>Attached Files:</strong></p>
+                        <ul>
+                          {viewOrder.additional_info.files.map((file, idx) => (
+                            <li key={idx}>
+                              <a href={file.url} target="_blank" rel="noopener noreferrer">
+                                {file.name}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </Col>
+                    )}
+                    {viewOrder.additional_info.signature_url && (
+                      <Col md={4}>
+                        <p><strong>Signature:</strong></p>
+                        <img src={viewOrder.additional_info.signature_url} alt="Signature" style={{maxWidth: '100%'}} />
+                      </Col>
+                    )}
+                    {viewOrder.additional_info.photo_url && (
+                      <Col md={4}>
+                        <p><strong>Photo:</strong></p>
+                        <img src={viewOrder.additional_info.photo_url} alt="Photo" style={{maxWidth: '100%'}} />
+                      </Col>
+                    )}
+                    {viewOrder.additional_info.attachment_url && (
+                      <Col md={4}>
+                        <p><strong>Attachment:</strong></p>
+                        <a href={viewOrder.additional_info.attachment_url} target="_blank" rel="noopener noreferrer">
+                          View Attachment
+                        </a>
+                      </Col>
+                    )}
+                  </Row>
+                </Card.Body>
+              </Card>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setViewModal(false)}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

@@ -611,9 +611,6 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
     }
   };
 
-  // ===============================
-  // TAB CHANGE → LOAD DATA
-  // ===============================
 
   useEffect(() => {
     if (poId && activeTab !== "purchaseQuotation") {
@@ -744,9 +741,6 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
     }
   };
 
-  // ===============================
-  // TAB: PURCHASE QUOTATION
-  // ===============================
   const renderPurchaseQuotationTab = () => {
     const tab = "purchaseQuotation";
     const data = formData[tab];
@@ -872,7 +866,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       setShowAdd(false);
     };
 
-    // Save current step AND go to next step
+   
     const handleSaveAndNext = async () => {
       await handleSaveStep(); // First save
       // Only go next if save was successful and we have poId
@@ -1589,6 +1583,10 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       setShowAdd(false);
     };
 
+
+
+
+    
     return (
       <Form>
         {/* Header */}
@@ -4098,39 +4096,23 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
   };
 
   const handleSubmitAndClose = async () => {
-    // First, save the current (payment) step
-    await handleSaveStep(); // This should trigger PUT for "payment" step
+  
+    await handleSaveStep(); 
 
-    // Then close modal or redirect
-    // Option 1: If you're inside a modal and have `onClose` prop
+  
     if (onClose && typeof onClose === "function") {
       onClose(); // Closes modal
     }
 
-    // Option 2: If you're on a route and want to go back
-    // navigate(-1); // or navigate('/purchase-orders');
-
-    // Option 3: If `onSubmit` is your success handler (as in your props)
     if (onSubmit && typeof onSubmit === "function") {
-      onSubmit(formData, "payment"); // or just call it to signal completion
+      onSubmit(formData, "payment"); 
     }
   };
-  // ===============================
-  // RENDER
-  // ===============================
+  
   return (
     <div className="container-fluid mt-4 px-2">
       <h4 className="text-center mb-4">Purchase Process</h4>
-      {/* Buttons */}
-      {/* <div className="d-flex flex-wrap justify-content-center gap-2 gap-sm-3 mb-4">
-        <Button variant="warning" style={{ minWidth: "130px" }}>Print (English)</Button>
-        <Button variant="warning" style={{ minWidth: "130px" }}>طباعة (العربية)</Button>
-        <Button variant="warning" style={{ minWidth: "150px" }}>Print Both (EN + AR)</Button>
-        <Button variant="info" style={{ minWidth: "110px", color: "white" }}>Send</Button>
-        <Button variant="success" style={{ minWidth: "130px" }}>Download PDF</Button>
-        <Button variant="primary" style={{ minWidth: "130px" }}>Download Excel</Button>
-      </div> */}
-
+     
       <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4 custom-tabs" fill>
         <Tab eventKey="purchaseQuotation" title="Purchase Quotation" />
         <Tab eventKey="purchaseOrder" title="Purchase Order" />
