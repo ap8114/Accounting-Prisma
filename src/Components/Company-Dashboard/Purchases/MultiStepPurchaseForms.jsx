@@ -1,34 +1,19 @@
 import React, { useState, useRef, useEffect } from "react";
-import {
-  Form,
-  Button,
-  Table,
-  Row,
-  Col,
-  InputGroup,
-  FormControl,
-  Tabs,
-  Tab,
-  Alert,
-} from "react-bootstrap";
+import { Form, Button, Table, Row, Col, InputGroup, FormControl, Tabs, Tab, Alert,} from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faUpload,
-  faTrash,
-  faSearch,
-  faPlus,
-} from "@fortawesome/free-solid-svg-icons";
+import { faUpload, faTrash, faSearch, faPlus,} from "@fortawesome/free-solid-svg-icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import AddProductModal from "../Inventory/AddProductModal";
 import GetCompanyId from "../../../Api/GetCompanyId";
 import axiosInstance from "../../../Api/axiosInstance";
 
-const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
+const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep, onClose,selectedOrder }) => {
   const companyId = GetCompanyId();
   const navigate = useNavigate();
   const location = useLocation();
   const pdfRef = useRef();
-  const [isSubmitting, setIsSubmitting] = useState(false); // 👈 ADD THIS
+  const [isSubmitting, setIsSubmitting] = useState(false);
+    console.log(selectedOrder)
   // State
   const [activeTab, setActiveTab] = useState(initialStep || "purchaseQuotation");
   const [poId, setPoId] = useState(null); // Critical: ID from POST
@@ -144,6 +129,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       manualPaymentNo: "",
       billNo: "",
       manualBillNo: "",
+      Manual_payment_no:"",
       paymentDate: "",
       amount: "",
       paymentMethod: "",
@@ -402,207 +388,203 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       setLoading(false);
     }
   };
-  // LOAD FULL PO
+  console.log(selectedOrder)
+   useEffect(() => {
+  // Check if we have a PO ID from props
+  if (selectedOrder?.id) {
+    loadPurchaseOrder(selectedOrder.id);
+  }
+}, [selectedOrder?.id]);
+
+ 
+
+
   const loadPurchaseOrder = async (id) => {
     try {
-      // ✅ FIXED: Correct API URL
       const res = await axiosInstance.get(`purchase-orders/${id}`);
-      if (res.data.success) {
+      if (res.data) {
+         setPoId(id);
         const apiData = res.data.data;
-        const newFormData = { ...formData };
-
-        // Helper: Format date for input
+        console.log("API Data11111111111111111:", apiData);
+        
+     
         const formatDate = (iso) => (iso ? iso.split("T")[0] : "");
-        // ----------------------------
-        // 1. Company Info (incl. terms & notes)
-        // ----------------------------
-        if (apiData.company_info) {
-          const ci = apiData.company_info;
-          const companyFields = {
-            companyName: ci.company_name || "",
-            companyAddress: ci.company_address || "",
-            companyEmail: ci.company_email || "",
-            companyPhone: ci.company_phone || "",
-            logo: ci.logo_url || "", // ✅ Logo
-          };
 
-          ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
-            newFormData[tab] = {
-              ...newFormData[tab],
-              ...companyFields,
-            };
-          });
+        const newFormData = {
+          purchaseQuotation: {
+            companyName: apiData.company_info?.company_name || "",
+            referenceId: apiData.steps?.find(s => s.step === "quotation")?.data?.ref_no || `QRF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            manualRefNo: apiData.steps?.find(s => s.step === "quotation")?.data?.manual_ref_no || "",
+            quotationNo: apiData.steps?.find(s => s.step === "quotation")?.data?.quotation_no || `PQ-${Date.now().toString().slice(-6)}`,
+            manualQuotationNo: apiData.steps?.find(s => s.step === "quotation")?.data?.manual_quo_no || "",
+            companyAddress: apiData.company_info?.company_address || "",
+            companyEmail: apiData.company_info?.company_email || "",
+            companyPhone: apiData.company_info?.company_phone || "",
+            logo: apiData.company_info?.logo_url || "",
+            quotationDate: formatDate(apiData.steps?.find(s => s.step === "quotation")?.data?.quotation_date),
+            validDate: formatDate(apiData.steps?.find(s => s.step === "quotation")?.data?.valid_till),
+            vendorName: apiData.shipping_details?.bill_to_company_name || apiData.steps?.find(s => s.step === "quotation")?.data?.quotation_from_vendor_name || "",
+            vendorAddress: apiData.shipping_details?.bill_to_company_address || apiData.steps?.find(s => s.step === "quotation")?.data?.quotation_from_vendor_address || "",
+            vendorEmail: apiData.shipping_details?.bill_to_company_email || apiData.steps?.find(s => s.step === "quotation")?.data?.quotation_from_vendor_email || "",
+            vendorPhone: apiData.shipping_details?.bill_to_company_phone || apiData.steps?.find(s => s.step === "quotation")?.data?.quotation_from_vendor_phone || "",
+            items: apiData.items?.map((i) => ({
+              name: i.item_name || "",
+              qty: i.qty || "",
+              rate: i.rate || "",
+              tax: parseFloat(i.tax_percent) || 0,
+              discount: parseFloat(i.discount) || 0,
+              hsn: "",
+              uom: "PCS",
+            })) || [{ name: "", qty: "", rate: "", tax: 0, discount: 0, warehouse: "", hsn: "", uom: "PCS" }],
+            bankName: apiData.company_info?.bank_name || "",
+            accountNo: apiData.company_info?.account_no || "",
+            accountHolder: apiData.company_info?.account_holder || "",
+            ifsc: apiData.company_info?.ifsc_code || "",
+            notes: apiData.company_info?.notes || "",
+            terms_and_conditions: apiData.company_info?.terms || "",
+            signature: apiData.additional_info?.signature_url || "",
+            photo: apiData.additional_info?.photo_url || "",
+            files: apiData.additional_info?.files || [],
+          },
+          purchaseOrder: {
+            referenceId: `ORD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            manualRefNo: "",
+            orderNo: apiData.steps?.find(s => s.step === "purchase_order")?.data?.PO_no || `PO-${Date.now().toString().slice(-6)}`,
+            manualOrderNo: apiData.steps?.find(s => s.step === "purchase_order")?.data?.Manual_PO_ref || "",
+            quotationNo: apiData.steps?.find(s => s.step === "quotation")?.data?.quotation_no || "",
+            manualQuotationNo: apiData.steps?.find(s => s.step === "quotation")?.data?.manual_quo_no || "",
+            orderDate: "",
+            deliveryDate: "",
+            companyName: apiData.company_info?.company_name || "",
+            companyAddress: apiData.company_info?.company_address || "",
+            companyEmail: apiData.company_info?.company_email || "",
+            companyPhone: apiData.company_info?.company_phone || "",
+            vendorName: apiData.shipping_details?.bill_to_company_name || "",
+            vendorAddress: apiData.shipping_details?.bill_to_company_address || "",
+            vendorEmail: apiData.shipping_details?.bill_to_company_email || "",
+            vendorPhone: apiData.shipping_details?.bill_to_company_phone || "",
+            items: apiData.items?.map((i) => ({
+              name: i.item_name || "",
+              qty: i.qty || "",
+              rate: i.rate || "",
+              tax: parseFloat(i.tax_percent) || 0,
+              discount: parseFloat(i.discount) || 0,
+              hsn: "",
+              uom: "PCS",
+            })) || [{ name: "", qty: "", rate: "", tax: 0, discount: 0, hsn: "", uom: "PCS" }],
+            terms: apiData.company_info?.terms || "",
+            signature: apiData.additional_info?.signature_url || "",
+            photo: apiData.additional_info?.photo_url || "",
+            files: [],
+          },
+          goodsReceipt: {
+            referenceId: `GRN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            manualRefNo: "",
+            purchaseOrderNo: apiData.steps?.find(s => s.step === "purchase_order")?.data?.PO_no || "",
+            receiptNo: apiData.steps?.find(s => s.step === "goods_receipt")?.data?.GR_no || `GR-${Date.now().toString().slice(-6)}`,
+            manualReceiptNo: apiData.steps?.find(s => s.step === "goods_receipt")?.data?.Manual_GR_no || "",
+            receiptDate: "",
+            vehicleNo: apiData.steps?.find(s => s.step === "goods_receipt")?.data?.vehicle_no || "",
+            driverName: apiData.steps?.find(s => s.step === "goods_receipt")?.data?.driver_name || "",
+            driverPhone: apiData.steps?.find(s => s.step === "goods_receipt")?.data?.driver_phone || "",
+            companyName: apiData.company_info?.company_name || "",
+            companyAddress: apiData.company_info?.company_address || "",
+            companyEmail: apiData.company_info?.company_email || "",
+            companyPhone: apiData.company_info?.company_phone || "",
+            vendorName: apiData.shipping_details?.bill_to_company_name || "",
+            vendorAddress: apiData.shipping_details?.bill_to_company_address || "",
+            vendorEmail: apiData.shipping_details?.bill_to_company_email || "",
+            vendorPhone: apiData.shipping_details?.bill_to_company_phone || "",
+            shipToName: apiData.shipping_details?.ship_to_company_name || "",
+            shipToAddress: apiData.shipping_details?.ship_to_company_address || "",
+            shipToEmail: apiData.shipping_details?.ship_to_company_email || "",
+            shipToPhone: apiData.shipping_details?.ship_to_company_phone || "",
+            items: apiData.items?.map((i) => ({
+              name: i.item_name || "",
+              qty: i.qty || "",
+              receivedQty: i.qty || "",
+              rate: i.rate || "",
+              tax: parseFloat(i.tax_percent) || 0,
+              discount: parseFloat(i.discount) || 0,
+              hsn: "",
+              uom: "PCS",
+            })) || [{ name: "", qty: "", receivedQty: "", rate: "", tax: 0, discount: 0, hsn: "", uom: "PCS" }],
+            terms: apiData.company_info?.terms || "",
+            signature: apiData.additional_info?.signature_url || "",
+            photo: apiData.additional_info?.photo_url || "",
+            files: [],
+          },
+          bill: {
+            referenceId: `BILL-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            manualRefNo: "",
+            billNo: apiData.steps?.find(s => s.step === "bill")?.data?.Bill_no || `BILL-${Date.now().toString().slice(-6)}`,
+            manualBillNo: apiData.steps?.find(s => s.step === "bill")?.data?.Manual_Bill_no || "",
+            goodsReceiptNo: apiData.steps?.find(s => s.step === "goods_receipt")?.data?.GR_no || "",
+            manualGoodsReceiptNo: apiData.steps?.find(s => s.step === "goods_receipt")?.data?.Manual_GR_no || "",
+            billDate: "",
+            dueDate: formatDate(apiData.steps?.find(s => s.step === "bill")?.data?.due_date),
+            companyName: apiData.company_info?.company_name || "",
+            companyAddress: apiData.company_info?.company_address || "",
+            companyEmail: apiData.company_info?.company_email || "",
+            companyPhone: apiData.company_info?.company_phone || "",
+            vendorName: apiData.shipping_details?.bill_to_company_name || "",
+            vendorAddress: apiData.shipping_details?.bill_to_company_address || "",
+            vendorEmail: apiData.shipping_details?.bill_to_company_email || "",
+            vendorPhone: apiData.shipping_details?.bill_to_company_phone || "",
+            shipToName: apiData.shipping_details?.ship_to_company_name || "",
+            shipToAddress: apiData.shipping_details?.ship_to_company_address || "",
+            shipToEmail: apiData.shipping_details?.ship_to_company_email || "",
+            shipToPhone: apiData.shipping_details?.ship_to_company_phone || "",
+            items: apiData.items?.map((i) => ({
+              description: i.item_name || "",
+              qty: i.qty || "",
+              rate: i.rate || "",
+              tax: parseFloat(i.tax_percent) || 0,
+              discount: parseFloat(i.discount) || 0,
+              amount: ((parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0)).toFixed(2),
+              hsn: "",
+              uom: "PCS",
+            })) || [{ description: "", qty: "", rate: "", tax: "", discount: "", amount: "", hsn: "", uom: "PCS" }],
+            terms: apiData.company_info?.terms || "",
+            signature: apiData.additional_info?.signature_url || "",
+            photo: apiData.additional_info?.photo_url || "",
+            files: [],
+          },
+          payment: {
+            referenceId: `PAY-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            manualRefNo: "",
+            paymentNo: apiData.steps?.find(s => s.step === "payment")?.data?.Payment_no || `PAY-${Date.now().toString().slice(-6)}`,
+            manualPaymentNo: apiData.steps?.find(s => s.step === "payment")?.data?.Manual_payment_no || "",
+            billNo: apiData.steps?.find(s => s.step === "bill")?.data?.Bill_no || "",
+            manualBillNo: apiData.steps?.find(s => s.step === "bill")?.data?.Manual_Bill_no || "",
+            paymentDate: "",
+            amount: apiData.steps?.find(s => s.step === "payment")?.data?.amount_paid || "",
+            paymentMethod: "",
+            paymentStatus: apiData.steps?.find(s => s.step === "payment")?.data?.payment_status || "Pending",
+            note: apiData.steps?.find(s => s.step === "payment")?.data?.payment_note || "",
+            vendorName: apiData.shipping_details?.bill_to_company_name || apiData.steps?.find(s => s.step === "payment")?.data?.payment_made_vendor_name || "",
+            vendorAddress: apiData.shipping_details?.bill_to_company_address || apiData.steps?.find(s => s.step === "payment")?.data?.payment_made_vendor_address || "",
+            vendorEmail: apiData.shipping_details?.bill_to_company_email || apiData.steps?.find(s => s.step === "payment")?.data?.payment_made_vendor_email || "",
+            vendorPhone: apiData.shipping_details?.bill_to_company_phone || apiData.steps?.find(s => s.step === "payment")?.data?.payment_made_vendor_phone || "",
+            companyName: apiData.company_info?.company_name || "",
+            companyAddress: apiData.company_info?.company_address || "",
+            companyEmail: apiData.company_info?.company_email || "",
+            companyPhone: apiData.company_info?.company_phone || "",
+            totalAmount: calculateTotalWithTaxAndDiscount(apiData.items?.map((i) => ({
+              name: i.item_name || "",
+              qty: i.qty || "",
+              rate: i.rate || "",
+              tax: parseFloat(i.tax_percent) || 0,
+              discount: parseFloat(i.discount) || 0,
+            })) || []),
+            footerNote: "Thank you for your payment!",
+            signature: apiData.additional_info?.signature_url || "",
+            photo: apiData.additional_info?.photo_url || "",
+            files: [],
+          },
+        };
 
-          // Only Quotation gets full notes & terms
-          newFormData.purchaseQuotation = {
-            ...newFormData.purchaseQuotation,
-            notes: ci.notes || "",
-            terms_and_conditions: ci.terms || "",
-            bankName: ci.bank_name || "",
-            accountNo: ci.account_no || "",
-            accountHolder: ci.account_holder || "",
-            ifsc: ci.ifsc_code || "",
-          };
-        }
-
-        // ----------------------------
-        // 2. Shipping & Vendor Info
-        // ----------------------------
-        if (apiData.shipping_details) {
-          const sd = apiData.shipping_details;
-          const vendorFields = {
-            vendorName: sd.bill_to_attention_name || sd.bill_to_company_name || "",
-            vendorAddress: sd.bill_to_company_address || "",
-            vendorEmail: sd.bill_to_company_email || "",
-            vendorPhone: sd.bill_to_company_phone || "",
-          };
-
-          // Apply to all tabs
-          ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
-            newFormData[tab] = {
-              ...newFormData[tab],
-              ...vendorFields,
-              // ✅ Ship To (for GR & Bill)
-              shipToName: sd.ship_to_attention_name || sd.ship_to_company_name || "",
-              shipToAddress: sd.ship_to_company_address || "",
-              shipToEmail: sd.ship_to_company_email || "",
-              shipToPhone: sd.ship_to_company_phone || "",
-            };
-          });
-        }
-
-        // ----------------------------
-        // 3. Items
-        // ----------------------------
-        if (apiData.items && Array.isArray(apiData.items)) {
-          const items = apiData.items.map((i) => ({
-            name: i.item_name || "",
-            qty: i.qty || "",
-            rate: i.rate || "",
-            tax: parseFloat(i.tax_percent) || 0,
-            discount: parseFloat(i.discount) || 0,
-            hsn: "",
-            uom: "PCS",
-          }));
-
-          newFormData.purchaseQuotation.items = items;
-          newFormData.purchaseOrder.items = items.map((i) => ({ ...i }));
-          newFormData.goodsReceipt.items = items.map((i) => ({ ...i, receivedQty: i.qty }));
-          newFormData.bill.items = items.map((i) => ({
-            ...i,
-            description: i.name,
-            amount: ((parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0)).toFixed(2),
-          }));
-        }
-
-        // ----------------------------
-        // 4. Steps (with manual numbers & dates)
-        // ----------------------------
-        const stepsMap = {};
-        apiData.steps.forEach((step) => {
-          stepsMap[step.step] = step.data;
-        });
-
-        // --- Quotation
-        if (stepsMap.quotation) {
-          const q = stepsMap.quotation;
-          newFormData.purchaseQuotation = {
-            ...newFormData.purchaseQuotation,
-            referenceId: q.ref_no || newFormData.purchaseQuotation.referenceId,
-            manualRefNo: q.manual_ref_ro || q.manual_ref_no || "",
-            quotationNo: q.quotation_no || newFormData.purchaseQuotation.quotationNo,
-            manualQuotationNo: q.manual_quo_no || "",
-            quotationDate: formatDate(q.quotation_date),
-            validDate: formatDate(q.valid_till),
-            // Re-assign vendor in case step overrides shipping_details
-            vendorName: q.quotation_from_vendor_name || newFormData.purchaseQuotation.vendorName,
-            vendorAddress: q.quotation_from_vendor_address || newFormData.purchaseQuotation.vendorAddress,
-            vendorEmail: q.quotation_from_vendor_email || newFormData.purchaseQuotation.vendorEmail,
-            vendorPhone: q.quotation_from_vendor_phone || newFormData.purchaseQuotation.vendorPhone,
-          };
-        }
-
-        // --- Purchase Order
-        if (stepsMap.purchase_order) {
-          const po = stepsMap.purchase_order;
-          newFormData.purchaseOrder = {
-            ...newFormData.purchaseOrder,
-            orderNo: po.PO_no || newFormData.purchaseOrder.orderNo,
-            manualOrderNo: po.Manual_PO_ref || "", // ✅ Manual number preserved
-            quotationNo: newFormData.purchaseQuotation.quotationNo,
-            manualQuotationNo: newFormData.purchaseQuotation.manualQuotationNo,
-          };
-        }
-
-        // --- Goods Receipt
-        if (stepsMap.goods_receipt) {
-          const gr = stepsMap.goods_receipt;
-          newFormData.goodsReceipt = {
-            ...newFormData.goodsReceipt,
-            receiptNo: gr.GR_no || newFormData.goodsReceipt.receiptNo,
-            manualReceiptNo: gr.Manual_GR_no || "", // ✅ Manual GR No
-            purchaseOrderNo: newFormData.purchaseOrder.orderNo,
-            vehicleNo: gr.vehicle_no || "",
-            driverName: gr.driver_name || "",
-            driverPhone: gr.driver_phone || "",
-          };
-        }
-
-        // --- Bill
-        if (stepsMap.bill) {
-          const b = stepsMap.bill;
-          newFormData.bill = {
-            ...newFormData.bill,
-            billNo: b.Bill_no || newFormData.bill.billNo,
-            manualBillNo: b.Manual_Bill_no || "", // ✅ Manual Bill No
-            goodsReceiptNo: newFormData.goodsReceipt.receiptNo,
-            manualGoodsReceiptNo: newFormData.goodsReceipt.manualReceiptNo,
-            dueDate: formatDate(b.due_date),
-            terms: apiData.company_info?.terms || "", // ✅ Terms in Bill tab
-          };
-        }
-
-        // --- Payment
-        if (stepsMap.payment) {
-          const p = stepsMap.payment;
-          const totalAmount = calculateTotalWithTaxAndDiscount(newFormData.purchaseQuotation.items);
-          newFormData.payment = {
-            ...newFormData.payment,
-            paymentNo: p.Payment_no || newFormData.payment.paymentNo,
-            manualPaymentNo: p.Manual_payment_no || "", // ✅ Manual Payment No
-            amount: p.amount_paid !== undefined ? p.amount_paid : "",
-            totalAmount: totalAmount,
-            paymentStatus: p.payment_status || "Pending",
-            note: p.payment_note || "",
-            billNo: newFormData.bill.billNo,
-            manualBillNo: newFormData.bill.manualBillNo,
-            // Re-assign vendor from payment step if exists
-            vendorName: p.payment_made_vendor_name || newFormData.payment.vendorName,
-            vendorAddress: p.payment_made_vendor_address || newFormData.payment.vendorAddress,
-            vendorEmail: p.payment_made_vendor_email || newFormData.payment.vendorEmail,
-            vendorPhone: p.payment_made_vendor_phone || newFormData.payment.vendorPhone,
-          };
-        }
-
-        // ----------------------------
-        // 5. Load Binary Images (if supported by backend)
-        // ----------------------------
-        if (apiData.additional_info) {
-          const ai = apiData.additional_info;
-          // Assume backend returns base64 or URLs
-          if (ai.signature_url) {
-            ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
-              newFormData[tab].signature = ai.signature_url;
-            });
-          }
-          if (ai.photo_url) {
-            ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"].forEach((tab) => {
-              newFormData[tab].photo = ai.photo_url;
-            });
-          }
-          // Logo already handled from company_info
-        }
-
+        console.log("New Form Data:", newFormData); // Debug log
         setFormData(newFormData);
       }
     } catch (err) {
@@ -611,6 +593,16 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
     }
   };
 
+  useEffect(() => {
+    // Check if we have a PO ID from URL or props
+    const urlParams = new URLSearchParams(location.search);
+    const poIdFromUrl = urlParams.get('poId') || initialData?.poId;
+    
+    if (poIdFromUrl) {
+      setPoId(poIdFromUrl);
+      loadPurchaseOrder(poIdFromUrl);
+    }
+  }, [location.search, initialData]);
 
   useEffect(() => {
     if (poId && activeTab !== "purchaseQuotation") {
@@ -672,7 +664,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
             ref_no: pq.referenceId,
             manual_ref_ro: pq.manualRefNo,
             quotation_no: pq.quotationNo,
-            manual_quo_no: pq.manualQuotationNo,
+            manual_quo_no: pq.manualRefNo,
             quotation_date: pq.quotationDate,
             valid_till: pq.validDate,
           },
@@ -702,12 +694,12 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       if (activeTab === "purchaseOrder") {
         apiStepData = {
           PO_no: currentData.orderNo,
-          Manual_PO_ref: currentData.manualOrderNo, // ✅ Include manual field
+          Manual_PO_ref: currentData.manualOrderNo,
         };
       } else if (activeTab === "goodsReceipt") {
         apiStepData = {
           GR_no: currentData.receiptNo,
-          Manual_GR_no: currentData.manualReceiptNo, // ✅
+          Manual_GR_no: currentData.manualReceiptNo,
           vehicle_no: currentData.vehicleNo,
           driver_name: currentData.driverName,
           driver_phone: currentData.driverPhone,
@@ -715,14 +707,14 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       } else if (activeTab === "bill") {
         apiStepData = {
           Bill_no: currentData.billNo,
-          Manual_Bill_no: currentData.manualBillNo, // ✅
+          Manual_Bill_no: currentData.manualBillNo,
           due_date: currentData.dueDate,
         };
       } else if (activeTab === "payment") {
         const totalAmount = calculateTotalWithTaxAndDiscount(formData.purchaseQuotation.items);
         apiStepData = {
           Payment_no: currentData.paymentNo,
-          Manual_payment_no: currentData.manualPaymentNo, // ✅
+          Manual_payment_no: currentData.manualPaymentNo,
           amount_paid: parseFloat(currentData.amount) || 0,
           total_amount: totalAmount,
           total_bill: totalAmount,
@@ -741,6 +733,8 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
     }
   };
 
+
+  
   const renderPurchaseQuotationTab = () => {
     const tab = "purchaseQuotation";
     const data = formData[tab];
@@ -814,7 +808,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
         hsn: item.hsn,
         uom: item.unit_detail?.uom_name || "PCS",
         productId: item.id,
-        warehouse: item.warehouses?.[0]?.warehouse_id || "", // Pre-select first warehouse if available
+        warehouse: item.warehouses?.[0]?.warehouse_id || "",
       };
       setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
       setShowRowSearch((prev) => ({ ...prev, [`${tab}-${idx}`]: false }));
@@ -864,24 +858,6 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
         uom: "PCS",
       });
       setShowAdd(false);
-    };
-
-   
-    const handleSaveAndNext = async () => {
-      await handleSaveStep(); // First save
-      // Only go next if save was successful and we have poId
-      if (activeTab !== "payment") {
-        const tabs = ["purchaseQuotation", "purchaseOrder", "goodsReceipt", "bill", "payment"];
-        const idx = tabs.indexOf(activeTab);
-        if (idx < tabs.length - 1) {
-          const nextTab = tabs[idx + 1];
-          setActiveTab(nextTab);
-          // If we have poId and it's not Step 1, load data for next tab
-          if (poId && nextTab !== "purchaseQuotation") {
-            await loadPurchaseOrder(poId);
-          }
-        }
-      }
     };
 
     const handleVendorSearchChange = (value) => {
@@ -1240,8 +1216,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                               style={{ padding: "8px", cursor: "pointer" }}
                               onClick={() => handleSelectSearchedItem(idx, fItem)}
                             >
-                              <strong>{fItem.item_name}</strong> – $
-                              {(parseFloat(fItem.purchase_price || fItem.sale_price) || 0).toFixed(2)}
+                              <strong>{fItem.item_name}</strong> – $                               {(parseFloat(fItem.purchase_price || fItem.sale_price) || 0).toFixed(2)}
                             </div>
                           ))}
                         </div>
@@ -1329,8 +1304,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                 <tr>
                   <td>Sub Total:</td>
                   <td>
-                    $
-                    {data.items
+                    $                     {data.items
                       .reduce(
                         (s, i) =>
                           s + (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0),
@@ -1342,8 +1316,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                 <tr>
                   <td>Tax:</td>
                   <td>
-                    $
-                    {data.items
+                    $                     {data.items
                       .reduce((s, i) => {
                         const sub = (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0);
                         return s + (sub * (parseFloat(i.tax) || 0)) / 100;
@@ -1354,8 +1327,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                 <tr>
                   <td>Discount:</td>
                   <td>
-                    $
-                    {data.items
+                    $                     {data.items
                       .reduce((s, i) => s + (parseFloat(i.discount) || 0), 0)
                       .toFixed(2)}
                   </td>
@@ -1404,7 +1376,6 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
             />
           </Col>
         </Row>
-        {/* <hr style={{ height: "4px", backgroundColor: "#28a745", border: "none", margin: "5px 0 10px" }} /> */}
         <Row className="mb-4">
           <Col>
             <Form.Group>
@@ -1527,12 +1498,12 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       const items = [...data.items];
       items[idx] = {
         ...items[idx],
-        name: item.item_name, // Use fetched product name
-        rate: item.purchase_price || item.sale_price, // Use fetched rate
-        tax: parseFloat(item.tax_account) || 0, // Use fetched tax
-        hsn: item.hsn, // Use fetched HSN
-        uom: item.unit_detail?.uom_name || "PCS", // Use fetched UOM
-        productId: item.id, // Store ID if needed later
+        name: item.item_name,
+        rate: item.purchase_price || item.sale_price,
+        tax: parseFloat(item.tax_account) || 0,
+        hsn: item.hsn,
+        uom: item.unit_detail?.uom_name || "PCS",
+        productId: item.id,
       };
       setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
       setShowRowSearch((prev) => ({ ...prev, [`${tab}-${idx}`]: false }));
@@ -1583,10 +1554,35 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       setShowAdd(false);
     };
 
+    const handleVendorSearchChange = (value) => {
+      setVendorSearchTerm(value);
+      setShowVendorSearch(true);
+    };
 
+    const handleSelectVendor = (v) => {
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          vendorName: v.name_english || "",
+          vendorAddress: v.address || "",
+          vendorEmail: v.email || "",
+          vendorPhone: v.phone || "",
+        },
+      }));
+      setShowVendorSearch(false);
+      setVendorSearchTerm("");
+    };
 
+    const filteredVendors = vendorSearchTerm
+      ? vendors.filter(
+        (v) =>
+          (v.name_english || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+          (v.email || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+          (v.phone || "").toLowerCase().includes(vendorSearchTerm.toLowerCase())
+      )
+      : vendors;
 
-    
     return (
       <Form>
         {/* Header */}
@@ -1602,7 +1598,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
               }}
               onClick={() => document.getElementById("logo-po")?.click()}
             >
-              {formData.purchaseQuotation.logo ? ( // Use logo from PQ
+              {formData.purchaseQuotation.logo ? (
                 <img
                   src={formData.purchaseQuotation.logo}
                   alt="Logo"
@@ -1627,28 +1623,28 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
             <div className="d-flex flex-column gap-1">
               <Form.Control
                 type="text"
-                value={data.companyName} // Use fetched company name
+                value={data.companyName}
                 readOnly
                 className="form-control-no-border"
                 style={{ backgroundColor: "#f8f9fa" }}
               />
               <Form.Control
                 type="text"
-                value={data.companyAddress} // Use fetched company address
+                value={data.companyAddress}
                 readOnly
                 className="form-control-no-border"
                 style={{ backgroundColor: "#f8f9fa" }}
               />
               <Form.Control
                 type="email"
-                value={data.companyEmail} // Use fetched company email
+                value={data.companyEmail}
                 readOnly
                 className="form-control-no-border"
                 style={{ backgroundColor: "#f8f9fa" }}
               />
               <Form.Control
                 type="text"
-                value={data.companyPhone} // Use fetched company phone
+                value={data.companyPhone}
                 readOnly
                 className="form-control-no-border"
                 style={{ backgroundColor: "#f8f9fa" }}
@@ -1683,16 +1679,16 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                 value={data.vendorName}
                 onChange={(e) => {
                   handleChange("vendorName", e.target.value);
-                  handleVendorSearchChange(e.target.value); // Reuse vendor search logic
+                  handleVendorSearchChange(e.target.value);
                 }}
-                onFocus={() => setShowVendorSearch(true)} // Reuse vendor search logic
+                onFocus={() => setShowVendorSearch(true)}
                 placeholder="Vendor Name"
                 className="form-control-no-border"
               />
               <Button
                 variant="outline-secondary"
                 size="sm"
-                onClick={() => setShowVendorSearch(!showVendorSearch)} // Reuse vendor search logic
+                onClick={() => setShowVendorSearch(!showVendorSearch)}
               >
                 <FontAwesomeIcon icon={faSearch} />
               </Button>
@@ -1723,35 +1719,15 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                   width: "100%",
                 }}
               >
-                {vendors
-                  .filter(
-                    (v) =>
-                      (v.name_english || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-                      (v.email || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-                      (v.phone || "").toLowerCase().includes(vendorSearchTerm.toLowerCase())
-                  )
-                  .map((v) => (
-                    <div
-                      key={v.id}
-                      style={{ padding: "8px", cursor: "pointer" }}
-                      onClick={() => {
-                        setFormData((prev) => ({
-                          ...prev,
-                          [tab]: {
-                            ...prev[tab],
-                            vendorName: v.name_english || "",
-                            vendorAddress: v.address || "",
-                            vendorEmail: v.email || "",
-                            vendorPhone: v.phone || "",
-                          },
-                        }));
-                        setShowVendorSearch(false);
-                        setVendorSearchTerm("");
-                      }}
-                    >
-                      <strong>{v.name_english}</strong> – {v.email} | {v.phone}
-                    </div>
-                  ))}
+                {filteredVendors.map((v) => (
+                  <div
+                    key={v.id}
+                    style={{ padding: "8px", cursor: "pointer" }}
+                    onClick={() => handleSelectVendor(v)}
+                  >
+                    <strong>{v.name_english}</strong> – {v.email} | {v.phone}
+                  </div>
+                ))}
               </div>
             )}
             <Form.Control
@@ -1781,18 +1757,18 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
               <Form.Label>Reference No</Form.Label>
               <Form.Control value={data.referenceId} readOnly style={{ backgroundColor: "#f8f9fa" }} />
             </Form.Group>
-            {/* <Form.Group className="mb-2">
-              <Form.Label>Manual Ref. No.</Form.Label>
-              <Form.Control
-                value={data.manualRefNo}
-                onChange={(e) => handleChange("manualRefNo", e.target.value)}
-              />
-            </Form.Group> */}
             <Form.Group className="mb-2">
               <Form.Label>Order No.</Form.Label>
               <Form.Control
                 value={data.orderNo}
                 onChange={(e) => handleChange("orderNo", e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group className="mb-2">
+              <Form.Label>Manual Order No.</Form.Label>
+              <Form.Control
+                value={data.manualOrderNo}
+                onChange={(e) => handleChange("manualOrderNo", e.target.value)}
               />
             </Form.Group>
             <Form.Group className="mb-2">
@@ -1814,7 +1790,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
               <Form.Label>Delivery Date</Form.Label>
               <Form.Control
                 type="date"
-                value={data.valid_till}
+                value={data.deliveryDate}
                 onChange={(e) => handleChange("deliveryDate", e.target.value)}
               />
             </Form.Group>
@@ -1936,8 +1912,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                               style={{ padding: "8px", cursor: "pointer" }}
                               onClick={() => handleSelectSearchedItem(idx, fItem)}
                             >
-                              <strong>{fItem.item_name}</strong> – $
-                              {(parseFloat(fItem.purchase_price || fItem.sale_price) || 0).toFixed(2)}
+                              <strong>{fItem.item_name}</strong> – $                               {(parseFloat(fItem.purchase_price || fItem.sale_price) || 0).toFixed(2)}
                             </div>
                           ))}
                         </div>
@@ -2011,8 +1986,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                 <tr>
                   <td>Sub Total:</td>
                   <td>
-                    $
-                    {data.items
+                    $                     {data.items
                       .reduce(
                         (s, i) =>
                           s + (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0),
@@ -2024,8 +1998,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                 <tr>
                   <td>Tax:</td>
                   <td>
-                    $
-                    {data.items
+                    $                     {data.items
                       .reduce((s, i) => {
                         const sub = (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0);
                         return s + (sub * (parseFloat(i.tax) || 0)) / 100;
@@ -2036,8 +2009,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                 <tr>
                   <td>Discount:</td>
                   <td>
-                    $
-                    {data.items
+                    $                     {data.items
                       .reduce((s, i) => s + (parseFloat(i.discount) || 0), 0)
                       .toFixed(2)}
                   </td>
@@ -2068,7 +2040,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
               <Form.Control
                 as="textarea"
                 rows={3}
-                value={data.terms_and_conditions || ""}
+                value={data.terms || ""}
                 onChange={(e) => handleChange("terms", e.target.value)}
                 style={{ border: "1px solid #343a40" }}
               />
@@ -2192,12 +2164,12 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       const items = [...data.items];
       items[idx] = {
         ...items[idx],
-        name: item.item_name, // Use fetched product name
-        rate: item.purchase_price || item.sale_price, // Use fetched rate
-        tax: parseFloat(item.tax_account) || 0, // Use fetched tax
-        hsn: item.hsn, // Use fetched HSN
-        uom: item.unit_detail?.uom_name || "PCS", // Use fetched UOM
-        productId: item.id, // Store ID if needed later
+        name: item.item_name,
+        rate: item.purchase_price || item.sale_price,
+        tax: parseFloat(item.tax_account) || 0,
+        hsn: item.hsn,
+        uom: item.unit_detail?.uom_name || "PCS",
+        productId: item.id,
       };
       setFormData((prev) => ({ ...prev, [tab]: { ...prev[tab], items } }));
       setShowRowSearch((prev) => ({ ...prev, [`${tab}-${idx}`]: false }));
@@ -2249,6 +2221,35 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
       setShowAdd(false);
     };
 
+    const handleVendorSearchChange = (value) => {
+      setVendorSearchTerm(value);
+      setShowVendorSearch(true);
+    };
+
+    const handleSelectVendor = (v) => {
+      setFormData((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          vendorName: v.name_english || "",
+          vendorAddress: v.address || "",
+          vendorEmail: v.email || "",
+          vendorPhone: v.phone || "",
+        },
+      }));
+      setShowVendorSearch(false);
+      setVendorSearchTerm("");
+    };
+
+    const filteredVendors = vendorSearchTerm
+      ? vendors.filter(
+        (v) =>
+          (v.name_english || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+          (v.email || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+          (v.phone || "").toLowerCase().includes(vendorSearchTerm.toLowerCase())
+      )
+      : vendors;
+
     return (
       <Form>
         <Row className="mb-4 d-flex justify-content-between align-items-center">
@@ -2263,7 +2264,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
               }}
               onClick={() => document.getElementById("logo-gr")?.click()}
             >
-              {formData.purchaseQuotation.logo ? ( // Use logo from PQ
+              {formData.purchaseQuotation.logo ? (
                 <img
                   src={formData.purchaseQuotation.logo}
                   alt="Logo"
@@ -2308,28 +2309,28 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
             <div className="d-flex flex-column gap-1">
               <Form.Control
                 type="text"
-                value={data.companyName} // Use fetched company name
+                value={data.companyName}
                 onChange={(e) => handleChange("companyName", e.target.value)}
                 placeholder="Company Name"
                 className="form-control-no-border"
               />
               <Form.Control
                 type="text"
-                value={data.companyAddress} // Use fetched company address
+                value={data.companyAddress}
                 onChange={(e) => handleChange("companyAddress", e.target.value)}
                 placeholder="Address"
                 className="form-control-no-border"
               />
               <Form.Control
                 type="email"
-                value={data.companyEmail} // Use fetched company email
+                value={data.companyEmail}
                 onChange={(e) => handleChange("companyEmail", e.target.value)}
                 placeholder="Email"
                 className="form-control-no-border"
               />
               <Form.Control
                 type="text"
-                value={data.companyPhone} // Use fetched company phone
+                value={data.companyPhone}
                 onChange={(e) => handleChange("companyPhone", e.target.value)}
                 placeholder="Phone"
                 className="form-control-no-border"
@@ -2432,16 +2433,16 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                 value={data.vendorName}
                 onChange={(e) => {
                   handleChange("vendorName", e.target.value);
-                  handleVendorSearchChange(e.target.value); // Reuse vendor search logic
+                  handleVendorSearchChange(e.target.value);
                 }}
-                onFocus={() => setShowVendorSearch(true)} // Reuse vendor search logic
+                onFocus={() => setShowVendorSearch(true)}
                 placeholder="Vendor Name"
                 className="form-control-no-border"
               />
               <Button
                 variant="outline-secondary"
                 size="sm"
-                onClick={() => setShowVendorSearch(!showVendorSearch)} // Reuse vendor search logic
+                onClick={() => setShowVendorSearch(!showVendorSearch)}
               >
                 <FontAwesomeIcon icon={faSearch} />
               </Button>
@@ -2472,35 +2473,15 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                   width: "100%",
                 }}
               >
-                {vendors
-                  .filter(
-                    (v) =>
-                      (v.name_english || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-                      (v.email || "").toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-                      (v.phone || "").toLowerCase().includes(vendorSearchTerm.toLowerCase())
-                  )
-                  .map((v) => (
-                    <div
-                      key={v.id}
-                      style={{ padding: "8px", cursor: "pointer" }}
-                      onClick={() => {
-                        setFormData((prev) => ({
-                          ...prev,
-                          [tab]: {
-                            ...prev[tab],
-                            vendorName: v.name_english || "",
-                            vendorAddress: v.address || "",
-                            vendorEmail: v.email || "",
-                            vendorPhone: v.phone || "",
-                          },
-                        }));
-                        setShowVendorSearch(false);
-                        setVendorSearchTerm("");
-                      }}
-                    >
-                      <strong>{v.name_english}</strong> – {v.email} | {v.phone}
-                    </div>
-                  ))}
+                {filteredVendors.map((v) => (
+                  <div
+                    key={v.id}
+                    style={{ padding: "8px", cursor: "pointer" }}
+                    onClick={() => handleSelectVendor(v)}
+                  >
+                    <strong>{v.name_english}</strong> – {v.email} | {v.phone}
+                  </div>
+                ))}
               </div>
             )}
             <Form.Control
@@ -2695,6 +2676,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                             </InputGroup.Text>
                             <FormControl
                               placeholder="Search..."
+                         
                               value={rowSearchTerms[rowKey] || ""}
                               onChange={(e) => handleRowSearchChange(idx, e.target.value)}
                               autoFocus
@@ -3760,8 +3742,8 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
                 <Form.Label className="mb-0">Manual Pay. No.</Form.Label>
                 <Form.Control
                   type="text"
-                  value={data.manualRefNo}
-                  onChange={(e) => handleChange("manualRefNo", e.target.value)}
+                  value={data.Manual_payment_no}
+                  onChange={(e) => handleChange("Manual_payment_no", e.target.value)}
                   className="form-control-no-border text-end"
                 />
               </div>

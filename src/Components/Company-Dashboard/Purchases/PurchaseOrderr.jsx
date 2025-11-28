@@ -101,63 +101,21 @@ const PurchaseOrderr = () => {
   useEffect(() => {
     fetchPurchaseOrders();
   }, [companyId]);
-
-  // ✅ HANDLE "CREATE" or "CONTINUE"
-  const handleCreateNewPurchase = async (order = null) => {
-    if (order) {
-      try {
-        const res = await axiosInstance.get(`purchase-orders/${order.id}`);
-        if (res.data.success && res.data.data) {
-          const po = res.data.data;
-
-          const quotationStep = po.steps.find((s) => s.step === "quotation");
-          const poStep = po.steps.find((s) => s.step === "purchase_order");
-          const grStep = po.steps.find((s) => s.step === "goods_receipt");
-          const billStep = po.steps.find((s) => s.step === "bill");
-          const paymentStep = po.steps.find((s) => s.step === "payment");
-
-          // Determine first incomplete step
-          const stepOrder = ["quotation", "purchase_order", "goods_receipt", "bill", "payment"];
-          let draftStep = "quotation";
-          for (const stepName of stepOrder) {
-            const step = po.steps.find((s) => s.step === stepName);
-            const isDone = ["Approved", "Confirmed", "Completed", "completed"].includes(step?.status);
-            if (!isDone) {
-              draftStep = stepName;
-              break;
-            }
-          }
-          // Map API step to UI tab key
-          const apiToUiStep = {
-            quotation: "purchaseQuotation",
-            purchase_order: "purchaseOrder",
-            goods_receipt: "goodsReceipt",
-            bill: "bill",
-            payment: "payment",
-          };
-
-          setSelectedOrder({
-            id: po.company_info.id,
-            purchaseQuotation: quotationStep?.data || {},
-            purchaseOrder: poStep?.data || {},
-            goodsReceipt: grStep?.data || {},
-            bill: billStep?.data || {},
-            payment: paymentStep?.data || {},
-            initialStep: apiToUiStep[draftStep] || "purchaseQuotation",
-          });
-          setStepModal(true);
-        }
-      } catch (err) {
-        alert("Could not load purchase order details.");
-        console.error("Load error:", err);
-      }
-    } else {
-      // New order
-      setSelectedOrder(null);
-      setStepModal(true);
-    }
-  };
-
+// ✅ HANDLE "CREATE" or "CONTINUE"
+const handleCreateNewPurchase = async (order = null) => {
+  if (order) {
+  
+    setSelectedOrder({
+      id: order.id,
+      initialStep: "purchaseQuotation" // Default step
+    });
+    setStepModal(true);
+  } else {
+    // New order
+    setSelectedOrder(null);
+    setStepModal(true);
+  }
+};
   // ✅ DEFINE THIS — fixes "handleModalClose is not defined"
   const handleFormClose = () => {
     setStepModal(false);
@@ -706,11 +664,13 @@ const PurchaseOrderr = () => {
               goodsReceipt: selectedOrder?.goodsReceipt || {},
               bill: selectedOrder?.bill || {},
               payment: selectedOrder?.payment || {},
+              
             }}
             initialStep={selectedOrder?.initialStep || "purchaseQuotation"}
             onClose={handleFormClose}
             onRefresh={fetchPurchaseOrders}
             onSubmit={handleFormSubmit}
+             selectedOrder={selectedOrder} // ✅ ADD THIS LINE
           />
         </Modal.Body>
       </Modal>
