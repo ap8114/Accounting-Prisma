@@ -1,4 +1,4 @@
-/* Image preview for layout selection */
+/* === Layout Selection Preview === */
 .layout-img {
   width: 70px;
   height: 60px;
@@ -7,7 +7,7 @@
   cursor: pointer;
 }
 
-/* Color picker circles */
+/* === Color Picker Circles === */
 .color-box {
   width: 30px;
   height: 30px;
@@ -16,7 +16,7 @@
   cursor: pointer;
 }
 
-/* Background image preview (if used for other purposes) */
+/* === Background Image Preview (if used) === */
 .bg-img {
   width: 60px;
   height: 40px;
@@ -25,14 +25,38 @@
   cursor: pointer;
 }
 
-
-
+/* === Sidebar Background Presets (Optional - for direct classes) === */
 .sidebar-bg-default {
   background-color: #032d45 !important;
 }
 
 .sidebar-bg-light {
   background-color: #f8f9fa !important;
+}
+
+/* .sidebar-link:hover,
+.active-link {
+  background-color: var(--sidebar-link-hover-bg) !important;
+  color: #ffffff !important;
+} */
+
+.sidebar-link:hover,
+.active-link {
+  background-color: var(--sidebar-link-hover-bg) !important;
+  color: var(--sidebar-link-hover-text) !important;
+}
+
+.buttons {
+ background-color: var(--buttons-bg) !important;
+  color: var(--button-text) !important;
+}
+
+/* button {
+  background-color: var(--button-bg) !important;
+} */
+
+.sidebar-icons {
+  color: var(--sidebar-link-hover-text) !important;
 }
 
 .sidebar-bg-purple {
@@ -48,5 +72,11 @@
 }
 
 .sidebar-bg-blue {
-  background-color: #032d45 !important; /* Custom dark blue */
+  background-color: #032d45 !important;
+}
+
+/* ✅ CRITICAL: Dynamic Sidebar Link Hover Effect */
+.sidebar-link:hover {
+  background-color: var(--sidebar-link-hover-bg) !important;
+  color: #ffffff !important;
 }

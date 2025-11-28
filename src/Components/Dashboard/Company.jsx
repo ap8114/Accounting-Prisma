@@ -23,12 +23,13 @@ import "./Company.css";
 import { useNavigate } from "react-router-dom";
 import BaseUrl from "../../Api/BaseUrl";
 import GetCompanyId from "../../Api/GetCompanyId";
+import axiosInstance from "../../Api/axiosInstance";
 
 const Company = () => {
   const companyId = GetCompanyId();
   const [showModal, setShowModal] = useState(false);
   const [companies, setCompanies] = useState([]);
-  const [plans, setPlans] = useState([]); 
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refetching, setRefetching] = useState(false);
   const [apiError, setApiError] = useState(false);
@@ -127,8 +128,8 @@ const Company = () => {
       setUsersError(null);
 
       try {
-        const response = await axios.get(
-          `${BaseUrl}companyusers/getCompanyUsersByCompanyId/${company.id}`
+        const response = await axiosInstance.get(
+          `/auth/User/company/${company.id}`
         );
         setCompanyUsers(response.data.data || []);
       } catch (err) {
@@ -173,8 +174,10 @@ const Company = () => {
       company.name.toLowerCase().includes(filter.search.toLowerCase()) ||
       company.email.toLowerCase().includes(filter.search.toLowerCase());
 
-    const matchPlan = filter.plan === "" || 
-      (company.user_plans && company.user_plans[0]?.plan?.id === parseInt(filter.plan));
+    const matchPlan =
+      filter.plan === "" ||
+      (company.user_plans &&
+        company.user_plans[0]?.plan?.id === parseInt(filter.plan));
     const matchStart =
       filter.startDate === "" ||
       new Date(company.startDate) >= new Date(filter.startDate);
@@ -286,16 +289,18 @@ const Company = () => {
         ...updatedCompanies[editIndex],
         name: editCompany.name,
         email: editCompany.email,
-        user_plans: [{
-          ...updatedCompanies[editIndex].user_plans[0],
-          plan_id: parseInt(editCompany.plan_id),
-          planType: editCompany.plan_type
-        }],
+        user_plans: [
+          {
+            ...updatedCompanies[editIndex].user_plans[0],
+            plan_id: parseInt(editCompany.plan_id),
+            planType: editCompany.plan_type,
+          },
+        ],
         startDate: editCompany.start_date,
         expireDate: editCompany.expire_date,
         branding: {
           ...updatedCompanies[editIndex].branding,
-          company_logo_url: editCompany.logoPreview
+          company_logo_url: editCompany.logoPreview,
         },
       };
       setCompanies(updatedCompanies);
@@ -667,7 +672,8 @@ const Company = () => {
                     <span
                       className="badge px-3 py-2 rounded-pill fw-semibold"
                       style={
-                        badgeStyles[company.user_plans?.[0]?.plan?.plan_name] || badgeStyles.Bronze
+                        badgeStyles[company.user_plans?.[0]?.plan?.plan_name] ||
+                        badgeStyles.Bronze
                       }
                     >
                       {company.user_plans?.[0]?.plan?.plan_name || "N/A"}
@@ -784,9 +790,12 @@ const Company = () => {
                       <BsCalendarWeek className="me-3 text-info" />
                       <strong className="me-1">Type:</strong>{" "}
                       {company.user_plans?.[0]?.planType
-                        ? company.user_plans[0].planType.charAt(0).toUpperCase() +
+                        ? company.user_plans[0].planType
+                            .charAt(0)
+                            .toUpperCase() +
                           company.user_plans[0].planType.slice(1)
-                        : "Monthly"} {/* Default to Monthly if not available */}
+                        : "Monthly"}{" "}
+                      {/* Default to Monthly if not available */}
                     </div>
                     <div className="mb-1 d-flex align-items-center">
                       <BsCalendarEvent className="me-3 text-primary" />
@@ -885,7 +894,8 @@ const Company = () => {
                             height="40"
                             onError={(e) => {
                               e.target.onerror = null;
-                              e.target.src = "https://i.ibb.co/Pzr45DCB/image5.jpg";
+                              e.target.src =
+                                "https://i.ibb.co/Pzr45DCB/image5.jpg";
                             }}
                           />
                         </td>
@@ -895,7 +905,9 @@ const Company = () => {
                           <span
                             className="badge px-3 py-2 rounded-pill fw-semibold"
                             style={
-                              badgeStyles[company.user_plans?.[0]?.plan?.plan_name] || badgeStyles.Bronze
+                              badgeStyles[
+                                company.user_plans?.[0]?.plan?.plan_name
+                              ] || badgeStyles.Bronze
                             }
                           >
                             {company.user_plans?.[0]?.plan?.plan_name || "N/A"}
@@ -960,7 +972,7 @@ const Company = () => {
                           {apiError
                             ? "Unable to fetch company data. Please try again later."
                             : "Add a new company to get started."}
-                        </p>  
+                        </p>
                       </td>
                     </tr>
                   )}
@@ -1789,6 +1801,7 @@ const Company = () => {
                       <thead className="table-light">
                         <tr>
                           <th>#</th>
+                          <th>Profile</th>
                           <th>Name</th>
                           <th>Email</th>
                           <th>Role</th>
@@ -1801,12 +1814,24 @@ const Company = () => {
                           <tr key={user.id}>
                             <td>{index + 1}</td>
                             <td>
+                              <img
+                                src={
+                                  user.profile ||
+                                  "https://i.ibb.co/Pzr45DCB/image5.jpg"
+                                }
+                                alt={user.name || "User"}
+                                className="rounded-circle"
+                                width="40"
+                                height="40"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src =
+                                    "https://i.ibb.co/Pzr45DCB/image5.jpg";
+                                }}
+                              />
+                            </td>
+                            <td>
                               <div className="d-flex align-items-center">
-                                <div className="user-avatar me-2">
-                                  {user.name
-                                    ? user.name.charAt(0).toUpperCase()
-                                    : "U"}
-                                </div>
                                 {user.name}
                               </div>
                             </td>
@@ -1819,12 +1844,13 @@ const Company = () => {
                             <td>
                               <span
                                 className={`badge ${
-                                  user.status === "Active"
+                                  user.UserStatus === "Active" ||
+                                  user.UserStatus === null
                                     ? "bg-success"
                                     : "bg-danger"
                                 }`}
                               >
-                                {user.status}
+                                {user.UserStatus || "Active"}
                               </span>
                             </td>
                             <td>{formatDate(user.created_at)}</td>

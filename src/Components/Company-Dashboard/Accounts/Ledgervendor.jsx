@@ -156,15 +156,37 @@ const Ledgervendor = () => {
 
   // Check if any transaction has items
   const hasItems = transactions.some((transaction) => transaction.items && transaction.items.length > 0);
-  const getOpeningBalanceInfo = (descSummary) => {
-    const opening = descSummary?.find(item => item.description === "Opening Balance");
+  
+  // Get opening balance info from description_summary
+  const getOpeningBalanceInfo = () => {
+    // First try to get from description_summary
+    if (ledgerSummary && ledgerSummary.description_summary) {
+      const opening = ledgerSummary.description_summary.find(item => item.description === "Opening Balance");
+      if (opening) {
+        return {
+          amount: opening.amount,
+          type: opening.type
+        };
+      }
+    }
+    
+    // Fallback to ledger_summary.outstanding_balance if available
+    if (ledgerSummary && ledgerSummary.outstanding_balance) {
+      return {
+        amount: ledgerSummary.outstanding_balance.amount,
+        type: ledgerSummary.outstanding_balance.type
+      };
+    }
+    
+    // Final fallback to currentSummary.balance
     return {
-      amount: opening?.amount || 0,
-      type: opening?.type || "Cr"
+      amount: currentSummary.balance,
+      type: currentSummary.balance_type
     };
   };
 
-  const openingInfo = getOpeningBalanceInfo(ledgerSummary?.description_summary);
+  const openingInfo = getOpeningBalanceInfo();
+
   return (
     <div className="container mt-4">
       {/* Top Bar */}
@@ -190,7 +212,7 @@ const Ledgervendor = () => {
               <div className="row align-items-center">
                 <div className="col">
                   <div className="text-xs font-weight-bold text-secondary text-uppercase mb-1">
-                    Opening Balance
+                        Opening Balance
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
                     {typeof openingInfo.amount === "number"
@@ -220,7 +242,7 @@ const Ledgervendor = () => {
               <div className="row align-items-center">
                 <div className="col">
                   <div className="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                    Total Payments (Dr)
+                        Total Payments (Dr)
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
                     {typeof currentSummary.total_payments === "number"
@@ -244,7 +266,7 @@ const Ledgervendor = () => {
               <div className="row align-items-center">
                 <div className="col">
                   <div className="text-xs font-weight-bold text-success text-uppercase mb-1">
-                    Total Purchases (Cr)
+                        Total Purchases (Cr)
                   </div>
                   <div className="h5 mb-0 font-weight-bold text-gray-800">
                     {typeof currentSummary.total_purchases === "number"
@@ -374,13 +396,13 @@ const Ledgervendor = () => {
                 <tr>
                   <td>Opening Balance</td>
                   <td>
-                    {typeof currentSummary.opening_balance === "number"
-                      ? Math.abs(currentSummary.opening_balance).toLocaleString("en-IN", {
+                    {typeof openingInfo.amount === "number"
+                      ? Math.abs(openingInfo.amount).toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                       })
                       : "0.00"}
                   </td>
-                  <td>{currentSummary.opening_balance_type || "Cr"}</td>
+                  <td>{openingInfo.type}</td>
                 </tr>
                 <tr>
                   <td>Total Purchases (Cr)</td>
@@ -431,7 +453,7 @@ const Ledgervendor = () => {
             <p className="fw-bold">We hereby confirm the above balance as correct.</p>
             <div className="d-flex justify-content-between mt-5">
               <div>
-                <p><strong>For the Company</strong></p>
+                <p><strong>For Company</strong></p>
                 <div style={{ height: "40px", borderBottom: "1px solid #000" }}></div>
                 <p className="mt-2">
                   <strong>Name:</strong> Accountant<br />
@@ -530,8 +552,8 @@ const Ledgervendor = () => {
                     <tbody>
                       <tr>
                         <td>Opening Balance</td>
-                        <td>${typeof currentSummary.opening_balance === "number" ? Math.abs(currentSummary.opening_balance).toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}</td>
-                        <td>${currentSummary.opening_balance_type || "Cr"}</td>
+                        <td>${typeof openingInfo.amount === "number" ? Math.abs(openingInfo.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}</td>
+                        <td>${openingInfo.type}</td>
                       </tr>
                       <tr>
                         <td>Total Purchases (Cr)</td>
@@ -558,7 +580,7 @@ const Ledgervendor = () => {
                   <p class="confirmation-text">We hereby confirm the above balance as correct.</p>
                   <div class="signatures">
                     <div class="signature-block">
-                      <p><strong>For the Company</strong></p>
+                      <p><strong>For Company</strong></p>
                       <div class="signature-line"></div>
                       <p><strong>Name:</strong> Accountant</p>
                       <p><strong>Designation:</strong> Accountant</p>
@@ -984,7 +1006,7 @@ const Ledgervendor = () => {
                           {entry.items && entry.items.length > 0 && expandedRows[entry.id] && (
                             <tr>
                               <td className="text-muted" style={{ fontSize: "0.8rem" }}>
-                                •••
+                                ••
                               </td>
                               <td colSpan={showNarration ? 7 : 6} className="p-0">
                                 <div className="bg-light border-top">

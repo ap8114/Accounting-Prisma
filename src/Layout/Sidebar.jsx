@@ -45,9 +45,9 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
         >
           <div
             className={`nav-link d-flex align-items-center sidebar-link px-3 py-2 ${activePath === mainItem.to ||
-                subItems.some((item) => item.to === activePath)
-                ? "active-link"
-                : ""
+              subItems.some((item) => item.to === activePath)
+              ? "active-link"
+              : ""
               }`}
             style={linkStyle}
           >
@@ -100,7 +100,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
           }`}
         style={linkStyle}
       >
-        <i className={`me-3 ${icon}`} style={iconStyle}></i>
+        <i className={`me-3 ${icon}`}></i>
         <span>{label}</span>
       </Link>
     </div>
@@ -149,7 +149,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
             icon: "fas fa-key",
             label: "Manage Passwords",
           },
-        ]), 
+        ]),
       ],
 
       COMPANY: [
@@ -416,7 +416,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
     minWidth: "16px",
     textAlign: "center",
     fontSize: "17px",
-    color: "#fff",
+    color: "#ffffffff",
   };
 
   const sectionTitleStyle = {
@@ -465,7 +465,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
           maxHeight: "calc(100vh - 70px)",
         }}
       >
-        <div className="p-2">{getMenuItems()}</div>
+        <div className="p-2 sidebar-icons">{getMenuItems()}</div>
       </div>
     </div>
   );

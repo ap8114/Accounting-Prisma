@@ -8,17 +8,25 @@ import withoutheader from "../../src/assets/withoutheader.jpeg";
 import ThemeSetting from "./SettingModal/ThemeSetting";
 
 const SettingModal = ({ show, handleClose }) => {
-  const { 
-    layout, 
-    updateLayout, 
-    sidebarColor, 
-    updateSidebarColor, 
-    topbarColor, 
+  const {
+    layout,
+    updateLayout,
+    sidebarColor,
+    updateSidebarColor,
+    topbarColor,
     updateTopbarColor,
-    resetTheme 
+    resetTheme
   } = useTheme();
-  
+
   const [layoutWidth, setLayoutWidth] = useState("fluid");
+  const {
+    sidebarMenuColor,
+    updateSidebarMenuColor
+  } = useTheme();
+  const {
+    buttonsColor,
+    updateButtonsColor
+  } = useTheme();
 
   const layoutImages = [
     { id: "default", src: defaultsidebar, alt: "Default", name: "Default" },
@@ -26,10 +34,24 @@ const SettingModal = ({ show, handleClose }) => {
     { id: "no-header", src: withoutheader, alt: "No Header", name: "No-Header" },
   ];
 
-  const topbarColors = ["#ffffff", "#000000", "#6c757d", "#0d6efd", "#6610f2", "#20c997", "#6366f1"];
+  const topbarColors = [
+    "#343a40", "#0d6efd", "#6610f2", "#6366f1", "#032d45", "#6f42c1", "#d63384", "#198754",
+    "#ff5733", "#ffc300", "#28a745", "#20c997", "#17a2b8", "#fd7e14", "#6c757d", "#0dcaf0",
+    "#ff6b6b", "#845ec2", "#2c73d2", "#0081cf", "#0089ba", "#008e9b", "#00c9a7", "#4b4453"
+  ];
 
-  const sidebarColors = ["#032d45", "#343a40", "#f8f9fa", "#6f42c1", "#d63384", "#198754"];
+  const sidebarColors = [
+    "#343a40", "#0d6efd", "#6610f2", "#6366f1", "#032d45", "#6f42c1", "#d63384", "#198754",
+    "#ff5733", "#ffc300", "#28a745", "#20c997", "#17a2b8", "#fd7e14", "#6c757d", "#0dcaf0",
+    "#ff6b6b", "#845ec2", "#2c73d2", "#0081cf", "#0089ba", "#008e9b", "#00c9a7", "#4b4453"
+  ];
+  const sidebarMenuColors = ["#343a40", "#0d6efd", "#6610f2", "#6366f1", "#032d45", "#6f42c1", "#d63384", "#198754",
+    "#ff5733", "#ffc300", "#28a745", "#20c997", "#17a2b8", "#fd7e14", "#6c757d", "#0dcaf0",
+    "#ff6b6b", "#845ec2", "#2c73d2", "#0081cf", "#0089ba", "#008e9b", "#00c9a7", "#4b4453"];
 
+  const buttonsColors = ["#53b2a5", "#0d6efd", "#6610f2", "#6366f1", "#032d45", "#6f42c1", "#d63384", "#198754",
+    "#ff5733", "#ffc300", "#28a745", "#20c997", "#17a2b8", "#fd7e14", "#6c757d", "#0dcaf0",
+    "#ff6b6b", "#845ec2", "#2c73d2", "#0081cf", "#0089ba", "#008e9b", "#00c9a7", "#4b4453"];
   // Save settings and close
   const handleApply = () => {
     handleClose();
@@ -95,6 +117,24 @@ const SettingModal = ({ show, handleClose }) => {
               ></div>
             ))}
           </div>
+          <div className="mb-4 mt-4">
+
+            <div className="d-flex align-items-center gap-2">
+              <input
+                type="color"
+                value={topbarColor}
+                onChange={(e) => updateTopbarColor(e.target.value)}
+                className="form-control form-control-color"
+                style={{ width: "40px", height: "30px", padding: "2px" }}
+              />
+              <Form.Control
+                type="text"
+                value={topbarColor}
+                onChange={(e) => updateTopbarColor(e.target.value)}
+                size="sm"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Sidebar Color */}
@@ -110,7 +150,90 @@ const SettingModal = ({ show, handleClose }) => {
               ></div>
             ))}
           </div>
+          <div className="mb-4 mt-4">
+
+            <div className="d-flex align-items-center gap-2">
+              <input
+                type="color"
+                value={sidebarColor}
+                onChange={(e) => updateSidebarColor(e.target.value)}
+                className="form-control form-control-color"
+                style={{ width: "40px", height: "30px", padding: "2px" }}
+              />
+              <Form.Control
+                type="text"
+                value={sidebarColor}
+                onChange={(e) => updateSidebarColor(e.target.value)}
+                size="sm"
+              />
+            </div>
+          </div>
         </div>
+
+        {/* Sidebar Menu Color */}
+        <div className="mt-4 mt-4">
+          <h6 className="fw-semibold">Sidebar Menu Color</h6>
+          <div className="d-flex flex-wrap gap-2 mt-2">
+            {sidebarMenuColors.map((color) => (
+              <div
+                key={color}
+                className={`color-box rounded ${sidebarMenuColor === color ? "border border-dark border-2" : ""}`}
+                style={{ backgroundColor: color, width: "30px", height: "30px", cursor: "pointer" }}
+                onClick={() => updateSidebarMenuColor(color)}
+              ></div>
+            ))}
+          </div>
+          <div className="mb-4 mt-4">
+
+            <div className="d-flex align-items-center gap-2">
+              <input
+                type="color"
+                value={sidebarMenuColor}
+                onChange={(e) => updateSidebarMenuColor(e.target.value)}
+                className="form-control form-control-color"
+                style={{ width: "40px", height: "30px", padding: "2px" }}
+              />
+              <Form.Control
+                type="text"
+                value={sidebarMenuColor}
+                onChange={(e) => updateSidebarMenuColor(e.target.value)}
+                size="sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Buttons Color */}
+        {/* <div className="mt-4 mt-4">
+          <h6 className="fw-semibold">Buttons Color</h6>
+          <div className="d-flex flex-wrap gap-2 mt-2">
+            {buttonsColors.map((color) => (
+              <div
+                key={color}
+                className={`color-box rounded ${buttonsColor === color ? "border border-dark border-2" : ""}`}
+                style={{ backgroundColor: color, width: "30px", height: "30px", cursor: "pointer" }}
+                onClick={() => updateButtonsColor(color)}
+              ></div>
+            ))}
+          </div>
+          <div className="mb-4 mt-4">
+            <div className="d-flex align-items-center gap-2">
+              <input
+                type="color"
+                value={buttonsColor}
+                onChange={(e) => updateButtonsColor(e.target.value)}
+                className="form-control form-control-color"
+                style={{ width: "40px", height: "30px", padding: "2px" }}
+              />
+              <Form.Control
+                type="text"
+                value={buttonsColor}
+                onChange={(e) => updateButtonsColor(e.target.value)}
+                size="sm"
+              />
+            </div>
+          </div>
+        </div> */}
 
         {/* Theme Mode */}
         <div className="mt-4">

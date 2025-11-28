@@ -1183,7 +1183,7 @@ const Ledgercustomer = () => {
               <p><strong>For the Company</strong></p>
               <div style={{ height: "40px", borderBottom: "1px solid #000" }}></div>
               <p className="mt-2">
-                <strong>Name:</strong> Rajesh Sharma<br />
+                <strong>Name:</strong> Accountant<br />
                 <strong>Designation:</strong> Accountant<br />
                 <strong>Place:</strong> Indore<br />
                 <strong>Date:</strong> {new Date().toLocaleDateString()}

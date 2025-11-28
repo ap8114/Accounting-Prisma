@@ -114,8 +114,11 @@ const CustomersDebtors = () => {
   const [currentCustomer, setCurrentCustomer] = useState(() =>
     JSON.parse(JSON.stringify(emptyCustomer))
   );
-  const [currentIndex, setCurrentIndex] = useState(null);
-  const [deleteIndex, setDeleteIndex] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(null); // Only used for edit
+
+  // 👇 NEW: Use customer ID for deletion (not index)
+  const [customerIdToDelete, setCustomerIdToDelete] = useState(null);
+
   const [customerFormData, setCustomerFormData] = useState({
     name: "",
     nameArabic: "",
@@ -163,10 +166,7 @@ const CustomersDebtors = () => {
       );
 
       if (response?.status) {
-        
-        // Transform API response to match our component structure
         const transformedCustomers = response.data.data.map((apiCustomer) => {
-          // Map API fields to component fields
           return {
             id: apiCustomer.id,
             name: apiCustomer.name_english,
@@ -204,7 +204,7 @@ const CustomersDebtors = () => {
               name: apiCustomer.name_english,
               phone: apiCustomer.phone,
               address: apiCustomer.address,
-              city: "", // Not available in API
+              city: "",
               state: apiCustomer.state,
               country: apiCustomer.country,
               zip: apiCustomer.pincode,
@@ -213,7 +213,7 @@ const CustomersDebtors = () => {
               name: apiCustomer.name_english,
               phone: apiCustomer.phone,
               address: apiCustomer.shipping_address,
-              city: "", // Not available in API
+              city: "",
               state: apiCustomer.state,
               country: apiCustomer.country,
               zip: apiCustomer.pincode,
@@ -237,7 +237,6 @@ const CustomersDebtors = () => {
     }
   };
 
-  // Fetch customers on component mount and when companyId changes
   useEffect(() => {
     if (companyId) {
       fetchCustomersByCompany();
@@ -254,8 +253,6 @@ const CustomersDebtors = () => {
         accountType: "Sundry Debtors",
         accountName: "Accounts Receivable",
         balanceType: "Debit",
-        payable: "",
-        currentBalance: "",
         creationDate: "",
         bankAccountNumber: "",
         bankIFSC: "",
@@ -280,8 +277,6 @@ const CustomersDebtors = () => {
         accountType: customer.accountType || "Sundry Debtors",
         accountName: customer.accountName || "Accounts Receivable",
         balanceType: customer.balanceType || "Debit",
-        payable: customer.payable || "",
-        currentBalance: customer.currentBalance || "",
         creationDate: customer.creationDate || "",
         bankAccountNumber: customer.bankAccountNumber || "",
         bankIFSC: customer.bankIFSC || "",
@@ -313,92 +308,79 @@ const CustomersDebtors = () => {
   };
 
   const handleSave = (savedCustomer, mode) => {
-    if (savedCustomer) {
-      // Transform the API response to match our component structure
-      const transformedCustomer = {
-        id: savedCustomer.id,
+    // Transform API response to match UI structure
+    const transformedCustomer = {
+      id: savedCustomer.id,
+      name: savedCustomer.name_english,
+      nameArabic: savedCustomer.name_arabic,
+      companyName: savedCustomer.company_name,
+      contact: savedCustomer.phone,
+      email: savedCustomer.email,
+      taxNumber: savedCustomer.gstIn || "",
+      altMobile: "",
+      balance: savedCustomer.account_balance.toString(),
+      taxEnabled: savedCustomer.enable_gst === true,
+      accountType: savedCustomer.account_type || "Sundry Debtors",
+      accountName: savedCustomer.account_name || "Accounts Receivable",
+      balanceType: savedCustomer.balance_type || "Debit",
+      creationDate: savedCustomer.creation_date,
+      bankAccountNumber: savedCustomer.bank_account_number,
+      bankIFSC: savedCustomer.bank_ifsc,
+      bankName: savedCustomer.bank_name_branch,
+      country: savedCustomer.country,
+      state: savedCustomer.state,
+      pincode: savedCustomer.pincode,
+      address: savedCustomer.address,
+      stateCode: savedCustomer.state_code,
+      shippingAddress: savedCustomer.shipping_address,
+      phone: savedCustomer.phone,
+      email: savedCustomer.email,
+      creditPeriod: savedCustomer.credit_period_days.toString(),
+      gstin: savedCustomer.gstIn || "",
+      gstEnabled: savedCustomer.enable_gst === true,
+      companyLocation: savedCustomer.google_location,
+      idCardImage: savedCustomer.id_card_image,
+      extraFile: savedCustomer.any_file,
+      billing: {
         name: savedCustomer.name_english,
-        nameArabic: savedCustomer.name_arabic,
-        companyName: savedCustomer.company_name,
-        contact: savedCustomer.phone,
-        email: savedCustomer.email,
-        taxNumber: savedCustomer.gstIn || "",
-        altMobile: "",
-        balance: savedCustomer.account_balance.toString(),
-        taxEnabled: savedCustomer.enable_gst === true,
-        accountType: savedCustomer.account_type || "Sundry Debtors",
-        accountName: savedCustomer.account_name || "Accounts Receivable",
-        balanceType: savedCustomer.balance_type || "Debit",
-        creationDate: savedCustomer.creation_date,
-        bankAccountNumber: savedCustomer.bank_account_number,
-        bankIFSC: savedCustomer.bank_ifsc,
-        bankName: savedCustomer.bank_name_branch,
-        country: savedCustomer.country,
-        state: savedCustomer.state,
-        pincode: savedCustomer.pincode,
-        address: savedCustomer.address,
-        stateCode: savedCustomer.state_code,
-        shippingAddress: savedCustomer.shipping_address,
         phone: savedCustomer.phone,
-        email: savedCustomer.email,
-        creditPeriod: savedCustomer.credit_period_days.toString(),
-        gstin: savedCustomer.gstIn || "",
-        gstEnabled: savedCustomer.enable_gst === true,
-        companyLocation: savedCustomer.google_location,
-        idCardImage: savedCustomer.id_card_image,
-        extraFile: savedCustomer.any_file,
-        billing: {
-          name: savedCustomer.name_english,
-          phone: savedCustomer.phone,
-          address: savedCustomer.address,
-          city: "",
-          state: savedCustomer.state,
-          country: savedCustomer.country,
-          zip: savedCustomer.pincode,
-        },
-        shipping: {
-          name: savedCustomer.name_english,
-          phone: savedCustomer.phone,
-          address: savedCustomer.shipping_address,
-          city: "",
-          state: savedCustomer.state,
-          country: savedCustomer.country,
-          zip: savedCustomer.pincode,
-        },
-      };
+        address: savedCustomer.address,
+        city: "",
+        state: savedCustomer.state,
+        country: savedCustomer.country,
+        zip: savedCustomer.pincode,
+      },
+      shipping: {
+        name: savedCustomer.name_english,
+        phone: savedCustomer.phone,
+        address: savedCustomer.shipping_address,
+        city: "",
+        state: savedCustomer.state,
+        country: savedCustomer.country,
+        zip: savedCustomer.pincode,
+      },
+    };
 
-      if (mode === "edit" && currentIndex !== null) {
-        const updatedList = [...customersList];
-        updatedList[currentIndex] = transformedCustomer;
-        setCustomersList(updatedList);
-      } else {
-        setCustomersList([...customersList, transformedCustomer]);
-      }
+    if (mode === "edit" && currentIndex !== null) {
+      const updatedList = [...customersList];
+      updatedList[currentIndex] = transformedCustomer;
+      setCustomersList(updatedList);
+    } else {
+      setCustomersList([...customersList, transformedCustomer]);
     }
 
     setShowAddEditModal(false);
     resetModal();
-    // Refresh the customer list from the API
-    fetchCustomersByCompany();
-  };
-
-  const handleDelete = () => {
-    if (deleteIndex !== null) {
-      const customerToDelete = customersList[deleteIndex];
-      setCustomersList((prev) => prev.filter((_, idx) => idx !== deleteIndex));
-      toast.success(`Customer "${customerToDelete.name}" deleted successfully`);
-    }
-    setShowConfirmDelete(false);
+    // Optional: Uncomment if you want to refetch after save
+    // fetchCustomersByCompany();
   };
 
   const resetModal = () => {
     setCurrentCustomer(JSON.parse(JSON.stringify(emptyCustomer)));
     setCustomerFormData({
       accountType: "Sundry Debtors",
-      accountName: "",
+      accountName: "Accounts Receivable",
       balanceType: "Debit",
-      payable: "",
-      currentBalance: "",
       creationDate: "",
       bankAccountNumber: "",
       bankIFSC: "",
@@ -464,7 +446,29 @@ const CustomersDebtors = () => {
 
   // Excel Export
   const handleExport = () => {
-    const columns = getCustomerColumns();
+    const columns = [
+      "name",
+      "contact",
+      "email",
+      "taxNumber",
+      "altMobile",
+      "balance",
+      "taxEnabled",
+      "billing.name",
+      "billing.phone",
+      "billing.address",
+      "billing.city",
+      "billing.state",
+      "billing.country",
+      "billing.zip",
+      "shipping.name",
+      "shipping.phone",
+      "shipping.address",
+      "shipping.city",
+      "shipping.state",
+      "shipping.country",
+      "shipping.zip",
+    ];
     const data = customersList.map((cust, idx) => {
       const flat = {
         name: cust.name,
@@ -492,7 +496,7 @@ const CustomersDebtors = () => {
       return { No: idx + 1, ...flat };
     });
 
-    const ws = XLSX.utils.json_to_sheet(data, { header: ["No", ...columns] });
+    const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Customers");
     XLSX.writeFile(wb, "customers.xlsx");
@@ -501,12 +505,32 @@ const CustomersDebtors = () => {
 
   // Download Blank Template
   const handleDownloadBlank = () => {
-    const columns = getCustomerColumns();
+    const columns = [
+      "name",
+      "contact",
+      "email",
+      "taxNumber",
+      "altMobile",
+      "balance",
+      "taxEnabled",
+      "billing.name",
+      "billing.phone",
+      "billing.address",
+      "billing.city",
+      "billing.state",
+      "billing.country",
+      "billing.zip",
+      "shipping.name",
+      "shipping.phone",
+      "shipping.address",
+      "shipping.city",
+      "shipping.state",
+      "shipping.country",
+      "shipping.zip",
+    ];
     const blankRow = { No: "" };
     columns.forEach((col) => (blankRow[col] = ""));
-    const ws = XLSX.utils.json_to_sheet([blankRow], {
-      header: ["No", ...columns],
-    });
+    const ws = XLSX.utils.json_to_sheet([blankRow]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Customers");
     XLSX.writeFile(wb, "customer_template.xlsx");
@@ -515,7 +539,6 @@ const CustomersDebtors = () => {
 
   return (
     <div className="p-4 mt-2">
-      {/* Toast Container */}
       <ToastContainer
         position="top-right"
         autoClose={3000}
@@ -589,9 +612,9 @@ const CustomersDebtors = () => {
           </Col>
         </Row>
       </div>
+
       {/* Customer Table */}
       <Card className="rounded-3 p-3">
-        {/* Search */}
         <div className="mb-3">
           <Row>
             <Col md={6}>
@@ -610,14 +633,12 @@ const CustomersDebtors = () => {
           </Row>
         </div>
 
-        {/* Error Alert */}
         {error && (
           <Alert variant="danger" className="mb-3">
             {error}
           </Alert>
         )}
 
-        {/* Loading Spinner */}
         {loading ? (
           <div className="text-center py-5">
             <Spinner animation="border" role="status">
@@ -627,7 +648,6 @@ const CustomersDebtors = () => {
           </div>
         ) : (
           <>
-            {/* Table */}
             <Table bordered hover responsive>
               <thead className="table-light">
                 <tr>
@@ -638,7 +658,7 @@ const CustomersDebtors = () => {
                   <th>Email</th>
                   <th>Account Type</th>
                   <th>Account Name</th>
-                  <th> Opening Balance</th>
+                  <th>Opening Balance</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -698,72 +718,63 @@ const CustomersDebtors = () => {
                             variant="link"
                             className="p-0 text-danger"
                             onClick={() => {
-                              setDeleteIndex(idx);
+                              setCustomerIdToDelete(cust.id);
                               setShowConfirmDelete(true);
                             }}
                             title="Delete Customer"
                           >
                             <FaTrash />
                           </Button>
-                      <Button
-                        variant="none"
-                        className="p-0 text-primary text-decoration-none"
-                        onClick={() => {
-                          navigate(`/company/Ledgercustomer`, {
-                            state: {
-                              customer: {
-                                id: cust.id, // Make sure to pass the customer ID
-                                // Basic Info
-                                name: cust.name,
-                                nameArabic: cust.nameArabic || "",
-                                companyName: cust.companyName || "N/A",
-                                email: cust.email,
-                                phone: cust.contact,
-                                altPhone: cust.altPhone || "",
-                                address: `${cust.billing.address}, ${cust.billing.city}, ${cust.billing.state}`,
-                                shippingAddress:
-                                  cust.shippingAddress || "Same as above",
-                                country: cust.billing.country || "India",
-                                state: cust.billing.state || "N/A",
-                                pincode: cust.billing.pincode || "N/A",
-
-                                // Tax & IDs
-                                gst: cust.taxNumber,
-                                gstEnabled: !!cust.taxNumber,
-                                pan: cust.pan || "",
-                                stateCode: cust.stateCode || "",
-
-                                // Financial Info
-                                openingBalance: parseFloat(cust.balance || 0),
-                                accountName:
-                                  cust.accountName || "Sundry Debtors",
-                                accountBalance: cust.accountBalance || "0.00",
-                                creditPeriod: cust.creditPeriod || "30",
-
-                                // Bank Info
-                                bankAccountNumber: cust.bankAccountNumber || "",
-                                bankIFSC: cust.bankIFSC || "",
-                                bankName: cust.bankName || "",
-
-                                // Meta Info
-                                creationDate:
-                                  cust.creationDate ||
-                                  new Date().toISOString().split("T")[0],
-                                companyLocation: cust.companyLocation || "",
-                              },
-                            },
-                          });
-                        }}
-                        title="View Ledger"
-                        style={{
-                          cursor: "pointer",
-                          transition: "all 0.2s ease",
-                          padding: "4px 8px",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        View Ledger
-                      </Button>
+                          <Button
+                            variant="none"
+                            className="p-0 text-primary text-decoration-none"
+                            onClick={() => {
+                              navigate(`/company/Ledgercustomer`, {
+                                state: {
+                                  customer: {
+                                    id: cust.id,
+                                    name: cust.name,
+                                    nameArabic: cust.nameArabic || "",
+                                    companyName: cust.companyName || "N/A",
+                                    email: cust.email,
+                                    phone: cust.contact,
+                                    altPhone: cust.altPhone || "",
+                                    address: `${cust.billing.address}, ${cust.billing.city}, ${cust.billing.state}`,
+                                    shippingAddress:
+                                      cust.shippingAddress || "Same as above",
+                                    country: cust.billing.country || "India",
+                                    state: cust.billing.state || "N/A",
+                                    pincode: cust.billing.pincode || "N/A",
+                                    gst: cust.taxNumber,
+                                    gstEnabled: !!cust.taxNumber,
+                                    pan: cust.pan || "",
+                                    stateCode: cust.stateCode || "",
+                                    openingBalance: parseFloat(cust.balance || 0),
+                                    accountName:
+                                      cust.accountName || "Sundry Debtors",
+                                    accountBalance: cust.accountBalance || "0.00",
+                                    creditPeriod: cust.creditPeriod || "30",
+                                    bankAccountNumber: cust.bankAccountNumber || "",
+                                    bankIFSC: cust.bankIFSC || "",
+                                    bankName: cust.bankName || "",
+                                    creationDate:
+                                      cust.creationDate ||
+                                      new Date().toISOString().split("T")[0],
+                                    companyLocation: cust.companyLocation || "",
+                                  },
+                                },
+                              });
+                            }}
+                            title="View Ledger"
+                            style={{
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            View Ledger
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -780,7 +791,6 @@ const CustomersDebtors = () => {
               </tbody>
             </Table>
 
-            {/* Pagination */}
             <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap">
               <small className="text-muted ms-2">
                 1 to {filteredCustomers.length} of {customersList.length}{" "}
@@ -806,6 +816,7 @@ const CustomersDebtors = () => {
           </>
         )}
       </Card>
+
       {/* Page Description */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
@@ -826,29 +837,30 @@ const CustomersDebtors = () => {
           </ul>
         </Card.Body>
       </Card>
-      {/* Modals */}
 
+      {/* Modals */}
       <DeleteCustomer
         show={showConfirmDelete}
-        onHide={() => setShowConfirmDelete(false)}
-        onConfirm={() => {
-          // Remove the customer from the list
-          if (deleteIndex !== null) {
-            setCustomersList((prev) =>
-              prev.filter((_, idx) => idx !== deleteIndex)
-            );
-          }
+        onHide={() => {
           setShowConfirmDelete(false);
+          setCustomerIdToDelete(null);
         }}
-        customerId={customersList[deleteIndex]?.id}
+        customerId={customerIdToDelete}
+        onSuccess={() => {
+          // ✅ OPTION 1: Refetch entire list (recommended)
+          fetchCustomersByCompany();
+          setShowConfirmDelete(false);
+          setCustomerIdToDelete(null);
+        }}
       />
+
       <ViewCustomerModal
         show={showViewModal}
         onHide={() => setShowViewModal(false)}
         customer={currentCustomer}
       />
 
-       <AddEditCustomerModal
+      <AddEditCustomerModal
         show={showAddEditModal}
         onHide={() => setShowAddEditModal(false)}
         editMode={editMode}
@@ -857,7 +869,8 @@ const CustomersDebtors = () => {
         onSave={handleSave}
         customerId={currentCustomer.id}
       />
-    </div>  );
+    </div>
+  );
 };
 
 export default CustomersDebtors;

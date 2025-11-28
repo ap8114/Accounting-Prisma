@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import {
   LineChart,
   Line,
@@ -22,32 +21,32 @@ import {
   BsCalendar2,
 } from "react-icons/bs";
 import "./Dashboardd.css";
-import BaseUrl from "../../Api/BaseUrl";
 import axiosInstance from "../../Api/axiosInstance";
 
 const Dashboardd = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState(false); // Changed from error to apiError
+  const [apiError, setApiError] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const response = await axiosInstance.get(`${BaseUrl}superadmindhasboard`);
-        setDashboardData(response.data.data);
+        const response = await axiosInstance.get(`dashboard/admin`);
+        console.log("API Response:", response.data);
+        setDashboardData(response.data); // assuming top-level data, not nested in .data
         setApiError(false);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
         setApiError(true);
-        // Create empty dashboard data structure when API fails
+        // Fallback structure matching your new response shape
         setDashboardData({
-          total_companies: 0,
-          total_requests: 0,
-          total_revenue: 0,
-          new_signups: 0,
-          growth: [],
-          signupCompanies: [],
-          revenueTrends: []
+          totalCompanies: { value: 0, growth: "0" },
+          totalRequests: { value: 0, growth: "0" },
+          totalRevenue: { value: 0, growth: "0" },
+          newSignupsCompany: { value: 0 },
+          growthChartData: [],
+          signupChartData: [],
+          revenueTrendsData: [],
         });
       } finally {
         setLoading(false);
@@ -57,109 +56,122 @@ const Dashboardd = () => {
     fetchDashboardData();
   }, []);
 
-  // Process chart data from API response
+  // Helper: Get month index (1–11) from name like "Nov"
+  const getMonthIndex = (monthName) => {
+    const fullNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
+    return fullNames.indexOf(monthName) + 1; // 1-based
+  };
+
+  // Prepare unified chart data from the 3 arrays
   const getChartData = () => {
-    // Create default data structure with zeros
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    
-    // Create a map for all months (initialize with zeros)
-    const monthlyMap = {};
-    for (let i = 1; i <= 12; i++) {
-      monthlyMap[i] = {
-        name: monthNames[i - 1],
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
+    const chartDataMap = {};
+
+    // Initialize all months
+    monthNames.forEach((name) => {
+      chartDataMap[name] = {
+        name,
         Growth: 0,
         users: 0,
         revenue: 0,
       };
-    }
-    
-    // Only update with actual data if dashboardData exists and API didn't fail
+    });
+
     if (dashboardData && !apiError) {
-      // Update with actual data from API
-      dashboardData.growth?.forEach(item => {
-        if (monthlyMap[item.month]) {
-          monthlyMap[item.month].Growth = item.count;
+      // Map growthChartData → Growth
+      (dashboardData.growthChartData || []).forEach((item) => {
+        if (chartDataMap[item.month]) {
+          chartDataMap[item.month].Growth = item.growth;
         }
       });
-      
-      dashboardData.signupCompanies?.forEach(item => {
-        if (monthlyMap[item.month]) {
-          monthlyMap[item.month].users = item.count;
+
+      // Map signupChartData → users
+      (dashboardData.signupChartData || []).forEach((item) => {
+        if (chartDataMap[item.month]) {
+          chartDataMap[item.month].users = item.signups;
         }
       });
-      
-      dashboardData.revenueTrends?.forEach(item => {
-        if (monthlyMap[item.month]) {
-          monthlyMap[item.month].revenue = parseFloat(item.revenue) || 0;
+
+      // Map revenueTrendsData → revenue
+      (dashboardData.revenueTrendsData || []).forEach((item) => {
+        if (chartDataMap[item.month]) {
+          chartDataMap[item.month].revenue = item.revenue;
         }
       });
     }
-    
-    // Convert map to array and sort by month
-    return Object.values(monthlyMap);
+
+    return Object.values(chartDataMap);
   };
 
-  // Calculate growth percentage if possible
-  const calculateGrowth = (current, previous) => {
-    if (previous === 0) return current > 0 ? "+100%" : "0%";
-    const percentage = ((current - previous) / previous) * 100;
-    return `${percentage > 0 ? '+' : ''}${percentage.toFixed(1)}%`;
-  };
-
-  if (loading) return <div className="text-center py-5">Loading dashboard...</div>;
-  
-  // We removed the error check here to always show the UI
   const chartData = getChartData();
-  
-  // Get current month data for growth calculations
-  const currentMonth = new Date().getMonth() + 1; // 1-12
-  const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-  
-  const currentMonthData = chartData.find(item => item.name === ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][currentMonth - 1]);
-  const previousMonthData = chartData.find(item => item.name === ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][previousMonth - 1]);
+
+  // Get current and previous month names (based on real date)
+  const now = new Date(); // Today is Thursday, November 27, 2025
+  const currentMonthIndex = now.getMonth(); // 0 = Jan → Nov = 10
+  const prevMonthIndex = currentMonthIndex === 0 ? 11 : currentMonthIndex - 1;
+
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
+  const currentMonthName = monthNames[currentMonthIndex];
+  const prevMonthName = monthNames[prevMonthIndex];
+
+  const currentData = chartData.find((d) => d.name === currentMonthName) || {};
+  const prevData = chartData.find((d) => d.name === prevMonthName) || {};
+
+  const calculateGrowthPercent = (current, previous) => {
+    if (previous === 0 && current === 0) return "0%";
+    if (previous === 0) return "+100%";
+    const change = ((current - previous) / previous) * 100;
+    return `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`;
+  };
+
+  if (loading)
+    return <div className="text-center py-5">Loading dashboard...</div>;
 
   return (
     <div className="dashboard container-fluid py-4 px-3">
-      {/* Show a subtle error notification if API failed, but still show the dashboard */}
       {apiError && (
         <div className="alert alert-warning alert-dismissible fade show" role="alert">
           Unable to fetch latest data. Showing cached or default values.
           <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
       )}
-      
+
       {/* Cards Section */}
       <div className="row g-4 mb-4">
         {[
           {
             icon: <BsBuilding />,
-            value: (dashboardData?.total_companies || 0).toString(),
+            value: (dashboardData?.totalCompanies?.value || 0).toString(),
             label: "Total Company",
-            growth: currentMonthData && previousMonthData ? 
-              calculateGrowth(currentMonthData.Growth, previousMonthData.Growth) : "+0%",
+            growth: dashboardData?.totalCompanies?.growth
+              ? `+${dashboardData.totalCompanies.growth}%`
+              : "+0%",
             bg: "success",
           },
           {
             icon: <BsPeople />,
-            value: (dashboardData?.total_requests || 0).toString(),
+            value: (dashboardData?.totalRequests?.value || 0).toString(),
             label: "Total Request",
-            growth: "+0%", // Default when API fails
+            growth: dashboardData?.totalRequests?.growth
+              ? `+${dashboardData.totalRequests.growth}%`
+              : "+0%",
             bg: "success",
           },
           {
             icon: <BsCurrencyDollar />,
-            value: `$${parseFloat(dashboardData?.total_revenue || 0).toFixed(2)}`,
+            value: `$${(dashboardData?.totalRevenue?.value || 0).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`,
             label: "Total Revenue",
-            growth: currentMonthData && previousMonthData ? 
-              calculateGrowth(currentMonthData.revenue, previousMonthData.revenue) : "+0%",
+            growth: dashboardData?.totalRevenue?.growth
+              ? `+${dashboardData.totalRevenue.growth}%`
+              : "+0%",
             bg: "success",
           },
           {
             icon: <BsPersonPlus />,
-            value: (dashboardData?.new_signups || 0).toString(),
+            value: (dashboardData?.newSignupsCompany?.value || 0).toString(),
             label: "New Signups Company",
             growth: "Today",
             bg: "primary text-white",
@@ -169,9 +181,7 @@ const Dashboardd = () => {
             <div className="card h-100 shadow-sm stat-card">
               <div className="card-body d-flex justify-content-between align-items-start">
                 <div className="icon-box fs-4 text-dark">{card.icon}</div>
-                <div
-                  className={`badge bg-${card.bg} rounded-pill px-3 py-1 fw-semibold`}
-                >
+                <div className={`badge bg-${card.bg} rounded-pill px-3 py-1 fw-semibold`}>
                   {card.growth}
                 </div>
               </div>
@@ -203,6 +213,7 @@ const Dashboardd = () => {
                   <Line
                     type="monotone"
                     dataKey="Growth"
+                    name="Growth (%)"
                     stroke="#3b82f6"
                     strokeWidth={2}
                     activeDot={{ r: 6 }}
@@ -227,7 +238,7 @@ const Dashboardd = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="users" fill="#53b2a5" name="Signup Company" />
+                  <Bar dataKey="users" fill="#53b2a5" name="Signups" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -249,11 +260,12 @@ const Dashboardd = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, "Revenue"]} />
                   <Legend />
                   <Area
                     type="monotone"
                     dataKey="revenue"
+                    name="Revenue ($)"
                     stroke="#8b5cf6"
                     fill="#8b5cf6"
                     fillOpacity={0.2}

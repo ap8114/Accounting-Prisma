@@ -270,9 +270,9 @@ const Salesreport = () => {
             <button className="btn btn-light">
               <FaFileExcel className="text-success" />
             </button>
-            <button className="btn btn-light">
+            {/* <button className="btn btn-light">
               <BsGear />
-            </button>
+            </button> */}
           </div>
         </div>
 

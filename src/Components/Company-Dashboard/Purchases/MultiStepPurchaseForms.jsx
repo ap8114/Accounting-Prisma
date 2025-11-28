@@ -3757,7 +3757,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep }) => {
             </Form.Group>
             <Form.Group className="mb-0">
               <div className="d-flex justify-content-between align-items-center text-nowrap">
-                <Form.Label className="mb-0">Manual Ref. No.</Form.Label>
+                <Form.Label className="mb-0">Manual Pay. No.</Form.Label>
                 <Form.Control
                   type="text"
                   value={data.manualRefNo}

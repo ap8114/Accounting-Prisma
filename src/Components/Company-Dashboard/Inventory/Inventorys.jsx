@@ -8,8 +8,8 @@ import { BiTransfer } from "react-icons/bi";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../../Api/axiosInstance";
 import GetCompanyId from "../../../Api/GetCompanyId";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const InventoryItems = () => {
   const navigate = useNavigate();
@@ -41,17 +41,16 @@ const InventoryItems = () => {
   const fetchProductsByCompanyId = async (companyId) => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(
-        `products/company/${companyId}`
-      );
+      const response = await axiosInstance.get(`products/company/${companyId}`);
 
       if (response.data?.success && Array.isArray(response.data.data)) {
         const transformedItems = response.data.data.map((product) => {
           // Get the primary warehouse (first one in the array)
-          const primaryWarehouse = product.warehouses && product.warehouses.length > 0 
-            ? product.warehouses[0] 
-            : null;
-          
+          const primaryWarehouse =
+            product.warehouses && product.warehouses.length > 0
+              ? product.warehouses[0]
+              : null;
+
           return {
             id: product.id || 0,
             itemName: safeTrim(product.item_name) || "Unnamed Product", // FIXED: Using item_name instead of sku
@@ -59,9 +58,12 @@ const InventoryItems = () => {
             barcode: "", // Not available in the response
             sku: product.sku || "",
             unit: product.unit_detail?.uom_id?.toString() || "Numbers",
-            description: safeTrim(product.description) || "No description available", // FIXED: Using actual description
+            description:
+              safeTrim(product.description) || "No description available", // FIXED: Using actual description
             quantity: product.total_stock || 0,
-            date: new Date(product.created_at).toISOString().split('T')[0] || "2020-01-01",
+            date:
+              new Date(product.created_at).toISOString().split("T")[0] ||
+              "2020-01-01",
             cost: 0, // Not available in the response
             value: 0, // Not available in the response
             minQty: 0, // Not available in the response
@@ -73,22 +75,25 @@ const InventoryItems = () => {
             salePriceInclusive: 0, // Not available in the response
             discount: 0, // Not available in the response
             category: "default",
-            itemCategory: product.item_category?.item_category_name || "Unknown",
+            itemCategory:
+              product.item_category?.item_category_name || "Unknown",
             itemType: "Good",
             subcategory: "default",
             remarks: "", // Not available in the response
             image: product.image || null, // FIXED: Using actual image
-            status: (product.total_stock || 0) > 0 ? "In Stock" : "Out of Stock",
+            status:
+              (product.total_stock || 0) > 0 ? "In Stock" : "Out of Stock",
             warehouse: primaryWarehouse?.warehouse_name || "Unknown",
             warehouseId: primaryWarehouse?.warehouse_id?.toString() || "",
             itemCategoryId: product.item_category?.id?.toString() || "",
             // Store all warehouses for detailed view
-            warehouses: product.warehouses?.map(w => ({
-              id: w.warehouse_id,
-              name: w.warehouse_name,
-              location: w.location,
-              stockQty: w.stock_qty
-            })) || []
+            warehouses:
+              product.warehouses?.map((w) => ({
+                id: w.warehouse_id,
+                name: w.warehouse_name,
+                location: w.location,
+                stockQty: w.stock_qty,
+              })) || [],
           };
         });
 
@@ -120,9 +125,9 @@ const InventoryItems = () => {
   // Extract unique warehouses from all items
   const getAllWarehouses = () => {
     const warehouseSet = new Set();
-    items.forEach(item => {
+    items.forEach((item) => {
       if (item.warehouses) {
-        item.warehouses.forEach(w => {
+        item.warehouses.forEach((w) => {
           warehouseSet.add(w.name);
         });
       }
@@ -130,14 +135,21 @@ const InventoryItems = () => {
     return ["All", ...Array.from(warehouseSet)];
   };
 
-  const uniqueCategories = ["All", ...new Set(items.map((item) => item.itemCategory))];
+  const uniqueCategories = [
+    "All",
+    ...new Set(items.map((item) => item.itemCategory)),
+  ];
   const uniqueWarehouses = getAllWarehouses();
 
   const filteredItems = items.filter((item) => {
-    const matchesSearch = item.itemName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || item.itemCategory === selectedCategory;
-    const matchesWarehouse = selectedWarehouse === "All" || 
-      item.warehouses?.some(w => w.name === selectedWarehouse);
+    const matchesSearch = item.itemName
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "All" || item.itemCategory === selectedCategory;
+    const matchesWarehouse =
+      selectedWarehouse === "All" ||
+      item.warehouses?.some((w) => w.name === selectedWarehouse);
 
     let matchesQuantity = true;
     const qty = item.quantity;
@@ -164,7 +176,9 @@ const InventoryItems = () => {
         matchesQuantity = true;
     }
 
-    return matchesSearch && matchesCategory && matchesWarehouse && matchesQuantity;
+    return (
+      matchesSearch && matchesCategory && matchesWarehouse && matchesQuantity
+    );
   });
 
   const handleSelectAll = (e) => {
@@ -182,17 +196,12 @@ const InventoryItems = () => {
     );
   };
 
-  const handleStatusChange = (index, value) => {
-    const updatedItems = [...items];
-    updatedItems[index].status = value;
-    setItems(updatedItems);
-  };
 
   const handleDeleteItem = async () => {
     if (!selectedItem?.id) {
       toast.error("No item selected for deletion", {
-        toastId: 'no-item-selected-error',
-        autoClose: 3000
+        toastId: "no-item-selected-error",
+        autoClose: 3000,
       });
       setShowDelete(false);
       return;
@@ -200,24 +209,30 @@ const InventoryItems = () => {
 
     setIsDeleting(true);
     try {
-      const response = await axiosInstance.delete(`products/${selectedItem.id}`);
-      
+      const response = await axiosInstance.delete(
+        `products/${selectedItem.id}`
+      );
+
       console.log("Delete API Response:", response.data);
 
       if (response.data?.success) {
-        setItems(prevItems => prevItems.filter(item => item.id !== selectedItem.id));
+        setItems((prevItems) =>
+          prevItems.filter((item) => item.id !== selectedItem.id)
+        );
         refreshProducts();
         setShowDelete(false);
         toast.success("Product deleted successfully!", {
-          toastId: 'product-delete-success',
-          autoClose: 3000
+          toastId: "product-delete-success",
+          autoClose: 3000,
         });
       } else {
-        const errorMessage = response.data?.message || "The server reported a failure to delete the product.";
+        const errorMessage =
+          response.data?.message ||
+          "The server reported a failure to delete the product.";
         console.error("Server reported deletion failure:", errorMessage);
         toast.error(`Failed to delete product. ${errorMessage}`, {
-          toastId: 'product-delete-server-error',
-          autoClose: 3000
+          toastId: "product-delete-server-error",
+          autoClose: 3000,
         });
       }
     } catch (error) {
@@ -227,17 +242,20 @@ const InventoryItems = () => {
       if (error.response) {
         console.error("Error Data:", error.response.data);
         console.error("Error Status:", error.response.status);
-        errorMessage = error.response.data?.message || `Server error with status ${error.response.status}.`;
+        errorMessage =
+          error.response.data?.message ||
+          `Server error with status ${error.response.status}.`;
       } else if (error.request) {
         console.error("Error Request:", error.request);
-        errorMessage = "No response received from server. Check your network connection.";
+        errorMessage =
+          "No response received from server. Check your network connection.";
       } else {
         errorMessage = error.message;
       }
-      
+
       toast.error(`Error deleting product: ${errorMessage}`, {
-        toastId: 'product-delete-api-error',
-        autoClose: 3000
+        toastId: "product-delete-api-error",
+        autoClose: 3000,
       });
     } finally {
       setIsDeleting(false);
@@ -280,7 +298,7 @@ const InventoryItems = () => {
   };
 
   const handleExport = () => {
-    const exportData = items.map(item => ({
+    const exportData = items.map((item) => ({
       itemName: item.itemName,
       hsn: item.hsn,
       barcode: item.barcode,
@@ -291,7 +309,7 @@ const InventoryItems = () => {
       minQty: item.minQty,
       taxAccount: item.taxAccount,
       discount: item.discount,
-      remarks: item.remarks
+      remarks: item.remarks,
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -302,8 +320,8 @@ const InventoryItems = () => {
       "Inventory_Export.xlsx"
     );
     toast.success("Inventory exported successfully!", {
-      toastId: 'inventory-export-success',
-      autoClose: 3000
+      toastId: "inventory-export-success",
+      autoClose: 3000,
     });
   };
 
@@ -320,15 +338,16 @@ const InventoryItems = () => {
       const workbook = XLSX.read(bstr, { type: "binary" });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(firstSheet);
-      const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
+      const newId =
+        items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
       const itemsWithIds = data.map((item, index) => ({
         ...item,
         id: newId + index,
       }));
       setItems((prev) => [...prev, ...itemsWithIds]);
       toast.success("Inventory imported successfully!", {
-        toastId: 'inventory-import-success',
-        autoClose: 3000
+        toastId: "inventory-import-success",
+        autoClose: 3000,
       });
     };
     reader.readAsBinaryString(file);
@@ -338,26 +357,30 @@ const InventoryItems = () => {
     if (e && (e.target.closest("button") || e.target.closest(".btn"))) {
       return;
     }
-    navigate(`/company/inventorydetails/${item.id}`, { state: { item } });
+    // Navigate with the product ID in the URL, not passing the item in state
+    navigate(`/company/inventorydetails/${item.id}`);
   };
 
   const handleSendAll = () => {
     toast.success("All items sent successfully!", {
-      toastId: 'send-all-success',
-      autoClose: 3000
+      toastId: "send-all-success",
+      autoClose: 3000,
     });
   };
 
   const handleSendItem = (item) => {
     toast.success(`Item "${item.itemName}" sent successfully!`, {
-      toastId: 'send-item-success',
-      autoClose: 3000
+      toastId: "send-item-success",
+      autoClose: 3000,
     });
   };
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ height: "100vh" }}
+      >
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -383,9 +406,17 @@ const InventoryItems = () => {
               <span>Inventory Product</span>
             </h4>
           </Col>
-          <Col md={8} className="text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
+          <Col
+            md={8}
+            className="text-md-end d-flex flex-wrap gap-2 justify-content-md-end"
+          >
             <Button
-              style={{ backgroundColor: "#00c78c", border: "none", color: "#fff", padding: "6px 16px" }}
+              style={{
+                backgroundColor: "#00c78c",
+                border: "none",
+                color: "#fff",
+                padding: "6px 16px",
+              }}
               onClick={handleImportClick}
             >
               Import
@@ -398,45 +429,80 @@ const InventoryItems = () => {
               style={{ display: "none" }}
             />
             <Button
-              style={{ backgroundColor: "#ff7e00", border: "none", color: "#fff", padding: "6px 16px" }}
+              style={{
+                backgroundColor: "#ff7e00",
+                border: "none",
+                color: "#fff",
+                padding: "6px 16px",
+              }}
               onClick={handleExport}
             >
               Export
             </Button>
             <Button
-              style={{ backgroundColor: "#f6c100", border: "none", color: "#000", padding: "6px 16px" }}
+              style={{
+                backgroundColor: "#f6c100",
+                border: "none",
+                color: "#000",
+                padding: "6px 16px",
+              }}
               onClick={handleDownloadTemplate}
             >
               Download Template
             </Button>
             <Button
               onClick={() => setShowAdd(true)}
-              style={{ backgroundColor: "#27b2b6", border: "none", color: "#fff", padding: "6px 16px" }}
+              style={{
+                backgroundColor: "#27b2b6",
+                border: "none",
+                color: "#fff",
+                padding: "6px 16px",
+              }}
             >
               Add Product
             </Button>
             <Button
-              style={{ backgroundColor: "#17a2b8", border: "none", color: "#fff", padding: "6px 16px", marginLeft: "8px" }}
+              style={{
+                backgroundColor: "#17a2b8",
+                border: "none",
+                color: "#fff",
+                padding: "6px 16px",
+                marginLeft: "8px",
+              }}
               onClick={handleSendAll}
             >
               Send All
             </Button>
             {selectedItems.length > 0 && (
               <Button
-                style={{ backgroundColor: "#28a745", border: "none", color: "#fff" }}
+                style={{
+                  backgroundColor: "#28a745",
+                  border: "none",
+                  color: "#fff",
+                }}
                 onClick={() => {
-                  const selectedData = items.filter((item) => selectedItems.includes(item.id));
-                  toast.success(`${selectedData.length} item(s) sent successfully!`, {
-                    toastId: 'send-selected-success',
-                    autoClose: 3000
-                  });
+                  const selectedData = items.filter((item) =>
+                    selectedItems.includes(item.id)
+                  );
+                  toast.success(
+                    `${selectedData.length} item(s) sent successfully!`,
+                    {
+                      toastId: "send-selected-success",
+                      autoClose: 3000,
+                    }
+                  );
                 }}
               >
                 Send Selected ({selectedItems.length})
               </Button>
             )}
             {selectedItems.length > 0 && (
-              <Button variant="outline-secondary" size="sm" onClick={() => setSelectedItems([])} className="ms-2">
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => setSelectedItems([])}
+                className="ms-2"
+              >
                 Clear
               </Button>
             )}
@@ -521,7 +587,10 @@ const InventoryItems = () => {
                   <th>
                     <Form.Check
                       type="checkbox"
-                      checked={selectedItems.length === filteredItems.length && filteredItems.length > 0}
+                      checked={
+                        selectedItems.length === filteredItems.length &&
+                        filteredItems.length > 0
+                      }
                       onChange={handleSelectAll}
                       disabled={filteredItems.length === 0}
                     />
@@ -547,7 +616,11 @@ const InventoryItems = () => {
                         />
                       </td>
                       <td
-                        style={{ color: "#007bff", fontWeight: "bold", cursor: "pointer" }}
+                        style={{
+                          color: "#007bff",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                        }}
                         className="product-cell"
                         onClick={(e) => handleProductClick(item, e)}
                       >
@@ -573,7 +646,9 @@ const InventoryItems = () => {
                       <td>
                         <span
                           className={`badge px-3 py-1 rounded-pill fw-semibold ${
-                            item.status === "In Stock" ? "bg-success text-white" : "bg-danger text-white"
+                            item.status === "In Stock"
+                              ? "bg-success text-white"
+                              : "bg-danger text-white"
                           }`}
                         >
                           {item.status}
@@ -622,7 +697,8 @@ const InventoryItems = () => {
                             className="text-primary p-0"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/company/inventorydetails/${item.id}`, { state: { item } });
+                              // Navigate with the product ID in the URL, not passing the item in state
+                              navigate(`/company/inventorydetails/${item.id}`);
                             }}
                             title="View Details"
                           >
@@ -655,7 +731,8 @@ const InventoryItems = () => {
           </div>
           <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap">
             <small className="text-muted ms-2">
-              Showing 1 to {filteredItems.length} of {filteredItems.length} results
+              Showing 1 to {filteredItems.length} of {filteredItems.length}{" "}
+              results
             </small>
             <nav>
               <ul className="pagination mb-0">
@@ -677,7 +754,12 @@ const InventoryItems = () => {
         </div>
 
         {/* View Modal */}
-        <Modal show={showView} onHide={() => setShowView(false)} centered size="lg">
+        <Modal
+          show={showView}
+          onHide={() => setShowView(false)}
+          centered
+          size="lg"
+        >
           <Modal.Header closeButton>
             <Modal.Title>Item Details</Modal.Title>
           </Modal.Header>
@@ -704,12 +786,13 @@ const InventoryItems = () => {
                     <strong>Description:</strong> {selectedItem.description}
                   </Col>
                 </Row>
-                
+
                 {/* Warehouse Information */}
                 <Row className="mb-3">
                   <Col md={12}>
                     <strong>Warehouse Information:</strong>
-                    {selectedItem.warehouses && selectedItem.warehouses.length > 0 ? (
+                    {selectedItem.warehouses &&
+                    selectedItem.warehouses.length > 0 ? (
                       <table className="table table-sm mt-2">
                         <thead>
                           <tr>
@@ -729,11 +812,13 @@ const InventoryItems = () => {
                         </tbody>
                       </table>
                     ) : (
-                      <p className="text-muted mt-2">No warehouse information available</p>
+                      <p className="text-muted mt-2">
+                        No warehouse information available
+                      </p>
                     )}
                   </Col>
                 </Row>
-                
+
                 <Row className="mb-3">
                   <Col md={6}>
                     <strong>Status:</strong> {selectedItem.status}
@@ -749,17 +834,21 @@ const InventoryItems = () => {
                     <Col md={12}>
                       <strong>Image:</strong>
                       <div className="mt-2">
-                        <img 
-                          src={selectedItem.image} 
+                        <img
+                          src={selectedItem.image}
                           alt={selectedItem.itemName}
-                          style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "contain" }}
+                          style={{
+                            maxWidth: "200px",
+                            maxHeight: "200px",
+                            objectFit: "contain",
+                          }}
                         />
                       </div>
                     </Col>
                   </Row>
                 )}
               </>
-            )}                                                                                                                                                  
+            )}
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowView(false)}>
@@ -769,25 +858,48 @@ const InventoryItems = () => {
         </Modal>
 
         {/* Delete Confirmation Modal */}
-        <Modal show={showDelete} onHide={() => !isDeleting && setShowDelete(false)} centered>
+        <Modal
+          show={showDelete}
+          onHide={() => !isDeleting && setShowDelete(false)}
+          centered
+        >
           <Modal.Header closeButton>
             <Modal.Title>Confirm Delete</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            Are you sure you want to delete this item? This action cannot be undone.
-            {selectedItem && <div className="mt-2"><strong>{selectedItem.itemName}</strong></div>}
+            Are you sure you want to delete this item? This action cannot be
+            undone.
+            {selectedItem && (
+              <div className="mt-2">
+                <strong>{selectedItem.itemName}</strong>
+              </div>
+            )}
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowDelete(false)} disabled={isDeleting}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowDelete(false)}
+              disabled={isDeleting}
+            >
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleDeleteItem} disabled={isDeleting}>
+            <Button
+              variant="danger"
+              onClick={handleDeleteItem}
+              disabled={isDeleting}
+            >
               {isDeleting ? (
                 <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  <span
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
                   Deleting...
                 </>
-              ) : "Delete"}
+              ) : (
+                "Delete"
+              )}
             </Button>
           </Modal.Footer>
         </Modal>
@@ -795,16 +907,24 @@ const InventoryItems = () => {
         {/* Page Description */}
         <Card className="mb-4 p-3 shadow rounded-4 mt-2">
           <Card.Body>
-            <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
-            <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
-              <li>An Inventory Product Management Interface displaying product details, status, and actions.</li>
+            <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
+              Page Info
+            </h5>
+            <ul
+              className="text-muted fs-6 mb-0"
+              style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
+            >
+              <li>
+                An Inventory Product Management Interface displaying product
+                details, status, and actions.
+              </li>
               <li>Options to import/export data.</li>
               <li>Ability to manage and maintain records.</li>
             </ul>
           </Card.Body>
         </Card>
       </div>
-      
+
       {/* Toast Container */}
       <ToastContainer
         position="top-right"
@@ -822,4 +942,4 @@ const InventoryItems = () => {
   );
 };
 
-export default InventoryItems;  
+export default InventoryItems;

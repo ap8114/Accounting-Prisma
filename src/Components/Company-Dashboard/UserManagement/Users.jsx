@@ -13,7 +13,7 @@ import {
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { FaFilePdf, FaEdit, FaTrash, FaPlus, FaFilter, FaTimes, FaKey } from "react-icons/fa";
-import axiosInstance from "../../../Api/AxiosInstance";
+import axiosInstance from "../../../Api/axiosInstance";
 import GetCompanyId from "../../../Api/GetCompanyId";
 
 const emptyUser = {

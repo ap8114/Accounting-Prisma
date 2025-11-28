@@ -358,13 +358,23 @@ const AllAccounts = () => {
     const row = accountGroup?.rows.find(
       (r) => r.name === name || r.originalName === name
     );
-    const accountName = row ? row.sub_of_subgroup_name || row.name : name;
+
+    if (!row || !row.id) {
+      console.error("Account ID not found for ledger navigation");
+      alert("Unable to open ledger: Account ID missing");
+      return;
+    }     
+
+    const accountName = row.sub_of_subgroup_name || row.name || name;
 
     navigate("/company/ledgerpageaccount", {
-      state: { accountName: accountName, accountType: type },
+      state: {
+        accountName: accountName,
+        accountType: type,
+        accountId: row.id, // 👈 THIS IS CRITICAL
+      },
     });
   };
-
   const handleSaveEditedAccount = async (updatedAccount) => {
     if (apiCallLock.current) return;
 
@@ -557,10 +567,10 @@ const AllAccounts = () => {
 
       {/* Table */}
       {!loading && !error && (
-        <div className="table-responsive" style={{ minWidth: "100%" }}>
-          <Table bordered hover className="align-middle text-center mb-0">
+        <div className="table-responsive border-1 rounded-3" style={{ minWidth: "100%" }}>
+          <Table className="align-middle text-center mb-0">
             <thead
-              className="table-light"
+              className=""
               style={{ position: "sticky", top: 0, zIndex: 1 }}
             >
               <tr>
@@ -576,7 +586,7 @@ const AllAccounts = () => {
                   const totalBalance = calculateTotalBalance(accountGroup);
                   return (
                     <React.Fragment key={accountGroup.type}>
-                      <tr className="bg-light">
+                      <tr className="">
                         <td colSpan="4" className="text-start fw-bold">
                           {accountGroup.type}
                         </td>
@@ -652,7 +662,7 @@ const AllAccounts = () => {
                           </tr>
                         ))}
                       {totalBalance !== 0 && (
-                        <tr className="bg-light font-weight-bold">
+                        <tr className=" font-weight-bold">
                           <td colSpan="2" className="text-end">
                             Total Balance
                           </td>

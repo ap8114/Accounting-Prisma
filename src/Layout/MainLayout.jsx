@@ -75,7 +75,7 @@ const MainLayout = () => {
         {/* Sidebar - visible on desktop */}
         {screenSize === 'desktop' && sidebarVisible && (
           <div
-            className="d-none d-lg-block bg-white border-end"
+            className="d-none d-lg-block border-end"
             style={{
               width: '240px',
               minHeight: '100vh',
@@ -91,7 +91,7 @@ const MainLayout = () => {
 
         {/* Main Content */}
         <main
-          className="flex-grow-1 bg-light"
+          className="flex-grow-1"
           style={{
             minHeight: "calc(100vh - 65px)",
             overflowX: "hidden",
@@ -105,33 +105,34 @@ const MainLayout = () => {
       </div>
 
       <div style={{
-         position: "fixed",
-         right: 16,
-         top: "55%",
-         zIndex: 1000,}}>
+        position: "fixed",
+        right: 16,
+        top: "55%",
+        zIndex: 1000,
+      }}>
 
-  <Button
-    onClick={() => setShowSettings(true)}
-    style={{
-      backgroundColor: "#53b2a5",
-      border: "none",
-      borderRadius: "50%",
-      width: 48,
-      height: 48,
-      boxShadow: "0 2px 8px #0001",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: 22,
-      padding: 0,
-    }}
-  >
-    <FaCog color="#fff" />
-  </Button>
-</div>
+        <Button
+          onClick={() => setShowSettings(true)}
+          style={{
+            backgroundColor: "#53b2a5",
+            border: "none",
+            borderRadius: "50%",
+            width: 48,
+            height: 48,
+            boxShadow: "0 2px 8px #0001",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 22,
+            padding: 0,
+          }}
+        >
+          <FaCog color="#fff" />
+        </Button>
+      </div>
 
 
-<SettingModal show={showSettings} handleClose={() => setShowSettings(false)}/>
+      <SettingModal show={showSettings} handleClose={() => setShowSettings(false)} />
 
       {/* Offcanvas Sidebar - for mobile and tablet */}
       {(screenSize === 'mobile' || screenSize === 'tablet') && (
