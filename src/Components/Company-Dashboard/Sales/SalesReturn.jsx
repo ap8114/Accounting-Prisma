@@ -625,7 +625,7 @@ const SalesReturn = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-light p-3 rounded mb-4">
+      <div className=" p-3 rounded mb-4">
         <Row className="g-3">
           <Col md={2}>
             <InputGroup>
@@ -764,7 +764,7 @@ const SalesReturn = () => {
       {/* Table */}
       <div className="table-responsive">
         <Table bordered hover className="align-middle">
-          <thead className="table-light">
+          <thead className="">
             <tr>
               <th className="text-center">#</th>
               <th>Return No</th>

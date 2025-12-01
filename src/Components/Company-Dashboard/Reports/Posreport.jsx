@@ -211,7 +211,7 @@ const PosReport = () => {
 
         <div className="table-responsive">
           <Table bordered hover className="align-middle">
-            <thead className="table-light">
+            <thead className="">
               <tr>
                 <th>Invoice No</th>
                 <th>Product</th>

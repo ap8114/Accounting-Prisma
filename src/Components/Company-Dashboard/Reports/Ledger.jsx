@@ -256,7 +256,7 @@ const Ledger = () => {
       {/* Table */}
       <div className="table-responsive">
         <table className="table table-bordered text-center align-middle">
-          <thead className="table-light">
+          <thead className="">
             <tr>
               <th>Date</th>
               <th>Voucher Type</th>

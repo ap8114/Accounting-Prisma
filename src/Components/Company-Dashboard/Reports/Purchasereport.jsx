@@ -209,7 +209,7 @@ const Purchasereport = () => {
 
         <div className="table-responsive">
           <Table className="table table-bordered">
-            <thead className="table-light">
+            <thead className="">
               <tr>
                 <th>PO #</th>
                 <th>Vendor</th>

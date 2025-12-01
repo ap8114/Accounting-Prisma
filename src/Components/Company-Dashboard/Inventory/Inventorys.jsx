@@ -582,7 +582,7 @@ const InventoryItems = () => {
         <div className="card bg-white rounded-3 p-4">
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
-              <thead className="table-light">
+              <thead className="">
                 <tr>
                   <th>
                     <Form.Check

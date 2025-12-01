@@ -271,7 +271,7 @@ function Service() {
         
         <div className="table-responsive">
           <Table striped bordered hover className="shadow-sm">
-            <thead className="table-light">
+            <thead className="">
               <tr>
                 <th>Service Name</th>
                 <th>Service Description</th>
@@ -334,7 +334,7 @@ function Service() {
                 
         {/* Add/Edit Modal */}
         <Modal show={show} onHide={handleClose} centered>
-          <Modal.Header closeButton className="bg-light">
+          <Modal.Header closeButton className="">
             <Modal.Title>{editMode ? "Edit Service" : "Add Service"}</Modal.Title>
           </Modal.Header>
           <Modal.Body>

@@ -473,7 +473,7 @@ const CompanyInfo = () => {
   return (
     <div
       style={{
-        backgroundColor: '#f8f9fa',
+      
         minHeight: '100vh',
         padding: '20px 0',
         direction: printLanguage === 'ar' ? 'rtl' : 'ltr',

@@ -650,7 +650,7 @@ const CustomersDebtors = () => {
         ) : (
           <>
             <Table bordered hover responsive>
-              <thead className="table-light">
+              <thead className="">
                 <tr>
                   <th>Voucher No</th>
                   <th>Name (English)</th>

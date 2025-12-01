@@ -627,7 +627,7 @@ const VendorsCustomers = () => {
         <div className="card bg-white rounded-3 p-4">
           <div className="table-responsive">
             <table className="table table-hover table-bordered align-middle mb-0">
-              <thead className="table-light border">
+              <thead className=" border">
                 <tr>
                   <th>NO.</th>
                   <th>Name (English)</th>

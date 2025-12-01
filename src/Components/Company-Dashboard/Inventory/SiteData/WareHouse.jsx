@@ -521,7 +521,7 @@ const WareHouse = () => {
             <>
               <div className="table-responsive mt-3">
                 <Table bordered striped hover>
-                  <thead className="table-light">
+                  <thead className="">
                     <tr>
                       <th>#</th>
                       <th>Warehouse Name</th>

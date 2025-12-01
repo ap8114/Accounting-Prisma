@@ -22,7 +22,7 @@ const emptyUser = {
   phone: "",
   email: "",
   role: "",
-  user_role: "", // will hold role ID as string
+  user_role: "",
   status: "Active",
   img: "",
   password: "",
@@ -63,7 +63,7 @@ const statusBadge = (status) => {
 
 const Users = () => {
   const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState([]); // <-- NEW: store dynamic roles
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -98,12 +98,9 @@ const Users = () => {
         const response = await axiosInstance.get(`/user-roles?company_id=${companyId}`);
         if (response.data.success && Array.isArray(response.data.data)) {
           setRoles(response.data.data);
-        } else {
-          console.warn("Unexpected role API response:", response.data);
         }
       } catch (err) {
         console.error("Fetch Roles Error:", err);
-        // Optionally set error state if needed
       }
     };
 
@@ -124,7 +121,6 @@ const Users = () => {
 
         if (response.data.success && Array.isArray(response.data.data)) {
           const companyUsers = response.data.data.map(user => {
-            // Map role ID to role name using fetched roles
             const roleId = user.user_role?.toString() || "3";
             const roleObj = roles.find(r => r.id.toString() === roleId);
             const roleName = roleObj ? roleObj.role_name : "Sales Executive";
@@ -155,11 +151,10 @@ const Users = () => {
     };
 
     if (roles.length > 0) {
-      fetchUsers(); // Only fetch users after roles are loaded
+      fetchUsers();
     }
   }, [companyId, roles]);
 
-  // Unique roles for filter dropdown (from fetched roles)
   const uniqueRoles = ["All", ...new Set(roles.map(role => role.role_name))];
 
   const filtered = users.filter((u) => {
@@ -203,7 +198,7 @@ const Users = () => {
     formData.append('name', form.name);
     formData.append('phone', form.phone);
     formData.append('email', form.email);
-    formData.append('user_role', form.user_role); // role ID as string
+    formData.append('user_role', form.user_role);
     formData.append('status', form.status);
 
     if (modalType === "add") {
@@ -336,6 +331,7 @@ const Users = () => {
     setShowResetModal(true);
   };
 
+  // ✅ UPDATED PASSWORD RESET HANDLER
   const handleResetPassword = async () => {
     if (newPassword !== confirmNewPassword) {
       alert("New Password and Confirm Password do not match!");
@@ -347,42 +343,33 @@ const Users = () => {
       return;
     }
 
+    if (!userToReset?.id) {
+      alert("Invalid user selected.");
+      return;
+    }
+
     try {
-      const currentUser = users.find(u => u.id === userToReset.id);
-      if (!currentUser) {
-        alert("User not found.");
-        return;
-      }
-
-      // Full payload with all required fields
-      const payload = {
-        name: currentUser.name,
-        phone: currentUser.phone,
-        email: currentUser.email,
-        user_role: currentUser.user_role,
-        status: currentUser.status,
-        company_id: companyId,
-        password: newPassword,
-      };
-
-      await axiosInstance.put(`/auth/User/${userToReset.id}`, payload);
-
-      // Update local state (do NOT store password)
-      setUsers(prev =>
-        prev.map(user =>
-          user.id === userToReset.id
-            ? { ...user, company_id: companyId }
-            : user
-        )
+      // ✅ Use the correct password reset endpoint
+      const response = await axiosInstance.put(
+        `/password/requests/${userToReset.id}/approve`,
+        {
+          new_password: newPassword,
+        }
       );
-      setShowResetModal(false);
-      alert(`Password for ${userToReset.name} has been reset successfully!`);
+
+      if (response.data.success) {
+        setShowResetModal(false);
+        alert(`Password for ${userToReset.name} has been reset successfully!`);
+      } else {
+        alert(response.data.message || "Failed to reset password.");
+      }
     } catch (err) {
-      console.error('Reset Password Error:', err);
-      const msg = err.response?.data?.message || 'Failed to reset password.';
+      console.error("Reset Password Error:", err);
+      const msg = err.response?.data?.message || "Failed to reset password. Please try again.";
       alert(msg);
     }
-  }
+  };
+
   return (
     <div className="p-3">
       <div className="">
@@ -488,8 +475,8 @@ const Users = () => {
         <Card className="mb-4">
           <Card.Body style={{ padding: 0 }}>
             <div style={{ overflowX: "auto" }}>
-              <Table responsive className="align-middle mb-0" style={{ background: "#fff", fontSize: 16 }}>
-                <thead className="table-light text-white">
+              <Table responsive className="align-middle mb-0" style={{  fontSize: 16 }}>
+                <thead className="">
                   <tr>
                     <th className="py-3">#</th>
                     <th className="py-3">User Name</th>
@@ -573,9 +560,7 @@ const Users = () => {
       </div>
 
       {/* Add/Edit Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg"   backdrop="static"
-        keyboard={false}
->
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" backdrop="static" keyboard={false}>
         <Modal.Header closeButton>
           <Modal.Title>{modalType === "add" ? "Add User" : "Edit User"}</Modal.Title>
         </Modal.Header>
@@ -621,15 +606,12 @@ const Users = () => {
                 }}
                 required
               >
-                   <option > 
-                    Select Role
-                  </option>
+                <option>Select Role</option>
                 {roles.map(role => (
                   <option key={role.id} value={role.id.toString()}>
                     {role.role_name}
                   </option>
                 ))}
-                 
               </Form.Select>
             </Form.Group>
             <Form.Group className="mb-2">

@@ -404,7 +404,7 @@ const Expense = () => {
   };
 
   return (
-    <div className="bg-light p-4 mt-1 product-header">
+    <div className="p-4 mt-1 product-header">
       {/* Toast Container */}
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
       
@@ -480,7 +480,7 @@ const Expense = () => {
         <Tab eventKey="direct" title="All Vouchers">
           <div className="table-responsive">
             <table className="table table-bordered text-center align-middle mb-0">
-              <thead className="table-light">
+              <thead className="">
                 <tr>
                   <th>DATE</th>
                   <th>AUTO RECEIPT NO</th>

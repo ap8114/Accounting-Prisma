@@ -190,7 +190,7 @@ const TaxReport = () => {
           {renderFilterSection(activeTab)}
 
           <Table hover responsive className="mb-0 border">
-            <thead className="bg-light text-dark fw-semibold">
+            <thead className="text-dark fw-semibold">
               <tr>
                 <th>Reference</th>
                 <th>{activeTab === "purchase" ? "Vendor" : "Customer"}</th>

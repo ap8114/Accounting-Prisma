@@ -278,7 +278,7 @@ const Salesreport = () => {
 
         <div className="table-responsive">
           <Table className="table table-bordered">
-            <thead className="table-light">
+            <thead className="">
               <tr>
                 <th>SKU</th>
                 <th>Customer Name</th>

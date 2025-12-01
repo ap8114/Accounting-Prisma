@@ -658,7 +658,7 @@ const PointOfSale = () => {
         </Col>
 
         {/* Right Side */}
-        <Col md={4} className="p-4 border rounded bg-light">
+        <Col md={4} className="p-4 border rounded">
           <Row className="mb-3">
             <Col>
               <Form.Label>Tax</Form.Label>
@@ -745,14 +745,14 @@ const PointOfSale = () => {
             onClick={handleCreateInvoice}
             disabled={selectedProducts.length === 0}
           >
-            Generate Invoice 🗋️
+            Generate Invoice
           </Button>
           <Button
             variant="danger"
             onClick={handleClear}
             disabled={selectedProducts.length === 0}
           >
-            Clear Selection ❌
+            Clear Selection
           </Button>
         </div>
       </Row>

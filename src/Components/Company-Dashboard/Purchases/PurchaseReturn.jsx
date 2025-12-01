@@ -1704,7 +1704,7 @@ const PurchaseReturn = () => {
       <Card className="border-0 rounded-3 overflow-hidden">
         <div className="table-responsive">
           <Table hover className="mb-0 text-center align-middle">
-            <thead className="bg-light text-dark">
+            <thead className="">
               <tr>
                 <th>REF ID</th>
                 <th>RETURN #</th>
@@ -2119,12 +2119,11 @@ const PurchaseReturn = () => {
                             left: 0,
                             right: 0,
                             zIndex: 1000,
-                            backgroundColor: "white",
                             border: "1px solid #ccc",
                             borderRadius: "5px",
                             maxHeight: "150px",
                             overflowY: "auto",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                            // boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                           }}
                         >
                           {filteredProducts.length === 0 ? (
@@ -2193,7 +2192,7 @@ const PurchaseReturn = () => {
               </Row>
               {formData.items.length > 0 && (
                 <Table size="sm" bordered>
-                  <thead className="table-light">
+                  <thead className="">
                     <tr>
                       <th>Product</th>
                       <th>Qty</th>
