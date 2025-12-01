@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button, Container, Image, Nav, Tab, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
-import { FaBuilding, FaImage, FaMapMarkerAlt, FaGlobe, FaFileInvoice, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
+import { FaBuilding, FaImage, FaMapMarkerAlt, FaGlobe, FaFileInvoice, FaCheck, FaExclamationTriangle, FaTimes } from 'react-icons/fa';
 import { CurrencySetting } from './CurrencySetting';
 import GetCompanyId from '../../../Api/GetCompanyId';
 import axiosInstance from '../../../Api/axiosInstance';
@@ -12,6 +12,7 @@ const CompanyInfo = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [showErrorAlert, setShowErrorAlert] = useState(true); // NEW: State to control error alert visibility
   const companyId = GetCompanyId();
 
   const [formData, setFormData] = useState({
@@ -129,6 +130,8 @@ const CompanyInfo = () => {
         }
         
         setSuccess("Company data loaded successfully");
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => setSuccess(null), 3000);
       } else {
         const errorMsg = response.data?.message || "Failed to fetch company data";
         setError(errorMsg);
@@ -221,6 +224,8 @@ const CompanyInfo = () => {
       if (response.data && response.data.success) {
         setSuccess("Company data saved successfully!");
         toast.success("Company data saved successfully!");
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => setSuccess(null), 3000);
         // Refresh data after save
         fetchCompanyData();
       } else {
@@ -478,21 +483,6 @@ const CompanyInfo = () => {
       {/* currency setting component call */}
       <CurrencySetting />
 
-      {/* Success/Error Messages */}
-      {success && (
-        <Alert variant="success" className="mb-3 d-flex align-items-center">
-          <FaCheck className="me-2" />
-          {success}
-        </Alert>
-      )}
-      
-      {error && (
-        <Alert variant="danger" className="mb-3 d-flex align-items-center">
-          <FaExclamationTriangle className="me-2" />
-          {error}
-        </Alert>
-      )}
-
       <Container className="p-4" style={{ maxWidth: '100%' }}>
         {/* Language Toggle Buttons */}
         <div className="d-flex justify-content-end mb-3 flex-wrap gap-2">
@@ -504,7 +494,7 @@ const CompanyInfo = () => {
         <h1 className="mb-3" style={{ fontSize: '24px', fontWeight: '600' }}>
           {t('settings')}
         </h1>
-        <p className="mb-4 text-muted">{t('manageSettings')}</p>  
+        <p className="mb-4 text-muted">{t('manageSettings')}</p>
 
         {/* Tabs: Company & Invoice Settings */}
         <Tab.Container defaultActiveKey="company">
