@@ -37,7 +37,7 @@ const ProfitLoss = ({ companyId = 3 }) => {
         setNoDataFound(false);
         setError(null);
         
-        const response = await axiosInstance.get(`/api/v1/Statement/${companyId}/profit-loss`, {
+        const response = await axiosInstance.get(`Statement/${companyId}/profit-loss`, {
           params: {
             from_date: dateRange.from,
             to_date: dateRange.to
