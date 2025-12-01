@@ -54,15 +54,15 @@ const WareHouseDetail = () => {
           });
 
           setSummary(data.summary);
-          setTotalStocks(data.totalStocks); // ✅ set from API
+          setTotalStocks(data.totalStocks);
           setLowestStockProduct(data.lowestStockProduct);
           setHighestStockProduct(data.highestStockProduct);
           setCategoryWiseSummary(data.categoryWiseSummary);
           setInventoryList(
             data.inventoryList.map((item) => ({
               ...item,
-              name: item.product_name, // ✅ key fix
-              unit: item.measurement,  // ✅ key fix
+              name: item.product_name,
+              unit: item.measurement,
             }))
           );
         }
@@ -114,56 +114,72 @@ const WareHouseDetail = () => {
   return (
     <div className="container py-5">
       {/* Header */}
-<div className="d-flex justify-content-between align-items-center mb-4">
-  {/* Left Side: Back Button + Heading */}
-  <div className="d-flex align-items-center gap-3">
-    <Button
-      variant="outline-dark"
-      onClick={() => navigate(-1)}
-      className="d-flex align-items-center rounded-pill px-3 shadow-sm"
-    >
-      <FaArrowLeft className="me-2" />
-      Back
-    </Button>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        {/* Left Side: Back Button + Heading */}
+        <div className="d-flex align-items-center gap-3">
+          <Button
+            variant="outline-dark"
+            onClick={() => navigate(-1)}
+            className="d-flex align-items-center rounded-pill px-3 shadow-sm"
+          >
+            <FaArrowLeft className="me-2" />
+            Back
+          </Button>
 
-    <h3 className="fw-bold mb-0 text-primary-emphasis d-flex align-items-center">
-      <FaBoxes className="me-2 text-warning" />
-      <span className="text-gradient">Stock by Warehouse</span>
-    </h3>
-  </div>
+          <h3 className="fw-bold mb-0 text-primary-emphasis d-flex align-items-center">
+            <FaBoxes className="me-2 text-warning" />
+            <span className="text-gradient">Stock by Warehouse</span>
+          </h3>
+        </div>
 
-  {/* Right Side: Add Product Button */}
-  <Button
-    onClick={handleAddStockModal}
-    style={{ backgroundColor: "#3daaaa", borderColor: "#3daaaa" }}
-  >
-    Add New Product
-  </Button>
+        {/* Right Side: Add Product Button */}
+        <Button
+          onClick={handleAddStockModal}
+          style={{ backgroundColor: "#3daaaa", borderColor: "#3daaaa" }}
+        >
+          Add New Product
+        </Button>
+      </div>
 
-  {/* Add Product Modal */}
-  <AddProductModal
-    showAdd={showAdd}
-    showEdit={false}
-    newItem={{}}
-    categories={uniqueCategories}
-    newCategory={""}
-    showUOMModal={false}
-    showAddCategoryModal={false}
-    setShowAdd={setShowAdd}
-    setShowEdit={() => {}}
-    setShowUOMModal={() => {}}
-    setShowAddCategoryModal={() => {}}
-    setNewCategory={() => {}}
-    handleChange={() => {}}
-    handleAddItem={() => {}}
-    handleUpdateItem={() => {}}
-    handleAddCategory={() => {}}
-    selectedWarehouse={selectedWarehouse}
-    formMode="addStock"
-    companyId={companyId}
-  />
-</div>
+      {/* Add Product Modal - UPDATED PROPS */}
+      <AddProductModal
+        showAdd={showAdd}
+        showEdit={false}
+        setShowAdd={setShowAdd}
+        setShowEdit={() => {}}
+        companyId={companyId}
+        onSuccess={() => {
+          // Refetch warehouse data after adding a product
+          const fetchWarehouseData = async () => {
+            if (!companyId || !id) return;
 
+            try {
+              const response = await axiosInstance.get(`/warehouses/${companyId}/${id}/stock`);
+              const data = response.data;
+
+              if (data.success) {
+                setSummary(data.summary);
+                setTotalStocks(data.totalStocks);
+                setLowestStockProduct(data.lowestStockProduct);
+                setHighestStockProduct(data.highestStockProduct);
+                setCategoryWiseSummary(data.categoryWiseSummary);
+                setInventoryList(
+                  data.inventoryList.map((item) => ({
+                    ...item,
+                    name: item.product_name,
+                    unit: item.measurement,
+                  }))
+                );
+              }
+            } catch (error) {
+              console.error("Error fetching warehouse data:", error);
+            }
+          };
+          fetchWarehouseData();
+        }}
+        // NEW: Pass the preselected warehouse ID
+        preselectedWarehouseId={id}
+      />
 
       {/* Warehouse Info */}
       {warehouse && summary ? (
@@ -415,7 +431,6 @@ const WareHouseDetail = () => {
       ) : (
         <Card className="text-center p-5 border-0 shadow-sm bg-light">
           <p className="text-muted">Warehouse not found.</p>
-    
         </Card>
       )}
     </div>

@@ -19,6 +19,7 @@ const AddProductModal = ({
   selectedItem,
   companyId,
   onSuccess,
+  preselectedWarehouseId, // NEW: Prop to receive warehouse ID from URL
 }) => {
   const isEditing = showEdit;
   const isAdding = showAdd;
@@ -137,6 +138,12 @@ const AddProductModal = ({
   };
 
   const removeWarehouseRow = (index) => {
+    // NEW: Prevent removing if it's the preselected warehouse
+    if (preselectedWarehouseId && 
+        localNewItem.productWarehouses[index]?.warehouse_id === parseInt(preselectedWarehouseId)) {
+      return;
+    }
+
     if (localNewItem.productWarehouses.length <= 1) return;
 
     const updatedWarehouses = [...localNewItem.productWarehouses];
@@ -186,7 +193,7 @@ const AddProductModal = ({
     }
   };
 
-  // This useEffect is the key to fixing the edit functionality
+  // UPDATED: useEffect to handle preselected warehouse
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -194,53 +201,68 @@ const AddProductModal = ({
     }
 
     if (isEditing && selectedItem) {
-      // Map warehouses from the selected item to the form's structure
       const productWarehouses =
-        selectedItem.warehouses && selectedItem.warehouses.length > 0
-          ? selectedItem.warehouses.map((pw) => ({
-              warehouse_id: pw.warehouse_id,
-              warehouse_name: pw.warehouse_name,
+        selectedItem.product_warehouses && selectedItem.product_warehouses.length > 0
+          ? selectedItem.product_warehouses.map((pw) => ({
+              warehouse_id: pw.warehouse.id,
+              warehouse_name: pw.warehouse.warehouse_name,
               quantity: pw.stock_qty || pw.quantity || 0,
               min_order_qty: pw.min_order_qty || 0,
               initial_qty: pw.initial_qty || 0,
             }))
           : warehouses.length > 0
-          ? [
-              {
-                warehouse_id: warehouses[0].id,
-                warehouse_name: warehouses[0].warehouse_name,
-                quantity: 0,
-                min_order_qty: 0,
-                initial_qty: 0,
-              },
-            ]
-          : [];
+            ? [
+                {
+                  warehouse_id: warehouses[0].id,
+                  warehouse_name: warehouses[0].warehouse_name,
+                  quantity: 0,
+                  min_order_qty: 0,
+                  initial_qty: 0,
+                },
+              ]
+            : [];
 
-      // Set the form state with the selected item's data
       setLocalNewItem({
         id: selectedItem.id || "",
         itemName: selectedItem.item_name || selectedItem.itemName || "",
         hsn: selectedItem.hsn || "",
         barcode: selectedItem.barcode || "",
-        image: null, // Image is handled separately on update
+        image: null,
         itemCategory: selectedItem.item_category?.item_category_name || selectedItem.itemCategory || "",
         itemCategoryId: selectedItem.item_category?.id || selectedItem.itemCategoryId || "",
         description: selectedItem.description || "",
         sku: selectedItem.sku || "",
         date: selectedItem.as_of_date || selectedItem.date || new Date().toISOString().split("T")[0],
         taxAccount: selectedItem.tax_account || selectedItem.taxAccount || "",
-        cost: (selectedItem.initial_cost || selectedItem.cost || "0").toString(),
-        salePriceExclusive: (selectedItem.sale_price || selectedItem.salePriceExclusive || "0").toString(),
-        salePriceInclusive: (selectedItem.purchase_price || selectedItem.salePriceInclusive || "0").toString(),
-        discount: (selectedItem.discount || "0").toString(),
+        cost: (selectedItem.initial_cost || selectedItem.cost || "").toString(),
+        salePriceExclusive: (selectedItem.sale_price || selectedItem.salePriceExclusive || "").toString(),
+        salePriceInclusive: (selectedItem.purchase_price || selectedItem.salePriceInclusive || "").toString(),
+        discount: (selectedItem.discount || "").toString(),
         remarks: selectedItem.remarks || "",
         unitDetailId: selectedItem.unit_detail_id || selectedItem.unitDetailId || (unitDetails.length > 0 ? unitDetails[0].id : ""),
         productWarehouses: productWarehouses,
       });
     } else if (isAdding) {
-      resetLocalForm();
+      // NEW: If preselectedWarehouseId is provided, set it as the only warehouse
+      if (preselectedWarehouseId && warehouses.length > 0) {
+        const preselectedWarehouse = warehouses.find(wh => wh.id === parseInt(preselectedWarehouseId));
+        if (preselectedWarehouse) {
+          setLocalNewItem(prev => ({
+            ...prev,
+            productWarehouses: [{
+              warehouse_id: preselectedWarehouse.id,
+              warehouse_name: preselectedWarehouse.warehouse_name,
+              quantity: 0,
+              min_order_qty: 0,
+              initial_qty: 0,
+            }]
+          }));
+        }
+      } else {
+        resetLocalForm();
+      }
     }
-  }, [isEditing, isAdding, selectedItem, warehouses, unitDetails]);
+  }, [isEditing, isAdding, selectedItem, warehouses, unitDetails, preselectedWarehouseId]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -280,11 +302,24 @@ const AddProductModal = ({
           const filteredWarehouses = response.data.data;
           setWarehouses(filteredWarehouses);
 
-          if (
-            isAdding &&
-            localNewItem.productWarehouses.length === 0 &&
-            filteredWarehouses.length > 0
-          ) {
+          // NEW: If adding and preselectedWarehouseId is set, update the form
+          if (isAdding && preselectedWarehouseId && filteredWarehouses.length > 0) {
+            const preselectedWarehouse = filteredWarehouses.find(wh => wh.id === parseInt(preselectedWarehouseId));
+            if (preselectedWarehouse) {
+              setLocalNewItem(prev => ({
+                ...prev,
+                productWarehouses: [{
+                  warehouse_id: preselectedWarehouse.id,
+                  warehouse_name: preselectedWarehouse.warehouse_name,
+                  quantity: 0,
+                  min_order_qty: 0,
+                  initial_qty: 0,
+                }]
+              }));
+            }
+          }
+          // Regular case: if adding new product and no warehouses are set
+          else if (isAdding && localNewItem.productWarehouses.length === 0 && filteredWarehouses.length > 0) {
             setLocalNewItem((prev) => ({
               ...prev,
               productWarehouses: [
@@ -310,7 +345,7 @@ const AddProductModal = ({
     };
 
     fetchWarehouses();
-  }, [companyId]);
+  }, [companyId, isAdding, preselectedWarehouseId]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -629,6 +664,11 @@ const AddProductModal = ({
     setShowEdit(false);
   };
 
+  // NEW: Check if the current warehouse row is the preselected one
+  const isPreselectedWarehouse = (warehouseId) => {
+    return preselectedWarehouseId && parseInt(warehouseId) === parseInt(preselectedWarehouseId);
+  };
+
   return (
     <>
       <Modal
@@ -789,14 +829,20 @@ const AddProductModal = ({
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <Form.Label className="mb-0">
                       Warehouse Information
+                      {preselectedWarehouseId && (
+                        <span className="text-muted ms-2">
+                          (Warehouse pre-selected from previous page)
+                        </span>
+                      )}
                     </Form.Label>
+                    {/* NEW: Disable button if preselectedWarehouseId exists */}
                     <Button
                       variant="outline-primary"
                       size="sm"
                       onClick={addWarehouseRow}
                       disabled={
-                        localNewItem.productWarehouses.length >=
-                        warehouses.length
+                        localNewItem.productWarehouses.length >= warehouses.length ||
+                        !!preselectedWarehouseId // Disable if preselected
                       }
                       style={{
                         backgroundColor: "#27b2b6",
@@ -830,6 +876,7 @@ const AddProductModal = ({
                           (warehouse, index) => (
                             <tr key={index}>
                               <td>
+                                {/* NEW: Disable dropdown if it's the preselected warehouse */}
                                 <Form.Select
                                   value={warehouse.warehouse_id}
                                   onChange={(e) =>
@@ -839,6 +886,7 @@ const AddProductModal = ({
                                       e.target.value
                                     )
                                   }
+                                  disabled={isPreselectedWarehouse(warehouse.warehouse_id)}
                                 >
                                   <option value="">Select Warehouse</option>
                                   {warehouses
@@ -906,12 +954,14 @@ const AddProductModal = ({
                                 />
                               </td>
                               <td className="text-center">
+                                {/* NEW: Disable remove button if it's the preselected warehouse */}
                                 <Button
                                   variant="danger"
                                   size="sm"
                                   onClick={() => removeWarehouseRow(index)}
                                   disabled={
-                                    localNewItem.productWarehouses.length <= 1
+                                    localNewItem.productWarehouses.length <= 1 ||
+                                    isPreselectedWarehouse(warehouse.warehouse_id)
                                   }
                                 >
                                   Remove
