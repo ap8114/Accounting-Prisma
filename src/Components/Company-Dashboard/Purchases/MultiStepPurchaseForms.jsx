@@ -405,7 +405,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep, onClose,sel
       if (res.data) {
          setPoId(id);
         const apiData = res.data.data;
-        console.log("API Data11111111111111111:", apiData);
+        console.log("API Data", apiData);
         
      
         const formatDate = (iso) => (iso ? iso.split("T")[0] : "");
@@ -610,129 +610,167 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep, onClose,sel
     }
   }, [activeTab, poId]);
 
-  const handleSaveStep = async () => {
-    setError(null);
-    setSuccess(null);
-    const currentApiStep = uiStepToApiStep[activeTab];
-    if (!currentApiStep) return;
+const handleSaveStep = async () => {
+  setError(null);
+  setSuccess(null);
+  const currentApiStep = uiStepToApiStep[activeTab];
+  if (!currentApiStep) return;
 
-    if (!poId) {
-      // STEP 1: POST
-      const pq = formData.purchaseQuotation;
-      const items = pq.items.map((i) => ({
-        item_name: i.name,
-        qty: i.qty,
-        rate: i.rate,
-        tax_percent: i.tax,
-        discount: i.discount,
-        amount: (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0),
-      }));
+  if (!poId) {
+    // STEP 1: POST
+    const pq = formData.purchaseQuotation;
+    const items = pq.items.map((i) => ({
+      item_name: i.name,
+      qty: i.qty,
+      rate: i.rate,
+      tax_percent: i.tax,
+      discount: i.discount,
+      amount: (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0),
+    }));
 
-      const payload = {
-        company_info: {
-          company_id: companyId,
-          company_name: pq.companyName,
-          company_address: pq.companyAddress,
-          company_email: pq.companyEmail,
-          company_phone: pq.companyPhone,
-          bank_name: pq.bankName,
-          account_no: pq.accountNo,
-          account_holder: pq.accountHolder,
-          ifsc_code: pq.ifsc,
-          terms: pq.terms_and_conditions,
-          notes: pq.notes,
-        },
-        shipping_details: {
-          bill_to_attention_name: pq.vendorName,
-          bill_to_company_name: pq.vendorName,
-          bill_to_company_address: pq.vendorAddress,
-          bill_to_company_email: pq.vendorEmail,
-          bill_to_company_phone: pq.vendorPhone,
-          ship_to_attention_name: pq.vendorName,
-          ship_to_company_name: pq.vendorName,
-          ship_to_company_address: pq.vendorAddress,
-          ship_to_company_email: pq.vendorEmail,
-          ship_to_company_phone: pq.vendorPhone,
-        },
-        items,
-        steps: {
-          quotation: {
-            quotation_from_vendor_name: pq.vendorName,
-            quotation_from_vendor_address: pq.vendorAddress,
-            quotation_from_vendor_email: pq.vendorEmail,
-            quotation_from_vendor_phone: pq.vendorPhone,
-            ref_no: pq.referenceId,
-            manual_ref_ro: pq.manualRefNo,
-            quotation_no: pq.quotationNo,
-            manual_quo_no: pq.manualRefNo,
-            quotation_date: pq.quotationDate,
-            valid_till: pq.validDate,
-          },
-          purchase_order: {},
-          goods_receipt: {},
-          bill: {},
-          payment: {},
-        },
-        sub_total: calculateTotalAmount(items),
-        tax: items.reduce((s, i) => {
-          const sub = (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0);
-          return s + (sub * (parseFloat(i.tax_percent) || 0)) / 100;
-        }, 0),
-        discount: items.reduce((s, i) => s + (parseFloat(i.discount) || 0), 0),
-        total: calculateTotalWithTaxAndDiscount(items),
-      };
-
-      const id = await createPurchaseOrder(payload);
-      if (id) {
-        handleNext();
-      }
-    } else {
-      // STEPS 2–5: PUT
-      const currentData = formData[activeTab];
-      let apiStepData = {};
-
-      if (activeTab === "purchaseOrder") {
-        apiStepData = {
-          PO_no: currentData.orderNo,
-          Manual_PO_ref: currentData.manualOrderNo,
-        };
-      } else if (activeTab === "goodsReceipt") {
-        apiStepData = {
-          GR_no: currentData.receiptNo,
-          Manual_GR_no: currentData.manualReceiptNo,
-          vehicle_no: currentData.vehicleNo,
-          driver_name: currentData.driverName,
-          driver_phone: currentData.driverPhone,
+    // Get ship to data from the current active tab
+    const getShipToData = () => {
+      if (activeTab === "goodsReceipt") {
+        return {
+          ship_to_attention_name: formData.goodsReceipt.shipToName || "",
+          ship_to_company_name: formData.goodsReceipt.shipToName || "",
+          ship_to_company_address: formData.goodsReceipt.shipToAddress || "",
+          ship_to_company_email: formData.goodsReceipt.shipToEmail || "",
+          ship_to_company_phone: formData.goodsReceipt.shipToPhone || "",
         };
       } else if (activeTab === "bill") {
-        apiStepData = {
-          Bill_no: currentData.billNo,
-          Manual_Bill_no: currentData.manualBillNo,
-          due_date: currentData.dueDate,
+        return {
+          ship_to_attention_name: formData.bill.shipToName || "",
+          ship_to_company_name: formData.bill.shipToName || "",
+          ship_to_company_address: formData.bill.shipToAddress || "",
+          ship_to_company_email: formData.bill.shipToEmail || "",
+          ship_to_company_phone: formData.bill.shipToPhone || "",
         };
-      } else if (activeTab === "payment") {
-        const totalAmount = calculateTotalWithTaxAndDiscount(formData.purchaseQuotation.items);
-        apiStepData = {
-          Payment_no: currentData.paymentNo,
-          Manual_payment_no: currentData.manualPaymentNo,
-          amount_paid: parseFloat(currentData.amount) || 0,
-          total_amount: totalAmount,
-          total_bill: totalAmount,
-          balance: totalAmount - (parseFloat(currentData.amount) || 0),
-          payment_note: currentData.note,
-          payment_status: currentData.paymentStatus,
-          payment_made_vendor_name: currentData.vendorName,
-          payment_made_vendor_address: currentData.vendorAddress,
-          payment_made_vendor_email: currentData.vendorEmail,
-          payment_made_vendor_phone: currentData.vendorPhone,
+      } else {
+        // Default empty values for other tabs
+        return {
+          ship_to_attention_name: "",
+          ship_to_company_name: "",
+          ship_to_company_address: "",
+          ship_to_company_email: "",
+          ship_to_company_phone: "",
         };
       }
+    };
 
-      const payload = { [currentApiStep]: apiStepData };
-      await updatePurchaseOrder(poId, payload);
+    const payload = {
+      company_info: {
+        company_id: companyId,
+        company_name: pq.companyName,
+        company_address: pq.companyAddress,
+        company_email: pq.companyEmail,
+        company_phone: pq.companyPhone,
+        bank_name: pq.bankName,
+        account_no: pq.accountNo,
+        account_holder: pq.accountHolder,
+        ifsc_code: pq.ifsc,
+        terms: pq.terms_and_conditions,
+        notes: pq.notes,
+      },
+      shipping_details: {
+        bill_to_attention_name: pq.vendorName,
+        bill_to_company_name: pq.vendorName,
+        bill_to_company_address: pq.vendorAddress,
+        bill_to_company_email: pq.vendorEmail,
+        bill_to_company_phone: pq.vendorPhone,
+        // Use ship to data from the current active tab
+        ...getShipToData(),
+      },
+      items,
+      steps: {
+        quotation: {
+          quotation_from_vendor_name: pq.vendorName,
+          quotation_from_vendor_address: pq.vendorAddress,
+          quotation_from_vendor_email: pq.vendorEmail,
+          quotation_from_vendor_phone: pq.vendorPhone,
+          ref_no: pq.referenceId,
+          manual_ref_ro: pq.manualRefNo,
+          quotation_no: pq.quotationNo,
+          manual_quo_no: pq.manualRefNo,
+          quotation_date: pq.quotationDate,
+          valid_till: pq.validDate,
+        },
+        purchase_order: {},
+        goods_receipt: {},
+        bill: {},
+        payment: {},
+      },
+      sub_total: calculateTotalAmount(items),
+      tax: items.reduce((s, i) => {
+        const sub = (parseFloat(i.rate) || 0) * (parseInt(i.qty) || 0);
+        return s + (sub * (parseFloat(i.tax_percent) || 0)) / 100;
+      }, 0),
+      discount: items.reduce((s, i) => s + (parseFloat(i.discount) || 0), 0),
+      total: calculateTotalWithTaxAndDiscount(items),
+    };
+
+    const id = await createPurchaseOrder(payload);
+    if (id) {
+      handleNext();
     }
-  };
+  } else {
+    // STEPS 2–5: PUT
+    const currentData = formData[activeTab];
+    let apiStepData = {};
 
+    if (activeTab === "purchaseOrder") {
+      apiStepData = {
+        PO_no: currentData.orderNo,
+        Manual_PO_ref: currentData.manualOrderNo,
+      };
+    } else if (activeTab === "goodsReceipt") {
+      apiStepData = {
+        GR_no: currentData.receiptNo,
+        Manual_GR_no: currentData.manualReceiptNo,
+        vehicle_no: currentData.vehicleNo,
+        driver_name: currentData.driverName,
+        driver_phone: currentData.driverPhone,
+        // Include ship to details in goods receipt step
+        ship_to_attention_name: currentData.shipToName,
+        ship_to_company_name: currentData.shipToName,
+        ship_to_company_address: currentData.shipToAddress,
+        ship_to_company_email: currentData.shipToEmail,
+        ship_to_company_phone: currentData.shipToPhone,
+      };
+    } else if (activeTab === "bill") {
+      apiStepData = {
+        Bill_no: currentData.billNo,
+        Manual_Bill_no: currentData.manualBillNo,
+        due_date: currentData.dueDate,
+        // Include ship to details in bill step
+        ship_to_attention_name: currentData.shipToName,
+        ship_to_company_name: currentData.shipToName,
+        ship_to_company_address: currentData.shipToAddress,
+        ship_to_company_email: currentData.shipToEmail,
+        ship_to_company_phone: currentData.shipToPhone,
+      };
+    } else if (activeTab === "payment") {
+      const totalAmount = calculateTotalWithTaxAndDiscount(formData.purchaseQuotation.items);
+      apiStepData = {
+        Payment_no: currentData.paymentNo,
+        Manual_payment_no: currentData.Manual_payment_no,
+        amount_paid: parseFloat(currentData.amount) || 0,
+        total_amount: totalAmount,
+        total_bill: totalAmount,
+        balance: totalAmount - (parseFloat(currentData.amount) || 0),
+        payment_note: currentData.note,
+        payment_status: currentData.paymentStatus,
+        payment_made_vendor_name: currentData.vendorName,
+        payment_made_vendor_address: currentData.vendorAddress,
+        payment_made_vendor_email: currentData.vendorEmail,
+        payment_made_vendor_phone: currentData.vendorPhone,
+      };
+    }
+
+    const payload = { [currentApiStep]: apiStepData };
+    await updatePurchaseOrder(poId, payload);
+  }
+};
 
   
   const renderPurchaseQuotationTab = () => {
@@ -3737,17 +3775,7 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep, onClose,sel
                 />
               </div>
             </Form.Group>
-            <Form.Group className="mb-0">
-              <div className="d-flex justify-content-between align-items-center text-nowrap">
-                <Form.Label className="mb-0">Manual Pay. No.</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={data.Manual_payment_no}
-                  onChange={(e) => handleChange("Manual_payment_no", e.target.value)}
-                  className="form-control-no-border text-end"
-                />
-              </div>
-            </Form.Group>
+           
             <Form.Group className="mb-0">
               <div className="d-flex justify-content-between align-items-center text-nowrap">
                 <Form.Label className="mb-0">Bill No.</Form.Label>
@@ -3776,8 +3804,9 @@ const MultiStepPurchaseForm = ({ onSubmit, initialData, initialStep, onClose,sel
                 <Form.Label className="mb-0">Payment No.</Form.Label>
                 <Form.Control
                   type="text"
-                  value={data.paymentNo || ""}
-                  readOnly
+                  value={data.Manual_payment_no || ""}
+                    onChange={(e) => handleChange("Manual_payment_no", e.target.value)}
+
                   className="form-control-no-border text-end"
                   style={{ backgroundColor: "#f8f9fa" }}
                 />

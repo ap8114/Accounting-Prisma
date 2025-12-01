@@ -323,8 +323,7 @@ const handleCreateNewPurchase = async (order = null) => {
             <Form.Label>Goods Receipt</Form.Label>
             <Form.Select
               value={goodsReceiptStatusFilter}
-              onChange={(e) => setGoodsReceiptStatusFilter(e.target.value)}
-            >
+              onChange={(e) => setGoodsReceiptStatusFilter(e.target.value)}>
               <option value="">All</option>
               <option value="Pending">Pending</option>
               <option value="Done">Done</option>
@@ -414,7 +413,7 @@ const handleCreateNewPurchase = async (order = null) => {
                 <td>{statusBadge(order.purchaseOrderStatus)}</td>
                 <td>{statusBadge(order.goodsReceiptStatus)}</td>
                 <td>{statusBadge(order.billStatus)}</td>
-                <td>{statusBadge(order.paymentStatus)}</td>
+                <td>{statusBadge(order.paymentStatus)}</td> 
                 <td>
                   <div className="d-flex gap-1 justify-content-center">
                     <Button
@@ -602,11 +601,11 @@ const handleCreateNewPurchase = async (order = null) => {
                 <Card.Header as="h5">Additional Information</Card.Header>
                 <Card.Body>
                   <Row>
-                    {viewOrder.additional_info.files && viewOrder.additional_info.files.length > 0 && (
+                    {viewOrder?.additional_info.files && viewOrder.additional_info.files.length > 0 && (
                       <Col md={12}>
                         <p><strong>Attached Files:</strong></p>
                         <ul>
-                          {viewOrder.additional_info.files.map((file, idx) => (
+                          {viewOrder?.additional_info.files.map((file, idx) => (
                             <li key={idx}>
                               <a href={file.url} target="_blank" rel="noopener noreferrer">
                                 {file.name}
@@ -619,19 +618,19 @@ const handleCreateNewPurchase = async (order = null) => {
                     {viewOrder.additional_info.signature_url && (
                       <Col md={4}>
                         <p><strong>Signature:</strong></p>
-                        <img src={viewOrder.additional_info.signature_url} alt="Signature" style={{maxWidth: '100%'}} />
+                        <img src={viewOrder?.additional_info.signature_url} alt="Signature" style={{maxWidth: '100%'}} />
                       </Col>
                     )}
                     {viewOrder.additional_info.photo_url && (
                       <Col md={4}>
                         <p><strong>Photo:</strong></p>
-                        <img src={viewOrder.additional_info.photo_url} alt="Photo" style={{maxWidth: '100%'}} />
+                        <img src={viewOrder?.additional_info.photo_url} alt="Photo" style={{maxWidth: '100%'}} />
                       </Col>
                     )}
                     {viewOrder.additional_info.attachment_url && (
                       <Col md={4}>
                         <p><strong>Attachment:</strong></p>
-                        <a href={viewOrder.additional_info.attachment_url} target="_blank" rel="noopener noreferrer">
+                        <a href={viewOrder?.additional_info.attachment_url} target="_blank" rel="noopener noreferrer">
                           View Attachment
                         </a>
                       </Col>
