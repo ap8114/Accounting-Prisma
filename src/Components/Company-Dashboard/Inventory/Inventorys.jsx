@@ -45,7 +45,6 @@ const InventoryItems = () => {
 
       if (response.data?.success && Array.isArray(response.data.data)) {
         const transformedItems = response.data.data.map((product) => {
-          // Get the primary warehouse (first one in the array)
           const primaryWarehouse =
             product.warehouses && product.warehouses.length > 0
               ? product.warehouses[0]
@@ -53,47 +52,43 @@ const InventoryItems = () => {
 
           return {
             id: product.id || 0,
-            itemName: safeTrim(product.item_name) || "Unnamed Product", // FIXED: Using item_name instead of sku
-            hsn: "N/A", // Not available in the response
-            barcode: "", // Not available in the response
+            itemName: safeTrim(product.item_name) || "Unnamed Product",
+            hsn: "N/A",
+            barcode: "",
             sku: product.sku || "",
             unit: product.unit_detail?.uom_id?.toString() || "Numbers",
             description:
-              safeTrim(product.description) || "No description available", // FIXED: Using actual description
+              safeTrim(product.description) || "No description available",
             quantity: product.total_stock || 0,
             date:
               new Date(product.created_at).toISOString().split("T")[0] ||
               "2020-01-01",
-            cost: 0, // Not available in the response
-            value: 0, // Not available in the response
-            minQty: 0, // Not available in the response
-            taxAccount: "N/A", // Not available in the response
+            cost: 0,
+            value: 0,
+            minQty: 0,
+            taxAccount: "N/A",
             cess: 0,
-            purchasePriceExclusive: 0, // Not available in the response
-            purchasePriceInclusive: 0, // Not available in the response
-            salePriceExclusive: 0, // Not available in the response
-            salePriceInclusive: 0, // Not available in the response
-            discount: 0, // Not available in the response
+            purchasePriceExclusive: 0,
+            purchasePriceInclusive: 0,
+            salePriceExclusive: 0,
+            salePriceInclusive: 0,
+            discount: 0,
             category: "default",
             itemCategory:
               product.item_category?.item_category_name || "Unknown",
             itemType: "Good",
             subcategory: "default",
-            remarks: "", // Not available in the response
-            image: product.image || null, // FIXED: Using actual image
+            remarks: "",
+            image: product.image || null,
             status:
               (product.total_stock || 0) > 0 ? "In Stock" : "Out of Stock",
             warehouse: primaryWarehouse?.warehouse_name || "Unknown",
             warehouseId: primaryWarehouse?.warehouse_id?.toString() || "",
             itemCategoryId: product.item_category?.id?.toString() || "",
-            // Store all warehouses for detailed view
-            warehouses:
-              product.warehouses?.map((w) => ({
-                id: w.warehouse_id,
-                name: w.warehouse_name,
-                location: w.location,
-                stockQty: w.stock_qty,
-              })) || [],
+            // Store the full warehouse and category objects for the edit modal
+            warehouses: product.warehouses || [],
+            item_category: product.item_category || null,
+            unit_detail_id: product.unit_detail?.id,
           };
         });
 
@@ -109,7 +104,6 @@ const InventoryItems = () => {
     }
   };
 
-  // Unified refresh function
   const refreshProducts = () => {
     if (companyId) {
       fetchProductsByCompanyId(companyId);
@@ -122,13 +116,12 @@ const InventoryItems = () => {
     }
   }, [companyId]);
 
-  // Extract unique warehouses from all items
   const getAllWarehouses = () => {
     const warehouseSet = new Set();
     items.forEach((item) => {
       if (item.warehouses) {
         item.warehouses.forEach((w) => {
-          warehouseSet.add(w.name);
+          warehouseSet.add(w.warehouse_name);
         });
       }
     });
@@ -149,7 +142,7 @@ const InventoryItems = () => {
       selectedCategory === "All" || item.itemCategory === selectedCategory;
     const matchesWarehouse =
       selectedWarehouse === "All" ||
-      item.warehouses?.some((w) => w.name === selectedWarehouse);
+      item.warehouses?.some((w) => w.warehouse_name === selectedWarehouse);
 
     let matchesQuantity = true;
     const qty = item.quantity;
@@ -196,7 +189,6 @@ const InventoryItems = () => {
     );
   };
 
-
   const handleDeleteItem = async () => {
     if (!selectedItem?.id) {
       toast.error("No item selected for deletion", {
@@ -213,8 +205,6 @@ const InventoryItems = () => {
         `products/${selectedItem.id}`
       );
 
-      console.log("Delete API Response:", response.data);
-
       if (response.data?.success) {
         setItems((prevItems) =>
           prevItems.filter((item) => item.id !== selectedItem.id)
@@ -229,7 +219,6 @@ const InventoryItems = () => {
         const errorMessage =
           response.data?.message ||
           "The server reported a failure to delete the product.";
-        console.error("Server reported deletion failure:", errorMessage);
         toast.error(`Failed to delete product. ${errorMessage}`, {
           toastId: "product-delete-server-error",
           autoClose: 3000,
@@ -237,16 +226,12 @@ const InventoryItems = () => {
       }
     } catch (error) {
       console.error("Delete API Error:", error);
-
       let errorMessage = "An unknown error occurred.";
       if (error.response) {
-        console.error("Error Data:", error.response.data);
-        console.error("Error Status:", error.response.status);
         errorMessage =
           error.response.data?.message ||
           `Server error with status ${error.response.status}.`;
       } else if (error.request) {
-        console.error("Error Request:", error.request);
         errorMessage =
           "No response received from server. Check your network connection.";
       } else {
@@ -357,7 +342,6 @@ const InventoryItems = () => {
     if (e && (e.target.closest("button") || e.target.closest(".btn"))) {
       return;
     }
-    // Navigate with the product ID in the URL, not passing the item in state
     navigate(`/company/inventorydetails/${item.id}`);
   };
 
@@ -514,10 +498,6 @@ const InventoryItems = () => {
               setShowEdit={setShowEdit}
               selectedItem={selectedItem}
               companyId={companyId}
-              showAddCategoryModal={showAddCategoryModal}
-              setShowAddCategoryModal={setShowAddCategoryModal}
-              newCategory={newCategory}
-              setNewCategory={setNewCategory}
               onSuccess={refreshProducts}
             />
           </Col>
@@ -632,7 +612,7 @@ const InventoryItems = () => {
                       <td>
                         {item.warehouses && item.warehouses.length > 0 ? (
                           <div>
-                            {item.warehouses[0].name}
+                            {item.warehouses[0].warehouse_name}
                             {item.warehouses.length > 1 && (
                               <span className="text-muted ms-1">
                                 (+{item.warehouses.length - 1} more)
@@ -697,7 +677,6 @@ const InventoryItems = () => {
                             className="text-primary p-0"
                             onClick={(e) => {
                               e.stopPropagation();
-                              // Navigate with the product ID in the URL, not passing the item in state
                               navigate(`/company/inventorydetails/${item.id}`);
                             }}
                             title="View Details"
@@ -787,7 +766,6 @@ const InventoryItems = () => {
                   </Col>
                 </Row>
 
-                {/* Warehouse Information */}
                 <Row className="mb-3">
                   <Col md={12}>
                     <strong>Warehouse Information:</strong>
@@ -804,9 +782,9 @@ const InventoryItems = () => {
                         <tbody>
                           {selectedItem.warehouses.map((warehouse, index) => (
                             <tr key={index}>
-                              <td>{warehouse.name}</td>
+                              <td>{warehouse.warehouse_name}</td>
                               <td>{warehouse.location}</td>
-                              <td>{warehouse.stockQty}</td>
+                              <td>{warehouse.stock_qty}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -828,7 +806,6 @@ const InventoryItems = () => {
                   </Col>
                 </Row>
 
-                {/* Image Display */}
                 {selectedItem.image && (
                   <Row className="mb-3">
                     <Col md={12}>
@@ -904,7 +881,6 @@ const InventoryItems = () => {
           </Modal.Footer>
         </Modal>
 
-        {/* Page Description */}
         <Card className="mb-4 p-3 shadow rounded-4 mt-2">
           <Card.Body>
             <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
@@ -925,7 +901,6 @@ const InventoryItems = () => {
         </Card>
       </div>
 
-      {/* Toast Container */}
       <ToastContainer
         position="top-right"
         autoClose={3000}
