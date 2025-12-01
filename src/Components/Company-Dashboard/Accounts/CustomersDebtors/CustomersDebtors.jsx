@@ -403,10 +403,11 @@ const CustomersDebtors = () => {
     setCurrentIndex(null);
   };
 
-  // Filter customers
+  // Filter customers - UPDATED to include Arabic name search
   const filteredCustomers = customersList.filter((customer) => {
     const matchesSearch =
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.nameArabic.includes(searchTerm) || // No toLowerCase for Arabic text
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.contact.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
@@ -624,7 +625,7 @@ const CustomersDebtors = () => {
                 </InputGroup.Text>
                 <Form.Control
                   type="text"
-                  placeholder="Search by name, email or phone"
+                  placeholder="Search by name, email, phone or Arabic name"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />

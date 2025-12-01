@@ -1275,11 +1275,10 @@ const AddProductModal = ({
   showEdit,
   setShowAdd,
   setShowEdit,
-  formMode,
   selectedItem,
   companyId,
   onSuccess,
-  selectedWarehouse,
+  preselectedWarehouseId, // NEW: Prop to receive warehouse ID from URL
 }) => {
   const isEditing = showEdit;
   const isAdding = showAdd;
@@ -1301,10 +1300,13 @@ const AddProductModal = ({
     discount: "",
     remarks: "",
     unitDetailId: "",
+<<<<<<< HEAD
     // Product-level fields (from your API)
     initial_qty: 0,
     min_order_qty: 0,
     // Per-warehouse stock
+=======
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
     productWarehouses: [],
   });
 
@@ -1321,6 +1323,10 @@ const AddProductModal = ({
   const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isLoadingUnitDetails, setIsLoadingUnitDetails] = useState(false);
+<<<<<<< HEAD
+=======
+
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
   const [internalShowAddCategoryModal, setInternalShowAddCategoryModal] = useState(false);
   const [internalNewCategory, setInternalNewCategory] = useState("");
   const fileInputRef = useRef(null);
@@ -1339,21 +1345,46 @@ const AddProductModal = ({
     const numValue = value === "" ? 0 : parseInt(value, 10) || 0;
 
     if (field === "warehouse_id") {
+<<<<<<< HEAD
       const selectedWarehouse = warehouses.find(wh => wh.id === parseInt(value, 10));
+=======
+      const selectedWarehouse = warehouses.find(
+        (wh) => wh.id === parseInt(value)
+      );
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
       if (selectedWarehouse) {
         updatedWarehouses[index] = {
           ...updatedWarehouses[index],
           warehouse_id: selectedWarehouse.id,
           warehouse_name: selectedWarehouse.warehouse_name,
           quantity: updatedWarehouses[index].quantity || 0,
+<<<<<<< HEAD
           min_order_qty: localNewItem.min_order_qty, // Sync from product-level
           initial_qty: localNewItem.initial_qty,     // Sync from product-level
+=======
+          min_order_qty: updatedWarehouses[index].min_order_qty || 0,
+          initial_qty: updatedWarehouses[index].initial_qty || 0,
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
         };
       }
     } else if (field === "quantity") {
       updatedWarehouses[index] = {
         ...updatedWarehouses[index],
+<<<<<<< HEAD
         quantity: numValue,
+=======
+        quantity: parseInt(value) || 0,
+      };
+    } else if (field === "min_order_qty") {
+      updatedWarehouses[index] = {
+        ...updatedWarehouses[index],
+        min_order_qty: parseInt(value) || 0,
+      };
+    } else if (field === "initial_qty") {
+      updatedWarehouses[index] = {
+        ...updatedWarehouses[index],
+        initial_qty: parseInt(value) || 0,
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
       };
     }
     // Note: min_order_qty and initial_qty are now product-level only
@@ -1365,6 +1396,7 @@ const AddProductModal = ({
     }));
   };
 
+<<<<<<< HEAD
   // Handle product-level min_order_qty and initial_qty
   const handleProductLevelChange = (field, value) => {
     const numValue = value === "" ? 0 : parseInt(value, 10) || 0;
@@ -1387,6 +1419,20 @@ const AddProductModal = ({
     const available = warehouses.find(wh => !selectedIds.includes(wh.id));
     if (available) {
       setLocalNewItem(prev => ({
+=======
+  const addWarehouseRow = () => {
+    if (warehouses.length === 0) return;
+
+    const selectedWarehouseIds = localNewItem.productWarehouses.map(
+      (w) => w.warehouse_id
+    );
+    const availableWarehouse = warehouses.find(
+      (wh) => !selectedWarehouseIds.includes(wh.id)
+    );
+
+    if (availableWarehouse) {
+      setLocalNewItem((prev) => ({
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
         ...prev,
         productWarehouses: [
           ...prev.productWarehouses,
@@ -1394,8 +1440,13 @@ const AddProductModal = ({
             warehouse_id: available.id,
             warehouse_name: available.warehouse_name,
             quantity: 0,
+<<<<<<< HEAD
             min_order_qty: prev.min_order_qty,
             initial_qty: prev.initial_qty,
+=======
+            min_order_qty: 0,
+            initial_qty: 0,
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
           },
         ],
       }));
@@ -1403,6 +1454,12 @@ const AddProductModal = ({
   };
 
   const removeWarehouseRow = (index) => {
+    // NEW: Prevent removing if it's the preselected warehouse
+    if (preselectedWarehouseId && 
+        localNewItem.productWarehouses[index]?.warehouse_id === parseInt(preselectedWarehouseId)) {
+      return;
+    }
+
     if (localNewItem.productWarehouses.length <= 1) return;
     const updated = [...localNewItem.productWarehouses];
     updated.splice(index, 1);
@@ -1428,6 +1485,7 @@ const AddProductModal = ({
       discount: "",
       remarks: "",
       unitDetailId: unitDetails.length > 0 ? unitDetails[0].id : "",
+<<<<<<< HEAD
       initial_qty: 0,
       min_order_qty: 0,
       productWarehouses: warehouses.length > 0 ? [{
@@ -1437,16 +1495,35 @@ const AddProductModal = ({
         min_order_qty: 0,
         initial_qty: 0,
       }] : [],
+=======
+      productWarehouses:
+        warehouses.length > 0
+          ? [
+            {
+              warehouse_id: warehouses[0].id,
+              warehouse_name: warehouses[0].warehouse_name,
+              quantity: 0,
+              min_order_qty: 0,
+              initial_qty: 0,
+            },
+          ]
+          : [],
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
     });
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+<<<<<<< HEAD
+=======
+  // UPDATED: useEffect to handle preselected warehouse
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
     if (isEditing && selectedItem) {
+<<<<<<< HEAD
       // Parse product-level fields
       const apiInitialQty = parseInt(selectedItem.initial_qty, 10) || 0;
       const apiMinOrderQty = parseInt(selectedItem.min_order_qty, 10) || 0;
@@ -1466,6 +1543,28 @@ const AddProductModal = ({
           min_order_qty: apiMinOrderQty,
           initial_qty: apiInitialQty,
         }] : [];
+=======
+      const productWarehouses =
+        selectedItem.product_warehouses && selectedItem.product_warehouses.length > 0
+          ? selectedItem.product_warehouses.map((pw) => ({
+              warehouse_id: pw.warehouse.id,
+              warehouse_name: pw.warehouse.warehouse_name,
+              quantity: pw.stock_qty || pw.quantity || 0,
+              min_order_qty: pw.min_order_qty || 0,
+              initial_qty: pw.initial_qty || 0,
+            }))
+          : warehouses.length > 0
+            ? [
+                {
+                  warehouse_id: warehouses[0].id,
+                  warehouse_name: warehouses[0].warehouse_name,
+                  quantity: 0,
+                  min_order_qty: 0,
+                  initial_qty: 0,
+                },
+              ]
+            : [];
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
 
       setLocalNewItem({
         id: selectedItem.id || "",
@@ -1473,6 +1572,7 @@ const AddProductModal = ({
         hsn: selectedItem.hsn || "",
         barcode: selectedItem.barcode || "",
         image: null,
+<<<<<<< HEAD
         itemCategory: selectedItem.item_category?.item_category_name || selectedItem.item_category_name || "",
         itemCategoryId: selectedItem.item_category_id || selectedItem.item_category?.id || "",
         description: selectedItem.description || "",
@@ -1488,13 +1588,48 @@ const AddProductModal = ({
         initial_qty: apiInitialQty,
         min_order_qty: apiMinOrderQty,
         productWarehouses,
+=======
+        itemCategory: selectedItem.item_category?.item_category_name || selectedItem.itemCategory || "",
+        itemCategoryId: selectedItem.item_category?.id || selectedItem.itemCategoryId || "",
+        description: selectedItem.description || "",
+        sku: selectedItem.sku || "",
+        date: selectedItem.as_of_date || selectedItem.date || new Date().toISOString().split("T")[0],
+        taxAccount: selectedItem.tax_account || selectedItem.taxAccount || "",
+        cost: (selectedItem.initial_cost || selectedItem.cost || "").toString(),
+        salePriceExclusive: (selectedItem.sale_price || selectedItem.salePriceExclusive || "").toString(),
+        salePriceInclusive: (selectedItem.purchase_price || selectedItem.salePriceInclusive || "").toString(),
+        discount: (selectedItem.discount || "").toString(),
+        remarks: selectedItem.remarks || "",
+        unitDetailId: selectedItem.unit_detail_id || selectedItem.unitDetailId || (unitDetails.length > 0 ? unitDetails[0].id : ""),
+        productWarehouses: productWarehouses,
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
       });
     } else if (isAdding) {
-      resetLocalForm();
+      // NEW: If preselectedWarehouseId is provided, set it as the only warehouse
+      if (preselectedWarehouseId && warehouses.length > 0) {
+        const preselectedWarehouse = warehouses.find(wh => wh.id === parseInt(preselectedWarehouseId));
+        if (preselectedWarehouse) {
+          setLocalNewItem(prev => ({
+            ...prev,
+            productWarehouses: [{
+              warehouse_id: preselectedWarehouse.id,
+              warehouse_name: preselectedWarehouse.warehouse_name,
+              quantity: 0,
+              min_order_qty: 0,
+              initial_qty: 0,
+            }]
+          }));
+        }
+      } else {
+        resetLocalForm();
+      }
     }
-  }, [isEditing, isAdding, selectedItem, warehouses, unitDetails]);
+  }, [isEditing, isAdding, selectedItem, warehouses, unitDetails, preselectedWarehouseId]);
 
+<<<<<<< HEAD
   // --- Fetching logic (unchanged) ---
+=======
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
   useEffect(() => {
     const fetchCategories = async () => {
       setIsLoadingCategories(true);
@@ -1514,6 +1649,7 @@ const AddProductModal = ({
     const fetchWarehouses = async () => {
       setIsLoadingWarehouses(true);
       try {
+<<<<<<< HEAD
         const res = await axiosInstance.get(`warehouses/company/${companyId}`);
         const data = res.data?.success && Array.isArray(res.data.data) ? res.data.data : [];
         setWarehouses(data);
@@ -1528,23 +1664,82 @@ const AddProductModal = ({
               initial_qty: prev.initial_qty,
             }]
           }));
+=======
+        const response = await axiosInstance.get(
+          `warehouses/company/${companyId}`
+        );
+        if (response.data?.success && Array.isArray(response.data.data)) {
+          const filteredWarehouses = response.data.data;
+          setWarehouses(filteredWarehouses);
+
+          // NEW: If adding and preselectedWarehouseId is set, update the form
+          if (isAdding && preselectedWarehouseId && filteredWarehouses.length > 0) {
+            const preselectedWarehouse = filteredWarehouses.find(wh => wh.id === parseInt(preselectedWarehouseId));
+            if (preselectedWarehouse) {
+              setLocalNewItem(prev => ({
+                ...prev,
+                productWarehouses: [{
+                  warehouse_id: preselectedWarehouse.id,
+                  warehouse_name: preselectedWarehouse.warehouse_name,
+                  quantity: 0,
+                  min_order_qty: 0,
+                  initial_qty: 0,
+                }]
+              }));
+            }
+          }
+          // Regular case: if adding new product and no warehouses are set
+          else if (isAdding && localNewItem.productWarehouses.length === 0 && filteredWarehouses.length > 0) {
+            setLocalNewItem((prev) => ({
+              ...prev,
+              productWarehouses: [
+                {
+                  warehouse_id: filteredWarehouses[0].id,
+                  warehouse_name: filteredWarehouses[0].warehouse_name,
+                  quantity: 0,
+                  min_order_qty: 0,
+                  initial_qty: 0,
+                },
+              ],
+            }));
+          }
+        } else {
+          setWarehouses([]);
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
         }
       } catch (err) { console.error("Error fetching warehouses:", err); setWarehouses([]); }
       finally { setIsLoadingWarehouses(false); }
     };
     fetchWarehouses();
-  }, [companyId]);
+  }, [companyId, isAdding, preselectedWarehouseId]);
 
   useEffect(() => {
     if (!companyId) return;
     const fetchUnitDetails = async () => {
       setIsLoadingUnitDetails(true);
       try {
+<<<<<<< HEAD
         const res = await axiosInstance.get(`unit-details/getUnitDetailsByCompanyId/${companyId}`);
         const data = res.data?.success && Array.isArray(res.data.data) ? res.data.data : [];
         setUnitDetails(data);
         if (isAdding && !localNewItem.unitDetailId && data.length > 0) {
           setLocalNewItem(prev => ({ ...prev, unitDetailId: data[0].id }));
+=======
+        const response = await axiosInstance.get(
+          `unit-details/getUnitDetailsByCompanyId/${companyId}`
+        );
+        if (response.data?.success && Array.isArray(response.data.data)) {
+          setUnitDetails(response.data.data);
+
+          if (isAdding && !localNewItem.unitDetailId && response.data.data.length > 0) {
+            setLocalNewItem(prev => ({
+              ...prev,
+              unitDetailId: response.data.data[0].id
+            }));
+          }
+        } else {
+          setUnitDetails([]);
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
         }
       } catch (err) { console.error("Error fetching unit details:", err); setUnitDetails([]); }
       finally { setIsLoadingUnitDetails(false); }
@@ -1590,9 +1785,22 @@ const AddProductModal = ({
           itemCategory: internalNewCategory.trim(),
           itemCategoryId: newCat?.id || "",
         }));
+<<<<<<< HEAD
         setInternalNewCategory("");
         setInternalShowAddCategoryModal(false);
         toast.success("Category added successfully", { toastId: 'category-add-success' });
+=======
+
+        const newCategoryObj = res.data.data.find(
+          (c) => c.item_category_name === internalNewCategory.trim()
+        );
+        if (newCategoryObj) {
+          setLocalNewItem((prev) => ({
+            ...prev,
+            itemCategoryId: newCategoryObj.id,
+          }));
+        }
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
       }
     } catch (err) {
       toast.error("Failed to add category. Please try again.", { toastId: 'category-add-error' });
@@ -1601,6 +1809,7 @@ const AddProductModal = ({
     }
   };
 
+<<<<<<< HEAD
   const validateAndPrepareWarehouses = () => {
     return localNewItem.productWarehouses.map(w => ({
       warehouse_id: w.warehouse_id,
@@ -1610,6 +1819,8 @@ const AddProductModal = ({
     }));
   };
 
+=======
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
   const handleAddProductApi = async () => {
     if (!localNewItem.itemName.trim()) {
       toast.error("Please enter an item name", { toastId: 'item-name-error' });
@@ -1619,19 +1830,39 @@ const AddProductModal = ({
       toast.error("Please select at least one warehouse", { toastId: 'warehouse-select-error' });
       return;
     }
+<<<<<<< HEAD
     const hasValidQty = localNewItem.productWarehouses.some(w => (Number(w.quantity) || 0) > 0);
     if (!hasValidQty) {
       toast.error("Please enter a quantity greater than 0 for at least one warehouse", { toastId: 'quantity-error' });
+=======
+
+    const hasValidQuantity = localNewItem.productWarehouses.some(
+      (w) => w.quantity > 0
+    );
+    if (!hasValidQuantity) {
+      toast.error("Please enter a quantity greater than 0 for at least one warehouse", {
+        toastId: 'quantity-error',
+        autoClose: 3000
+      });
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
       return;
     }
 
     setIsAddingProduct(true);
     try {
       const formData = new FormData();
+<<<<<<< HEAD
       formData.append("company_id", companyID);
       formData.append("item_category_id", localNewItem.itemCategoryId || "1");
       formData.append("unit_detail_id", localNewItem.unitDetailId || "");
       formData.append("item_name", localNewItem.itemName.trim());
+=======
+
+      formData.append("company_id", companyID);
+      formData.append("item_category_id", localNewItem.itemCategoryId || "1");
+      formData.append("unit_detail_id", localNewItem.unitDetailId || "");
+      formData.append("item_name", localNewItem.itemName || "");
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
       formData.append("hsn", localNewItem.hsn || "");
       formData.append("barcode", localNewItem.barcode || "");
       formData.append("sku", localNewItem.sku || "");
@@ -1647,7 +1878,21 @@ const AddProductModal = ({
       formData.append("min_order_qty", localNewItem.min_order_qty.toString());
       if (localNewItem.image) formData.append("image", localNewItem.image);
 
+<<<<<<< HEAD
       const warehousesData = validateAndPrepareWarehouses();
+=======
+      if (localNewItem.image) {
+        formData.append("image", localNewItem.image);
+      }
+
+      const warehousesData = localNewItem.productWarehouses.map((w) => ({
+        warehouse_id: w.warehouse_id,
+        quantity: w.quantity,
+        min_order_qty: w.min_order_qty,
+        initial_qty: w.initial_qty,
+      }));
+
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
       formData.append("warehouses", JSON.stringify(warehousesData));
 
       const response = await axiosInstance.post("products", formData, {
@@ -1664,7 +1909,10 @@ const AddProductModal = ({
       }
     } catch (error) {
       console.error("Error adding product:", error);
+<<<<<<< HEAD
       toast.error("An error occurred while adding product.", { toastId: 'product-add-api-error' });
+=======
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
     } finally {
       setIsAddingProduct(false);
     }
@@ -1675,6 +1923,10 @@ const AddProductModal = ({
       toast.error("No product ID found for update.");
       return;
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
     if (!localNewItem.itemName.trim()) {
       toast.error("Please enter an item name", { toastId: 'item-name-edit-error' });
       return;
@@ -1683,19 +1935,39 @@ const AddProductModal = ({
       toast.error("Please select at least one warehouse", { toastId: 'warehouse-select-edit-error' });
       return;
     }
+<<<<<<< HEAD
     const hasValidQty = localNewItem.productWarehouses.some(w => (Number(w.quantity) || 0) > 0);
     if (!hasValidQty) {
       toast.error("Please enter a quantity greater than 0 for at least one warehouse", { toastId: 'quantity-edit-error' });
+=======
+
+    const hasValidQuantity = localNewItem.productWarehouses.some(
+      (w) => w.quantity > 0
+    );
+    if (!hasValidQuantity) {
+      toast.error("Please enter a quantity greater than 0 for at least one warehouse", {
+        toastId: 'quantity-edit-error',
+        autoClose: 3000
+      });
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
       return;
     }
 
     setIsUpdatingProduct(true);
     try {
       const formData = new FormData();
+<<<<<<< HEAD
       formData.append("company_id", companyID);
       formData.append("item_category_id", localNewItem.itemCategoryId || "1");
       formData.append("unit_detail_id", localNewItem.unitDetailId || "");
       formData.append("item_name", localNewItem.itemName.trim());
+=======
+
+      formData.append("company_id", companyID);
+      formData.append("item_category_id", localNewItem.itemCategoryId || "1");
+      formData.append("unit_detail_id", localNewItem.unitDetailId || "");
+      formData.append("item_name", localNewItem.itemName || "");
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
       formData.append("hsn", localNewItem.hsn || "");
       formData.append("barcode", localNewItem.barcode || "");
       formData.append("sku", localNewItem.sku || "");
@@ -1711,12 +1983,35 @@ const AddProductModal = ({
       formData.append("min_order_qty", localNewItem.min_order_qty.toString());
       if (localNewItem.image) formData.append("images", localNewItem.image);
 
+<<<<<<< HEAD
       const warehousesData = validateAndPrepareWarehouses();
       formData.append("warehouses", JSON.stringify(warehousesData));
 
       const response = await axiosInstance.put(`products/${localNewItem.id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+=======
+      if (localNewItem.image) {
+        formData.append("images", localNewItem.image);
+      }
+
+      const warehousesData = localNewItem.productWarehouses.map((w) => ({
+        warehouse_id: w.warehouse_id,
+        quantity: w.quantity,
+        min_order_qty: w.min_order_qty,
+        initial_qty: w.initial_qty,
+      }));
+
+      formData.append("warehouses", JSON.stringify(warehousesData));
+
+      const response = await axiosInstance.put(
+        `products/${localNewItem.id}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
 
       if (response.data?.success) {
         resetLocalForm();
@@ -1736,7 +2031,10 @@ const AddProductModal = ({
 
   const handleAddUOM = () => {
     if (newUOM.trim() && !uoms.includes(newUOM.trim())) {
+<<<<<<< HEAD
       // Backend logic if needed
+=======
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
     }
     setNewUOM("");
     setShowAddUOMModal(false);
@@ -1748,9 +2046,25 @@ const AddProductModal = ({
     setShowEdit(false);
   };
 
+  // NEW: Check if the current warehouse row is the preselected one
+  const isPreselectedWarehouse = (warehouseId) => {
+    return preselectedWarehouseId && parseInt(warehouseId) === parseInt(preselectedWarehouseId);
+  };
+
   return (
     <>
+<<<<<<< HEAD
       <Modal show={isAdding || isEditing} onHide={handleClose} centered size="xl" backdrop="static">
+=======
+      <Modal
+        show={isAdding || isEditing}
+        onHide={handleClose}
+        centered
+        size="xl"
+        key={isAdding ? "add-modal" : "edit-modal"}
+        backdrop="static"
+      >
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
         <Modal.Header closeButton>
           <Modal.Title>{isAdding ? "Add Product" : "Edit Product"}</Modal.Title>
         </Modal.Header>
@@ -1857,18 +2171,46 @@ const AddProductModal = ({
               </Col>
             </Row>
 
+<<<<<<< HEAD
             {/* Warehouse Section */}
+=======
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
             <Row className="mb-3">
               <Col md={12}>
                 <Form.Group>
                   <div className="d-flex justify-content-between align-items-center mb-2">
+<<<<<<< HEAD
                     <Form.Label className="mb-0">Warehouse Stock</Form.Label>
+=======
+                    <Form.Label className="mb-0">
+                      Warehouse Information
+                      {preselectedWarehouseId && (
+                        <span className="text-muted ms-2">
+                          (Warehouse pre-selected from previous page)
+                        </span>
+                      )}
+                    </Form.Label>
+                    {/* NEW: Disable button if preselectedWarehouseId exists */}
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
                     <Button
                       variant="outline-primary"
                       size="sm"
                       onClick={addWarehouseRow}
+<<<<<<< HEAD
                       disabled={localNewItem.productWarehouses.length >= warehouses.length}
                       style={{ backgroundColor: "#27b2b6", border: "none", color: "#fff", padding: "6px 16px" }}
+=======
+                      disabled={
+                        localNewItem.productWarehouses.length >= warehouses.length ||
+                        !!preselectedWarehouseId // Disable if preselected
+                      }
+                      style={{
+                        backgroundColor: "#27b2b6",
+                        border: "none",
+                        color: "#fff",
+                        padding: "6px 16px",
+                      }}
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
                     >
                       + Add Warehouse
                     </Button>
@@ -1888,6 +2230,7 @@ const AddProductModal = ({
                         </tr>
                       </thead>
                       <tbody>
+<<<<<<< HEAD
                         {localNewItem.productWarehouses.map((warehouse, index) => (
                           <tr key={index}>
                             <td>
@@ -1927,6 +2270,106 @@ const AddProductModal = ({
                             </td>
                           </tr>
                         ))}
+=======
+                        {localNewItem.productWarehouses.map(
+                          (warehouse, index) => (
+                            <tr key={index}>
+                              <td>
+                                {/* NEW: Disable dropdown if it's the preselected warehouse */}
+                                <Form.Select
+                                  value={warehouse.warehouse_id}
+                                  onChange={(e) =>
+                                    handleWarehouseChange(
+                                      index,
+                                      "warehouse_id",
+                                      e.target.value
+                                    )
+                                  }
+                                  disabled={isPreselectedWarehouse(warehouse.warehouse_id)}
+                                >
+                                  <option value="">Select Warehouse</option>
+                                  {warehouses
+                                    .filter((wh) => {
+                                      const selectedWarehouseIds =
+                                        localNewItem.productWarehouses
+                                          .map((w, i) =>
+                                            i !== index ? w.warehouse_id : null
+                                          )
+                                          .filter((id) => id !== null);
+                                      return !selectedWarehouseIds.includes(
+                                        wh.id
+                                      );
+                                    })
+                                    .map((wh) => (
+                                      <option key={wh.id} value={wh.id}>
+                                        {wh.warehouse_name}
+                                      </option>
+                                    ))}
+                                </Form.Select>
+                              </td>
+                              <td>
+                                <Form.Control
+                                  type="number"
+                                  value={warehouse.quantity || ""}
+                                  onChange={(e) =>
+                                    handleWarehouseChange(
+                                      index,
+                                      "quantity",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </td>
+                              <td>
+                                <Form.Control
+                                  type="number"
+                                  value={warehouse.min_order_qty || ""}
+                                  onChange={(e) =>
+                                    handleWarehouseChange(
+                                      index,
+                                      "min_order_qty",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </td>
+                              <td>
+                                <Form.Control
+                                  type="number"
+                                  value={warehouse.initial_qty || ""}
+                                  onChange={(e) =>
+                                    handleWarehouseChange(
+                                      index,
+                                      "initial_qty",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </td>
+                              <td className="text-center">
+                                {/* NEW: Disable remove button if it's the preselected warehouse */}
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => removeWarehouseRow(index)}
+                                  disabled={
+                                    localNewItem.productWarehouses.length <= 1 ||
+                                    isPreselectedWarehouse(warehouse.warehouse_id)
+                                  }
+                                >
+                                  Remove
+                                </Button>
+                              </td>
+                            </tr>
+                          )
+                        )}
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
                       </tbody>
                     </Table>
                   )}
@@ -2007,9 +2450,20 @@ const AddProductModal = ({
         </Modal.Footer>
       </Modal>
 
+<<<<<<< HEAD
       {/* Add Category Modal */}
       <Modal show={internalShowAddCategoryModal} onHide={() => setInternalShowAddCategoryModal(false)} centered>
         <Modal.Header closeButton><Modal.Title>Add New Category</Modal.Title></Modal.Header>
+=======
+      <Modal
+        show={internalShowAddCategoryModal}
+        onHide={() => setInternalShowAddCategoryModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Add New Category</Modal.Title>
+        </Modal.Header>
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
         <Modal.Body>
           <Form.Group>
             <Form.Label>Category Name</Form.Label>
@@ -2029,9 +2483,20 @@ const AddProductModal = ({
         </Modal.Footer>
       </Modal>
 
+<<<<<<< HEAD
       {/* Add UOM Modal */}
       <Modal show={showAddUOMModal} onHide={() => setShowAddUOMModal(false)} centered>
         <Modal.Header closeButton><Modal.Title>Add New UOM</Modal.Title></Modal.Header>
+=======
+      <Modal
+        show={showAddUOMModal}
+        onHide={() => setShowAddUOMModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Add New UOM</Modal.Title>
+        </Modal.Header>
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
         <Modal.Body>
           <Form.Group>
             <Form.Label>UOM Name</Form.Label>
@@ -2044,7 +2509,22 @@ const AddProductModal = ({
         </Modal.Footer>
       </Modal>
 
+<<<<<<< HEAD
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop draggable pauseOnHover limit={3} />
+=======
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        limit={3}
+      />
+>>>>>>> 85b905b1f408dc8455bf16df7c8403166a0e1ef2
     </>
   );
 };

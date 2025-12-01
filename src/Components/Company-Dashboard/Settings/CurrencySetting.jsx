@@ -168,10 +168,9 @@ const currencyList = [
   { code: "ZWL", name: "Zimbabwean Dollar" }
 ];
 
-
   const filteredCurrency = currencyList.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.code.toLowerCase().includes(search.toLowerCase())
+    c?.name?.toLowerCase()?.includes(search.toLowerCase()) ||
+    c?.code?.toLowerCase()?.includes(search.toLowerCase())
   );
 
   return (
@@ -179,14 +178,14 @@ const currencyList = [
       <h4 className="mb-3 ">Select Currency</h4>
 
       {/* Search Box */}
-      <input type="text" className="form-control mb-3"  placeholder="Search currency..." value={search}  onChange={(e) => setSearch(e.target.value)}  />
+      <input type="text" className="form-control mb-3"  placeholder="Search currency..."    value={search}  onChange={(e) => setSearch(e.target.value)}  />
 
       {/* Dropdown */}
       <select  className="form-select"  value={currency}
         onChange={(e) => {
           setCurrency(e.target.value);
           setSearch("");}}  style={{ padding: "10px" }}>
-        {filteredCurrency.map((item) => (
+        {filteredCurrency?.map((item) => (
           <option key={item.code} value={item.code}>
             {item.code} — {item.name}
           </option>
