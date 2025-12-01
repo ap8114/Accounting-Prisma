@@ -350,7 +350,7 @@ const Users = () => {
 
     try {
       // ✅ Use the correct password reset endpoint
-      const response = await axiosInstance.put(
+      const response = await axiosInstance.patch(
         `/password/requests/${userToReset.id}/approve`,
         {
           new_password: newPassword,
