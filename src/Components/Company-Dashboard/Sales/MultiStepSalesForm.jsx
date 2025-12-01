@@ -61,6 +61,27 @@ const MultiStepSalesForm = ({
   // Loading flag for final submit to prevent duplicate clicks
   const [submittingFinal, setSubmittingFinal] = useState(false);
 
+  // Validation state - track if user has attempted to save
+  const [validationAttempted, setValidationAttempted] = useState(false);
+
+  // Helper function to validate required manual fields for current step
+  const validateRequiredFields = () => {
+    const manualFields = {
+      quotation: "manualQuotationRef",
+      salesOrder: "manualQuotationRef",
+      deliveryChallan: "manualChallanNo",
+      invoice: "manualInvoiceNo",
+      payment: "manualPaymentNo",
+    };
+
+    const fieldName = manualFields[key];
+    if (fieldName) {
+      const value = formData[key]?.[fieldName]?.trim();
+      return !!value; // Return true if field has value
+    }
+    return true; // If no required field for this step, return true
+  };
+
 
 // Add this useEffect to your MultiStepSalesForm component
 useEffect(() => {
@@ -1234,6 +1255,15 @@ useEffect(() => {
   }
 }, [key]);
 const handleSaveDraft = async () => {
+  // Mark validation attempt as true so error messages show
+  setValidationAttempted(true);
+
+  // Check if required fields are filled
+  if (!validateRequiredFields()) {
+    toast.error("Please fill all required fields before saving");
+    return;
+  }
+
   try {
     const company_id = GetCompanyId();
     if (!company_id) return;
@@ -3160,7 +3190,7 @@ const handleSaveDraft = async () => {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Manual QUO No (Optional)
+                    Manual QUO No <span style={{color: "red"}}>*</span>
                   </Form.Label>
                   <Form.Control
                     type="text"
@@ -3174,6 +3204,7 @@ const handleSaveDraft = async () => {
                     }
                     placeholder="e.g. QUO-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
+                    isInvalid={!formData.quotation.manualQuotationRef?.trim()}
                     style={{
                       fontSize: "1rem",
                       lineHeight: "1.5",
@@ -3183,6 +3214,11 @@ const handleSaveDraft = async () => {
                     }}
                   />
                 </div>
+                {validationAttempted && !formData.quotation.manualQuotationRef?.trim() && (
+                  <small style={{ color: "#dc3545", fontSize: "0.875rem", marginTop: "4px", display: "block" }}>
+                    This field is required
+                  </small>
+                )}
               </Form.Group>
               <Row className="align-items-center g-2 mb-2">
                 <Col md="auto" className="p-0">
@@ -3638,7 +3674,7 @@ const handleSaveDraft = async () => {
                   />
                 </div>
               </Form.Group>
-              {/* Manual Quotation Ref (Optional) */}
+              {/* Manual Sales No (Required) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
                   <Form.Label
@@ -3649,7 +3685,7 @@ const handleSaveDraft = async () => {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Manual Sales No (Optional)
+                    Manual Sales No <span style={{color: "red"}}>*</span>
                   </Form.Label>
                   <Form.Control
                     type="text"
@@ -3663,6 +3699,7 @@ const handleSaveDraft = async () => {
                     }
                     placeholder="e.g. CUST-QTN-001"
                     className="form-control-no-border text-end flex-grow-1"
+                    isInvalid={!formData.salesOrder.manualQuotationRef?.trim()}
                     style={{
                       fontSize: "1rem",
                       lineHeight: "1.5",
@@ -3672,6 +3709,11 @@ const handleSaveDraft = async () => {
                     }}
                   />
                 </div>
+                {validationAttempted && !formData.salesOrder.manualQuotationRef?.trim() && (
+                  <small style={{ color: "#dc3545", fontSize: "0.875rem", marginTop: "4px", display: "block" }}>
+                    This field is required
+                  </small>
+                )}
               </Form.Group>
               {/* Customer No */}
               <Form.Group>
@@ -4174,7 +4216,7 @@ const handleSaveDraft = async () => {
                   />
                 </div>
               </Form.Group>
-              {/* Manual Challan No (Optional) */}
+              {/* Manual Challan No (Required) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
                   <Form.Label
@@ -4185,7 +4227,7 @@ const handleSaveDraft = async () => {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Manual DC No (Optional)
+                    Manual DC No <span style={{color: "red"}}>*</span>
                   </Form.Label>
                   <Form.Control
                     type="text"
@@ -4199,6 +4241,7 @@ const handleSaveDraft = async () => {
                     }
                     placeholder="e.g. DC-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
+                    isInvalid={!formData.deliveryChallan.manualChallanNo?.trim()}
                     style={{
                       fontSize: "1rem",
                       lineHeight: "1.5",
@@ -4208,6 +4251,11 @@ const handleSaveDraft = async () => {
                     }}
                   />
                 </div>
+                {validationAttempted && !formData.deliveryChallan.manualChallanNo?.trim() && (
+                  <small style={{ color: "#dc3545", fontSize: "0.875rem", marginTop: "4px", display: "block" }}>
+                    This field is required
+                  </small>
+                )}
               </Form.Group>
               {/* Sales Order No (Auto) */}
               <Form.Group className="mb-0">
@@ -4789,7 +4837,7 @@ const handleSaveDraft = async () => {
                   />
                 </div>
               </Form.Group>
-              {/* Manual Invoice No (Optional) */}
+              {/* Manual Invoice No (Required) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
                   <Form.Label
@@ -4800,7 +4848,7 @@ const handleSaveDraft = async () => {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Manual Invoice No (Optional)
+                    Manual Invoice No <span style={{color: "red"}}>*</span>
                   </Form.Label>
                   <Form.Control
                     type="text"
@@ -4810,6 +4858,7 @@ const handleSaveDraft = async () => {
                     }
                     placeholder="e.g. INV-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
+                    isInvalid={!formData.invoice.manualInvoiceNo?.trim()}
                     style={{
                       fontSize: "1rem",
                       lineHeight: "1.5",
@@ -4819,6 +4868,11 @@ const handleSaveDraft = async () => {
                     }}
                   />
                 </div>
+                {validationAttempted && !formData.invoice.manualInvoiceNo?.trim() && (
+                  <small style={{ color: "#dc3545", fontSize: "0.875rem", marginTop: "4px", display: "block" }}>
+                    This field is required
+                  </small>
+                )}
               </Form.Group>
               {/* Challan No (Auto from DC) */}
               <Form.Group className="mb-0">
@@ -5355,7 +5409,7 @@ const handleSaveDraft = async () => {
                   />
                 </div>
               </Form.Group>
-              {/* Manual Payment No (Optional) */}
+              {/* Manual Payment No (Required) */}
               <Form.Group className="mb-0">
                 <div className="d-flex justify-content-between align-items-center">
                   <Form.Label
@@ -5366,7 +5420,7 @@ const handleSaveDraft = async () => {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Manual Payment No (Optional)
+                    Manual Payment No <span style={{color: "red"}}>*</span>
                   </Form.Label>
                   <Form.Control
                     type="text"
@@ -5376,6 +5430,7 @@ const handleSaveDraft = async () => {
                     }
                     placeholder="e.g. PAY-CUST-001"
                     className="form-control-no-border text-end flex-grow-1"
+                    isInvalid={!formData.payment.manualPaymentNo?.trim()}
                     style={{
                       fontSize: "1rem",
                       lineHeight: "1.5",
@@ -5385,6 +5440,11 @@ const handleSaveDraft = async () => {
                     }}
                   />
                 </div>
+                {validationAttempted && !formData.payment.manualPaymentNo?.trim() && (
+                  <small style={{ color: "#dc3545", fontSize: "0.875rem", marginTop: "4px", display: "block" }}>
+                    This field is required
+                  </small>
+                )}
               </Form.Group>
               {/* Invoice No (Auto) */}
               <Form.Group className="mb-0">
