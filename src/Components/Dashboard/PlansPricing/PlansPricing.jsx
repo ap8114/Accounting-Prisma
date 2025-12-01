@@ -274,7 +274,7 @@ const PlanPricing = () => {
   };
 
   return (
-    <div className="plans-page p-4">
+    <div className=" p-4">
       <div className="header-section mb-4 d-flex justify-content-between align-items-center">
         <div>
           <h4 className="fw-bold d-flex align-items-center gap-2">
@@ -300,7 +300,7 @@ const PlanPricing = () => {
               </div>
             ) : (
               <table className="table table-hover plans-table">
-                <thead className="table-light">
+                <thead className="">
                   <tr>
                     <th>Plan Name</th>
                     <th>Currency</th>
@@ -332,8 +332,8 @@ const PlanPricing = () => {
                             className="badge px-3 py-2 rounded-pill fw-semibold"
                             style={{
                               ...(badgeStyles[plan.plan_name] || {
-                                backgroundColor: "#b2dfdb",
-                                color: "#000",
+                                backgroundColor: "#2db173ff",
+                               
                               }),
                             }}
                           >

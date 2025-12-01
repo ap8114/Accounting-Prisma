@@ -510,7 +510,7 @@ const InventoryItems = () => {
             <AddProductModal
               showAdd={showAdd}
               showEdit={showEdit}
-              setShowAdd={setShowAdd}
+              setShowAdd={setShowAdd} 
               setShowEdit={setShowEdit}
               selectedItem={selectedItem}
               companyId={companyId}
@@ -645,11 +645,10 @@ const InventoryItems = () => {
                       </td>
                       <td>
                         <span
-                          className={`badge px-3 py-1 rounded-pill fw-semibold ${
-                            item.status === "In Stock"
+                          className={`badge px-3 py-1 rounded-pill fw-semibold ${item.status === "In Stock"
                               ? "bg-success text-white"
                               : "bg-danger text-white"
-                          }`}
+                            }`}
                         >
                           {item.status}
                         </span>
@@ -792,7 +791,7 @@ const InventoryItems = () => {
                   <Col md={12}>
                     <strong>Warehouse Information:</strong>
                     {selectedItem.warehouses &&
-                    selectedItem.warehouses.length > 0 ? (
+                      selectedItem.warehouses.length > 0 ? (
                       <table className="table table-sm mt-2">
                         <thead>
                           <tr>

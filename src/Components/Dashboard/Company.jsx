@@ -458,13 +458,7 @@ const Company = () => {
   }
 
   return (
-    <div
-      className="container-fluid py-4 px-4 mt-4 mt-md-0"
-      style={{
-        backgroundColor: "#f7f7f7",
-        minHeight: "100vh",
-      }}
-    >
+    <div className="container-fluid py-4 px-4 mt-4 mt-md-0">
       {/* Show a subtle error notification if API failed, but still show the dashboard */}
       {apiError && (
         <div
@@ -695,7 +689,7 @@ const Company = () => {
                             onClick={() => handleEdit(index)}
                             style={{
                               cursor: "pointer",
-                              backgroundColor: "#fff",
+                             
                               borderRadius: "6px",
                               padding: "8px 10px",
                             }}
@@ -709,7 +703,7 @@ const Company = () => {
                             onClick={() => setResetIndex(index)}
                             style={{
                               cursor: "pointer",
-                              backgroundColor: "#fff",
+                            
                               borderRadius: "6px",
                               padding: "8px 10px",
                               color: "#007bff",
@@ -724,7 +718,7 @@ const Company = () => {
                             onClick={() => navigate("/")}
                             style={{
                               cursor: "pointer",
-                              backgroundColor: "#fff",
+                             
                               borderRadius: "6px",
                               padding: "8px 10px",
                               color: "#338871",
@@ -738,7 +732,7 @@ const Company = () => {
                             className="dropdown-item d-flex text-secondary align-items-center fw-semibold"
                             style={{
                               cursor: "pointer",
-                              backgroundColor: "#fff",
+                            
                               borderRadius: "6px",
                               padding: "8px 10px",
                             }}
@@ -751,7 +745,7 @@ const Company = () => {
                             onClick={() => handleDelete(index)}
                             style={{
                               cursor: "pointer",
-                              backgroundColor: "#fff",
+                            
                               borderRadius: "6px",
                               padding: "8px 10px",
                             }}
@@ -822,7 +816,7 @@ const Company = () => {
                       Upgrade
                     </button>
                     <button
-                      className="btn btn-outline-secondary btn-sm py-1 px-2 text-black"
+                      className="btn btn-outline-secondary btn-sm py-1 px-2"
                       style={{ fontSize: "0.75rem" }}
                       onClick={() => setViewUserIndex(index)}
                     >
@@ -830,7 +824,7 @@ const Company = () => {
                       Users
                     </button>
                     <button
-                      className="btn btn-outline-secondary btn-sm py-1 px-2 text-black"
+                      className="btn btn-outline-secondary btn-sm py-1 px-2"
                       style={{ fontSize: "0.75rem" }}
                     >
                       <BsCloud className="me-1" />
