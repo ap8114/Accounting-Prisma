@@ -37,7 +37,9 @@ const WareHouseDetail = () => {
       if (!companyId || !id) return;
 
       try {
-        const response = await axiosInstance.get(`/warehouses/${companyId}/${id}/stock`);
+        const response = await axiosInstance.get(
+          `/warehouses/${companyId}/${id}/stock`
+        );
         const data = response.data;
 
         if (data.success) {
@@ -88,7 +90,9 @@ const WareHouseDetail = () => {
   });
 
   // Get unique categories from inventory
-  const uniqueCategories = [...new Set(inventoryList.map((item) => item.category))];
+  const uniqueCategories = [
+    ...new Set(inventoryList.map((item) => item.category)),
+  ];
 
   // Badge color helper
   const getCategoryBadgeColor = (category) => {
@@ -154,7 +158,9 @@ const WareHouseDetail = () => {
             if (!companyId || !id) return;
 
             try {
-              const response = await axiosInstance.get(`/warehouses/${companyId}/${id}/stock`);
+              const response = await axiosInstance.get(
+                `/warehouses/${companyId}/${id}/stock`
+              );
               const data = response.data;
 
               if (data.success) {
@@ -191,7 +197,8 @@ const WareHouseDetail = () => {
                 {warehouse.name}
               </h4>
               <p className="mb-1 text-muted">
-                <strong>📍 Location:</strong> {warehouse.location || "Not specified"}
+                <strong>📍 Location:</strong>{" "}
+                {warehouse.location || "Not specified"}
               </p>
               <p className="mb-0 text-dark ps-4">
                 {warehouse.addressLine1 || "Address not specified"}
@@ -204,7 +211,8 @@ const WareHouseDetail = () => {
                 <br />
                 {warehouse.city ? `${warehouse.city}, ` : ""}
                 {warehouse.state ? `${warehouse.state} - ` : ""}
-                {warehouse.pincode || "Pincode not specified"}<br />
+                {warehouse.pincode || "Pincode not specified"}
+                <br />
                 {warehouse.country || "Country not specified"}
               </p>
             </Card.Body>
@@ -216,7 +224,9 @@ const WareHouseDetail = () => {
               <Card className="shadow-sm border-0">
                 <Card.Body>
                   <h6 className="text-muted mb-1">Total Categories</h6>
-                  <h4 className="fw-bold text-primary">{summary.totalCategories}</h4>
+                  <h4 className="fw-bold text-primary">
+                    {summary.totalCategories}
+                  </h4>
                 </Card.Body>
               </Card>
             </div>
@@ -224,7 +234,9 @@ const WareHouseDetail = () => {
               <Card className="shadow-sm border-0">
                 <Card.Body>
                   <h6 className="text-muted mb-1">Total Products</h6>
-                  <h4 className="fw-bold text-success">{summary.totalProducts}</h4>
+                  <h4 className="fw-bold text-success">
+                    {summary.totalProducts}
+                  </h4>
                 </Card.Body>
               </Card>
             </div>
@@ -328,7 +340,9 @@ const WareHouseDetail = () => {
                 {filter === "All" ? "All Categories" : filter}
               </Dropdown.Toggle>
               <Dropdown.Menu className="w-100">
-                <Dropdown.Item onClick={() => setFilter("All")}>All</Dropdown.Item>
+                <Dropdown.Item onClick={() => setFilter("All")}>
+                  All
+                </Dropdown.Item>
                 {uniqueCategories.map((category) => (
                   <Dropdown.Item
                     key={category}
@@ -350,7 +364,9 @@ const WareHouseDetail = () => {
                 {stockFilter === "All" ? "All Stock Levels" : stockFilter}
               </Dropdown.Toggle>
               <Dropdown.Menu>
-                <Dropdown.Item onClick={() => setStockFilter("All")}>All</Dropdown.Item>
+                <Dropdown.Item onClick={() => setStockFilter("All")}>
+                  All
+                </Dropdown.Item>
                 <Dropdown.Item onClick={() => setStockFilter("Low")}>
                   Low (0–10)
                 </Dropdown.Item>
@@ -372,7 +388,10 @@ const WareHouseDetail = () => {
                 <div>
                   <strong>Total Stock: </strong>
                   <Badge bg="dark" pill className="px-3 py-2">
-                    {filteredProducts.reduce((sum, item) => sum + item.stock, 0)}
+                    {filteredProducts.reduce(
+                      (sum, item) => sum + item.stock,
+                      0
+                    )}
                   </Badge>
                 </div>
               </div>

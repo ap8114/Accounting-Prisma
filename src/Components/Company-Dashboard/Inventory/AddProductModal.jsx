@@ -58,6 +58,7 @@ const AddProductModal = ({
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isLoadingUnitDetails, setIsLoadingUnitDetails] = useState(false);
   
+<<<<<<< HEAD
   // Extract warehouse ID from URL
   const location = useLocation();
   const [selectedWarehouseId, setSelectedWarehouseId] = useState(null);
@@ -73,19 +74,25 @@ const AddProductModal = ({
       setSelectedWarehouseId(null);
     }
   }, [location.pathname]);
+=======
+  // NEW STATE: To track if a warehouse is preselected
+  const [hasPreselectedWarehouse, setHasPreselectedWarehouse] = useState(false);
+>>>>>>> b2c2ff2b0765cfdf50a7325e2ee495c0e07f6539
 
-  // Internal state for category modal
   const [internalShowAddCategoryModal, setInternalShowAddCategoryModal] = useState(false);
   const [internalNewCategory, setInternalNewCategory] = useState("");
   const fileInputRef = useRef(null);
   const isInitialMount = useRef(true);
 
+<<<<<<< HEAD
   // Check if the current warehouse row is the preselected one
   const isPreselectedWarehouse = (warehouseId) => {
     return selectedWarehouseId && parseInt(warehouseId) === parseInt(selectedWarehouseId);
   };
 
   // Handle form input changes
+=======
+>>>>>>> b2c2ff2b0765cfdf50a7325e2ee495c0e07f6539
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     setLocalNewItem((prev) => ({
@@ -94,12 +101,10 @@ const AddProductModal = ({
     }));
   };
 
-  // Handle warehouse selection and quantity changes
   const handleWarehouseChange = (index, field, value) => {
     const updatedWarehouses = [...localNewItem.productWarehouses];
 
     if (field === "warehouse_id") {
-      // Find the selected warehouse
       const selectedWarehouse = warehouses.find(
         (wh) => wh.id === parseInt(value)
       );
@@ -136,11 +141,10 @@ const AddProductModal = ({
     }));
   };
 
-  // Add a new warehouse row
+  // UPDATED: Disable adding/removing if warehouse is preselected
   const addWarehouseRow = () => {
-    if (warehouses.length === 0) return;
+    if (hasPreselectedWarehouse || warehouses.length === 0) return;
 
-    // Find a warehouse that hasn't been selected yet
     const selectedWarehouseIds = localNewItem.productWarehouses.map(
       (w) => w.warehouse_id
     );
@@ -165,14 +169,18 @@ const AddProductModal = ({
     }
   };
 
-  // Remove a warehouse row
+  // UPDATED: Disable adding/removing if warehouse is preselected
   const removeWarehouseRow = (index) => {
+<<<<<<< HEAD
     // Prevent removing if it's the preselected warehouse
     if (isPreselectedWarehouse(localNewItem.productWarehouses[index].warehouse_id)) {
       return;
     }
 
     if (localNewItem.productWarehouses.length <= 1) return;
+=======
+    if (hasPreselectedWarehouse || localNewItem.productWarehouses.length <= 1) return;
+>>>>>>> b2c2ff2b0765cfdf50a7325e2ee495c0e07f6539
 
     const updatedWarehouses = [...localNewItem.productWarehouses];
     updatedWarehouses.splice(index, 1);
@@ -202,7 +210,22 @@ const AddProductModal = ({
       discount: "",
       remarks: "",
       unitDetailId: unitDetails.length > 0 ? unitDetails[0].id : "",
+<<<<<<< HEAD
       productWarehouses: [],
+=======
+      productWarehouses:
+        warehouses.length > 0
+          ? [
+            {
+              warehouse_id: warehouses[0].id,
+              warehouse_name: warehouses[0].warehouse_name,
+              quantity: 0,
+              min_order_qty: 0,
+              initial_qty: 0,
+            },
+          ]
+          : [],
+>>>>>>> b2c2ff2b0765cfdf50a7325e2ee495c0e07f6539
     });
 
     if (fileInputRef.current) {
@@ -210,7 +233,6 @@ const AddProductModal = ({
     }
   };
 
-  // Populate form when editing
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -218,7 +240,6 @@ const AddProductModal = ({
     }
 
     if (isEditing && selectedItem) {
-      // Initialize with product warehouses if available
       const productWarehouses =
         selectedItem.product_warehouses &&
           selectedItem.product_warehouses.length > 0
@@ -229,7 +250,21 @@ const AddProductModal = ({
             min_order_qty: pw.min_order_qty || 0,
             initial_qty: pw.initial_qty || 0,
           }))
+<<<<<<< HEAD
           : [];
+=======
+          : warehouses.length > 0
+            ? [
+              {
+                warehouse_id: warehouses[0].id,
+                warehouse_name: warehouses[0].warehouse_name,
+                quantity: 0,
+                min_order_qty: 0,
+                initial_qty: 0,
+              },
+            ]
+            : [];
+>>>>>>> b2c2ff2b0765cfdf50a7325e2ee495c0e07f6539
 
       setLocalNewItem({
         id: selectedItem.id || "",
@@ -270,7 +305,6 @@ const AddProductModal = ({
     }
   }, [isEditing, isAdding, selectedItem, unitDetails]);
 
-  // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       setIsLoadingCategories(true);
@@ -343,10 +377,12 @@ const AddProductModal = ({
           }
         } else {
           setWarehouses([]);
+          setHasPreselectedWarehouse(false);
         }
       } catch (error) {
         console.error("Error fetching warehouses:", error);
         setWarehouses([]);
+        setHasPreselectedWarehouse(false);
       } finally {
         setIsLoadingWarehouses(false);
       }
@@ -355,7 +391,6 @@ const AddProductModal = ({
     fetchWarehouses();
   }, [companyId, isAdding, selectedWarehouseId]);
 
-  // Fetch unit details
   useEffect(() => {
     if (!companyId) return;
 
@@ -368,7 +403,6 @@ const AddProductModal = ({
         if (response.data?.success && Array.isArray(response.data.data)) {
           setUnitDetails(response.data.data);
 
-          // Set default unit if adding new product and no unit is set
           if (isAdding && !localNewItem.unitDetailId && response.data.data.length > 0) {
             setLocalNewItem(prev => ({
               ...prev,
@@ -389,7 +423,6 @@ const AddProductModal = ({
     fetchUnitDetails();
   }, [companyId]);
 
-  // Update category ID when category changes
   useEffect(() => {
     const updateCategoryId = async () => {
       if (localNewItem.itemCategory && fetchedCategories.length > 0) {
@@ -417,7 +450,6 @@ const AddProductModal = ({
     updateCategoryId();
   }, [localNewItem.itemCategory, fetchedCategories, companyID]);
 
-  // Add new category
   const handleAddCategoryApi = async () => {
     if (!internalNewCategory.trim()) {
       toast.error("Please enter a category name", {
@@ -444,7 +476,6 @@ const AddProductModal = ({
           itemCategory: internalNewCategory.trim(),
         }));
 
-        // Set the category ID
         const newCategoryObj = res.data.data.find(
           (c) => c.item_category_name === internalNewCategory.trim()
         );
@@ -473,9 +504,7 @@ const AddProductModal = ({
     }
   };
 
-  // Add product
   const handleAddProductApi = async () => {
-    // Validate required fields
     if (!localNewItem.itemName.trim()) {
       toast.error("Please enter an item name", {
         toastId: 'item-name-error',
@@ -492,7 +521,6 @@ const AddProductModal = ({
       return;
     }
 
-    // Check if at least one warehouse has a quantity greater than 0
     const hasValidQuantity = localNewItem.productWarehouses.some(
       (w) => w.quantity > 0
     );
@@ -508,10 +536,9 @@ const AddProductModal = ({
     try {
       const formData = new FormData();
 
-      // Add all required fields to FormData according to API structure
       formData.append("company_id", companyID);
-      formData.append("item_category_id", localNewItem.itemCategoryId || "1"); // Default to 1 if not set
-      formData.append("unit_detail_id", localNewItem.unitDetailId || ""); // Add unit detail ID
+      formData.append("item_category_id", localNewItem.itemCategoryId || "1");
+      formData.append("unit_detail_id", localNewItem.unitDetailId || "");
       formData.append("item_name", localNewItem.itemName || "");
       formData.append("hsn", localNewItem.hsn || "");
       formData.append("barcode", localNewItem.barcode || "");
@@ -528,12 +555,10 @@ const AddProductModal = ({
       formData.append("tax_account", localNewItem.taxAccount || "");
       formData.append("remarks", localNewItem.remarks || "");
 
-      // Add image if exists
       if (localNewItem.image) {
         formData.append("image", localNewItem.image);
       }
 
-      // Add warehouses as JSON string
       const warehousesData = localNewItem.productWarehouses.map((w) => ({
         warehouse_id: w.warehouse_id,
         quantity: w.quantity,
@@ -546,8 +571,6 @@ const AddProductModal = ({
       const response = await axiosInstance.post("products", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-
-      console.log("API Response:", response.data);
 
       if (response.data?.success) {
         resetLocalForm();
@@ -565,23 +588,17 @@ const AddProductModal = ({
       }
     } catch (error) {
       console.error("Error adding product:", error);
-      // toast.error("An error occurred while adding product: " + error.message, {
-      //   toastId: 'product-add-api-error',
-      //   autoClose: 3000
-      // });
     } finally {
       setIsAddingProduct(false);
     }
   };
 
-  // Update product
   const handleUpdateProductApi = async () => {
     if (!localNewItem.id) {
       console.error("No product ID for update");
       return;
     }
 
-    // Validate required fields
     if (!localNewItem.itemName.trim()) {
       toast.error("Please enter an item name", {
         toastId: 'item-name-edit-error',
@@ -598,7 +615,6 @@ const AddProductModal = ({
       return;
     }
 
-    // Check if at least one warehouse has a quantity greater than 0
     const hasValidQuantity = localNewItem.productWarehouses.some(
       (w) => w.quantity > 0
     );
@@ -614,10 +630,9 @@ const AddProductModal = ({
     try {
       const formData = new FormData();
 
-      // Add all required fields to FormData according to API structure
       formData.append("company_id", companyID);
-      formData.append("item_category_id", localNewItem.itemCategoryId || "1"); // Default to 1 if not set
-      formData.append("unit_detail_id", localNewItem.unitDetailId || ""); // Add unit detail ID
+      formData.append("item_category_id", localNewItem.itemCategoryId || "1");
+      formData.append("unit_detail_id", localNewItem.unitDetailId || "");
       formData.append("item_name", localNewItem.itemName || "");
       formData.append("hsn", localNewItem.hsn || "");
       formData.append("barcode", localNewItem.barcode || "");
@@ -634,12 +649,10 @@ const AddProductModal = ({
       formData.append("tax_account", localNewItem.taxAccount || "");
       formData.append("remarks", localNewItem.remarks || "");
 
-      // Add image if exists
       if (localNewItem.image) {
         formData.append("images", localNewItem.image);
       }
 
-      // Add warehouses as JSON string
       const warehousesData = localNewItem.productWarehouses.map((w) => ({
         warehouse_id: w.warehouse_id,
         quantity: w.quantity,
@@ -656,8 +669,6 @@ const AddProductModal = ({
           headers: { "Content-Type": "multipart/form-data" },
         }
       );
-
-      console.log("API Update Response:", response.data);
 
       if (response.data?.success) {
         resetLocalForm();
@@ -700,7 +711,6 @@ const AddProductModal = ({
 
   return (
     <>
-      {/* Main Modal */}
       <Modal
         show={isAdding || isEditing}
         onHide={handleClose}
@@ -853,7 +863,7 @@ const AddProductModal = ({
               </Col>
             </Row>
 
-            {/* Warehouse Selection Section */}
+            {/* UPDATED: Warehouse Selection Section */}
             <Row className="mb-3">
               <Col md={12}>
                 <Form.Group>
@@ -921,7 +931,11 @@ const AddProductModal = ({
                                   <option value="">Select Warehouse</option>
                                   {warehouses
                                     .filter((wh) => {
-                                      // Filter out warehouses that are already selected in other rows
+                                      // If a warehouse is preselected, only show that one
+                                      if (hasPreselectedWarehouse) {
+                                        return wh.id.toString() === preselectedWarehouseId.toString();
+                                      }
+                                      
                                       const selectedWarehouseIds =
                                         localNewItem.productWarehouses
                                           .map((w, i) =>
@@ -1170,7 +1184,6 @@ const AddProductModal = ({
         </Modal.Footer>
       </Modal>
 
-      {/* Add Category Modal */}
       <Modal
         show={internalShowAddCategoryModal}
         onHide={() => setInternalShowAddCategoryModal(false)}
@@ -1222,7 +1235,6 @@ const AddProductModal = ({
         </Modal.Footer>
       </Modal>
 
-      {/* Add UOM Modal */}
       <Modal
         show={showAddUOMModal}
         onHide={() => setShowAddUOMModal(false)}
@@ -1259,7 +1271,6 @@ const AddProductModal = ({
         </Modal.Footer>
       </Modal>
 
-      {/* Toast Container */}
       <ToastContainer
         position="top-right"
         autoClose={3000}
