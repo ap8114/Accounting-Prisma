@@ -1614,7 +1614,7 @@ const PurchaseReturn = () => {
   return (
     <div className="p-3">
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-        <h2 className="mb-0 fw-bold text-dark">Purchase Returns</h2>
+        <h2 className="mb-0 fw-bold">Purchase Returns</h2>
         <div className="d-flex gap-2 flex-wrap">
           <Button variant="success" size="sm" className="rounded-pill p-2 text-nowrap" disabled>
             <i className="fas fa-file-import me-1" /> Import
@@ -1701,7 +1701,7 @@ const PurchaseReturn = () => {
           />
         </Col>
       </Row>
-      <Card className="border-0 rounded-3 overflow-hidden">
+      <Card className="border rounded-3 overflow-hidden">
         <div className="table-responsive">
           <Table hover className="mb-0 text-center align-middle">
             <thead className="">
@@ -1756,8 +1756,8 @@ const PurchaseReturn = () => {
             </tbody>
           </Table>
         </div>
-        <div className="d-flex justify-content-between align-items-center p-3 bg-white">
-          <small className="text-muted">Showing {filteredReturns.length} of {returns.length} entries</small>
+        <div className="d-flex justify-content-between align-items-center p-3">
+          <small className="">Showing {filteredReturns.length} of {returns.length} entries</small>
           <div className="btn-group btn-group-sm">
             <button className="btn btn-outline-secondary disabled">&laquo;</button>
             <button className="btn btn-primary">1</button>
@@ -2353,8 +2353,8 @@ const PurchaseReturn = () => {
       {/* Info Card */}
       <Card className="mt-4 rounded-4 border">
         <Card.Body>
-          <h5 className="fw-semibold text-primary border-bottom pb-2 mb-3">Page Info</h5>
-          <ul className="text-muted" style={{ listStyle: 'disc', paddingLeft: '1.5rem' }}>
+          <h5 className="fw-semibold border-bottom pb-2 mb-3">Page Info</h5>
+          <ul className="d" style={{ listStyle: 'disc', paddingLeft: '1.5rem' }}>
             <li>Manage goods returned to vendors due to damage, overstock, or wrong items.</li>
             <li>Track return ID, invoice, vendor, warehouse, amount, and status.</li>
             <li>Auto-generated <strong>Reference ID</strong> and <strong>Voucher Numbers</strong> for accounting.</li>

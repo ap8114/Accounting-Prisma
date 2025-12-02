@@ -415,8 +415,8 @@ const Ledger = () => {
       {/* Page Info */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-4">
         <Card.Body>
-          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
-          <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
+          <h5 className="fw-semibold border-bottom pb-2 mb-3">Page Info</h5>
+          <ul className=" fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
             <li>Provides a detailed record of all financial transactions for a specific account or party.</li>
             <li>Displays both debit and credit entries along with dates and references.</li>
             <li>Maintains a running balance over a selected time period to track account position.</li>

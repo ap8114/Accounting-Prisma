@@ -127,10 +127,10 @@ const PosReport = () => {
         ].map((item, idx) => (
           <div className="col-12 col-md-4" key={idx}>
             <div
-              className={`shadow-sm rounded p-3 bg-white border border-${item.border} d-flex align-items-center justify-content-between`}
+              className={`shadow-sm rounded p-3 border border-${item.border} d-flex align-items-center justify-content-between`}
             >
               <div>
-                <small className="text-muted">{item.label}</small>
+                <small className="">{item.label}</small>
                 <h5 className="fw-bold">{item.value}</h5>
               </div>
             </div>
@@ -204,7 +204,7 @@ const PosReport = () => {
       </Card>
 
       {/* Table */}
-      <div className="bg-white rounded p-3 shadow-sm">
+      <div className="border rounded p-3 shadow-sm">
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h5 className="fw-bold mb-0">Transaction Details</h5>
         </div>

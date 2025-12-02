@@ -624,7 +624,7 @@ const VendorsCustomers = () => {
         </Alert>
       )}
       {!loading && !error && (
-        <div className="card bg-white rounded-3 p-4">
+        <div className="card border rounded-3 p-4">
           <div className="table-responsive">
             <table className="table table-hover table-bordered align-middle mb-0">
               <thead className=" border">
@@ -735,7 +735,7 @@ const VendorsCustomers = () => {
             </table>
           </div>
           <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap">
-            <small className="text-muted ms-2">
+            <small className=" ms-2">
               Showing 1 to {filteredVendors.length} of {filteredVendors.length} results
             </small>
             <nav>
@@ -1331,8 +1331,8 @@ const VendorsCustomers = () => {
 
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
-          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
-          <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
+          <h5 className="fw-semibold border-bottom pb-2 mb-3 ">Page Info</h5>
+          <ul className="tfs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
             <li>Manage {vendorType === 'vender' ? 'Vendor' : 'Customer'} details including contact and billing information.</li>
             <li>Track payable balances and credit periods.</li>
             <li>Perform CRUD operations: add, view, edit, and delete {vendorType === 'vender' ? 'Vendors' : 'Customers'}.</li>

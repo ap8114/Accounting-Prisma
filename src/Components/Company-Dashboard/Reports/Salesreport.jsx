@@ -145,9 +145,9 @@ const Salesreport = () => {
       {/* Summary Cards */}
       <div className="row g-3 mb-4">
         <div className="col-12 col-md-3">
-          <div className="shadow-sm rounded p-3 bg-white border border-success d-flex align-items-center justify-content-between w-100">
+          <div className="shadow-sm rounded p-3 border border-success d-flex align-items-center justify-content-between w-100">
             <div>
-              <small className="text-muted">Total Amount</small>
+              <small className="">Total Amount</small>
               <h5 className="fw-bold">{summary.totalAmount}</h5>
             </div>
             <BiSolidDollarCircle size={28} color="#4CAF50" />
@@ -155,9 +155,9 @@ const Salesreport = () => {
         </div>
 
         <div className="col-12 col-md-3">
-          <div className="shadow-sm rounded p-3 bg-white border border-primary d-flex align-items-center justify-content-between w-100">
+          <div className="shadow-sm rounded p-3 border border-primary d-flex align-items-center justify-content-between w-100">
             <div>
-              <small className="text-muted">Total Paid</small>
+              <small className="">Total Paid</small>
               <h5 className="fw-bold">{summary.totalPaid}</h5>
             </div>
             <BiSolidDollarCircle size={28} color="#1A73E8" />
@@ -165,9 +165,9 @@ const Salesreport = () => {
         </div>
 
         <div className="col-12 col-md-3">
-          <div className="shadow-sm rounded p-3 bg-white border border-warning d-flex align-items-center justify-content-between w-100">
+          <div className="shadow-sm rounded p-3 border border-warning d-flex align-items-center justify-content-between w-100">
             <div>
-              <small className="text-muted">Total Unpaid</small>
+              <small className="">Total Unpaid</small>
               <h5 className="fw-bold">{summary.totalUnpaid}</h5>
             </div>
             <BiSolidDollarCircle size={28} color="#EF6C00" />
@@ -175,9 +175,9 @@ const Salesreport = () => {
         </div>
 
         <div className="col-12 col-md-3">
-          <div className="shadow-sm rounded p-3 bg-white border border-danger d-flex align-items-center justify-content-between w-100">
+          <div className="shadow-sm rounded p-3 border border-danger d-flex align-items-center justify-content-between w-100">
             <div>
-              <small className="text-muted">Overdue</small>
+              <small className="">Overdue</small>
               <h5 className="fw-bold">{summary.overdue}</h5>
             </div>
             <BiSolidReport size={28} color="#D32F2F" />
@@ -187,7 +187,7 @@ const Salesreport = () => {
 
       {/* Filters */}
       <form onSubmit={handleGenerate}>
-        <div className="bg-white p-3 rounded mb-3 shadow-sm row g-3">
+        <div className=" p-3 rounded mb-3 shadow-sm row g-3">
           <div className="col-12 col-md-3">
             <label className="form-label">Start Date</label>
             <input
@@ -260,7 +260,7 @@ const Salesreport = () => {
       </form>
 
       {/* Table */}
-      <div className="bg-white rounded p-3 shadow-sm">
+      <div className="border rounded p-3 shadow-sm">
         <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
           <h5 className="fw-bold mb-0">Sales Report</h5>
           <div className="d-flex gap-2">
@@ -331,7 +331,7 @@ const Salesreport = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="text-center text-muted">
+                  <td colSpan="9" className="text-center">
                     No data available
                   </td>
                 </tr>
@@ -341,7 +341,7 @@ const Salesreport = () => {
 
           {/* Pagination Footer */}
           <div className="d-flex justify-content-between align-items-center mt-3 px-3">
-            <span className="small text-muted">
+            <span className="small">
               Showing {pagination.showingFrom} to {pagination.showingTo} of{' '}
               {pagination.totalRecords} results
             </span>
@@ -370,8 +370,8 @@ const Salesreport = () => {
       {/* Page Description */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
-          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
-          <ul className="text-muted fs-6 mb-0" style={{ listStyleType: 'disc', paddingLeft: '1.5rem' }}>
+          <h5 className="fw-semibold border-bottom pb-2 mb-3">Page Info</h5>
+          <ul className=" fs-6 mb-0" style={{ listStyleType: 'disc', paddingLeft: '1.5rem' }}>
             <li>Generate and manage detailed sales reports across stores and products.</li>
             <li>Filter reports by date, store, and product for precise insights.</li>
             <li>View key sales metrics: total amount, paid, unpaid, and overdue.</li>

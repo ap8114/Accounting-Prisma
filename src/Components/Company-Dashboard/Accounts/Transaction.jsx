@@ -897,7 +897,7 @@ const Transaction = () => {
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
           <h5 className="fw-semibold border-bottom pb-2 mb-3">Page Info</h5>
-          <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
+          <ul className=" fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
             <li>Manage all financial transactions with details like voucher type, account, and amount.</li>
             <li>Add new transactions using customizable voucher numbering.</li>
             <li>View transaction details including account type, name, and notes.</li>

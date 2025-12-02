@@ -793,7 +793,7 @@ const CustomersDebtors = () => {
             </Table>
 
             <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap">
-              <small className="text-muted ms-2">
+              <small className=" ms-2">
                 1 to {filteredCustomers.length} of {customersList.length}{" "}
                 results
               </small>
@@ -821,11 +821,11 @@ const CustomersDebtors = () => {
       {/* Page Description */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
-          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
+          <h5 className="fw-semibold border-bottom pb-2 mb-3 ">
             Page Info
           </h5>
           <ul
-            className="text-muted fs-6 mb-0"
+            className=" fs-6 mb-0"
             style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
           >
             <li>Manage customer records including contact and address details.</li>

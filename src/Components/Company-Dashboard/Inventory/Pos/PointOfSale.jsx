@@ -690,7 +690,7 @@ const PointOfSale = () => {
             </Row>
           )}
 
-          <div className="border p-3 rounded bg-white">
+          <div className="border p-3 rounded">
             <div className="d-flex justify-content-between mb-3">
               <strong>Subtotal:</strong>
               <span>{symbol}{convertPrice(calculateSubTotal())}</span>

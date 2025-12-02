@@ -510,7 +510,7 @@ const WareHouse = () => {
           </div>
         </div>
 
-        <div className="shadow p-4 rounded-4">
+        <div className="border shadow p-4 rounded-4">
           {loading ? (
             <div className="text-center py-4">Loading warehouses...</div>
           ) : error ? (
@@ -584,7 +584,7 @@ const WareHouse = () => {
               </div>
 
               <div className="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3 gap-2 px-2">
-                <span className="small text-muted">
+                <span className="small">
                   Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
                   {Math.min(currentPage * itemsPerPage, warehouses.length)} of{" "}
                   {warehouses.length} entries
@@ -814,11 +814,11 @@ const WareHouse = () => {
         {/* Page Description */}
         <Card className="mb-4 p-3 shadow rounded-4 mt-2">
           <Card.Body>
-            <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
+            <h5 className="fw-semibold border-bottom pb-2 mb-3">
               Page Info
             </h5>
             <ul
-              className="text-muted fs-6 mb-0"
+              className=" fs-6 mb-0"
               style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
             >
               <li>

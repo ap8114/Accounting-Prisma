@@ -145,7 +145,7 @@
 
 .btn-brand-outline {
   background: transparent !important;
-  color: #ffff !important;
+  color: #000000 !important;
   border: 2px solid var(--brand) !important;
   transition:
     transform 0.15s ease,

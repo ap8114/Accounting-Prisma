@@ -425,7 +425,7 @@ const Expense = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded shadow-sm mb-3">
+      <div className="border p-4 rounded shadow-sm mb-3">
         <div className="row g-3">
           <div className="col-md-3">
             <label className="form-label fw-semibold">Payment No</label>

@@ -624,7 +624,7 @@ const Income = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-3 rounded shadow-sm mb-4">
+      <div className="border p-3 rounded shadow-sm mb-4">
         <div className="row g-3">
           <div className="col-md-4">
             <label className="form-label fw-semibold">Receipt No</label>

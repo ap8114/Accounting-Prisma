@@ -363,7 +363,7 @@ const AllAccounts = () => {
       console.error("Account ID not found for ledger navigation");
       alert("Unable to open ledger: Account ID missing");
       return;
-    }     
+    }
 
     const accountName = row.sub_of_subgroup_name || row.name || name;
 
@@ -567,7 +567,7 @@ const AllAccounts = () => {
 
       {/* Table */}
       {!loading && !error && (
-        <div className="table-responsive border-1 rounded-3" style={{ minWidth: "100%" }}>
+        <div className="table-responsive border rounded-3" style={{ minWidth: "100%" }}>
           <Table className="align-middle text-center mb-0">
             <thead
               className=""
@@ -739,11 +739,11 @@ const AllAccounts = () => {
       {/* Page Description */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
-          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
+          <h5 className="fw-semibold border-bottom pb-2 mb-3 ">
             Page Info
           </h5>
           <ul
-            className="text-muted fs-6 mb-0"
+            className=" fs-6 mb-0"
             style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
           >
             <li>Displays all financial accounts.</li>
