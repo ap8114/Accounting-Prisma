@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom"
 
 
-import Categories from "../SiteData/Categories";
-import BrandPage from "../SiteData/BrandPage";
-import DevicePage from "../SiteData/DevicePage";
+import Categories from "./SiteData/Categories";
+import BrandPage from "./SiteData/BrandPage";
+import DevicePage from "./SiteData/DevicePage";
 
 const AddProduct = () => {
   const navigate = useNavigate();
