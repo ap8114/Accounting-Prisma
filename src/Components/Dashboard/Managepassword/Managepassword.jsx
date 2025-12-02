@@ -1,58 +1,96 @@
 // SuperAdminPasswordRequests.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Table, Button, Badge, Modal, Form, Alert } from "react-bootstrap";
+import { toast } from "react-toastify";
+import axiosInstance from "../../../Api/axiosInstance";
 
 const SuperAdminPasswordRequests = () => {
-  const [requests, setRequests] = useState([
-    {
-      id: 101,
-      company: "Tech Company",
-      email: "newcompany@gmail.com",
-      date: "2025-09-30",
-      status: "Pending",
-      reason: "Forgot after staff exit",
-    },
-    {
-      id: 100,
-      company: "Test Corp",
-      email: "test@gmail.com",
-      date: "2025-09-28",
-      status: "Approved",
-      reason: "Old admin left",
-      emailSent: true,
-    },
-  ]);
-
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [newPassword, setNewPassword] = useState("");
   const [showEmailSentAlert, setShowEmailSentAlert] = useState(false);
 
-  const handleAction = (status) => {
-    const updatedRequests = prev.map((req) =>
-      req.id === selectedRequest.id
-        ? { ...req, status: status, emailSent: status === "Approved" }
-        : req
-    );
-    
-    setRequests(updatedRequests);
-    
-    if (status === "Approved") {
-      // Simulate sending email
-      setTimeout(() => {
+  // Fetch all requests on mount
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    try {
+      setLoading(true);
+      const res = await axiosInstance.get("password/requests");
+      if (res.data.success && Array.isArray(res.data.data)) {
+        const formatted = res.data.data.map(req => ({
+          id: req.id,
+          company: req.user?.name || "Unknown Company",
+          email: req.user?.email || "N/A",
+          date: new Date(req.created_at).toISOString().split("T")[0],
+          status: req.status === "Changed" ? "Approved" : req.status,
+          reason: req.reason,
+          emailSent: req.email_sent,
+        }));
+        setRequests(formatted);
+      }
+    } catch (err) {
+      toast.error("Failed to load password change requests.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAction = async (action) => {
+    if (!selectedRequest) return;
+
+    try {
+      setLoading(true);
+      let res;
+
+      if (action === "approve") {
+        if (!newPassword.trim()) {
+          toast.warn("Please enter a new password.");
+          return;
+        }
+        res = await axiosInstance.put(`password/requests/${selectedRequest.id}/approve`, {
+          new_password: newPassword.trim()
+        });
+        toast.success(`Password updated and email sent to ${selectedRequest.email}`);
+        // Show in-app alert
         setShowEmailSentAlert(true);
         setTimeout(() => setShowEmailSentAlert(false), 3000);
-      }, 500);
+      } else if (action === "reject") {
+        res = await axiosInstance.put(`password/requests/${selectedRequest.id}/reject`);
+        toast.info("Request rejected.");
+      }
+
+      if (res?.data?.success) {
+        // Update local state
+        setRequests(prev =>
+          prev.map(req =>
+            req.id === selectedRequest.id
+              ? { ...req, status: action === "approve" ? "Approved" : "Rejected", emailSent: action === "approve" }
+              : req
+          )
+        );
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || "Operation failed.";
+      toast.error(msg);
+      console.error(err);
+    } finally {
+      setLoading(false);
+      setShowModal(false);
+      setNewPassword("");
     }
-    
-    setShowModal(false);
-    setNewPassword("");
   };
 
   const renderStatus = (status) => {
     if (status === "Pending") return <Badge bg="warning">Pending</Badge>;
     if (status === "Approved") return <Badge bg="success">Changed</Badge>;
     if (status === "Rejected") return <Badge bg="danger">Rejected</Badge>;
+    return <Badge bg="secondary">{status}</Badge>;
   };
 
   const renderEmailStatus = (emailSent) => {
@@ -63,9 +101,13 @@ const SuperAdminPasswordRequests = () => {
   return (
     <div className="p-2">
       <h4 className="mb-3">Manage Password Requests</h4>
-      
+
       {showEmailSentAlert && (
-        <Alert variant="success" onClose={() => setShowEmailSentAlert(false)} dismissible>
+        <Alert
+          variant="success"
+          onClose={() => setShowEmailSentAlert(false)}
+          dismissible
+        >
           New password has been sent to {selectedRequest?.email}
         </Alert>
       )}
@@ -84,36 +126,56 @@ const SuperAdminPasswordRequests = () => {
           </tr>
         </thead>
         <tbody>
-          {requests?.map((req) => (
-            <tr key={req.id}>
-              <td>{req.id}</td>
-              <td>{req.company}</td>
-              <td>{req.email}</td>
-              <td>{req.date}</td>
-              <td>{renderStatus(req.status)}</td>
-              <td>{req.reason}</td>
-              <td>{renderEmailStatus(req.emailSent)}</td>
-              <td>
-                {req.status === "Pending" && (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => {
-                      setSelectedRequest(req);
-                      setShowModal(true);
-                    }}
-                  >
-                    Review
-                  </Button>
-                )}
+          {loading ? (
+            <tr>
+              <td colSpan="8" className="text-center">Loading...</td>
+            </tr>
+          ) : requests.length === 0 ? (
+            <tr>
+              <td colSpan="8" className="text-center text-muted">
+                No password change requests found.
               </td>
             </tr>
-          ))}
+          ) : (
+            requests.map((req) => (
+              <tr key={req.id}>
+                <td>{req.id}</td>
+                <td>{req.company}</td>
+                <td>{req.email}</td>
+                <td>{req.date}</td>
+                <td>{renderStatus(req.status)}</td>
+                <td>{req.reason}</td>
+                <td>{renderEmailStatus(req.emailSent)}</td>
+                <td>
+                  {req.status === "Pending" && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => {
+                        setSelectedRequest(req);
+                        setShowModal(true);
+                      }}
+                      disabled={loading}
+                    >
+                      Review
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </Table>
 
       {/* Approve/Reject Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+      <Modal
+        show={showModal}
+        onHide={() => {
+          setShowModal(false);
+          setNewPassword("");
+        }}
+        centered
+      >
         <Modal.Header closeButton>
           <Modal.Title>Review Password Change Request</Modal.Title>
         </Modal.Header>
@@ -127,31 +189,30 @@ const SuperAdminPasswordRequests = () => {
           <p>
             <b>Reason:</b> {selectedRequest?.reason}
           </p>
-          <Form>
-            <Form.Group>
-              <Form.Label>New Password</Form.Label>
-              <Form.Control
-                type="text"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
-              />
-            </Form.Group>
-          </Form>
+          <Form.Group className="mt-3">
+            <Form.Label>New Password</Form.Label>
+            <Form.Control
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password"
+            />
+          </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button
             variant="danger"
-            onClick={() => handleAction("Rejected")}
+            onClick={() => handleAction("reject")}
+            disabled={loading}
           >
             Reject
           </Button>
           <Button
             variant="success"
-            onClick={() => handleAction("Approved")}
-            disabled={!newPassword}
+            onClick={() => handleAction("approve")}
+            disabled={!newPassword.trim() || loading}
           >
-            Approve & Send Email
+            {loading ? "Processing..." : "Approve & Send Email"}
           </Button>
         </Modal.Footer>
       </Modal>

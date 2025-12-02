@@ -314,8 +314,8 @@ const TrialBalance = () => {
             </Button>
           </div>
         </div>
-        <Table responsive className="text-nowrap mb-0 align-middle">
-          <thead className="bg-light text-dark fw-semibold">
+        <Table responsive className=" border-1 rounded-5 text-nowrap mb-0 align-middle">
+          <thead className=" fw-semibold">
             <tr>
               <th>S.No</th>
               <th>Account Name</th>

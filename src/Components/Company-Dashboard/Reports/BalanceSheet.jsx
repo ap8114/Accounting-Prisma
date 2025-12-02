@@ -60,7 +60,7 @@ const BalanceSheet = () => {
   } = balanceData;
 
   return (
-    <div style={{ background: "#f0f2f5", minHeight: "100vh", paddingBottom: 40 }}>
+    <div >
       <Container fluid className="py-4">
         <div className="text-center mb-2" style={{ fontSize: 36, color: "#002d4d", fontWeight: 500 }}>
           Balance Sheet

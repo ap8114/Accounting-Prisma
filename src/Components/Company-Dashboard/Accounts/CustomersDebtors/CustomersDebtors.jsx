@@ -403,10 +403,11 @@ const CustomersDebtors = () => {
     setCurrentIndex(null);
   };
 
-  // Filter customers
+  // Filter customers - UPDATED to include Arabic name search
   const filteredCustomers = customersList.filter((customer) => {
     const matchesSearch =
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.nameArabic.includes(searchTerm) || // No toLowerCase for Arabic text
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.contact.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
@@ -624,7 +625,7 @@ const CustomersDebtors = () => {
                 </InputGroup.Text>
                 <Form.Control
                   type="text"
-                  placeholder="Search by name, email or phone"
+                  placeholder="Search by name, email, phone or Arabic name"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -649,7 +650,7 @@ const CustomersDebtors = () => {
         ) : (
           <>
             <Table bordered hover responsive>
-              <thead className="table-light">
+              <thead className="">
                 <tr>
                   <th>Voucher No</th>
                   <th>Name (English)</th>
@@ -792,7 +793,7 @@ const CustomersDebtors = () => {
             </Table>
 
             <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap">
-              <small className="text-muted ms-2">
+              <small className=" ms-2">
                 1 to {filteredCustomers.length} of {customersList.length}{" "}
                 results
               </small>
@@ -820,11 +821,11 @@ const CustomersDebtors = () => {
       {/* Page Description */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
-          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
+          <h5 className="fw-semibold border-bottom pb-2 mb-3 ">
             Page Info
           </h5>
           <ul
-            className="text-muted fs-6 mb-0"
+            className=" fs-6 mb-0"
             style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
           >
             <li>Manage customer records including contact and address details.</li>

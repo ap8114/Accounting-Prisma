@@ -372,7 +372,7 @@ const ContraVoucher = () => {
     <div className="p-3">
       {/* Toast Container */}
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
-      
+
       <div>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h2 className="text-start m-0">Contra Voucher</h2>

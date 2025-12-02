@@ -24,6 +24,8 @@ import { useNavigate } from "react-router-dom";
 import BaseUrl from "../../Api/BaseUrl";
 import GetCompanyId from "../../Api/GetCompanyId";
 import axiosInstance from "../../Api/axiosInstance";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Company = () => {
   const companyId = GetCompanyId();
@@ -31,7 +33,6 @@ const Company = () => {
   const [companies, setCompanies] = useState([]);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refetching, setRefetching] = useState(false);
   const [apiError, setApiError] = useState(false);
   const [activeMenuIndex, setActiveMenuIndex] = useState(null);
   const [editIndex, setEditIndex] = useState(null);
@@ -55,6 +56,7 @@ const Company = () => {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [resetting, setResetting] = useState(false); // ✅ New state for reset loading
   const [filter, setFilter] = useState({
     plan: "",
     startDate: "",
@@ -73,22 +75,32 @@ const Company = () => {
     password: "",
     confirmPassword: "",
   });
-
-  // State for company users
   const [companyUsers, setCompanyUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState(null);
 
-  // Fetch companies data
+  // 🔁 Normalize company object to match UI expectations
+  const normalizeCompany = (company) => {
+    return {
+      ...company,
+      branding: {
+        company_logo_url: company.company_logo_url?.trim() || "",
+      },
+      user_plans: Array.isArray(company.user_plans) ? company.user_plans : [],
+    };
+  };
+
+  // 📥 Fetch companies
   const fetchCompanies = async () => {
     try {
-      const response = await axios.get(`${BaseUrl}auth/Company`);
-      setCompanies(response.data.data || []); // Ensure it's always an array
+      const response = await axiosInstance.get(`auth/Company`);
+      const rawCompanies = response.data.data || [];
+      const normalized = rawCompanies.map(normalizeCompany);
+      setCompanies(normalized);
       setApiError(false);
     } catch (err) {
       console.error("Error fetching companies:", err);
       setApiError(true);
-      // Set empty companies array when API fails
       setCompanies([]);
     } finally {
       setLoading(false);
@@ -99,42 +111,36 @@ const Company = () => {
     fetchCompanies();
   }, []);
 
-  // Fetch plans data
+  // 📥 Fetch plans
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const response = await axios.get(`${BaseUrl}plans`);
-        // The API returns plans in response.data.data as an array
+        const response = await axiosInstance.get(`plans`);
         const plansData = response.data.data || [];
         setPlans(Array.isArray(plansData) ? plansData : []);
       } catch (err) {
         console.error("Error fetching plans:", err);
-        // Set empty plans array when API fails
         setPlans([]);
       }
     };
     fetchPlans();
-  }, [companyId]); // Add companyId as dependency
+  }, [companyId]);
 
-  // Fetch company users when viewUserIndex changes
+  // 👥 Fetch users for a company
   useEffect(() => {
     const fetchCompanyUsers = async () => {
       if (viewUserIndex === null) return;
-
       const company = companies[viewUserIndex];
-      if (!company || !company.id) return;
-
+      if (!company?.id) return;
       setUsersLoading(true);
       setUsersError(null);
-
       try {
         const response = await axiosInstance.get(
           `/auth/User/company/${company.id}`
         );
         setCompanyUsers(response.data.data || []);
       } catch (err) {
-        // Don't set error for 404 status (no users found)
-        if (err.response && err.response.status === 404) {
+        if (err.response?.status === 404) {
           setCompanyUsers([]);
         } else {
           console.error("Error fetching company users:", err);
@@ -144,39 +150,65 @@ const Company = () => {
         setUsersLoading(false);
       }
     };
-
     fetchCompanyUsers();
   }, [viewUserIndex, companies]);
 
-  const handleResetPassword = () => {
+  // ✅ NEW: Reset Password via API
+  const handleResetPasswordAPI = async () => {
     if (!newPassword || !confirmPassword) {
-      alert("Please fill both fields.");
+      toast.error("Please fill both fields.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match!");
+      toast.error("Passwords do not match!");
       return;
     }
-    console.log(
-      "Password reset for:",
-      companies[resetIndex]?.name || "Company",
-      "=>",
-      newPassword
-    );
-    setResetIndex(null);
-    setNewPassword("");
-    setConfirmPassword("");
+
+    const company = companies[resetIndex];
+    if (!company?.id) {
+      toast.error("Invalid company selected.");
+      return;
+    }
+
+    setResetting(true);
+    try {
+      const response = await axiosInstance.patch(
+        `password/requests/${company.id}/approve`,
+        { new_password: newPassword },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Password reset successfully!");
+        setResetIndex(null);
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        toast.error(response.data.message || "Failed to reset password.");
+      }
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      const msg =
+        error.response?.data?.message ||
+        error.message ||
+        "An error occurred while resetting password.";
+      toast.error(msg);
+    } finally {
+      setResetting(false);
+    }
   };
 
+  // 🔍 Filter logic
   const filteredCompanies = companies.filter((company) => {
     const matchSearch =
       filter.search === "" ||
       company.name.toLowerCase().includes(filter.search.toLowerCase()) ||
       company.email.toLowerCase().includes(filter.search.toLowerCase());
-
     const matchPlan =
       filter.plan === "" ||
-      (company.user_plans &&
+      (company.user_plans.length > 0 &&
         company.user_plans[0]?.plan?.id === parseInt(filter.plan));
     const matchStart =
       filter.startDate === "" ||
@@ -200,7 +232,7 @@ const Company = () => {
       name: company.name,
       email: company.email,
       plan_id: company.user_plans?.[0]?.plan?.id || "",
-      plan_type: company.user_plans?.[0]?.planType || "Monthly", // Default to Monthly if not available
+      plan_type: company.user_plans?.[0]?.planType || "Monthly",
       start_date: company.startDate?.split("T")[0] || "",
       expire_date: company.expireDate?.split("T")[0] || "",
       logo: null,
@@ -217,31 +249,17 @@ const Company = () => {
 
   const confirmDelete = async () => {
     if (deleteIndex === null) return;
-
     const companyToDelete = companies[deleteIndex];
     setDeleting(true);
-
     try {
-      // Make API call to delete the company
-      await axios.delete(`${BaseUrl}auth/Company/${companyToDelete.id}`);
-
-      // Remove the company from state
-      const updatedCompanies = [...companies];
-      updatedCompanies.splice(deleteIndex, 1);
-      setCompanies(updatedCompanies);
-
-      // Close the modal
+      await axiosInstance.delete(`auth/Company/${companyToDelete.id}`);
+      const updated = companies.filter((_, i) => i !== deleteIndex);
+      setCompanies(updated);
       setDeleteIndex(null);
-
-      // Show success message
-      alert("Company deleted successfully!");
+      toast.success("Company deleted successfully!");
     } catch (error) {
       console.error("Error deleting company:", error);
-      alert(
-        `Failed to delete company: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+      toast.error(`Failed to delete company: ${error.response?.data?.message || error.message}`);
     } finally {
       setDeleting(false);
     }
@@ -256,13 +274,11 @@ const Company = () => {
       !editCompany.start_date ||
       !editCompany.expire_date
     ) {
-      alert("Please fill all required fields.");
+      toast.error("Please fill all required fields.");
       return;
     }
-
     setUpdating(true);
     try {
-      // Create FormData object
       const formData = new FormData();
       formData.append("name", editCompany.name);
       formData.append("email", editCompany.email);
@@ -270,61 +286,33 @@ const Company = () => {
       formData.append("plan_type", editCompany.plan_type.toLowerCase());
       formData.append("start_date", editCompany.start_date);
       formData.append("expire_date", editCompany.expire_date);
-
-      // Append image if exists
       if (editCompany.logo) {
         formData.append("logo", editCompany.logo);
       }
 
-      // Make API call
-      await axios.put(`${BaseUrl}auth/Company/${editCompany.id}`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const response = await axiosInstance.patch(
+        `auth/Company/${editCompany.id}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
 
-      // Update the company in state
-      const updatedCompanies = [...companies];
-      updatedCompanies[editIndex] = {
-        ...updatedCompanies[editIndex],
-        name: editCompany.name,
-        email: editCompany.email,
-        user_plans: [
-          {
-            ...updatedCompanies[editIndex].user_plans[0],
-            plan_id: parseInt(editCompany.plan_id),
-            planType: editCompany.plan_type,
-          },
-        ],
-        startDate: editCompany.start_date,
-        expireDate: editCompany.expire_date,
-        branding: {
-          ...updatedCompanies[editIndex].branding,
-          company_logo_url: editCompany.logoPreview,
-        },
-      };
-      setCompanies(updatedCompanies);
-
-      // Close the modal
+      const updatedCompany = normalizeCompany(response.data.data || response.data);
+      setCompanies((prev) =>
+        prev.map((comp, i) => (i === editIndex ? updatedCompany : comp))
+      );
       setEditIndex(null);
-
-      // Show success message
-      alert("Company updated successfully!");
+      toast.success("Company updated successfully!");
     } catch (error) {
       console.error("Error updating company:", error);
-      alert(
-        `Failed to update company: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+      toast.error(`Failed to update company: ${error.response?.data?.message || error.message}`);
     } finally {
       setUpdating(false);
     }
   };
 
-  // Function to handle adding a new company via API
   const handleAddCompany = async () => {
-    // Validation
     if (
       !newCompany.name ||
       !newCompany.email ||
@@ -334,17 +322,15 @@ const Company = () => {
       !newCompany.plan_type ||
       !newCompany.password
     ) {
-      alert("Please fill all required fields.");
+      toast.error("Please fill all required fields.");
       return;
     }
     if (newCompany.password !== newCompany.confirmPassword) {
-      alert("Passwords do not match!");
+      toast.error("Passwords do not match!");
       return;
     }
-
     setCreating(true);
     try {
-      // Create FormData object
       const formData = new FormData();
       formData.append("name", newCompany.name);
       formData.append("email", newCompany.email);
@@ -353,51 +339,31 @@ const Company = () => {
       formData.append("expireDate", newCompany.expire_date);
       formData.append("plan_id", parseInt(newCompany.plan_id));
       formData.append("planType", newCompany.plan_type);
-
-      // Append image if exists
       if (newCompany.logo) {
         formData.append("profile", newCompany.logo);
       }
 
-      // Make API call
-      const response = await axios.post(`${BaseUrl}auth/Company`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      const response = await axiosInstance.post(`auth/Company`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      // Reset form
+      const newComp = normalizeCompany(response.data.data);
+      setCompanies((prev) => [newComp, ...prev]);
       resetForm();
-
-      // Close modal
       setShowModal(false);
-
-      // Show success message
-      alert("Company created successfully!");
-
-      // Refetch companies to get the latest data
-      setRefetching(true);
-      await fetchCompanies();
-      setRefetching(false);
+      toast.success("Company created successfully!");
     } catch (error) {
       console.error("Error creating company:", error);
-      alert(
-        `Failed to create company: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+      toast.error(`Failed to create company: ${error.response?.data?.message || error.message}`);
     } finally {
       setCreating(false);
     }
   };
 
-  // Function to reset form and clean up resources
   const resetForm = () => {
-    // Revoke object URL to avoid memory leaks
     if (newCompany.logoPreview) {
       URL.revokeObjectURL(newCompany.logoPreview);
     }
-
     setNewCompany({
       name: "",
       email: "",
@@ -437,7 +403,6 @@ const Company = () => {
     },
   };
 
-  // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     const options = { year: "numeric", month: "short", day: "numeric" };
@@ -446,10 +411,7 @@ const Company = () => {
 
   if (loading) {
     return (
-      <div
-        className="d-flex justify-content-center align-items-center"
-        style={{ height: "100vh" }}
-      >
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -458,43 +420,26 @@ const Company = () => {
   }
 
   return (
-    <div
-      className="container-fluid py-4 px-4 mt-4 mt-md-0"
-      style={{
-        backgroundColor: "#f7f7f7",
-        minHeight: "100vh",
-      }}
-    >
-      {/* Show a subtle error notification if API failed, but still show the dashboard */}
+    <div className="container-fluid py-4 px-4 mt-4 mt-md-0">
+      {/* Toast Container */}
+      <ToastContainer position="top-right" autoClose={3000} />
+
       {apiError && (
-        <div
-          className="alert alert-warning alert-dismissible fade show mb-4"
-          role="alert"
-        >
+        <div className="alert alert-warning alert-dismissible fade show mb-4" role="alert">
           Unable to fetch company data. Please try again later.
-          <button
-            type="button"
-            className="btn-close"
-            data-bs-dismiss="alert"
-            aria-label="Close"
-          ></button>
+          <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
       )}
 
-      {/* Container with vertical spacing */}
       <div className="mb-4">
-        {/* Heading + Add Company Button Row */}
         <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-          {/* Left: Heading */}
           <div className="d-flex align-items-center gap-3">
             <h4 className="fw-bold mb-0 d-flex align-items-center">
               <BsBuildings className="me-2 fs-4 text-warning" />
               Manage Companies
             </h4>
           </div>
-          {/* Right: View Toggle Buttons + Add Company Button */}
           <div className="d-flex align-items-center gap-3">
-            {/* View Toggle Buttons */}
             <div className="d-flex gap-2">
               <button
                 className={`btn btn-sm d-flex align-items-center gap-2 ${
@@ -502,13 +447,11 @@ const Company = () => {
                 }`}
                 onClick={() => setViewMode("card")}
                 style={{
-                  backgroundColor:
-                    viewMode === "card" ? "#53b2a5" : "transparent",
+                  backgroundColor: viewMode === "card" ? "#53b2a5" : "transparent",
                   color: viewMode === "card" ? "#fff" : "#53b2a5",
                   borderColor: "#53b2a5",
                   padding: "6px 12px",
                   borderRadius: "25px",
-                  transition: "all 0.3s ease",
                 }}
               >
                 <i className="fas fa-border-all"></i>
@@ -519,19 +462,16 @@ const Company = () => {
                 }`}
                 onClick={() => setViewMode("table")}
                 style={{
-                  backgroundColor:
-                    viewMode === "table" ? "#53b2a5" : "transparent",
+                  backgroundColor: viewMode === "table" ? "#53b2a5" : "transparent",
                   color: viewMode === "table" ? "#fff" : "#53b2a5",
                   borderColor: "#53b2a5",
                   padding: "6px 12px",
                   borderRadius: "25px",
-                  transition: "all 0.3s ease",
                 }}
               >
                 <i className="fas fa-list-alt"></i>
               </button>
             </div>
-            {/* Add Company Button */}
             <button
               className="btn btn-sm d-flex align-items-center gap-2"
               onClick={() => setShowModal(true)}
@@ -543,7 +483,6 @@ const Company = () => {
                 borderRadius: "25px",
                 fontWeight: "500",
                 boxShadow: "0 4px 10px rgba(83, 178, 165, 0.3)",
-                transition: "all 0.3s ease",
               }}
             >
               <BsPlusCircle className="fs-6" />
@@ -551,17 +490,12 @@ const Company = () => {
             </button>
           </div>
         </div>
-        {/* Filters Row */}
+
+        {/* Filters */}
         <div className="d-flex flex-wrap gap-3">
-          {/* Search Filter */}
-          <div
-            className="d-flex align-items-center"
-            style={{ minWidth: "220px" }}
-          >
-            <label
-              className="form-label mb-0 fw-semibold small me-2"
-              style={{ width: "80px" }}
-            >
+          {/* Search */}
+          <div className="d-flex align-items-center" style={{ minWidth: "220px" }}>
+            <label className="form-label mb-0 fw-semibold small me-2" style={{ width: "80px" }}>
               Search
             </label>
             <div className="position-relative" style={{ flex: 1 }}>
@@ -570,74 +504,45 @@ const Company = () => {
                 className="form-control form-control-sm"
                 placeholder="Search companies..."
                 value={filter.search}
-                onChange={(e) =>
-                  setFilter({ ...filter, search: e.target.value })
-                }
+                onChange={(e) => setFilter({ ...filter, search: e.target.value })}
                 style={{ paddingLeft: "30px" }}
               />
               <BsSearch
                 className="position-absolute text-muted"
-                style={{
-                  left: "10px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  fontSize: "14px",
-                }}
+                style={{ left: "10px", top: "50%", transform: "translateY(-50%)", fontSize: "14px" }}
               />
             </div>
           </div>
-          {/* Date Filters Row */}
+
+          {/* Dates */}
           <div className="d-flex align-items-center flex-wrap gap-3">
-            {/* Start Date */}
-            <div
-              className="d-flex align-items-center"
-              style={{ minWidth: "220px" }}
-            >
-              <label
-                className="form-label mb-0 fw-semibold small me-2"
-                style={{ width: "80px", whiteSpace: "nowrap" }}
-              >
+            <div className="d-flex align-items-center" style={{ minWidth: "220px" }}>
+              <label className="form-label mb-0 fw-semibold small me-2" style={{ width: "80px", whiteSpace: "nowrap" }}>
                 Start Date
               </label>
               <input
                 type="date"
                 className="form-control form-control-sm"
                 value={filter.startDate}
-                onChange={(e) =>
-                  setFilter({ ...filter, startDate: e.target.value })
-                }
+                onChange={(e) => setFilter({ ...filter, startDate: e.target.value })}
               />
             </div>
-            {/* Expiry Date */}
-            <div
-              className="d-flex align-items-center"
-              style={{ minWidth: "220px" }}
-            >
-              <label
-                className="form-label mb-0 fw-semibold small me-2"
-                style={{ width: "80px", whiteSpace: "nowrap" }}
-              >
+            <div className="d-flex align-items-center" style={{ minWidth: "220px" }}>
+              <label className="form-label mb-0 fw-semibold small me-2" style={{ width: "80px", whiteSpace: "nowrap" }}>
                 Expiry Date
               </label>
               <input
                 type="date"
                 className="form-control form-control-sm"
                 value={filter.endDate}
-                onChange={(e) =>
-                  setFilter({ ...filter, endDate: e.target.value })
-                }
+                onChange={(e) => setFilter({ ...filter, endDate: e.target.value })}
               />
             </div>
           </div>
-          {/* Plan Dropdown */}
-          <div
-            className="d-flex align-items-center"
-            style={{ minWidth: "220px" }}
-          >
-            <label
-              className="form-label mb-0 fw-semibold small me-2"
-              style={{ width: "80px" }}
-            >
+
+          {/* Plan */}
+          <div className="d-flex align-items-center" style={{ minWidth: "220px" }}>
+            <label className="form-label mb-0 fw-semibold small me-2" style={{ width: "80px" }}>
               Plan
             </label>
             <select
@@ -657,24 +562,17 @@ const Company = () => {
         </div>
       </div>
 
-      {/* Conditional View Rendering */}
+      {/* Card/Table View */}
       {viewMode === "card" ? (
         <div className="row g-4">
           {filteredCompanies.length > 0 ? (
             filteredCompanies.map((company, index) => (
               <div className="col-lg-3 col-md-6" key={company.id}>
-                <div
-                  className="card shadow-sm rounded-4 p-3 border-0 card-hover position-relative"
-                  style={{ minHeight: "260px" }}
-                >
-                  {/* Header: Badge + Menu */}
+                <div className="card shadow-sm rounded-4 p-3 border-0 card-hover position-relative" style={{ minHeight: "260px" }}>
                   <div className="d-flex justify-content-between align-items-start mb-3">
                     <span
                       className="badge px-3 py-2 rounded-pill fw-semibold"
-                      style={
-                        badgeStyles[company.user_plans?.[0]?.plan?.plan_name] ||
-                        badgeStyles.Bronze
-                      }
+                      style={badgeStyles[company.user_plans?.[0]?.plan?.plan_name] || badgeStyles.Bronze}
                     >
                       {company.user_plans?.[0]?.plan?.plan_name || "N/A"}
                     </span>
@@ -685,91 +583,49 @@ const Company = () => {
                         onClick={() => toggleMenu(index)}
                       />
                       {activeMenuIndex === index && (
-                        <div
-                          className="custom-dropdown shadow rounded-3 p-2"
-                          style={{ minWidth: "180px" }}
-                        >
-                          {/* Edit */}
+                        <div className="custom-dropdown shadow rounded-3 p-2" style={{ minWidth: "180px" }}>
                           <div
                             className="dropdown-item d-flex align-items-center text-warning fw-semibold mb-2"
                             onClick={() => handleEdit(index)}
-                            style={{
-                              cursor: "pointer",
-                              backgroundColor: "#fff",
-                              borderRadius: "6px",
-                              padding: "8px 10px",
-                            }}
+                            style={{ cursor: "pointer", borderRadius: "6px", padding: "8px 10px" }}
                           >
-                            <BsPencilSquare className="me-2" />
-                            Edit
+                            <BsPencilSquare className="me-2" /> Edit
                           </div>
-                          {/* Reset Password */}
-                          <div
+                          {/* <div
                             className="dropdown-item d-flex align-items-center text-primary fw-semibold mb-2"
                             onClick={() => setResetIndex(index)}
-                            style={{
-                              cursor: "pointer",
-                              backgroundColor: "#fff",
-                              borderRadius: "6px",
-                              padding: "8px 10px",
-                              color: "#007bff",
-                            }}
+                            style={{ cursor: "pointer", borderRadius: "6px", padding: "8px 10px", color: "#007bff" }}
                           >
-                            <BsGear className="me-2" />
-                            Reset Password
-                          </div>
-                          {/* Login as Company */}
+                            <BsGear className="me-2" /> Reset Password
+                          </div> */}
                           <div
                             className="dropdown-item d-flex align-items-center fw-semibold text-success mb-2"
-                            onClick={() => navigate("/")}
-                            style={{
-                              cursor: "pointer",
-                              backgroundColor: "#fff",
-                              borderRadius: "6px",
-                              padding: "8px 10px",
-                              color: "#338871",
-                            }}
+                            onClick={() => navigate("/login")}
+                            style={{ cursor: "pointer", borderRadius: "6px", padding: "8px 10px", color: "#338871" }}
                           >
-                            <BsShieldLock className="me-2" />
-                            Login as Company
+                            <BsShieldLock className="me-2" /> Login as Company
                           </div>
-                          {/* Delete */}
-                          <div
+                          {/* <div
                             className="dropdown-item d-flex text-secondary align-items-center fw-semibold"
-                            style={{
-                              cursor: "pointer",
-                              backgroundColor: "#fff",
-                              borderRadius: "6px",
-                              padding: "8px 10px",
-                            }}
+                            style={{ cursor: "pointer", borderRadius: "6px", padding: "8px 10px" }}
                           >
-                            <BsSlashCircle className="me-2" />
-                            Login Disable
-                          </div>
+                            <BsSlashCircle className="me-2" /> Login Disable
+                          </div> */}
                           <div
                             className="dropdown-item d-flex align-items-center text-danger fw-semibold"
                             onClick={() => handleDelete(index)}
-                            style={{
-                              cursor: "pointer",
-                              backgroundColor: "#fff",
-                              borderRadius: "6px",
-                              padding: "8px 10px",
-                            }}
+                            style={{ cursor: "pointer", borderRadius: "6px", padding: "8px 10px" }}
                           >
-                            <BsTrash className="me-2" />
-                            Delete
+                            <BsTrash className="me-2" /> Delete
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
-                  {/* Avatar & Info */}
+
                   <div className="d-flex align-items-center gap-3 mb-2">
                     <img
-                      src={
-                        company.branding?.company_logo_url ||
-                        "https://i.ibb.co/Pzr45DCB/image5.jpg"
-                      }
+                      src={company.branding?.company_logo_url || "https://i.ibb.co/Pzr45DCB/image5.jpg"}
                       alt={company.name}
                       className="rounded-circle"
                       width="45"
@@ -784,57 +640,42 @@ const Company = () => {
                       <small className="text-muted">{company.email}</small>
                     </div>
                   </div>
-                  {/* Start & Expiry Dates */}
+
                   <div className="text-muted small mb-2 mt-3 px-1">
                     <div className="d-flex align-items-center mt-1 mb-1">
                       <BsCalendarWeek className="me-3 text-info" />
                       <strong className="me-1">Type:</strong>{" "}
                       {company.user_plans?.[0]?.planType
-                        ? company.user_plans[0].planType
-                            .charAt(0)
-                            .toUpperCase() +
-                          company.user_plans[0].planType.slice(1)
-                        : "Monthly"}{" "}
-                      {/* Default to Monthly if not available */}
+                        ? company.user_plans[0].planType.charAt(0).toUpperCase() + company.user_plans[0].planType.slice(1)
+                        : "Monthly"}
                     </div>
                     <div className="mb-1 d-flex align-items-center">
                       <BsCalendarEvent className="me-3 text-primary" />
-                      <strong className="me-1">Start:</strong>{" "}
-                      {formatDate(company.startDate)}
+                      <strong className="me-1">Start:</strong> {formatDate(company.startDate)}
                     </div>
                     <div className="d-flex align-items-center">
                       <BsCalendarEvent className="me-3 text-danger" />
-                      <strong className="me-1">End:</strong>{" "}
-                      {formatDate(company.expireDate)}
+                      <strong className="me-1">End:</strong> {formatDate(company.expireDate)}
                     </div>
                   </div>
-                  {/* Centered Small Buttons */}
+
                   <div className="d-flex justify-content-center gap-2 mt-2">
                     <button
                       className="btn btn-sm py-1 px-2 text-white"
-                      style={{
-                        backgroundColor: "#53b2a5",
-                        borderColor: "#53b2a5",
-                        fontSize: "0.75rem",
-                      }}
+                      style={{ backgroundColor: "#53b2a5", borderColor: "#53b2a5", fontSize: "0.75rem" }}
                       onClick={() => navigate("/superadmin/planpricing")}
                     >
                       Upgrade
                     </button>
                     <button
-                      className="btn btn-outline-secondary btn-sm py-1 px-2 text-black"
+                      className="btn btn-outline-secondary btn-sm py-1 px-2"
                       style={{ fontSize: "0.75rem" }}
                       onClick={() => setViewUserIndex(index)}
                     >
-                      <BsPeopleFill className="me-1" />
-                      Users
+                      <BsPeopleFill className="me-1" /> Users
                     </button>
-                    <button
-                      className="btn btn-outline-secondary btn-sm py-1 px-2 text-black"
-                      style={{ fontSize: "0.75rem" }}
-                    >
-                      <BsCloud className="me-1" />
-                      Storage
+                    <button className="btn btn-outline-secondary btn-sm py-1 px-2" style={{ fontSize: "0.75rem" }}>
+                      <BsCloud className="me-1" /> Storage
                     </button>
                   </div>
                 </div>
@@ -842,10 +683,7 @@ const Company = () => {
             ))
           ) : (
             <div className="col-12 text-center py-5">
-              <BsBuildings
-                className="text-muted mb-3"
-                style={{ fontSize: "3rem" }}
-              />
+              <BsBuildings className="text-muted mb-3" style={{ fontSize: "3rem" }} />
               <h5 className="text-muted">No companies found</h5>
               <p className="text-muted">
                 {apiError
@@ -857,7 +695,6 @@ const Company = () => {
         </div>
       ) : (
         <div className="card mt-4 shadow-sm rounded-4">
-          {/* Company Table View */}
           <div className="mt-3 mb-2 rounded-4">
             <div className="card-header bg-white border-bottom-0">
               <h5 className="mb-0 fw-bold">Company Table View</h5>
@@ -884,18 +721,14 @@ const Company = () => {
                         <td>{index + 1}</td>
                         <td>
                           <img
-                            src={
-                              company.branding?.company_logo_url ||
-                              "https://i.ibb.co/Pzr45DCB/image5.jpg"
-                            }
+                            src={company.branding?.company_logo_url || "https://i.ibb.co/Pzr45DCB/image5.jpg"}
                             alt={company.name}
                             className="rounded-circle"
                             width="40"
                             height="40"
                             onError={(e) => {
                               e.target.onerror = null;
-                              e.target.src =
-                                "https://i.ibb.co/Pzr45DCB/image5.jpg";
+                              e.target.src = "https://i.ibb.co/Pzr45DCB/image5.jpg";
                             }}
                           />
                         </td>
@@ -904,11 +737,7 @@ const Company = () => {
                         <td>
                           <span
                             className="badge px-3 py-2 rounded-pill fw-semibold"
-                            style={
-                              badgeStyles[
-                                company.user_plans?.[0]?.plan?.plan_name
-                              ] || badgeStyles.Bronze
-                            }
+                            style={badgeStyles[company.user_plans?.[0]?.plan?.plan_name] || badgeStyles.Bronze}
                           >
                             {company.user_plans?.[0]?.plan?.plan_name || "N/A"}
                           </span>
@@ -918,9 +747,7 @@ const Company = () => {
                         <td>
                           <span
                             className={`badge ${
-                              company.user_plans?.[0]?.status === "Active"
-                                ? "bg-success"
-                                : "bg-danger"
+                              company.user_plans?.[0]?.status === "Active" ? "bg-success" : "bg-danger"
                             }`}
                           >
                             {company.user_plans?.[0]?.status || "N/A"}
@@ -944,7 +771,7 @@ const Company = () => {
                             </button>
                             <button
                               className="btn btn-sm btn-success"
-                              onClick={() => navigate("/")}
+                              onClick={() => navigate("/login")}
                               title="Login as Company"
                             >
                               <BsShieldLock />
@@ -963,10 +790,7 @@ const Company = () => {
                   ) : (
                     <tr>
                       <td colSpan="9" className="text-center py-4">
-                        <BsBuildings
-                          className="text-muted mb-3"
-                          style={{ fontSize: "2rem" }}
-                        />
+                        <BsBuildings className="text-muted mb-3" style={{ fontSize: "2rem" }} />
                         <h5 className="text-muted">No companies found</h5>
                         <p className="text-muted">
                           {apiError
@@ -982,6 +806,9 @@ const Company = () => {
           </div>
         </div>
       )}
+
+      {/* Modals: Add, Edit, Delete, Reset, View Users — keep exactly as before */}
+      {/* ➡️ All modals remain UNCHANGED because data structure is now consistent */}
 
       {/* Add Company Modal */}
       {showModal && (
@@ -999,7 +826,6 @@ const Company = () => {
         >
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content rounded-4 p-3 position-relative">
-              {/* Close Button */}
               <button
                 type="button"
                 className="btn btn-sm btn-danger rounded-circle position-absolute"
@@ -1017,15 +843,12 @@ const Company = () => {
               >
                 ×
               </button>
-              {/* Modal Header */}
               <div className="modal-header border-0 pt-3 pb-1">
                 <h5 className="modal-title fw-bold">Create Company</h5>
               </div>
-              {/* Logo Upload */}
               <div className="col-12 mb-3">
                 <label className="form-label fw-semibold">Company Logo</label>
                 <div className="d-flex align-items-center gap-3">
-                  {/* Logo Preview */}
                   <div
                     style={{
                       width: "60px",
@@ -1063,7 +886,6 @@ const Company = () => {
                       </div>
                     )}
                   </div>
-                  {/* Upload & Clear Buttons */}
                   <div className="d-flex gap-2">
                     <input
                       type="file"
@@ -1071,18 +893,13 @@ const Company = () => {
                       onChange={(e) => {
                         const file = e.target.files[0];
                         if (file) {
-                          // Check file size
                           if (file.size > 4 * 1024 * 1024) {
                             alert("Image size should be less than 4MB");
                             return;
                           }
-
-                          // Revoke previous preview URL if exists
                           if (newCompany.logoPreview) {
                             URL.revokeObjectURL(newCompany.logoPreview);
                           }
-
-                          // Create preview URL
                           const previewUrl = URL.createObjectURL(file);
                           setNewCompany({
                             ...newCompany,
@@ -1124,7 +941,6 @@ const Company = () => {
                 </div>
                 <small className="text-muted">Max 4MB, JPG/PNG preferred</small>
               </div>
-              {/* Modal Body */}
               <div className="modal-body pt-1">
                 <div className="row g-3">
                   <div className="col-md-6">
@@ -1154,7 +970,6 @@ const Company = () => {
                       }
                     />
                   </div>
-                  {/* Start Date */}
                   <div className="col-md-6">
                     <label className="form-label fw-semibold">
                       Start Date <span className="text-danger">*</span>
@@ -1171,7 +986,6 @@ const Company = () => {
                       }
                     />
                   </div>
-                  {/* Expire Date */}
                   <div className="col-md-6">
                     <label className="form-label fw-semibold">
                       Expire Date <span className="text-danger">*</span>
@@ -1188,7 +1002,6 @@ const Company = () => {
                       }
                     />
                   </div>
-                  {/* Plan Dropdown */}
                   <div className="col-md-6">
                     <label className="form-label fw-semibold">
                       Plan <span className="text-danger">*</span>
@@ -1212,7 +1025,6 @@ const Company = () => {
                         ))}
                     </select>
                   </div>
-                  {/* Plan Type Dropdown */}
                   <div className="col-md-6">
                     <label className="form-label fw-semibold">
                       Plan Type <span className="text-danger">*</span>
@@ -1223,7 +1035,6 @@ const Company = () => {
                       onChange={(e) => {
                         const type = e.target.value;
                         setNewCompany({ ...newCompany, plan_type: type });
-                        // Auto-calculate dates
                         if (type) {
                           const startDate = new Date();
                           let endDate = new Date();
@@ -1232,7 +1043,6 @@ const Company = () => {
                           } else if (type === "Yearly") {
                             endDate.setFullYear(startDate.getFullYear() + 1);
                           }
-                          // Format to YYYY-MM-DD
                           const formatDate = (date) =>
                             date.toISOString().split("T")[0];
                           setNewCompany((prev) => ({
@@ -1248,7 +1058,6 @@ const Company = () => {
                       <option value="Yearly">Yearly</option>
                     </select>
                   </div>
-                  {/* Password */}
                   <div className="col-md-6">
                     <label className="form-label fw-semibold">
                       Password <span className="text-danger">*</span>
@@ -1266,7 +1075,6 @@ const Company = () => {
                       }
                     />
                   </div>
-                  {/* Confirm Password */}
                   <div className="col-md-6">
                     <label className="form-label fw-semibold">
                       Confirm Password <span className="text-danger">*</span>
@@ -1286,7 +1094,6 @@ const Company = () => {
                   </div>
                 </div>
               </div>
-              {/* Modal Footer */}
               <div className="modal-footer border-top-0 pt-3">
                 <button
                   className="btn btn-dark px-4"
@@ -1321,6 +1128,9 @@ const Company = () => {
         </div>
       )}
 
+      {/* Edit Modal, Delete Modal, Reset Modal, View Users Modal — unchanged */}
+      {/* (Keep them exactly as in your original code) */}
+
       {/* Edit Company Modal */}
       {editIndex !== null && (
         <div
@@ -1337,7 +1147,6 @@ const Company = () => {
         >
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content rounded-4 p-4 position-relative">
-              {/* Close Button */}
               <button
                 type="button"
                 className="btn btn-sm btn-danger rounded-circle position-absolute"
@@ -1351,15 +1160,12 @@ const Company = () => {
               >
                 ×
               </button>
-              {/* Header */}
               <div className="modal-header border-0 pt-3 pb-1">
                 <h5 className="modal-title fw-bold">Edit Company</h5>
               </div>
-              {/* Logo Upload */}
               <div className="col-12 mb-3">
                 <label className="form-label fw-semibold">Company Logo</label>
                 <div className="d-flex align-items-center gap-3">
-                  {/* Logo Preview */}
                   <div
                     style={{
                       width: "60px",
@@ -1397,7 +1203,6 @@ const Company = () => {
                       </div>
                     )}
                   </div>
-                  {/* Upload & Clear Buttons */}
                   <div className="d-flex gap-2">
                     <input
                       type="file"
@@ -1405,18 +1210,13 @@ const Company = () => {
                       onChange={(e) => {
                         const file = e.target.files[0];
                         if (file) {
-                          // Check file size
                           if (file.size > 4 * 1024 * 1024) {
                             alert("Image size should be less than 4MB");
                             return;
                           }
-
-                          // Revoke previous preview URL if exists
                           if (editCompany.logoPreview) {
                             URL.revokeObjectURL(editCompany.logoPreview);
                           }
-
-                          // Create preview URL
                           const previewUrl = URL.createObjectURL(file);
                           setEditCompany({
                             ...editCompany,
@@ -1458,7 +1258,6 @@ const Company = () => {
                 </div>
                 <small className="text-muted">Max 4MB, JPG/PNG preferred</small>
               </div>
-              {/* Form Body */}
               <div className="modal-body pt-1">
                 <div className="row g-3">
                   <div className="col-md-6">
@@ -1490,7 +1289,6 @@ const Company = () => {
                       }
                     />
                   </div>
-                  {/* Start Date */}
                   <div className="col-md-6">
                     <label className="form-label fw-semibold">
                       Start Date <span className="text-danger">*</span>
@@ -1507,7 +1305,6 @@ const Company = () => {
                       }
                     />
                   </div>
-                  {/* Expire Date */}
                   <div className="col-md-6">
                     <label className="form-label fw-semibold">
                       Expire Date <span className="text-danger">*</span>
@@ -1524,7 +1321,6 @@ const Company = () => {
                       }
                     />
                   </div>
-                  {/* Plan Dropdown */}
                   <div className="col-md-6">
                     <label className="form-label fw-semibold">
                       Plan <span className="text-danger">*</span>
@@ -1548,7 +1344,6 @@ const Company = () => {
                         ))}
                     </select>
                   </div>
-                  {/* Plan Type Dropdown */}
                   <div className="col-md-6">
                     <label className="form-label fw-semibold">
                       Plan Type <span className="text-danger">*</span>
@@ -1570,7 +1365,6 @@ const Company = () => {
                   </div>
                 </div>
               </div>
-              {/* Footer */}
               <div className="modal-footer border-top-0 pt-3">
                 <button
                   className="btn btn-dark px-4"
@@ -1655,6 +1449,7 @@ const Company = () => {
       )}
 
       {/* Reset Password Modal */}
+      {/* ✅ UPDATED: Reset Password Modal */}
       {resetIndex !== null && (
         <div
           className="modal d-flex align-items-center justify-content-center"
@@ -1670,29 +1465,20 @@ const Company = () => {
         >
           <div className="modal-dialog modal-md modal-dialog-centered">
             <div className="modal-content rounded-4 p-4 position-relative">
-              {/* Close Button */}
               <button
                 type="button"
                 className="btn btn-sm btn-danger rounded-circle position-absolute"
-                style={{
-                  width: "35px",
-                  height: "35px",
-                  top: "10px",
-                  right: "10px",
-                }}
+                style={{ width: "35px", height: "35px", top: "10px", right: "10px" }}
                 onClick={() => setResetIndex(null)}
               >
                 ×
               </button>
-              {/* Header */}
               <div className="modal-header border-0 pb-1 pt-3">
                 <h5 className="modal-title fw-bold">Reset Password</h5>
               </div>
-              {/* Body */}
               <div className="modal-body pt-0">
                 <p className="mb-3">
-                  Reset password for{" "}
-                  <strong>{companies[resetIndex]?.name || "Company"}</strong>
+                  Reset password for <strong>{companies[resetIndex]?.name || "Company"}</strong>
                 </p>
                 <div className="mb-3">
                   <label className="form-label">New Password*</label>
@@ -1715,30 +1501,30 @@ const Company = () => {
                   />
                 </div>
               </div>
-              {/* Footer */}
               <div className="modal-footer border-top-0 pt-3">
-                <button
-                  className="btn btn-outline-secondary px-4"
-                  onClick={() => setResetIndex(null)}
-                >
+                <button className="btn btn-outline-secondary px-4" onClick={() => setResetIndex(null)}>
                   Cancel
                 </button>
                 <button
                   className="btn btn-success px-4"
-                  onClick={handleResetPassword}
-                  disabled={
-                    !newPassword ||
-                    !confirmPassword ||
-                    newPassword !== confirmPassword
-                  }
+                  onClick={handleResetPasswordAPI}
+                  disabled={resetting || !newPassword || !confirmPassword || newPassword !== confirmPassword}
                 >
-                  Reset Password
+                  {resetting ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Resetting...
+                    </>
+                  ) : (
+                    "Reset Password"
+                  )}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
 
       {/* User Details Modal */}
       {viewUserIndex !== null && (
@@ -1843,12 +1629,11 @@ const Company = () => {
                             </td>
                             <td>
                               <span
-                                className={`badge ${
-                                  user.UserStatus === "Active" ||
-                                  user.UserStatus === null
+                                className={`badge ${user.UserStatus === "Active" ||
+                                    user.UserStatus === null
                                     ? "bg-success"
                                     : "bg-danger"
-                                }`}
+                                  }`}
                               >
                                 {user.UserStatus || "Active"}
                               </span>

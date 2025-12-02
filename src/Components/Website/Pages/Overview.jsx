@@ -104,10 +104,10 @@ const Overview = () => {
           <Row className="align-items-center g-4">
             {/* Text Section */}
             <Col xs={12} md={6} className="text-center text-md-start">
-              <h1 className="fw-bold display-5 mb-3">
+              <h1 className="text-dark fw-bold display-5 mb-3">
                 Simplify Your Accounting <br /> with Powerful ZirakBook Software
               </h1>
-              <p className="lead">
+              <p className=" text-dark lead">
                 Manage Invoicing, Inventory, Expenses & Reports — All in One Place
               </p>
               <div className="mt-4 d-grid gap-2 d-md-flex justify-content-md-start">
@@ -125,14 +125,8 @@ const Overview = () => {
                   size="lg"
                   as={Link}
                   to="/contact"
-                  className="px-4"
-                  style={{
-                    transition: 'all 0.3s ease',
-                    backgroundColor: hover ? '#d4f1e0' : 'transparent',
-                    color: hover ? '#2d6b4c' : '#198754',
-                  }}
-                  onMouseEnter={() => setHover(true)}
-                  onMouseLeave={() => setHover(false)}
+                  className="text-dark px-4"
+
                 >
                   Consult with Experts
                 </Button>
@@ -169,7 +163,7 @@ const Overview = () => {
         <Container>
           <div className="text-center mb-5">
             <h1 className="fw-bold">A best-in-class business management solution</h1>
-            <p className="text-muted lead">
+            <p className=" lead">
               Powerful features to help manage your business efficiently
             </p>
           </div>
@@ -189,12 +183,12 @@ const Overview = () => {
 
             {/* Content */}
             <Col xs={12} md={6}>
-              <div className="bg-light p-4 rounded shadow-sm h-100 d-flex flex-column">
+              <div className="  border p-4 rounded shadow-sm h-100 d-flex flex-column">
                 <h2 className="fw-bold mx-3 text-center text-md-start">
                   Smart Accounting & Inventory
                 </h2>
-                <p className="text-center small text-muted mb-4">Faster | Smarter | Anywhere | Anytime</p>
-                <ul className="text-muted flex-grow-1">
+                <p className="text-center small mb-4">Faster | Smarter | Anywhere | Anytime</p>
+                <ul className=" flex-grow-1">
                   <li className="mb-3">
                     Streamline your financial operations with integrated accounting and inventory management.
                     Track transactions, manage stock levels, and generate reports all in one unified platform.
@@ -233,7 +227,7 @@ const Overview = () => {
             {/* Card 1 - Inventory & Warehouse */}
             <Col xs={12} md={6}>
               <div
-                className="p-4 h-100 shadow-sm bg-white rounded border"
+                className="p-4 h-100 shadow-sm rounded border"
                 style={{ borderColor: '#e0e0e0', transition: "transform 0.3s ease" }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-5px)"}
                 onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}
@@ -248,7 +242,7 @@ const Overview = () => {
                   />
                 </div>
                 <h5 className="fw-bold text-center">Inventory & Warehouse Management</h5>
-                <p className="text-muted text-center">
+                <p className=" text-center">
                   Optimize your supply chain with our comprehensive inventory management system. Track stock levels across multiple locations in real-time,
                   manage batch numbers and expiration dates efficiently, and streamline operations with integrated barcode scanning capabilities.
                 </p>
@@ -274,7 +268,7 @@ const Overview = () => {
             {/* Card 2 - Smart Accounting */}
             <Col xs={12} md={6}>
               <div
-                className="p-4 h-100 shadow-sm bg-white rounded border"
+                className="p-4 h-100 shadow-sm rounded border"
                 style={{ borderColor: '#e0e0e0', transition: "transform 0.3s ease" }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-5px)"}
                 onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}
@@ -289,7 +283,7 @@ const Overview = () => {
                   />
                 </div>
                 <h5 className="fw-bold text-center">Smart Accounting Solutions</h5>
-                <p className="text-muted text-center">
+                <p className=" text-center">
                   Revolutionize your financial management with our intelligent accounting platform. Simplify complex bookkeeping tasks, generate detailed profit and loss statements automatically,
                   and ensure error-free financial records with our advanced journal entry automation.
                 </p>
@@ -316,11 +310,11 @@ const Overview = () => {
       </div>
 
       {/* === FOURTH SECTION: Business Features Cards === */}
-      <div style={{ backgroundColor: "#f9f9f9", padding: "30px 0" }}>
-        <Container>
+      <div className="" style={{ padding: "30px 0" }}>
+        <Container className="border rounded-3">
           <div className="text-center mb-5">
             <h1 className="fw-bold">Essential tools for modern business operations</h1>
-            <p className="text-muted lead">
+            <p className=" lead">
               Streamline accounting, manage inventory, and optimize retail performance with tailored ZirakBook Enterprise features.
             </p>
           </div>
@@ -340,7 +334,7 @@ const Overview = () => {
                     Smart Accounting
                   </Card.Title>
 
-                  <Card.Text className="text-muted flex-grow-1">
+                  <Card.Text className=" flex-grow-1">
                     Track income and expenses efficiently, generate detailed profit & loss reports, and automate journal entries for accurate financial management with our intelligent accounting system.
                   </Card.Text>
                 </Card.Body>
@@ -362,7 +356,7 @@ const Overview = () => {
                     Customer & Vendor Management
                   </Card.Title>
 
-                  <Card.Text className="text-muted flex-grow-1">
+                  <Card.Text className=" flex-grow-1">
                     Centralize your customer and vendor information, track outstanding balances, manage credit periods,
                     and streamline all transactions to enhance relationship management and improve cash flow.
                   </Card.Text>
@@ -384,7 +378,7 @@ const Overview = () => {
                     Inventory & Warehouse
                   </Card.Title>
 
-                  <Card.Text className="text-muted flex-grow-1">
+                  <Card.Text className=" flex-grow-1">
                     Monitor stock levels in real-time, manage batches and expiration dates, utilize barcode scanning, and automate inventory valuation using FIFO/LIFO methods for efficient warehouse management.
                   </Card.Text>
                 </Card.Body>
@@ -473,7 +467,7 @@ const Overview = () => {
                   <h3 className="h5 fw-bold mb-3" style={{ color: '#00674b' }}>
                     {stepData.title}
                   </h3>
-                  <p className="text-muted px-2" style={{ maxWidth: '350px' }}>
+                  <p className=" px-2" style={{ maxWidth: '350px' }}>
                     {stepData.desc}
                   </p>
                 </motion.div>
@@ -484,7 +478,7 @@ const Overview = () => {
       </div>
 
       {/* Key Features Section */}
-      <section className="py-4" style={{ backgroundColor: '#ffffff' }}>
+      <section className="py-4">
         <Container>
           <h1 className="text-center fw-bold mb-5" style={{ color: '#00674b' }}>
             Key Features
@@ -521,7 +515,7 @@ const Overview = () => {
                   <h5 className="fw-bold mb-3" style={{ color: '#00674b' }}>
                     {feature.title}
                   </h5>
-                  <p className="text-muted flex-grow-1" style={{ fontSize: '14px', maxWidth: '350px' }}>
+                  <p className=" flex-grow-1" style={{ fontSize: '14px', maxWidth: '350px' }}>
                     {feature.desc}
                   </p>
                 </motion.div>
@@ -536,19 +530,19 @@ const Overview = () => {
         <Container>
           <div className="text-center mb-5">
             <h2 className="fw-bold">Frequently Asked Questions</h2>
-            <p className="text-muted">
+            <p className="">
               Everything you need to know about our business management software
             </p>
           </div>
           <Row className="justify-content-center">
             <Col xs={12} lg={10} xl={8} style={{ width: '90%', maxWidth: '90%' }} className="mx-auto">
-              <div style={{ border: 'none' }}>
+              <div className="border rounded-3">
                 {faqItems.map((item, index) => (
                   <div key={index} style={{ marginBottom: '1px' }}>
-                    <div
+                    <div className=""
                       style={{
                         padding: '1rem',
-                        backgroundColor: '#f8f9fa',
+
                         cursor: 'pointer',
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -563,9 +557,9 @@ const Overview = () => {
                       </span>
                     </div>
 
-                    <div
+                    <div className="border rounded-bottom-2"
                       style={{
-                        backgroundColor: '#e7ffe7',
+
                         borderRadius: '0 0 8px 8px',
                         padding: openIndex === index ? '1rem' : '0',
                         overflow: 'hidden',

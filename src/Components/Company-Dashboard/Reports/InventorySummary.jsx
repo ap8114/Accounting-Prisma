@@ -242,7 +242,7 @@ const InventorySummary = () => {
     <Container className="mt-4">
       <Row className="align-items-center mb-3 g-2">
         <Col md={4}>
-          <h4>📦 Inventory Summary</h4>
+          <h4> Inventory Summary</h4>
         </Col>
         <Col md={8} className="text-md-end d-flex justify-content-md-end flex-wrap">
           <Button
@@ -307,7 +307,7 @@ const InventorySummary = () => {
       ) : (
         <>
           <Table striped bordered responsive hover>
-            <thead className="table-light">
+            <thead className="">
               <tr>
                 <th>#</th>
                 <th>Product</th>

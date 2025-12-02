@@ -408,7 +408,7 @@ const UnitOfMeasure = () => {
 
   return (
     <>
-      <div className="mx-md-5 mt-5 mx-3">
+      <div className="">
         <div className="shadow p-4">
           <div className="d-flex justify-content-between flex-wrap gap-2">
             <h4 className="fw-semibold">Manage Unit of Measure</h4>
@@ -468,7 +468,7 @@ const UnitOfMeasure = () => {
 
           <div className="table-responsive mt-3">
             <Table bordered striped hover>
-              <thead className="table-light">
+              <thead className="">
                 <tr>
                   <th>S.No</th>
                   <th>Unit Name</th>

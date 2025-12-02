@@ -2398,17 +2398,6 @@ const handleSaveStep = async () => {
             </Form.Group>
             <Form.Group className="mb-0">
               <div className="d-flex justify-content-between align-items-center text-nowrap">
-                <Form.Label className="mb-0">Manual Ref. No.</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={data.manualRefNo}
-                  onChange={(e) => handleChange("manualRefNo", e.target.value)}
-                  className="form-control-no-border text-end"
-                />
-              </div>
-            </Form.Group>
-            <Form.Group className="mb-0">
-              <div className="d-flex justify-content-between align-items-center text-nowrap">
                 <Form.Label className="mb-0">Receipt No.</Form.Label>
                 <Form.Control
                   type="text"
@@ -3112,17 +3101,6 @@ const handleSaveStep = async () => {
             </Form.Group>
             <Form.Group className="mb-0">
               <div className="d-flex justify-content-between align-items-center text-nowrap">
-                <Form.Label className="mb-0">Manual Ref. No.</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={data.manualRefNo}
-                  onChange={(e) => handleChange("manualRefNo", e.target.value)}
-                  className="form-control-no-border text-end"
-                />
-              </div>
-            </Form.Group>
-            <Form.Group className="mb-0">
-              <div className="d-flex justify-content-between align-items-center text-nowrap">
                 <Form.Label className="mb-0">Bill No.</Form.Label>
                 <Form.Control
                   type="text"
@@ -3785,17 +3763,6 @@ const handleSaveStep = async () => {
                   readOnly
                   className="form-control-no-border text-end"
                   style={{ backgroundColor: "#f8f9fa" }}
-                />
-              </div>
-            </Form.Group>
-            <Form.Group className="mb-0">
-              <div className="d-flex justify-content-between align-items-center text-nowrap">
-                <Form.Label className="mb-0">Manual Bill No.</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={data.manualBillNo || ""}
-                  onChange={(e) => handleChange("manualBillNo", e.target.value)}
-                  className="form-control-no-border text-end"
                 />
               </div>
             </Form.Group>

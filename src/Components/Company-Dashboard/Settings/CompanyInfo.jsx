@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Container, Image, Nav, Tab, Card, Row, Col } from 'react-bootstrap';
-import { FaBuilding, FaImage, FaMapMarkerAlt, FaGlobe, FaFileInvoice } from 'react-icons/fa';
+import { Form, Button, Container, Image, Nav, Tab, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
+import { FaBuilding, FaImage, FaMapMarkerAlt, FaGlobe, FaFileInvoice, FaCheck, FaExclamationTriangle, FaTimes } from 'react-icons/fa';
 import { CurrencySetting } from './CurrencySetting';
 import GetCompanyId from '../../../Api/GetCompanyId';
-import BaseUrl from '../../../Api/BaseUrl';
+import axiosInstance from '../../../Api/axiosInstance';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const CompanyInfo = () => {
   const [printLanguage, setPrintLanguage] = useState('en');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [showErrorAlert, setShowErrorAlert] = useState(true); // NEW: State to control error alert visibility
   const companyId = GetCompanyId();
 
   const [formData, setFormData] = useState({
-    // === Company Info ===
+    // Company Info
     companyName: '',
     companyEmail: '',
     phoneNumber: '',
@@ -31,7 +36,7 @@ const CompanyInfo = () => {
     currency: '',
     uploadImages: [false, false, false],
 
-    // === Invoice Settings ===
+    // Invoice Settings
     invoiceTemplateId: 'template1',
     purchaseTemplateId: 'purchase1',
     receiptTemplateId: 'receipt1',
@@ -39,7 +44,7 @@ const CompanyInfo = () => {
     footerTerms: '',
     footerNote: '',
     footerBankDetails: '',
-    // Dedicated bank fields (used instead of free-text footerBankDetails)
+    // Dedicated bank fields
     bank_name: '',
     account_no: '',
     account_holder: '',
@@ -47,7 +52,7 @@ const CompanyInfo = () => {
     purchaseLogo: null,
     purchaseDarkLogo: null,
     purchaseIcon: null,
-    invoiceImage: null, // New field for invoice image
+    invoiceImage: null,
     showDescription: true,
     showItemName: true,
     showPrice: true,
@@ -63,7 +68,7 @@ const CompanyInfo = () => {
     purchaseLogo: null,
     purchaseDarkLogo: null,
     purchaseIcon: null,
-    invoiceImage: null // New field for invoice image preview
+    invoiceImage: null
   });
 
   // Fetch company data on component mount
@@ -73,12 +78,12 @@ const CompanyInfo = () => {
 
   const fetchCompanyData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`https://02x4fc84-8080.inc1.devtunnels.ms/api/v1/auth/Company/${companyId}`);
-      const result = await response.json();
-
-      if (result.success) {
-        const companyData = result.data;
+      const response = await axiosInstance.get(`/auth/Company/${companyId}`);
+      
+      if (response.data && response.data.success) {
+        const companyData = response.data.data;
 
         // Update form data with API response
         setFormData(prev => ({
@@ -97,7 +102,16 @@ const CompanyInfo = () => {
           account_holder: companyData.bank_details?.account_holder || '',
           ifsc_code: companyData.bank_details?.ifsc_code || '',
           footerTerms: companyData.terms_and_conditions || '',
-          footerNote: companyData.notes || ''
+          footerNote: companyData.notes || '',
+          invoiceTemplateId: companyData.invoice_template || 'template1',
+          purchaseTemplateId: companyData.purchase_template || 'purchase1',
+          receiptTemplateId: companyData.receipt_template || 'receipt1',
+          headerLabel: companyData.header_label || 'Invoice No.',
+          showDescription: companyData.show_description !== false,
+          showItemName: companyData.show_item_name !== false,
+          showPrice: companyData.show_price !== false,
+          showQuantity: companyData.show_quantity !== false,
+          showTotal: companyData.show_total !== false
         }));
 
         // Update preview images if URLs are available
@@ -107,90 +121,126 @@ const CompanyInfo = () => {
             companyIcon: companyData.branding.company_icon_url,
             favicon: companyData.branding.favicon_url,
             companyLogo: companyData.branding.company_logo_url,
-            companyDarkLogo: companyData.branding.company_dark_logo_url
+            companyDarkLogo: companyData.branding.company_dark_logo_url,
+            purchaseLogo: companyData.branding.purchase_logo_url,
+            purchaseDarkLogo: companyData.branding.purchase_dark_logo_url,
+            purchaseIcon: companyData.branding.purchase_icon_url,
+            invoiceImage: companyData.branding.invoice_image_url
           }));
         }
+        
+        setSuccess("Company data loaded successfully");
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => setSuccess(null), 3000);
       } else {
-        console.error('Failed to fetch company data:', result.message);
+        const errorMsg = response.data?.message || "Failed to fetch company data";
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
       console.error('Error fetching company data:', error);
+      const errorMsg = "An error occurred while fetching company data";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  const saveCompanyData = async () => {
+  const saveCompanyData = async (e) => {
+    e.preventDefault();
     setLoading(true);
+    setError(null);
+    setSuccess(null);
+    
     try {
-      // Prepare data for API
-      const apiData = {
-        name: formData.companyName,
-        email: formData.companyEmail,
-        phone: formData.phoneNumber,
-        address: formData.address,
-        country: formData.country,
-        state: formData.state,
-        city: formData.city,
-        postal_code: formData.portalCode,
-        currency: formData.currency,
-        bank_name: formData.bank_name,
-        account_number: formData.account_no,
-        account_holder: formData.account_holder,
-        ifsc_code: formData.ifsc_code,
-        terms_and_conditions: formData.footerTerms,
-        notes: formData.footerNote
-      };
-
       // Create FormData for file uploads
       const formDataForUpload = new FormData();
 
-      // Add all the fields to FormData
-      Object.keys(apiData).forEach(key => {
-        formDataForUpload.append(key, apiData[key]);
-      });
+      // Add all company info fields
+      formDataForUpload.append("name", formData.companyName);
+      formDataForUpload.append("email", formData.companyEmail);
+      formDataForUpload.append("phone", formData.phoneNumber);
+      formDataForUpload.append("address", formData.address);
+      formDataForUpload.append("country", formData.country);
+      formDataForUpload.append("state", formData.state);
+      formDataForUpload.append("city", formData.city);
+      formDataForUpload.append("postal_code", formData.portalCode);
+      formDataForUpload.append("currency", formData.currency);
+      
+      // Add bank details
+      formDataForUpload.append("bank_name", formData.bank_name);
+      formDataForUpload.append("account_number", formData.account_no);
+      formDataForUpload.append("account_holder", formData.account_holder);
+      formDataForUpload.append("ifsc_code", formData.ifsc_code);
+      
+      // Add invoice settings
+      formDataForUpload.append("terms_and_conditions", formData.footerTerms);
+      formDataForUpload.append("notes", formData.footerNote);
+      formDataForUpload.append("invoice_template", formData.invoiceTemplateId);
+      formDataForUpload.append("purchase_template", formData.purchaseTemplateId);
+      formDataForUpload.append("receipt_template", formData.receiptTemplateId);
+      formDataForUpload.append("header_label", formData.headerLabel);
+      formDataForUpload.append("show_description", formData.showDescription);
+      formDataForUpload.append("show_item_name", formData.showItemName);
+      formDataForUpload.append("show_price", formData.showPrice);
+      formDataForUpload.append("show_quantity", formData.showQuantity);
+      formDataForUpload.append("show_total", formData.showTotal);
 
       // Add image files if they exist
       if (formData.companyIcon instanceof File) {
-        formDataForUpload.append('company_icon', formData.companyIcon);
+        formDataForUpload.append("company_icon", formData.companyIcon);
       }
       if (formData.favicon instanceof File) {
-        formDataForUpload.append('favicon', formData.favicon);
+        formDataForUpload.append("favicon", formData.favicon);
       }
       if (formData.companyLogo instanceof File) {
-        formDataForUpload.append('company_logo', formData.companyLogo);
+        formDataForUpload.append("company_logo", formData.companyLogo);
       }
       if (formData.companyDarkLogo instanceof File) {
-        formDataForUpload.append('company_dark_logo', formData.companyDarkLogo);
+        formDataForUpload.append("company_dark_logo", formData.companyDarkLogo);
+      }
+      if (formData.purchaseLogo instanceof File) {
+        formDataForUpload.append("purchase_logo", formData.purchaseLogo);
+      }
+      if (formData.purchaseDarkLogo instanceof File) {
+        formDataForUpload.append("purchase_dark_logo", formData.purchaseDarkLogo);
+      }
+      if (formData.purchaseIcon instanceof File) {
+        formDataForUpload.append("purchase_icon", formData.purchaseIcon);
+      }
+      if (formData.invoiceImage instanceof File) {
+        formDataForUpload.append("invoice_image", formData.invoiceImage);
       }
 
-      const response = await fetch(`${BaseUrl}auth/Company/${companyId}`, {
-        method: 'PUT',
-        body: formDataForUpload
-      });
+      const response = await axiosInstance.put(
+        `auth/Company/${companyId}`,
+        formDataForUpload,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
 
-      const result = await response.json();
-
-      if (result.success) {
-        alert('Company data saved successfully!');
+      if (response.data && response.data.success) {
+        setSuccess("Company data saved successfully!");
+        toast.success("Company data saved successfully!");
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => setSuccess(null), 3000);
         // Refresh data after save
         fetchCompanyData();
       } else {
-        console.error('Failed to save company data:', result.message);
-        alert('Failed to save company data: ' + result.message);
+        const errorMsg = response.data?.message || "Failed to save company data";
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
       console.error('Error saving company data:', error);
-      alert('Error saving company data: ' + error.message);
+      const errorMsg = "An error occurred while saving company data";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Define handleSubmit function
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    saveCompanyData();
   };
 
   // Translations
@@ -383,7 +433,7 @@ const CompanyInfo = () => {
   const handleTemplateChange = (template) => {
     setFormData(prev => ({
       ...prev,
-      invoiceTemplate: template,
+      invoiceTemplateId: template,
       headerLabel: headerLabels[template]
     }));
   };
@@ -423,7 +473,7 @@ const CompanyInfo = () => {
   return (
     <div
       style={{
-        backgroundColor: '#f8f9fa',
+      
         minHeight: '100vh',
         padding: '20px 0',
         direction: printLanguage === 'ar' ? 'rtl' : 'ltr',
@@ -438,10 +488,6 @@ const CompanyInfo = () => {
         <div className="d-flex justify-content-end mb-3 flex-wrap gap-2">
           <Button style={langButtonStyle(printLanguage === 'en')} onClick={() => setPrintLanguage('en')} size="sm">English</Button>
           <Button style={langButtonStyle(printLanguage === 'ar')} onClick={() => setPrintLanguage('ar')} size="sm">العربية</Button>
-          <Button style={langButtonStyle(printLanguage === 'both')} onClick={() => setPrintLanguage('both')} size="sm">
-            <div>English</div>
-            <div>العربية</div>
-          </Button>
         </div>
 
         {/* Page Title */}
@@ -477,14 +523,14 @@ const CompanyInfo = () => {
           </Nav>
 
           <Tab.Content>
-            {/* === COMPANY SETTINGS === */}
+            {/* COMPANY SETTINGS */}
             <Tab.Pane eventKey="company">
-              <div className="bg-white p-4 rounded shadow-sm">
+              <div className="border p-4 rounded shadow-sm">
                 <h2 className="mb-4" style={{ fontSize: '20px', fontWeight: '600' }}>
                   {t('companyInformation')}
                 </h2>
 
-                <Form onSubmit={handleSubmit}>
+                <Form onSubmit={saveCompanyData}>
                   <Form.Group className="mb-4">
                     <Form.Control
                       type="text"
@@ -493,6 +539,7 @@ const CompanyInfo = () => {
                       name="companyName"
                       value={formData.companyName}
                       onChange={handleChange}
+                      required
                     />
                     <Form.Control
                       type="email"
@@ -501,6 +548,7 @@ const CompanyInfo = () => {
                       name="companyEmail"
                       value={formData.companyEmail}
                       onChange={handleChange}
+                      required
                     />
                     <Form.Control
                       type="tel"
@@ -509,6 +557,7 @@ const CompanyInfo = () => {
                       name="phoneNumber"
                       value={formData.phoneNumber}
                       onChange={handleChange}
+                      required
                     />
                   </Form.Group>
 
@@ -559,6 +608,7 @@ const CompanyInfo = () => {
                       name="address"
                       value={formData.address}
                       onChange={handleChange}
+                      required
                     />
                   </Form.Group>
 
@@ -569,6 +619,7 @@ const CompanyInfo = () => {
                         name="country"
                         value={formData.country}
                         onChange={handleChange}
+                        required
                       >
                         {countryOptions.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -583,6 +634,7 @@ const CompanyInfo = () => {
                         name="city"
                         value={formData.city}
                         onChange={handleChange}
+                        required
                       >
                         {cityOptions.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -600,6 +652,7 @@ const CompanyInfo = () => {
                         name="state"
                         value={formData.state}
                         onChange={handleChange}
+                        required
                       >
                         {stateOptions.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -615,6 +668,7 @@ const CompanyInfo = () => {
                         name="portalCode"
                         value={formData.portalCode}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                   </div>
@@ -633,6 +687,7 @@ const CompanyInfo = () => {
                         name="currency"
                         value={formData.currency}
                         onChange={handleChange}
+                        required
                       >
                         {currencyOptions.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -644,7 +699,7 @@ const CompanyInfo = () => {
                   </div>
 
                   <div className="d-flex justify-content-end mt-4">
-                    <Button variant="outline-secondary" className="me-3 px-4 py-2">
+                    <Button variant="outline-secondary" className="me-3 px-4 py-2" type="button">
                       {t('cancel')}
                     </Button>
                     <Button
@@ -659,23 +714,60 @@ const CompanyInfo = () => {
                       }}
                       disabled={loading}
                     >
-                      {loading ? 'Saving...' : t('saveChanges')}
+                      {loading ? (
+                        <>
+                          <Spinner
+                            as="span"
+                            animation="border"
+                            size="sm"
+                            className="me-2"
+                          />
+                          Saving...
+                        </>
+                      ) : (
+                        t('saveChanges')
+                      )}
                     </Button>
                   </div>
                 </Form>
               </div>
             </Tab.Pane>
 
-            {/* === INVOICE SETTINGS === */}
+            {/* INVOICE SETTINGS */}
             <Tab.Pane eventKey="invoice">
               <div className="p-4 card">
                 <h2 className="mb-4" style={{ fontSize: '20px', fontWeight: '600' }}>
                   {t('invoiceSettings')}
                 </h2>
 
-                <Form onSubmit={handleSubmit}>
+                <Form onSubmit={saveCompanyData}>
+                  {/* Template Selection */}
+                  <Form.Group className="mb-4">
+                    <Form.Label className="fw-bold">{t('invoiceTemplate')}</Form.Label>
+                    <div className="d-flex gap-2 flex-wrap">
+                      <Button
+                        variant={formData.invoiceTemplateId === 'template1' ? 'primary' : 'outline-primary'}
+                        onClick={() => handleTemplateChange('template1')}
+                      >
+                        {t('salesInvoice')}
+                      </Button>
+                      <Button
+                        variant={formData.invoiceTemplateId === 'cash_invoice' ? 'primary' : 'outline-primary'}
+                        onClick={() => handleTemplateChange('cash_invoice')}
+                      >
+                        {t('cashInvoice')}
+                      </Button>
+                      <Button
+                        variant={formData.invoiceTemplateId === 'delivery_note' ? 'primary' : 'outline-primary'}
+                        onClick={() => handleTemplateChange('delivery_note')}
+                      >
+                        {t('deliveryNote')}
+                      </Button>
+                    </div>
+                  </Form.Group>
+
                   {/* Footer Fields */}
-                  <Form.Group className="mb-4 mt-4">
+                  <Form.Group className="mb-4">
                     <Form.Label className="fw-bold">{t('footerText')}</Form.Label>
                     <Form.Control
                       as="textarea"
@@ -755,8 +847,32 @@ const CompanyInfo = () => {
                     </Form.Group>
                   )}
 
+                  {/* Customization Options */}
+                  <Form.Group className="mb-4">
+                    <Form.Label className="fw-bold">{t('customizeFields')}</Form.Label>
+                    <div className="d-flex flex-wrap gap-3">
+                      {[
+                        { key: 'showDescription', label: t('description') },
+                        { key: 'showItemName', label: t('itemName') },
+                        { key: 'showPrice', label: t('price') },
+                        { key: 'showQuantity', label: t('quantity') },
+                        { key: 'showTotal', label: t('total') }
+                      ].map((field) => (
+                        <Form.Check
+                          key={field.key}
+                          type="checkbox"
+                          id={field.key}
+                          name={field.key}
+                          checked={formData[field.key]}
+                          onChange={handleChange}
+                          label={field.label}
+                        />
+                      ))}
+                    </div>
+                  </Form.Group>
+
                   <div className="d-flex justify-content-end mt-4">
-                    <Button variant="outline-secondary" className="me-3 px-4 py-2">
+                    <Button variant="outline-secondary" className="me-3 px-4 py-2" type="button">
                       {t('cancel')}
                     </Button>
                     <Button
@@ -771,7 +887,19 @@ const CompanyInfo = () => {
                       }}
                       disabled={loading}
                     >
-                      {loading ? 'Saving...' : t('saveSettings')}
+                      {loading ? (
+                        <>
+                          <Spinner
+                            as="span"
+                            animation="border"
+                            size="sm"
+                            className="me-2"
+                          />
+                          Saving...
+                        </>
+                      ) : (
+                        t('saveSettings')
+                      )}
                     </Button>
                   </div>
                 </Form>
@@ -786,6 +914,20 @@ const CompanyInfo = () => {
           ? 'Manage your company and invoice settings in both languages.'
           : t('pageDescription')}
       </p>
+      
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        limit={3}
+      />
     </div>
   );
 };

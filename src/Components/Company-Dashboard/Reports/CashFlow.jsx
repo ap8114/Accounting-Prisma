@@ -154,7 +154,7 @@ const CashFlow = () => {
   }
 
   return (
-    <div style={{ background: "#f7f7f7", minHeight: "100vh", paddingBottom: 40 }}>
+    <div>
       <Container fluid className="py-2">
         <div style={{ fontWeight: 700, fontSize: 28, marginBottom: 0 }}>
           Cash Flow
@@ -209,10 +209,10 @@ const CashFlow = () => {
                 style={{
                   minWidth: 900,
                   fontSize: 16,
-                  background: "#fff",
+                
                 }}
               >
-                <thead className="table-light">
+                <thead className="">
                   <tr>
                     <th className="px-3 py-3">Date</th>
                     <th>Bank & Account Number</th>

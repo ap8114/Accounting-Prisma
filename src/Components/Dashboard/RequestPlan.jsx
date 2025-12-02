@@ -1,9 +1,9 @@
+// RequestPlan.js
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { FaEnvelopeOpenText, FaCheck, FaTimes, FaEnvelope } from "react-icons/fa";
 import "./RequestPlan.css";
-import axios from "axios";
-import BaseUrl from "../../Api/BaseUrl";
+import axiosInstance from "../../Api/axiosInstance"; // ✅ Use your shared axios instance
 
 const initialPlans = [];
 
@@ -11,7 +11,7 @@ const planMapping = {
   "Legacy Plan": { display: "Legacy", bgColor: "#b2dfdb" },
   Basic: { display: "Basic", bgColor: "#b2dfdb" },
   Silver: { display: "Silver", bgColor: "#c0c0c0" },
-  Golden: { display: "Gold", bgColor: "#ffd700" }, //    from "Gold" to "Golden"
+  Golden: { display: "Gold", bgColor: "#ffd700" },
   Gold: { display: "Gold", bgColor: "#ffd700" },
   Platinum: { display: "Platinum", bgColor: "#e5e4e2" }
 };
@@ -22,33 +22,30 @@ const RequestPlan = () => {
   const [apiError, setApiError] = useState(false);
   const [actionLoading, setActionLoading] = useState({});
 
-  // ✅ Fetch Plans
+  // ✅ Fetch all plan requests
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const response = await axios.get(`${BaseUrl}planreq`);
+        const response = await axiosInstance.get("planreq");
 
-        // Check if response has the expected structure
-        if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        if (response.data?.success && Array.isArray(response.data.data)) {
           const formattedPlans = response.data.data.map(item => ({
             id: item.id,
-            company: item.company.name, // Extract company name from nested object
-            email: item.company.email, // Extract email from nested object
-            plan: item.plan.plan_name, // Extract plan name from nested object
-            billing: item.billing_cycle,
+            company: item.company?.name || "Unknown Company",
+            email: item.company?.email || "N/A",
+            plan: item.plan?.plan_name || "—",
+            billing: item.billing_cycle || "—",
             date: new Date(item.request_date).toISOString().split('T')[0],
-            status: item.status
+            status: item.status || "Pending"
           }));
           setPlans(formattedPlans);
           setApiError(false);
         } else {
-          throw new Error("Invalid data structure from API");
+          throw new Error("Invalid response structure");
         }
-
       } catch (err) {
-        console.error("Axios fetch error:", err);
+        console.error("Failed to fetch plan requests:", err);
         setApiError(true);
-        // Don't set error message, just set the error flag
       } finally {
         setLoading(false);
       }
@@ -57,38 +54,37 @@ const RequestPlan = () => {
     fetchPlans();
   }, []);
 
-  // ✅ Update Plan Status (PUT)
+  // ✅ PATCH status update (Approved / Rejected)
   const handleAction = async (index, newStatus) => {
     const planToUpdate = plans[index];
     const planId = planToUpdate.id;
 
+    // Optimistic UI update
     const updatedPlans = [...plans];
     updatedPlans[index].status = newStatus;
     setPlans(updatedPlans);
-
     setActionLoading(prev => ({ ...prev, [planId]: true }));
 
     try {
-      await axios.put(`${BaseUrl}planreq/${planId}`, {
+      // 🔥 Use PATCH as per your API spec
+      await axiosInstance.patch(`planreq/${planId}`, {
         status: newStatus
       });
-      console.log(`Plan ID ${planId} updated to ${newStatus}`);
+      // Success: keep optimistic update
     } catch (err) {
       console.error("Failed to update plan status:", err);
+      // Revert on error
       updatedPlans[index].status = planToUpdate.status;
       setPlans(updatedPlans);
-      // Don't show alert for API errors, just log to console
     } finally {
       setActionLoading(prev => ({ ...prev, [planId]: false }));
     }
   };
 
-  // ✅ Function to send email
+  // ✅ Send email (client-side mailto)
   const handleSendEmail = (plan) => {
     const subject = `Your ${plan.plan} Plan Request has been Approved`;
     const body = `Dear ${plan.company},\n\nWe are pleased to inform you that your request for the ${plan.plan} plan has been approved.\n\nPlan Details:\n- Plan: ${plan.plan}\n- Billing Cycle: ${plan.billing}\n- Request Date: ${plan.date}\n\nPlease contact us if you have any questions.\n\nThank you,\nYour Company Name`;
-    
-    // Open mailto link with pre-filled subject and body
     window.location.href = `mailto:${plan.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
@@ -107,7 +103,6 @@ const RequestPlan = () => {
 
   const renderActionButtons = (status, index, id) => {
     const isLoading = actionLoading[id];
-
     return (
       <div className="d-flex gap-2 justify-content-center flex-nowrap">
         <button
@@ -156,35 +151,26 @@ const RequestPlan = () => {
   }
 
   return (
-    <div className="container-fluid p-3 p-md-4 bg-light">
+    <div className="container-fluid p-3 p-md-4">
       <div className="mb-4">
         <div className="d-flex align-items-center mb-3">
           <FaEnvelopeOpenText size={24} className="text-primary me-2" />
-          <h3 className="fw-bold m-0" style={{ fontSize: "clamp(1.25rem, 3vw, 1.5rem)" }}>
+          <h4 className="fw-bold m-0">
             Requested Plans
-          </h3>
+          </h4>
         </div>
 
-        {/* Show a subtle notification if API failed, but still show the dashboard */}
         {apiError && (
-          <div
-            className="alert alert-warning alert-dismissible fade show mb-4"
-            role="alert"
-          >
+          <div className="alert alert-warning alert-dismissible fade show mb-4" role="alert">
             Unable to fetch requested plans. Showing cached data if available.
-            <button
-              type="button"
-              className="btn-close"
-              data-bs-dismiss="alert"
-              aria-label="Close"
-            ></button>
+            <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         )}
 
         <div className="card shadow-lg border-0 rounded-4 overflow-hidden">
           <div className="table-responsive">
             <table className="table table-hover mb-0 align-middle">
-              <thead className="table-light">
+              <thead className="">
                 <tr>
                   <th className="px-2 px-sm-3 py-3 d-none d-sm-table-cell">Company</th>
                   <th className="px-2 px-sm-3 py-3 d-none d-md-table-cell">Email</th>
@@ -198,7 +184,7 @@ const RequestPlan = () => {
               <tbody>
                 {plans.length > 0 ? (
                   plans.map((user, idx) => (
-                    <tr key={idx}>
+                    <tr key={user.id || idx}>
                       <td className="px-2 px-sm-3 py-3 d-none d-sm-table-cell">{user.company}</td>
                       <td className="d-none d-md-table-cell">{user.email}</td>
                       <td>
@@ -219,7 +205,6 @@ const RequestPlan = () => {
                       <td>
                         <div className="d-flex gap-2 align-items-center">
                           {renderActionButtons(user.status, idx, user.id)}
-                          {/* Show mail icon only when status is Approved */}
                           {user.status === "Approved" && (
                             <button
                               className="btn btn-primary btn-sm rounded-circle d-flex align-items-center justify-content-center"
@@ -237,10 +222,9 @@ const RequestPlan = () => {
                 ) : (
                   <tr>
                     <td colSpan="7" className="text-center py-4 text-muted">
-                      {apiError 
-                        ? "No requested plans available. Please check back later." 
-                        : "No requested plans found."
-                      }
+                      {apiError
+                        ? "No requested plans available. Please check back later."
+                        : "No requested plans found."}
                     </td>
                   </tr>
                 )}

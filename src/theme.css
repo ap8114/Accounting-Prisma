@@ -8,11 +8,11 @@
     --bs-info: #0dcaf0;
     --bs-light: #f8f9fa;
     --bs-dark: #212529;
-    
+
     /* Layout colors */
     --sidebar-bg: #032d45;
     --topbar-bg: #032d45;
-    
+
     /* Theme-specific variables */
     --bs-body-bg: #ffffff;
     --bs-body-color: #212529;
@@ -85,13 +85,15 @@ body {
 }
 
 /* Form controls */
-.form-control, .form-select {
+.form-control,
+.form-select {
     background-color: var(--bs-form-control-bg) !important;
     color: var(--bs-form-control-color) !important;
     border-color: var(--bs-border-color) !important;
 }
 
-.form-control:focus, .form-select:focus {
+.form-control:focus,
+.form-select:focus {
     background-color: var(--bs-form-control-bg) !important;
     color: var(--bs-form-control-color) !important;
     border-color: var(--bs-primary) !important;
@@ -337,7 +339,11 @@ body {
 }
 
 /* Ensure proper contrast for text on colored backgrounds */
-.bg-primary, .bg-success, .bg-danger, .bg-warning, .bg-info {
+.bg-primary,
+.bg-success,
+.bg-danger,
+.bg-warning,
+.bg-info {
     color: #ffffff !important;
 }
 
@@ -354,6 +360,12 @@ body {
 
 .theme-border {
     border-color: var(--bs-border-color) !important;
+}
+
+/* Placeholder styling using CSS variable */
+.form-control::placeholder {
+    color: var(--bs-form-control-placeholder) !important;
+    opacity: 1;
 }
 
 .theme-bg {
@@ -375,8 +387,70 @@ body {
 
 /* Responsive layout adjustments */
 @media (max-width: 768px) {
+
     .layout-default .main-content,
     .layout-mini .main-content {
         margin-left: 0;
     }
+}
+
+
+
+
+/* -------------------------------
+   DARK MODE TABLE FIX (FULL)
+-------------------------------- */
+
+[data-theme="dark"] table,
+[data-theme="dark"] table * {
+  color: #ffffff !important;  /* Make all text white */
+}
+
+/* Table header */
+[data-theme="dark"] thead th {
+  color: #ffffff !important;
+}
+
+/* Table group header (like OPEX, Sales) */
+[data-theme="dark"] .table-group-divider,
+[data-theme="dark"] tr td:first-child,
+[data-theme="dark"] tr th:first-child {
+  color: #ffffff !important;
+}
+
+/* Balance column text */
+[data-theme="dark"] td {
+  color: #ffffff !important;
+}
+
+/* Table rows striped / hover */
+[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover {
+  background-color: #444444 !important;
+  color: #ffffff !important;
+}
+
+/* Buttons inside table must show clearly */
+[data-theme="dark"] .btn,
+[data-theme="dark"] .btn * {
+  color: #ffffff !important;
+}
+
+/* Placeholder in search input */
+[data-theme="dark"] .form-control::placeholder {
+  color: #ffffffaa !important;
+}
+
+/* Page Info heading + list */
+[data-theme="dark"] .page-info,
+[data-theme="dark"] .page-info * {
+  color: #ffffff !important;
+}
+/* Dark mode Form Label color fix */
+[data-theme="dark"] .form-label {
+  color: #949494 !important;
 }

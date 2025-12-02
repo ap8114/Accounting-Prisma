@@ -1,33 +1,73 @@
 // CompanyPasswordRequests.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Table, Button, Badge, Modal, Form } from "react-bootstrap";
+import { toast } from "react-toastify";
+import GetCompanyId from "../../../../Api/GetCompanyId";
+import axiosInstance from "../../../../Api/axiosInstance";
 
 const PasswordRequests = () => {
   const [showModal, setShowModal] = useState(false);
-  const [requests, setRequests] = useState([
-    { id: 101, date: "2025-09-30", status: "Pending", reason: "Security concerns" },
-    { id: 100, date: "2025-09-28", status: "Approved", reason: "Old admin left", emailSent: true },
-    { id: 99, date: "2025-09-27", status: "Rejected", reason: "Invalid request" },
-  ]);
-
+  const companyId = GetCompanyId();
+  const [requests, setRequests] = useState([]);
   const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    if (!reason.trim()) return; // avoid empty
-    const newRequest = {
-      id: requests.length + 1,
-      date: new Date().toISOString().split("T")[0],
-      status: "Pending",
-      reason: reason,
-      emailSent: false,
-    };
-    setRequests([newRequest, ...requests]);
-    setReason(""); // reset form
-    setShowModal(false); // close after request added
+  // Fetch existing password change requests on mount
+  useEffect(() => {
+    if (companyId) {
+      fetchRequests();
+    }
+  }, [companyId]);
+
+  const fetchRequests = async () => {
+    try {
+      const res = await axiosInstance.get(`password/my-requests/${companyId}`);
+      if (res.data.success && Array.isArray(res.data.data)) {
+        setRequests(
+          res.data.data.map(req => ({
+            id: req.id,
+            date: new Date(req.created_at).toISOString().split("T")[0],
+            status: req.status === "Changed" ? "Approved" : req.status, // Normalize: API uses "Changed", UI uses "Approved"
+            reason: req.reason,
+            emailSent: req.email_sent,
+          }))
+        );
+      }
+    } catch (err) {
+      toast.error("Failed to load password change requests.");
+      console.error(err);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!reason.trim()) {
+      toast.warn("Please enter a reason.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const payload = {
+        company_id: companyId,
+        reason: reason.trim(),
+      };
+      const res = await axiosInstance.post("password/request", payload);
+      if (res.data.success) {
+        toast.success("Password change request submitted successfully.");
+        await fetchRequests(); // Refresh list
+        setReason("");
+        setShowModal(false);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to submit request.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClose = () => {
-    setReason(""); // reset reason when modal close
+    setReason("");
     setShowModal(false);
   };
 
@@ -35,6 +75,7 @@ const PasswordRequests = () => {
     if (status === "Pending") return <Badge bg="warning">Pending</Badge>;
     if (status === "Approved") return <Badge bg="success">Changed</Badge>;
     if (status === "Rejected") return <Badge bg="danger">Rejected</Badge>;
+    return <Badge bg="secondary">{status}</Badge>;
   };
 
   const renderEmailStatus = (emailSent) => {
@@ -62,15 +103,23 @@ const PasswordRequests = () => {
           </tr>
         </thead>
         <tbody>
-          {requests.map((req) => (
-            <tr key={req.id}>
-              <td>{req.id}</td>
-              <td>{req.date}</td>
-              <td>{req.reason}</td>
-              <td>{renderStatus(req.status)}</td>
-              <td>{renderEmailStatus(req.emailSent)}</td>
+          {requests.length === 0 ? (
+            <tr>
+              <td colSpan="5" className="text-center text-muted">
+                No password change requests found.
+              </td>
             </tr>
-          ))}
+          ) : (
+            requests.map((req) => (
+              <tr key={req.id}>
+                <td>{req.id}</td>
+                <td>{req.date}</td>
+                <td>{req.reason}</td>
+                <td>{renderStatus(req.status)}</td>
+                <td>{renderEmailStatus(req.emailSent)}</td>
+              </tr>
+            ))
+          )}
         </tbody>
       </Table>
 
@@ -97,8 +146,8 @@ const PasswordRequests = () => {
           <Button variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmit}>
-            Submit Request
+          <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+            {loading ? "Submitting..." : "Submit Request"}
           </Button>
         </Modal.Footer>
       </Modal>

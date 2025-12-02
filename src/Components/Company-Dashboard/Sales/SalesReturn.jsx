@@ -625,7 +625,7 @@ const SalesReturn = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-light p-3 rounded mb-4">
+      <div className=" p-3 rounded mb-4">
         <Row className="g-3">
           <Col md={2}>
             <InputGroup>
@@ -730,7 +730,7 @@ const SalesReturn = () => {
         <div className="col-md-3 mb-3">
           <div className="card border-primary">
             <div className="card-body">
-              <h6 className="card-title text-muted">Total Returns</h6>
+              <h6 className="card-title">Total Returns</h6>
               <h4 className="text-primary">{returns.length}</h4>
             </div>
           </div>
@@ -738,7 +738,7 @@ const SalesReturn = () => {
         <div className="col-md-3 mb-3">
           <div className="card border-success">
             <div className="card-body">
-              <h6 className="card-title text-muted">Processed</h6>
+              <h6 className="card-title">Processed</h6>
               <h4 className="text-success">{returns.filter(r => r.status === 'Processed').length}</h4>
             </div>
           </div>
@@ -746,7 +746,7 @@ const SalesReturn = () => {
         <div className="col-md-3 mb-3">
           <div className="card border-warning">
             <div className="card-body">
-              <h6 className="card-title text-muted">Pending</h6>
+              <h6 className="card-title">Pending</h6>
               <h4 className="text-warning">{returns.filter(r => r.status === 'Pending').length}</h4>
             </div>
           </div>
@@ -754,7 +754,7 @@ const SalesReturn = () => {
         <div className="col-md-3 mb-3">
           <div className="card border-danger">
             <div className="card-body">
-              <h6 className="card-title text-muted">Total Value</h6>
+              <h6 className="card-title">Total Value</h6>
               <h4 className="text-danger">₹ {returns.reduce((sum, r) => sum + r.amount, 0).toLocaleString('en-IN')}</h4>
             </div>
           </div>
@@ -764,7 +764,7 @@ const SalesReturn = () => {
       {/* Table */}
       <div className="table-responsive">
         <Table bordered hover className="align-middle">
-          <thead className="table-light">
+          <thead className="">
             <tr>
               <th className="text-center">#</th>
               <th>Return No</th>
@@ -1391,13 +1391,13 @@ const SalesReturn = () => {
       {/* Page Info Card */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">
         <Card.Body>
-          <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">Page Info</h5>
-          <ul className="text-muted fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
-            <li>✅ **Products filtered by selected warehouse** in both Add & Edit modals.</li>
-            <li>✅ **Stock validation uses warehouse-specific `stock_qty` from `warehouses` field**.</li>
-            <li>✅ **Item narration is correctly updated and saved** in both modals.</li>
-            <li>✅ **Only one dropdown opens at a time** — clean UI behavior.</li>
-            <li>✅ **Warehouse info is always visible and used consistently**.</li>
+          <h5 className="fw-semibold border-bottom pb-2 mb-3 ">Page Info</h5>
+          <ul className=" fs-6 mb-0" style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}>
+            <li> Products filtered by selected warehouse in both Add & Edit modals.</li>
+            <li> Stock validation uses warehouse-specific `stock_qty` from `warehouses` field.</li>
+            <li>Item narration is correctly updated and saved in both modals.</li>
+            <li> Only one dropdown opens at a time — clean UI behavior.</li>
+            <li> Warehouse info is always visible and used consistently.</li>
           </ul>
         </Card.Body>
       </Card>
