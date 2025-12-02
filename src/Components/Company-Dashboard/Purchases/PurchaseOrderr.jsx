@@ -381,7 +381,7 @@ const handleCreateNewPurchase = async (order = null) => {
 
       {/* Table */}
       <Table bordered hover responsive className="text-center align-middle">
-        <thead className="table-light">
+        <thead className="">
           <tr>
             <th>#</th>
             <th>Purchase No</th>

@@ -147,7 +147,7 @@ const Daybook = () => {
 
   // 👇 Then render your JSX (same as before, but using real `entries`)
   return (
-    <div className="container-fluid bg-light py-4 px-4">
+    <div className="py-4 px-4">
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -269,7 +269,7 @@ const Daybook = () => {
       {/* Table */}
       <div className="table-responsive">
         <table className="table table-bordered align-middle">
-          <thead className="table-light">
+          <thead className="">
             <tr>
               <th>Voucher Date</th>
               <th>Voucher No</th>

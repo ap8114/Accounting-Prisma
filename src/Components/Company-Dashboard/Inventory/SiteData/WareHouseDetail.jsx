@@ -15,7 +15,7 @@ import axiosInstance from "../../../../Api/axiosInstance";
 
 const WareHouseDetail = () => {
   const companyId = GetCompanyId();
-  const { id } = useParams();
+  const { id } = useParams(); // This is the warehouse ID
   const navigate = useNavigate();
 
   const [warehouse, setWarehouse] = useState(null);
@@ -77,20 +77,15 @@ const WareHouseDetail = () => {
 
   // Apply filters
   const filteredProducts = inventoryList.filter((item) => {
-    // Category filter
     if (filter !== "All" && item.category !== filter) return false;
-
-    // Stock level filter
     if (stockFilter === "Low") return item.stock <= 10;
     if (stockFilter === "Medium") return item.stock > 10 && item.stock <= 30;
     if (stockFilter === "High") return item.stock > 30;
-    return true; // "All"
+    return true;
   });
 
-  // Get unique categories from inventory
   const uniqueCategories = [...new Set(inventoryList.map((item) => item.category))];
 
-  // Badge color helper
   const getCategoryBadgeColor = (category) => {
     const colorMap = {
       MI: "primary",
@@ -111,11 +106,35 @@ const WareHouseDetail = () => {
     setShowAdd(true);
   };
 
+  // Refetch function to be passed to the modal
+  const refetchData = async () => {
+    if (!companyId || !id) return;
+    try {
+      const response = await axiosInstance.get(`/warehouses/${companyId}/${id}/stock`);
+      const data = response.data;
+      if (data.success) {
+        setSummary(data.summary);
+        setTotalStocks(data.totalStocks);
+        setLowestStockProduct(data.lowestStockProduct);
+        setHighestStockProduct(data.highestStockProduct);
+        setCategoryWiseSummary(data.categoryWiseSummary);
+        setInventoryList(
+          data.inventoryList.map((item) => ({
+            ...item,
+            name: item.product_name,
+            unit: item.measurement,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching warehouse data:", error);
+    }
+  };
+
   return (
     <div className="container py-5">
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
-        {/* Left Side: Back Button + Heading */}
         <div className="d-flex align-items-center gap-3">
           <Button
             variant="outline-dark"
@@ -132,7 +151,6 @@ const WareHouseDetail = () => {
           </h3>
         </div>
 
-        {/* Right Side: Add Product Button */}
         <Button
           onClick={handleAddStockModal}
           style={{ backgroundColor: "#3daaaa", borderColor: "#3daaaa" }}
@@ -148,36 +166,8 @@ const WareHouseDetail = () => {
         setShowAdd={setShowAdd}
         setShowEdit={() => {}}
         companyId={companyId}
-        onSuccess={() => {
-          // Refetch warehouse data after adding a product
-          const fetchWarehouseData = async () => {
-            if (!companyId || !id) return;
-
-            try {
-              const response = await axiosInstance.get(`/warehouses/${companyId}/${id}/stock`);
-              const data = response.data;
-
-              if (data.success) {
-                setSummary(data.summary);
-                setTotalStocks(data.totalStocks);
-                setLowestStockProduct(data.lowestStockProduct);
-                setHighestStockProduct(data.highestStockProduct);
-                setCategoryWiseSummary(data.categoryWiseSummary);
-                setInventoryList(
-                  data.inventoryList.map((item) => ({
-                    ...item,
-                    name: item.product_name,
-                    unit: item.measurement,
-                  }))
-                );
-              }
-            } catch (error) {
-              console.error("Error fetching warehouse data:", error);
-            }
-          };
-          fetchWarehouseData();
-        }}
-        // NEW: Pass the preselected warehouse ID
+        onSuccess={refetchData}
+        // NEW: Pass the preselected warehouse ID from the URL
         preselectedWarehouseId={id}
       />
 

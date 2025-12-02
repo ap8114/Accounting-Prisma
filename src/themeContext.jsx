@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-
+import "./theme.css";
 const ThemeContext = createContext();
 
 const ThemeProvider = ({ children }) => {
@@ -49,17 +49,23 @@ const ThemeProvider = ({ children }) => {
         const root = document.documentElement;
 
         if (theme === "dark") {
-            root.style.setProperty("--bs-body-bg", "#1a1a1a");
+            root.style.setProperty("--bs-body-bg", "#222222ff");
             root.style.setProperty("--bs-body-color", "#ffffff");
             root.style.setProperty("--bs-card-bg", "#2d2d2d");
             root.style.setProperty("--bs-border-color", "#404040");
             root.style.setProperty("--bs-table-bg", "#2d2d2d");
             root.style.setProperty("--bs-table-striped-bg", "#363636");
-            root.style.setProperty("--bs-table-hover-bg", "#404040");
+            root.style.setProperty("--bs-table-hover-bg", "#111111ff");
             root.style.setProperty("--bs-form-control-bg", "#2d2d2d");
             root.style.setProperty("--bs-form-control-color", "#ffffff");
             root.style.setProperty("--bs-modal-bg", "#2d2d2d");
             root.style.setProperty("--bs-modal-color", "#ffffff");
+
+            root.style.setProperty("--bs-table-color", "#ffffff");          // Table text white
+            root.style.setProperty("--bs-table-striped-color", "#ffffff");  // Table striped text white
+            root.style.setProperty("--bs-table-hover-color", "#ffffff");    // Table hover text white
+            root.style.setProperty("--bs-form-control-placeholder", "#ffffffaa"); // White placeholder with opacity
+
         } else {
             root.style.setProperty("--bs-body-bg", "#ffffff");
             root.style.setProperty("--bs-body-color", "#212529");

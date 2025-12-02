@@ -595,7 +595,7 @@ const Income = () => {
   };
 
   return (
-    <div className="bg-light p-4 mt-1 product-header">
+    <div className="p-4 mt-1 product-header">
       {/* Toast Container */}
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
       
@@ -624,7 +624,7 @@ const Income = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-3 rounded shadow-sm mb-4">
+      <div className="border p-3 rounded shadow-sm mb-4">
         <div className="row g-3">
           <div className="col-md-4">
             <label className="form-label fw-semibold">Receipt No</label>
@@ -702,7 +702,7 @@ const Income = () => {
                   </div>
                 ) : (
                   <table className="table table-bordered text-center align-middle mb-0">
-                    <thead className="table-light">
+                    <thead className="">
                       <tr>
                         <th>DATE</th>
                         <th>AUTO RECEIPT NO</th>

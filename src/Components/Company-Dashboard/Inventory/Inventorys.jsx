@@ -579,10 +579,10 @@ const InventoryItems = () => {
           </Col>
         </Row>
 
-        <div className="card bg-white rounded-3 p-4">
+        <div className="card border  rounded-3 p-4">
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
-              <thead className="table-light">
+              <thead className="">
                 <tr>
                   <th>
                     <Form.Check
@@ -906,11 +906,11 @@ const InventoryItems = () => {
         {/* Page Description */}
         <Card className="mb-4 p-3 shadow rounded-4 mt-2">
           <Card.Body>
-            <h5 className="fw-semibold border-bottom pb-2 mb-3 text-primary">
+            <h5 className="fw-semibold border-bottom pb-2 mb-3 ">
               Page Info
             </h5>
             <ul
-              className="text-muted fs-6 mb-0"
+              className=" fs-6 mb-0"
               style={{ listStyleType: "disc", paddingLeft: "1.5rem" }}
             >
               <li>

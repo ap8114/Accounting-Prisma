@@ -442,7 +442,7 @@ function StockTransfer() {
           ) : (
             <div className="table-responsive">
               <table className="table table-bordered">
-                <thead className="table-light">
+                <thead className="">
                   <tr>
                     <th>Voucher No</th>
                     <th>Date</th>

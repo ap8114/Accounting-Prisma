@@ -658,7 +658,7 @@ const PointOfSale = () => {
         </Col>
 
         {/* Right Side */}
-        <Col md={4} className="p-4 border rounded bg-light">
+        <Col md={4} className="p-4 border rounded">
           <Row className="mb-3">
             <Col>
               <Form.Label>Tax</Form.Label>
@@ -690,7 +690,7 @@ const PointOfSale = () => {
             </Row>
           )}
 
-          <div className="border p-3 rounded bg-white">
+          <div className="border p-3 rounded">
             <div className="d-flex justify-content-between mb-3">
               <strong>Subtotal:</strong>
               <span>{symbol}{convertPrice(calculateSubTotal())}</span>
@@ -745,14 +745,14 @@ const PointOfSale = () => {
             onClick={handleCreateInvoice}
             disabled={selectedProducts.length === 0}
           >
-            Generate Invoice 🗋️
+            Generate Invoice
           </Button>
           <Button
             variant="danger"
             onClick={handleClear}
             disabled={selectedProducts.length === 0}
           >
-            Clear Selection ❌
+            Clear Selection
           </Button>
         </div>
       </Row>

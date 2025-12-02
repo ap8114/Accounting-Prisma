@@ -473,7 +473,7 @@ const CompanyInfo = () => {
   return (
     <div
       style={{
-        backgroundColor: '#f8f9fa',
+      
         minHeight: '100vh',
         padding: '20px 0',
         direction: printLanguage === 'ar' ? 'rtl' : 'ltr',
@@ -525,7 +525,7 @@ const CompanyInfo = () => {
           <Tab.Content>
             {/* COMPANY SETTINGS */}
             <Tab.Pane eventKey="company">
-              <div className="bg-white p-4 rounded shadow-sm">
+              <div className="border p-4 rounded shadow-sm">
                 <h2 className="mb-4" style={{ fontSize: '20px', fontWeight: '600' }}>
                   {t('companyInformation')}
                 </h2>

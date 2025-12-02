@@ -134,8 +134,8 @@ const VatReport = () => {
 
         {error && <div className="alert alert-danger">{error}</div>}
 
-        <Table hover responsive className="text-nowrap mb-0 align-middle">
-          <thead className="bg-light text-dark fw-semibold">
+        <Table hover responsive className="border-2text-nowrap mb-0 align-middle">
+          <thead className=" text-dark fw-semibold">
             <tr>
               <th>Type</th>
               <th>Description</th>

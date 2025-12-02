@@ -6,9 +6,8 @@ import {
   Modal,
   Form,
   InputGroup,
-  Spinner,
   Toast,
-  ToastContainer
+  ToastContainer,
 } from "react-bootstrap";
 import {
   FaEdit,
@@ -22,7 +21,6 @@ import BaseUrl from "../../../Api/BaseUrl";
 
 // All available general permissions
 const allPermissions = ["View", "Create", "Edit", "Full Access"];
-
 const tallyModules = [
   { name: "Account", permissions: ["Create", "View", "Update", "Delete"] },
   { name: "Inventory", permissions: ["Create", "View", "Update", "Delete"] },
@@ -61,7 +59,7 @@ const RolesPermissions = () => {
   // ✅ TOAST NOTIFICATION STATE
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [toastVariant, setToastVariant] = useState("success"); // 'success', 'danger'
+  const [toastVariant, setToastVariant] = useState("success");
 
   // Load custom role types from localStorage
   useEffect(() => {
@@ -90,17 +88,22 @@ const RolesPermissions = () => {
         const mappedRoles = response.data.data.map(role => {
           let generalPerms = [];
           try {
-            generalPerms = JSON.parse(role.general_permissions || "[]");
-            generalPerms = generalPerms.map(p => {
-              if (p.toLowerCase() === "full access") return "Full Access";
+            // Backend sends general_permissions as JSON string
+            const parsed = JSON.parse(role.general_permissions || "[]");
+            generalPerms = parsed.map(p => {
+              // Normalize to match UI options
+              if (p.toLowerCase() === "full access" || p.toLowerCase() === "full_access") {
+                return "Full Access";
+              }
               return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
             });
           } catch (e) {
             console.warn("Failed to parse general_permissions for role:", role.id);
           }
+
           const modulePermissions = {};
           tallyModules.forEach(module => {
-            const permObj = role.permissions.find(p => p.module_name === module.name);
+            const permObj = role.permissions?.find(p => p.module_name === module.name);
             if (permObj) {
               const perms = [];
               if (permObj.full_access) {
@@ -116,6 +119,7 @@ const RolesPermissions = () => {
               modulePermissions[module.name] = [];
             }
           });
+
           return {
             id: role.id,
             name: role.role_name,
@@ -123,7 +127,7 @@ const RolesPermissions = () => {
             permissions: generalPerms,
             lastModified: new Date(role.created_at).toISOString().split('T')[0],
             type: "user",
-            status: role.status || "Active", // ✅ Direct string from backend
+            status: role.status || "Active",
             modulePermissions,
           };
         });
@@ -148,18 +152,13 @@ const RolesPermissions = () => {
   const toggleRoleStatus = async (roleId) => {
     const role = roles.find(r => r.id === roleId);
     if (!role) return;
-
     const newStatus = role.status === "Active" ? "Inactive" : "Active";
-
     try {
-      // ✅ Send STRING payload as per your backend requirement
       const response = await axios.patch(`${BaseUrl}user-roles/${roleId}/status`, {
         company_id: companyId,
-        status: newStatus // ✅ "Active" or "Inactive" (string)
+        status: newStatus // ✅ String, not boolean
       });
-
       if (response.data?.success) {
-        // ✅ Update local state with new string status
         setRoles(roles.map(r =>
           r.id === roleId ? { ...r, status: newStatus } : r
         ));
@@ -202,29 +201,40 @@ const RolesPermissions = () => {
   };
 
   const handleAddSave = async () => {
-    if (!form.name.trim()) return;
+    if (!form.name.trim()) {
+      setToastMessage("Role name is required.");
+      setToastVariant("danger");
+      setShowToast(true);
+      return;
+    }
+
     try {
-      const buildModulePermissionsArray = (modulePermsObj) => {
-        return Object.entries(modulePermsObj || {}).map(([moduleName, perms]) => {
-          const set = new Set((perms || []).map(p => String(p).toLowerCase()));
-          return {
-            module_name: moduleName,
-            can_create: set.has('create'),
-            can_view: set.has('view'),
-            can_update: set.has('update') || set.has('edit'),
-            can_delete: set.has('delete'),
-            full_access: set.has('full access') || set.has('full_access') || set.has('fullaccess')
-          };
-        });
-      };
-      const permissionsPayload = buildModulePermissionsArray(form.modulePermissions || {});
+      // Build module permissions array for API
+      const permissionsPayload = Object.entries(form.modulePermissions || {}).map(([moduleName, perms]) => {
+        const set = new Set((perms || []).map(p => p.toLowerCase()));
+        return {
+          module_name: moduleName,
+          can_create: set.has('create'),
+          can_view: set.has('view'),
+          can_update: set.has('update') || set.has('edit'),
+          can_delete: set.has('delete'),
+          full_access: set.has('full access') || set.has('full_access')
+        };
+      });
+
+      // General permissions as array of lowercase strings
+      const generalPerms = form.permissions.map(p => 
+        p === "Full Access" ? "full access" : p.toLowerCase()
+      );
+
       const response = await axios.post(`${BaseUrl}user-roles`, {
         company_id: companyId,
         role_name: form.name,
-        general_permissions: Array.isArray(form.permissions) ? form.permissions.map(p => String(p).toLowerCase()) : [],
+        general_permissions: generalPerms,
         permissions: permissionsPayload
       });
-      if (response.data && response.status) {
+
+      if (response.data?.success) {
         setShowAdd(false);
         setForm({ name: "", permissions: [], type: "user", modulePermissions: {} });
         await fetchRoles();
@@ -232,9 +242,7 @@ const RolesPermissions = () => {
         setToastVariant("success");
         setShowToast(true);
       } else {
-        setToastMessage(`Error: ${response.data.message || 'Failed to create role'}`);
-        setToastVariant("danger");
-        setShowToast(true);
+        throw new Error(response.data.message || "Failed to create role");
       }
     } catch (error) {
       console.error('API Error:', error);
@@ -242,7 +250,7 @@ const RolesPermissions = () => {
       setToastVariant("danger");
       setShowToast(true);
     }
-    };
+  };
 
   const handleEdit = (role) => {
     setSelected(role);
@@ -256,38 +264,45 @@ const RolesPermissions = () => {
   };
 
   const handleEditSave = async () => {
-    if (!form.name.trim()) return;
+    if (!form.name.trim()) {
+      setToastMessage("Role name is required.");
+      setToastVariant("danger");
+      setShowToast(true);
+      return;
+    }
+
     try {
-      const buildModulePermissionsArray = (modulePermsObj) => {
-        return Object.entries(modulePermsObj || {}).map(([moduleName, perms]) => {
-          const set = new Set((perms || []).map(p => String(p).toLowerCase()));
-          return {
-            module_name: moduleName,
-            can_create: set.has('create'),
-            can_view: set.has('view'),
-            can_update: set.has('update') || set.has('edit'),
-            can_delete: set.has('delete'),
-            full_access: set.has('full access') || set.has('full_access') || set.has('fullaccess')
-          };
-        });
-      };
-      const permissionsPayload = buildModulePermissionsArray(form.modulePermissions || {});
+      const permissionsPayload = Object.entries(form.modulePermissions || {}).map(([moduleName, perms]) => {
+        const set = new Set((perms || []).map(p => p.toLowerCase()));
+        return {
+          module_name: moduleName,
+          can_create: set.has('create'),
+          can_view: set.has('view'),
+          can_update: set.has('update') || set.has('edit'),
+          can_delete: set.has('delete'),
+          full_access: set.has('full access') || set.has('full_access')
+        };
+      });
+
+      const generalPerms = form.permissions.map(p => 
+        p === "Full Access" ? "full access" : p.toLowerCase()
+      );
+
       const response = await axios.put(`${BaseUrl}user-roles/${selected.id}`, {
         company_id: companyId,
         role_name: form.name,
-        general_permissions: Array.isArray(form.permissions) ? form.permissions.map(p => String(p).toLowerCase()) : [],
+        general_permissions: generalPerms,
         permissions: permissionsPayload
       });
-      if (response.data && response.status) {
+
+      if (response.data?.success) {
         setShowEdit(false);
         await fetchRoles();
         setToastMessage("Role updated successfully!");
         setToastVariant("success");
         setShowToast(true);
       } else {
-        setToastMessage(`Error: ${response.data.message || 'Failed to update role'}`);
-        setToastVariant("danger");
-        setShowToast(true);
+        throw new Error(response.data.message || "Failed to update role");
       }
     } catch (error) {
       console.error('API Error:', error);
@@ -307,16 +322,14 @@ const RolesPermissions = () => {
       const response = await axios.delete(`${BaseUrl}user-roles/${selected.id}`, {
         params: { company_id: companyId }
       });
-      if (response.data && response.status) {
+      if (response.data?.success) {
         setShowDelete(false);
         await fetchRoles();
         setToastMessage("Role deleted successfully!");
         setToastVariant("success");
         setShowToast(true);
       } else {
-        setToastMessage(`Error: ${response.data.message || 'Failed to delete role'}`);
-        setToastVariant("danger");
-        setShowToast(true);
+        throw new Error(response.data.message || "Failed to delete role");
       }
     } catch (error) {
       console.error('API Error:', error);
@@ -408,7 +421,7 @@ const RolesPermissions = () => {
         type_name: newRoleType,
         company_id: companyId
       });
-      if (response.data && response.status) {
+      if (response.data?.success) {
         setCustomRoleTypes([...customRoleTypes, newRoleType]);
         setNewRoleType("");
         setShowAddTypeModal(false);
@@ -427,7 +440,7 @@ const RolesPermissions = () => {
   };
 
   return (
-    <div className="p-4" style={{ background: "#f8f9fa", minHeight: "100vh" }}>
+    <div className="p-4">
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -443,7 +456,7 @@ const RolesPermissions = () => {
           </Button>
         </div>
       </div>
-z
+
       {/* Main Card */}
       <Card className="">
         <Card.Body>
@@ -508,7 +521,7 @@ z
 
           {/* Roles Table */}
           <div style={{ overflowX: "auto" }}>
-            <Table responsive alignMiddle mb0 style={{ minWidth: 800 }}>
+            <Table responsive style={{ minWidth: 800 }}>
               <thead>
                 <tr style={{ background: "#f2f2f2" }}>
                   <th><Form.Check /></th>
@@ -595,7 +608,7 @@ z
         </Card.Body>
       </Card>
 
-      {/* Modals: Delete, View, Add, Edit, Add Type — same as before */}
+      {/* Modals */}
       {/* Delete Confirmation Modal */}
       <Modal show={showDelete} onHide={() => setShowDelete(false)} centered>
         <Modal.Header closeButton>
@@ -1077,6 +1090,7 @@ z
           </Button>
         </Modal.Footer>
       </Modal>
+
       <p className="text-muted text-center mt-3">
         This page allows you to define and manage user roles with specific permissions such as create, read, update, and delete. Control access across the application.
       </p>

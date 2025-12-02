@@ -139,7 +139,7 @@ const Purchasereport = () => {
           { label: "Overdue", value: summary.overdue, color: "#D32F2F", icon: <BiSolidReport size={28} color="#D32F2F" /> },
         ].map((card, idx) => (
           <div className="col-12 col-md-3" key={idx}>
-            <div className="shadow-sm rounded p-3 bg-white border d-flex align-items-center justify-content-between w-100"
+            <div className="shadow-sm rounded p-3 border d-flex align-items-center justify-content-between w-100"
               style={{ borderColor: card.color }}>
               <div>
                 <small className="text-muted">{card.label}</small>
@@ -153,7 +153,7 @@ const Purchasereport = () => {
 
       {/* Filters */}
       <form onSubmit={handleGenerate}>
-        <div className="bg-white p-3 rounded mb-3 shadow-sm row g-3">
+        <div className=" p-3 rounded mb-3 shadow-sm row g-3">
           <div className="col-12 col-md-3">
             <label className="form-label">Choose Date</label>
             <input
@@ -197,7 +197,7 @@ const Purchasereport = () => {
       </form>
 
       {/* Table */}
-      <div className="bg-white rounded p-3 shadow-sm">
+      <div className="border  rounded p-3 shadow-sm">
         <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <h5 className="fw-bold mb-0">Purchase Report</h5>
           <div className="d-flex gap-2">
@@ -209,7 +209,7 @@ const Purchasereport = () => {
 
         <div className="table-responsive">
           <Table className="table table-bordered">
-            <thead className="table-light">
+            <thead className="">
               <tr>
                 <th>PO #</th>
                 <th>Vendor</th>
