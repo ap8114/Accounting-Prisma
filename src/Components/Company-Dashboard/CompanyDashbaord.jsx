@@ -8,12 +8,14 @@ import {
   Dropdown,
   Button,
   Spinner,
+  Alert,
 } from "react-bootstrap";
 import {
   FaUser,
   FaUserCheck,
   FaFileInvoice,
   FaFileInvoiceDollar,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { BsBagDashFill as BagIcon } from "react-icons/bs";
 import {
@@ -28,14 +30,18 @@ import {
 import GetCompanyId from "../../Api/GetCompanyId";
 import axiosInstance from "../../Api/axiosInstance";
 import { Link } from "react-router-dom";
+
 const CompanyDashboard = () => {
   const companyId = GetCompanyId();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [hasPermission, setHasPermission] = useState(false);
   const [timePeriod, setTimePeriod] = useState("Today");
   const [selectedPeriod, setSelectedPeriod] = useState("Weekly");
   const [selectedYear, setSelectedYear] = useState("2025");
   const [selectedSalesYear, setSelectedSalesYear] = useState("2025");
+  
   // State for API data
   const [cards, setCards] = useState({
     totalPurchaseDue: "0",
@@ -63,6 +69,36 @@ const CompanyDashboard = () => {
   });
 
   useEffect(() => {
+    // Get user role and permissions
+    const role = localStorage.getItem("role");
+    
+    // Superadmin and Company roles have access to all modules
+    if (role === "SUPERADMIN" || role === "COMPANY") {
+      setHasPermission(true);
+    } else if (role === "USER") {
+      // For USER role, check specific permissions
+      try {
+        const permissions = JSON.parse(localStorage.getItem("userPermissions") || "[]");
+        setUserPermissions(permissions);
+        
+        // Check if user has view permission for Dashboard
+        const dashboardPermission = permissions.find(p => p.module_name === "Dashboard");
+        setHasPermission(dashboardPermission ? dashboardPermission.can_view : false);
+      } catch (error) {
+        console.error("Error parsing user permissions:", error);
+        setHasPermission(false);
+      }
+    } else {
+      setHasPermission(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasPermission) {
+      setLoading(false);
+      return;
+    }
+    
     if (!companyId) {
       setError("Company ID is missing");
       setLoading(false);
@@ -122,7 +158,7 @@ const CompanyDashboard = () => {
     };
 
     fetchDashboard();
-  }, [companyId]);
+  }, [companyId, hasPermission]);
 
   const formatNumber = (num) =>
     Number(num).toLocaleString("en-IN", {
@@ -149,6 +185,55 @@ const CompanyDashboard = () => {
     revenue: item.revenue,
     expense: item.expense,
   }));
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "80vh" }}>
+        <Spinner animation="border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </Spinner>
+      </div>
+    );
+  }
+
+  // Show access denied if user doesn't have permission
+  if (!hasPermission) {
+    return (
+      <div className="container-fluid mt-3 mt-sm-3">
+        <Alert variant="success" className="d-flex align-items-center">
+          <FaExclamationTriangle className="me-3" size={24} />
+          <div>
+            <h5 className="alert-heading">Access Denied</h5>
+            <p>You don't have permission to view the Dashboard. Please contact your administrator for access.</p>
+            <hr />
+           
+          </div>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Show error message if there's an error
+  if (error) {
+    return (
+      <div className="container-fluid mt-3 mt-sm-3">
+        <Alert variant="danger" className="d-flex align-items-center">
+          <FaExclamationTriangle className="me-3" size={24} />
+          <div>
+            <h5 className="alert-heading">Error</h5>
+            <p>{error}</p>
+            <hr />
+            <p className="mb-0">
+              <Button variant="primary" onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            </p>
+          </div>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="container-fluid mt-3 mt-sm-3">

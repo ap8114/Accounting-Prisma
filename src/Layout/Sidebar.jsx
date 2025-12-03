@@ -6,14 +6,38 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
   const { pathname } = useLocation();
   const [activePath, setActivePath] = useState(pathname);
   const [role, setRole] = useState("");
+  const [userPermissions, setUserPermissions] = useState([]);
   const [expandedMenu, setExpandedMenu] = useState({});
+  
   useEffect(() => {
-    setRole(localStorage.getItem("role"));
+    const storedRole = localStorage.getItem("role");
+    setRole(storedRole);
+    
+    // Get user permissions from localStorage
+    if (storedRole === "USER") {
+      try {
+        const permissions = JSON.parse(localStorage.getItem("userPermissions") || "[]");
+        setUserPermissions(permissions);
+      } catch (error) {
+        console.error("Error parsing user permissions:", error);
+        setUserPermissions([]);
+      }
+    }
   }, []);
-  console.log("Current Role:", role); // Debugging line to check the role value
+  
   useEffect(() => {
     setActivePath(pathname);
   }, [pathname]);
+
+  // Helper function to check if user has view permission for a module
+  const hasViewPermission = (moduleName) => {
+    if (role === "SUPERADMIN" || role === "COMPANY") {
+      return true; // Superadmin and Company have access to all modules
+    }
+    
+    const permission = userPermissions.find(p => p.module_name === moduleName);
+    return permission ? permission.can_view : false;
+  };
 
   const handleMenuClick = (path) => {
     setActivePath(path);
@@ -25,12 +49,14 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
     }
     onLinkClick?.();
   };
+  
   const toggleMenu = (menuKey) => {
     setExpandedMenu((prev) => ({
       ...prev,
       [menuKey]: !prev[menuKey],
     }));
   };
+  
   const renderDropdownSection = (title, mainItem, subItems) => {
     const menuKey = mainItem.to; // unique key for expansion
     const isExpanded = expandedMenu[menuKey];
@@ -91,6 +117,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
       </div>
     );
   };
+  
   const navItem = (to, icon, label) => (
     <div className="nav-item ps-2" key={to}>
       <Link
@@ -116,8 +143,9 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
   );
 
   const getMenuItems = () => {
-    const menuItems = {
-      SUPERADMIN: [
+    // For SUPERADMIN role, show all admin menu items
+    if (role === "SUPERADMIN") {
+      return [
         renderFlatSection("Admin Dashboard", [
           {
             to: "/dashboard",
@@ -150,9 +178,12 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
             label: "Manage Passwords",
           },
         ]),
-      ],
-
-      COMPANY: [
+      ];
+    }
+    
+    // For COMPANY role, show all company menu items
+    if (role === "COMPANY") {
+      return [
         renderFlatSection("Admin Dashboard", [
           {
             to: "/company/dashboard",
@@ -176,8 +207,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
             icon: "fas fa-user-tie",
             label: "Vendors/Creditors",
           },
-          // { to: "/company/receiptentry", icon: "fas fa-receipt", label: "Receipt Entry" },
-          // { to: "/company/paymententry", icon: "fas fa-money-check-alt", label: "Payment Entry" },
+       
           {
             to: "/company/transaction",
             icon: "fas fa-money-check-alt",
@@ -202,11 +232,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
             label: "Product & Inventory",
           },
           { to: "/company/service", icon: "fas fa-boxes", label: "Service" },
-          // {
-          //   to: "/company/createvoucher",
-          //   icon: "fas fa-file-invoice",
-          //   label: "Create Voucher",
-          // },
+        
           {
             to: "/company/stocktranfer",
             icon: "fas fa-exchange-alt",
@@ -214,7 +240,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
           },
           {
             to: "/company/inventory-adjustment",
-            icon: "fas fa-warehouse", // Changed from "fas fa-exchange-alt"
+            icon: "fas fa-warehouse",
             label: "Inventory Adjustment",
           },
         ]),
@@ -225,9 +251,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
             icon: "fas fa-file-invoice",
             label: "Sales Order",
           },
-          // { to: "/company/deliverychallans", icon: "fas fa-truck-loading", label: "Delivery Challans" },
-          // { to: "/company/salesorder", icon: "fas fa-table", label: "Sales Order" },
-          // { to: "/company/salesdelivery", icon: "fas fa-money-bill", label: "Sales Delivery" },
+        
           {
             to: "/company/salesreturn",
             icon: "fas fa-money-bill",
@@ -235,9 +259,7 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
           },
         ]),
         renderFlatSection("Purchases", [
-          // { to: "/company/vendors", icon: "fas fa-users", label: "Vendors" },
-          // { to: "/company/bill", icon: "fas fa-file", label: "Bill" },
-          // { to: "/company/purchasorder", icon: "fas fa-shopping-cart", label: "Purchase Order" },
+        
           {
             to: "/company/purchasorderr",
             icon: "fas fa-shopping-cart",
@@ -251,7 +273,6 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
         ]),
 
         renderFlatSection("POS", [
-          // { to: "/company/product", icon: "fas fa-box", label: "Product" },
           {
             to: "/company/ponitofsale",
             icon: "fas fa-desktop",
@@ -270,42 +291,13 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
             label: "Expenses",
           },
           { to: "/company/income", icon: "fas fa-wallet", label: "Income" },
-          // {
-          //   to: "/company/receivedcustomer",
-          //   icon: "fas fa-arrow-down",
-          //   label: "Receipt From Customer",
-          // },
-          // {
-          //   to: "/company/paymnetsupplier",
-          //   icon: "fas fa-arrow-up",
-          //   label: "Payment To Vendor",
-          // },
+         
           {
             to: "/company/contravoucher",
             icon: "fas fa-exchange-alt",
             label: "Contra Voucher",
           },
         ]),
-
-        // renderFlatSection("GST ", [
-        //   { to: "/company/taxreport", icon: "fas fa-file-alt", label: "Tax Report" },
-        //   {
-        //     to: "/company/gstreturns",
-        //     icon: "fas fa-file-invoice",
-        //     label: "GST Returns",
-        //   },
-        //   { to: "/company/tdstcs", icon: "fas fa-percent", label: "TDS/TCS" },
-        //   {
-        //     to: "/company/itcreport",
-        //     icon: "fas fa-file-contract",
-        //     label: "ITC Report",
-        //   },
-        //   {
-        //     to: "/company/ewaybill",
-        //     icon: "fas fa-truck",
-        //     label: "e-Way Bill",
-        //   },
-        // ]),
 
         renderFlatSection("Reports", [
           {
@@ -374,13 +366,16 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
           },
         ]),
         renderFlatSection("User Management", [
-          { to: "/company/users", icon: "fas fa-users", label: "Users" },
+        
           {
             to: "/company/rolespermissions",
             icon: "fas fa-user-shield",
             label: "Roles & Permissions",
           },
-          // { to: "/company/deleteaccountrequests", icon: "fas fa-user-times", label: "User Request" },
+          { to: "/company/users",
+             icon: "fas fa-users", 
+             label: "Users" 
+          },
         ]),
         renderFlatSection("Settings", [
           {
@@ -394,13 +389,337 @@ const Sidebar = ({ isMobile, onLinkClick }) => {
             label: "Password Requests"
           }
 
-
-          // { to: "/company/invoicetemplate", icon: "fas fa-cog", label: "Template Setting" },
         ]),
-      ],
-    };
-
-    return menuItems[role] || null;
+      ];
+    }
+    
+    // For USER role, show only menu items based on permissions
+    if (role === "USER") {
+      const menuItems = [];
+      
+      // Dashboard section
+      if (hasViewPermission("Dashboard")) {
+        menuItems.push(
+          renderFlatSection("Admin Dashboard", [
+            {
+              to: "/company/dashboard",
+              icon: "fas fa-tachometer-alt",
+              label: "Dashboard",
+            },
+          ])
+        );
+      }
+      
+      // Accounts section
+      const accountsItems = [];
+      if (hasViewPermission("Charts_of_Accounts")) {
+        accountsItems.push({
+          to: "/company/allacounts",
+          icon: "fas fa-calendar-day",
+          label: "Charts of Accounts",
+        });
+      }
+      if (hasViewPermission("Customers/Debtors")) {
+        accountsItems.push({
+          to: "/company/customersdebtors",
+          icon: "fas fa-hand-holding-usd",
+          label: "Customers/Debtors",
+        });
+      }
+      if (hasViewPermission("Vendors/Creditors")) {
+        accountsItems.push({
+          to: "/company/vendorscreditors",
+          icon: "fas fa-user-tie",
+          label: "Vendors/Creditors",
+        });
+      }
+      if (hasViewPermission("All_Transaction")) {
+        accountsItems.push({
+          to: "/company/transaction",
+          icon: "fas fa-money-check-alt",
+          label: "All Transaction",
+        });
+      }
+      if (accountsItems.length > 0) {
+        menuItems.push(renderFlatSection("Accounts", accountsItems));
+      }
+      
+      // Inventory section
+      const inventoryItems = [];
+      if (hasViewPermission("Warehouse")) {
+        inventoryItems.push({
+          to: "/company/warehouse",
+          icon: "fas fa-warehouse",
+          label: "Warehouse",
+        });
+      }
+      if (hasViewPermission("Unit_of_measure")) {
+        inventoryItems.push({
+          to: "/company/unitofmeasure",
+          icon: "fas fa-ruler-combined",
+          label: "Unit of measure",
+        });
+      }
+      if (hasViewPermission("Product_Inventory")) {
+        inventoryItems.push({
+          to: "/company/inventorys",
+          icon: "fas fa-boxes",
+          label: "Product & Inventory",
+        });
+      }
+      if (hasViewPermission("Service")) {
+        inventoryItems.push({
+          to: "/company/service",
+          icon: "fas fa-boxes",
+          label: "Service",
+        });
+      }
+      if (hasViewPermission("StockTransfer")) {
+        inventoryItems.push({
+          to: "/company/stocktranfer",
+          icon: "fas fa-exchange-alt",
+          label: "StockTransfer",
+        });
+      }
+      if (hasViewPermission("Inventory_Adjustment")) {
+        inventoryItems.push({
+          to: "/company/inventory-adjustment",
+          icon: "fas fa-warehouse",
+          label: "Inventory Adjustment",
+        });
+      }
+      if (inventoryItems.length > 0) {
+        menuItems.push(renderFlatSection("Inventory", inventoryItems));
+      }
+      
+      // Sales section
+      const salesItems = [];
+      if (hasViewPermission("Sales_Order")) {
+        salesItems.push({
+          to: "/company/Invoice",
+          icon: "fas fa-file-invoice",
+          label: "Sales Order",
+        });
+      }
+      if (hasViewPermission("Sales_Return")) {
+        salesItems.push({
+          to: "/company/salesreturn",
+          icon: "fas fa-money-bill",
+          label: "Sales Return",
+        });
+      }
+      if (salesItems.length > 0) {
+        menuItems.push(renderFlatSection("Sales", salesItems));
+      }
+      
+      // Purchases section
+      const purchasesItems = [];
+      if (hasViewPermission("Purchase_Orders")) {
+        purchasesItems.push({
+          to: "/company/purchasorderr",
+          icon: "fas fa-shopping-cart",
+          label: "Purchase Orders",
+        });
+      }
+      if (hasViewPermission("Purchase_Return")) {
+        purchasesItems.push({
+          to: "/company/purchasereturn",
+          icon: "fas fa-undo",
+          label: "Purchase Return",
+        });
+      }
+      if (purchasesItems.length > 0) {
+        menuItems.push(renderFlatSection("Purchases", purchasesItems));
+      }
+      
+      // POS section
+      if (hasViewPermission("POS_Screen")) {
+        menuItems.push(
+          renderFlatSection("POS", [
+            {
+              to: "/company/ponitofsale",
+              icon: "fas fa-desktop",
+              label: "POS Screen",
+            },
+          ])
+        );
+      }
+      
+      // Voucher section
+      const voucherItems = [];
+      if (hasViewPermission("Create_Voucher")) {
+        voucherItems.push({
+          to: "/company/createvoucher",
+          icon: "fas fa-file-invoice",
+          label: "Create Voucher",
+        });
+      }
+      if (hasViewPermission("Expenses")) {
+        voucherItems.push({
+          to: "/company/expense",
+          icon: "fas fa-money-bill",
+          label: "Expenses",
+        });
+      }
+      if (hasViewPermission("Income")) {
+        voucherItems.push({
+          to: "/company/income",
+          icon: "fas fa-wallet",
+          label: "Income",
+        });
+      }
+      if (hasViewPermission("Contra_Voucher")) {
+        voucherItems.push({
+          to: "/company/contravoucher",
+          icon: "fas fa-exchange-alt",
+          label: "Contra Voucher",
+        });
+      }
+      if (voucherItems.length > 0) {
+        menuItems.push(renderFlatSection("VOUCHER", voucherItems));
+      }
+      
+      // Reports section
+      const reportsItems = [];
+      if (hasViewPermission("Sales_Report")) {
+        reportsItems.push({
+          to: "/company/salesreport",
+          icon: "fas fa-chart-line",
+          label: "Sales Report",
+        });
+      }
+      if (hasViewPermission("Purchase_Report")) {
+        reportsItems.push({
+          to: "/company/purchasereport",
+          icon: "fas fa-file-invoice-dollar",
+          label: "Purchase Report",
+        });
+      }
+      if (hasViewPermission("POS_Report")) {
+        reportsItems.push({
+          to: "/company/posreport",
+          icon: "fas fa-shopping-cart",
+          label: "POS Report",
+        });
+      }
+      if (hasViewPermission("Tax_Report")) {
+        reportsItems.push({
+          to: "/company/taxreport",
+          icon: "fas fa-file-alt",
+          label: "Tax Report",
+        });
+      }
+      if (hasViewPermission("Inventory_Summary")) {
+        reportsItems.push({
+          to: "/company/inventorysummary",
+          icon: "fas fa-clipboard-list",
+          label: "Inventory Summary",
+        });
+      }
+      if (hasViewPermission("Balance_Sheet")) {
+        reportsItems.push({
+          to: "/company/balancesheet",
+          icon: "fas fa-balance-scale",
+          label: "Balance Sheet",
+        });
+      }
+      if (hasViewPermission("Cash_Flow")) {
+        reportsItems.push({
+          to: "/company/cashflow",
+          icon: "fas fa-coins",
+          label: "Cash Flow",
+        });
+      }
+      if (hasViewPermission("Profit_Loss")) {
+        reportsItems.push({
+          to: "/company/profitloss",
+          icon: "fas fa-chart-pie",
+          label: "Profit & Loss",
+        });
+      }
+      if (hasViewPermission("Vat_Report")) {
+        reportsItems.push({
+          to: "/company/vatreport",
+          icon: "fas fa-file-invoice-dollar",
+          label: "Vat Report",
+        });
+      }
+      if (hasViewPermission("DayBook")) {
+        reportsItems.push({
+          to: "/company/daybook",
+          icon: "fas fa-calendar-day",
+          label: "DayBook",
+        });
+      }
+      if (hasViewPermission("Journal_Entries")) {
+        reportsItems.push({
+          to: "/company/journalentries",
+          icon: "fas fa-book",
+          label: "Journal Entries",
+        });
+      }
+      if (hasViewPermission("Ledger")) {
+        reportsItems.push({
+          to: "/company/ledger",
+          icon: "fas fa-layer-group",
+          label: "Ledger",
+        });
+      }
+      if (hasViewPermission("Trial_Balance")) {
+        reportsItems.push({
+          to: "/company/trialbalance",
+          icon: "fas fa-layer-group",
+          label: "Trial Balance",
+        });
+      }
+      if (reportsItems.length > 0) {
+        menuItems.push(renderFlatSection("Reports", reportsItems));
+      }
+      
+      // User Management section
+      const userManagementItems = [];
+      if (hasViewPermission("Users")) {
+        userManagementItems.push({
+          to: "/company/users",
+          icon: "fas fa-users",
+          label: "Users",
+        });
+      }
+      if (hasViewPermission("Roles_Permissions")) {
+        userManagementItems.push({
+          to: "/company/rolespermissions",
+          icon: "fas fa-user-shield",
+          label: "Roles & Permissions",
+        });
+      }
+      if (userManagementItems.length > 0) {
+        menuItems.push(renderFlatSection("User Management", userManagementItems));
+      }
+      
+      // Settings section
+      const settingsItems = [];
+      if (hasViewPermission("Company_Info")) {
+        settingsItems.push({
+          to: "/company/companyinfo",
+          icon: "fas fa-cog",
+          label: "Company Info",
+        });
+      }
+      if (hasViewPermission("Password_Requests")) {
+        settingsItems.push({
+          to: "/company/password-request",
+          icon: "fas fa-lock-open",
+          label: "Password Requests",
+        });
+      }
+      if (settingsItems.length > 0) {
+        menuItems.push(renderFlatSection("Settings", settingsItems));
+      }
+      
+      return menuItems;
+    }
+    
+    return null;
   };
 
   // Styles

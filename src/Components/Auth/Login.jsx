@@ -27,19 +27,41 @@ const Login = () => {
         password,
       });
 
-      // ✅ Fixed response destructuring to match actual API response
+      // Fixed response destructuring to match actual API response
       const { message, data } = response.data;
-      const { user, token } = data;
+      const { user, token, userRole } = data;
 
       if (token && user && user.id) {
         // Save auth data
         localStorage.setItem("authToken", token);
         localStorage.setItem("CompanyId", user.id.toString()); // Ensure it's a string
         localStorage.setItem("role", user.role);
+        
+        // Store user role information
+        if (userRole) {
+       
+          
+          // Store permissions as JSON string
+          if (userRole.permissions && Array.isArray(userRole.permissions)) {
+            localStorage.setItem("userPermissions", JSON.stringify(userRole.permissions));
+            
+            // Optional: Create a permission map for easier access
+            const permissionMap = {};
+            userRole.permissions.forEach(perm => {
+              permissionMap[perm.module_name] = {
+                can_create: perm.can_create,
+                can_view: perm.can_view,
+                can_update: perm.can_update,
+                can_delete: perm.can_delete
+              };
+            });
+         
+          }
+        }
 
         toast.success(message || "Login successful!");
 
-        // ✅ Fixed role comparison to match uppercase API response
+        // Fixed role comparison to match uppercase API response
         if (user.role === "SUPERADMIN") {
           navigate("/dashboard");
         } else {
