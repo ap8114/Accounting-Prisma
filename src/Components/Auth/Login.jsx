@@ -87,18 +87,18 @@ const Login = () => {
       className="min-h-screen flex items-center justify-center p-4"
       style={{ backgroundColor: "#023047" }}
     >
-      <div className="min-h-screen flex items-center justify-center px-4 py-8 md:py-16 bg-[#023047]">
-        <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-xl flex flex-col md:flex-row">
+      <div className="min-h-screen flex items-center justify-center px-4 py-8 md:py-16">
+        <div className="rounded-3xl w-full max-w-4xl overflow-hidden shadow-xl flex flex-col md:flex-row">
           <ToastContainer position="top-right" autoClose={2000} />
 
           {/* Left Panel - Login Form */}
-          <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col justify-center">
+          <div className="card border-0 rounded-0 w-full md:w-1/2 p-6 md:p-10 flex flex-col justify-center">
             <div className="mb-6">
               <div className="flex items-center mb-8">
                 <img src={newlogo} alt="ZirakBook Logo" className="max-h-12" />
               </div>
 
-              <h6 className="text-xl font-semibold text-gray-800 mb-6">
+              <h6 className="text-xl font-semibold mb-6">
                 Welcome Back
               </h6>
 
@@ -108,7 +108,7 @@ const Login = () => {
                 <input
                   type="email"
                   placeholder="Your Email"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-dark px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -116,7 +116,7 @@ const Login = () => {
                 <input
                   type="password"
                   placeholder="Your Password"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-dark px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />

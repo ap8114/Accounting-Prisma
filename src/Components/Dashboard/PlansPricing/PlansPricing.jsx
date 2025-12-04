@@ -280,7 +280,7 @@ const PlanPricing = () => {
           <h4 className="fw-bold d-flex align-items-center gap-2">
             <span role="img" aria-label="coin">💰</span> Plans & Pricing
           </h4>
-          <p className="text-muted">Manage your subscription plans, pricing options.</p>
+          <p className="">Manage your subscription plans, pricing options.</p>
         </div>
         <Button variant="primary" onClick={() => setShowAddModal(true)} style={{ backgroundColor: "#53b2a5", borderColor: "#53b2a5" }}>
           + Add Plan
@@ -382,7 +382,7 @@ const PlanPricing = () => {
 
           {!loading && plans.length > 0 && (
             <div className="d-flex justify-content-between align-items-center px-2 py-2">
-              <div className="text-muted small">
+              <div className=" small">
                 Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, plans.length)} of {plans.length} results
               </div>
               <div className="d-flex align-items-center gap-2">

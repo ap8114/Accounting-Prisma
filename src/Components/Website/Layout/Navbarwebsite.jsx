@@ -59,14 +59,14 @@ const Navbar = () => {
             >
               Login
             </Button>
-            <Button
+            {/* <Button
               as={Link}
               to="/signup"
               size="sm"
               className="btn-brand-outline fw-semibold px-4"
             >
               Sign Up
-            </Button>
+            </Button> */}
           </div>
         </div>
       </Container>
