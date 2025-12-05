@@ -1,4 +1,4 @@
-import React, { useState, useEffect , useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   Button,
   Form,
@@ -31,6 +31,13 @@ const Transaction = () => {
 
   console.log("Current Company ID (from GetCompanyId):", CompanyId);
 
+  // Permission states
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [canViewTransactions, setCanViewTransactions] = useState(false);
+  const [canCreateTransactions, setCanCreateTransactions] = useState(false);
+  const [canUpdateTransactions, setCanUpdateTransactions] = useState(false);
+  const [canDeleteTransactions, setCanDeleteTransactions] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -46,7 +53,7 @@ const Transaction = () => {
   const [vendors, setVendors] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [customerError, setCustomerError] = useState(null);
-   const { convertPrice, symbol, currency } = useContext(CurrencyContext);
+  const { convertPrice, symbol, currency } = useContext(CurrencyContext);
 
   // ✅ New state for search functionality
   const [searchTerm, setSearchTerm] = useState('');
@@ -122,6 +129,52 @@ const Transaction = () => {
 
   const fileInputRef = React.useRef();
 
+  // Check permissions
+  useEffect(() => {
+    // Get user role and permissions
+    const role = localStorage.getItem("role");
+    
+    // Superadmin and Company roles have access to all modules
+    if (role === "SUPERADMIN" || role === "COMPANY") {
+      setCanViewTransactions(true);
+      setCanCreateTransactions(true);
+      setCanUpdateTransactions(true);
+      setCanDeleteTransactions(true);
+    } else if (role === "USER") {
+      // For USER role, check specific permissions
+      try {
+        const permissions = JSON.parse(localStorage.getItem("userPermissions") || "[]");
+        setUserPermissions(permissions);
+        
+        // Check if user has permissions for All_Transaction
+        const transactionPermission = permissions.find(p => p.module_name === "All_Transaction");
+        
+        if (transactionPermission) {
+          setCanViewTransactions(transactionPermission.can_view || false);
+          setCanCreateTransactions(transactionPermission.can_create || false);
+          setCanUpdateTransactions(transactionPermission.can_update || false);
+          setCanDeleteTransactions(transactionPermission.can_delete || false);
+        } else {
+          setCanViewTransactions(false);
+          setCanCreateTransactions(false);
+          setCanUpdateTransactions(false);
+          setCanDeleteTransactions(false);
+        }
+      } catch (error) {
+        console.error("Error parsing user permissions:", error);
+        setCanViewTransactions(false);
+        setCanCreateTransactions(false);
+        setCanUpdateTransactions(false);
+        setCanDeleteTransactions(false);
+      }
+    } else {
+      setCanViewTransactions(false);
+      setCanCreateTransactions(false);
+      setCanUpdateTransactions(false);
+      setCanDeleteTransactions(false);
+    }
+  }, []);
+
   // ✅ Fetch customers & vendors from API
   const fetchCustomersAndVendors = async () => {
     if (!CompanyId) {
@@ -166,6 +219,11 @@ const Transaction = () => {
   const refetchTransactions = async () => {
     if (!CompanyId) {
       setError('Company ID not found. Please login again.');
+      setLoading(false);
+      return;
+    }
+
+    if (!canViewTransactions) {
       setLoading(false);
       return;
     }
@@ -229,7 +287,7 @@ const Transaction = () => {
       refetchTransactions();
       fetchCustomersAndVendors();
     }
-  }, [CompanyId]);
+  }, [CompanyId, canViewTransactions]);
 
   // Handle search for customers/vendors
   useEffect(() => {
@@ -256,7 +314,7 @@ const Transaction = () => {
         item.display_name
       ];
       
-      // Find the first non-empty name field
+      // Find first non-empty name field
       const itemName = nameFields.find(name => name && name.trim() !== '') || '';
       
       // Check phone number fields
@@ -268,7 +326,7 @@ const Transaction = () => {
         item.telephone
       ];
       
-      // Find the first non-empty phone field
+      // Find first non-empty phone field
       const itemPhone = phoneFields.find(phone => phone && phone.trim() !== '') || '';
       
       // Return true if search term matches either name or phone
@@ -292,7 +350,7 @@ const Transaction = () => {
       item.display_name
     ];
     
-    // Return the first non-empty name field
+    // Return first non-empty name field
     const name = nameFields.find(name => name && name.trim() !== '');
     
     return name || `ID: ${item.id}`;
@@ -309,7 +367,7 @@ const Transaction = () => {
       item.telephone
     ];
     
-    // Return the first non-empty phone field
+    // Return first non-empty phone field
     const phone = phoneFields.find(phone => phone && phone.trim() !== '');
     
     return phone || '';
@@ -326,12 +384,17 @@ const Transaction = () => {
   // ... (handleImport, handleExport, handleDownloadBlank remain unchanged)
 
   const handleSave = async () => {
+    if (!canCreateTransactions) {
+      toast.error("You don't have permission to create transactions");
+      return;
+    }
+
     setSaving(true);
     setModalError(null);
 
     try {
       const selectedList = fromToType === 'customer' ? customers : vendors;
-      // ✅ Fixed: Use getDisplayName to find the selected item
+      // ✅ Fixed: Use getDisplayName to find selected item
       const selectedItem = selectedList.find(item => getDisplayName(item) === form.fromTo);
 
       if (!selectedItem) {
@@ -372,6 +435,11 @@ const Transaction = () => {
   };
 
   const handleEdit = (idx) => {
+    if (!canUpdateTransactions) {
+      toast.error("You don't have permission to edit transactions");
+      return;
+    }
+
     const txn = transactions[idx];
     setSelectedTransaction(idx);
     setForm({
@@ -394,12 +462,17 @@ const Transaction = () => {
   };
 
   const handleUpdate = async () => {
+    if (!canUpdateTransactions) {
+      toast.error("You don't have permission to update transactions");
+      return;
+    }
+
     setSaving(true);
     setModalError(null);
 
     try {
       const selectedList = fromToType === 'customer' ? customers : vendors;
-      // ✅ Fixed: Use getDisplayName to find the selected item
+      // ✅ Fixed: Use getDisplayName to find selected item
       const selectedItem = selectedList.find(item => getDisplayName(item) === form.fromTo);
 
       if (!selectedItem) {
@@ -444,11 +517,21 @@ const Transaction = () => {
   };
 
   const handleView = (idx) => {
+    if (!canViewTransactions) {
+      toast.error("You don't have permission to view transactions");
+      return;
+    }
+
     setSelectedTransaction(idx);
     setShowViewModal(true);
   };
 
   const handleDelete = async (idx) => {
+    if (!canDeleteTransactions) {
+      toast.error("You don't have permission to delete transactions");
+      return;
+    }
+
     const txnId = transactions[idx]?.id;
     if (!txnId) {
       toast.error("Transaction ID not found.");
@@ -483,6 +566,11 @@ const Transaction = () => {
   // ======================
 
   const handleImport = (e) => {
+    if (!canCreateTransactions) {
+      toast.error("You don't have permission to import transactions");
+      return;
+    }
+
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -508,6 +596,11 @@ const Transaction = () => {
   };
 
   const handleExport = () => {
+    if (!canViewTransactions) {
+      toast.error("You don't have permission to export transactions");
+      return;
+    }
+
     const data = transactions
       .filter((txn) =>
         (filterVoucherType === '' || txn.voucherType === filterVoucherType) &&
@@ -532,6 +625,11 @@ const Transaction = () => {
   };
 
   const handleDownloadBlank = () => {
+    if (!canViewTransactions) {
+      toast.error("You don't have permission to download transaction reports");
+      return;
+    }
+
     const dataToExport = transactions
       .filter((txn) =>
         (filterVoucherType === '' || txn.voucherType === filterVoucherType) &&
@@ -610,6 +708,19 @@ const Transaction = () => {
     doc.save("transactions_report.pdf");
   };
 
+  // If user doesn't have view permission, show access denied message
+  if (!canViewTransactions) {
+    return (
+      <div className="p-4 mt-2">
+        <Card className="text-center p-5">
+          <h3>Access Denied</h3>
+          <p>You don't have permission to view Transactions.</p>
+          <p>Please contact your administrator for access.</p>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-3">
       <ToastContainer position="top-right" autoClose={3000} />
@@ -620,27 +731,37 @@ const Transaction = () => {
         </Col>
         <Col xs={12} md="auto" className="ms-auto">
           <div className="d-flex flex-wrap justify-content-end align-items-center gap-2" style={{ minWidth: "150px" }}>
-            <Button variant="success" size="sm" className="d-flex align-items-center gap-1" onClick={() => fileInputRef.current.click()} title="Import Excel">
-              <FaFileImport /> Import
-            </Button>
-            <Button variant="primary" size="sm" className="d-flex align-items-center gap-1" onClick={handleExport} title="Export Excel">
-              <FaFileExport /> Export
-            </Button>
-            <Button variant="warning" size="sm" className="d-flex align-items-center gap-1" onClick={handleDownloadBlank} title="Download PDF Report">
-              <FaDownload /> Download PDF
-            </Button>
-            <Button size="sm" style={customBtn} onClick={() => {
-              setSelectedTransaction(null);
-              setForm({ ...emptyForm });
-              setFromToType("customer");
-              setSearchTerm('');
-              setShowModal(true);
-            }}>
-              Add Transaction
-            </Button>
-            <Button variant="info" size="sm" style={customBtn} onClick={() => navigate("/company/ledger")} title="Go to Ledger">
-              Go to Ledger
-            </Button>
+            {canCreateTransactions && (
+              <Button variant="success" size="sm" className="d-flex align-items-center gap-1" onClick={() => fileInputRef.current.click()} title="Import Excel">
+                <FaFileImport /> Import
+              </Button>
+            )}
+            {canViewTransactions && (
+              <Button variant="primary" size="sm" className="d-flex align-items-center gap-1" onClick={handleExport} title="Export Excel">
+                <FaFileExport /> Export
+              </Button>
+            )}
+            {canViewTransactions && (
+              <Button variant="warning" size="sm" className="d-flex align-items-center gap-1" onClick={handleDownloadBlank} title="Download PDF Report">
+                <FaDownload /> Download PDF
+              </Button>
+            )}
+            {canCreateTransactions && (
+              <Button size="sm" style={customBtn} onClick={() => {
+                setSelectedTransaction(null);
+                setForm({ ...emptyForm });
+                setFromToType("customer");
+                setSearchTerm('');
+                setShowModal(true);
+              }}>
+                Add Transaction
+              </Button>
+            )}
+            {canViewTransactions && (
+              <Button variant="info" size="sm" style={customBtn} onClick={() => navigate("/company/ledger")} title="Go to Ledger">
+                Go to Ledger
+              </Button>
+            )}
           </div>
         </Col>
       </Row>
@@ -731,9 +852,15 @@ const Transaction = () => {
                   <td>{txn.note}</td>
                   <td>
                     <div className="d-flex gap-2">
-                      <button className="btn btn-link text-primary p-0" onClick={() => handleView(idx)}><FaEye /></button>
-                      <button className="btn btn-link text-success p-0" onClick={() => handleEdit(idx)}><FaEdit /></button>
-                      <button className="btn btn-link text-danger p-0" onClick={() => handleDelete(idx)}><FaTrash /></button>
+                      {canViewTransactions && (
+                        <button className="btn btn-link text-primary p-0" onClick={() => handleView(idx)}><FaEye /></button>
+                      )}
+                      {canUpdateTransactions && (
+                        <button className="btn btn-link text-success p-0" onClick={() => handleEdit(idx)}><FaEdit /></button>
+                      )}
+                      {canDeleteTransactions && (
+                        <button className="btn btn-link text-danger p-0" onClick={() => handleDelete(idx)}><FaTrash /></button>
+                      )}
                     </div>
                   </td>
                 </tr>

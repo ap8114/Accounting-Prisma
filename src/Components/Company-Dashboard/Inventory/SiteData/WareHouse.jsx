@@ -20,6 +20,13 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const WareHouse = () => {
+  // Permission states
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [canViewWarehouses, setCanViewWarehouses] = useState(false);
+  const [canCreateWarehouses, setCanCreateWarehouses] = useState(false);
+  const [canUpdateWarehouses, setCanUpdateWarehouses] = useState(false);
+  const [canDeleteWarehouses, setCanDeleteWarehouses] = useState(false);
+
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,11 +52,62 @@ const WareHouse = () => {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState(null);
 
+  // Check permissions
+  useEffect(() => {
+    // Get user role and permissions
+    const role = localStorage.getItem("role");
+    
+    // Superadmin and Company roles have access to all modules
+    if (role === "SUPERADMIN" || role === "COMPANY") {
+      setCanViewWarehouses(true);
+      setCanCreateWarehouses(true);
+      setCanUpdateWarehouses(true);
+      setCanDeleteWarehouses(true);
+    } else if (role === "USER") {
+      // For USER role, check specific permissions
+      try {
+        const permissions = JSON.parse(localStorage.getItem("userPermissions") || "[]");
+        setUserPermissions(permissions);
+        
+        // Check if user has permissions for Warehouse
+        const warehousePermission = permissions.find(p => p.module_name === "Warehouse");
+        
+        if (warehousePermission) {
+          setCanViewWarehouses(warehousePermission.can_view || false);
+          setCanCreateWarehouses(warehousePermission.can_create || false);
+          setCanUpdateWarehouses(warehousePermission.can_update || false);
+          setCanDeleteWarehouses(warehousePermission.can_delete || false);
+        } else {
+          setCanViewWarehouses(false);
+          setCanCreateWarehouses(false);
+          setCanUpdateWarehouses(false);
+          setCanDeleteWarehouses(false);
+        }
+      } catch (error) {
+        console.error("Error parsing user permissions:", error);
+        setCanViewWarehouses(false);
+        setCanCreateWarehouses(false);
+        setCanUpdateWarehouses(false);
+        setCanDeleteWarehouses(false);
+      }
+    } else {
+      setCanViewWarehouses(false);
+      setCanCreateWarehouses(false);
+      setCanUpdateWarehouses(false);
+      setCanDeleteWarehouses(false);
+    }
+  }, []);
+
   // --- Reusable fetch function ---
   const fetchWarehouses = async () => {
     if (!companyId) {
       setLoading(false);
       setError("Company ID not found.");
+      return;
+    }
+
+    if (!canViewWarehouses) {
+      setLoading(false);
       return;
     }
 
@@ -69,11 +127,11 @@ const WareHouse = () => {
         throw new Error("Invalid API response format");
       }
 
-      // FIX: Use the correct 'id' from the API response and be consistent
+      // FIX: Use correct 'id' from API response and be consistent
       const filteredAndMapped = warehouseData
         .filter((w) => w.company_id == companyId)
         .map((w) => ({
-          // Use the 'id' from the API response as the primary key
+          // Use 'id' from API response as primary key
           id: w.id, 
           name: w.warehouse_name || w.name,
           location: w.location,
@@ -98,7 +156,7 @@ const WareHouse = () => {
 
   useEffect(() => {
     fetchWarehouses();
-  }, [companyId]);
+  }, [companyId, canViewWarehouses]);
 
   // Helper function to reset form and close modal
   const resetFormAndCloseModal = () => {
@@ -119,10 +177,20 @@ const WareHouse = () => {
     resetFormAndCloseModal();
   };
 
-  // FIX: Ensure the correct 'id' is used when opening the edit modal
+  // FIX: Ensure correct 'id' is used when opening edit modal
   const handleModalShow = (data = null) => {
+    if (data && !canUpdateWarehouses) {
+      toast.error("You don't have permission to edit warehouses");
+      return;
+    }
+    
+    if (!data && !canCreateWarehouses) {
+      toast.error("You don't have permission to create warehouses");
+      return;
+    }
+    
     if (data) {
-      // Use the correct 'id' from the data object
+      // Use correct 'id' from data object
       setEditId(data.id); 
       setWarehouseName(data.name);
       setLocation(data.location);
@@ -149,6 +217,17 @@ const WareHouse = () => {
   // Updated handleFormSubmit with full address fields
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    
+    if (editId && !canUpdateWarehouses) {
+      toast.error("You don't have permission to update warehouses");
+      return;
+    }
+    
+    if (!editId && !canCreateWarehouses) {
+      toast.error("You don't have permission to create warehouses");
+      return;
+    }
+    
     setSaving(true);
     setModalError(null);
 
@@ -169,7 +248,7 @@ const WareHouse = () => {
 
       let response;
       if (editId) {
-        // FIX: The API call now correctly uses the numeric 'id'
+        // FIX: The API call now correctly uses numeric 'id'
         response = await axiosInstance.patch(`/warehouses/${editId}`, payload);
       } else {
         response = await axiosInstance.post("/warehouses", payload);
@@ -216,15 +295,20 @@ const WareHouse = () => {
     }
   };
 
-  // FIX: Use the correct 'id' for deleting
+  // FIX: Use correct 'id' for deleting
   const handleDelete = async (id) => {
+    if (!canDeleteWarehouses) {
+      toast.error("You don't have permission to delete warehouses");
+      return;
+    }
+    
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this warehouse?"
     );
     if (!confirmDelete) return;
 
     try {
-      // The API call now correctly uses the numeric 'id'
+      // The API call now correctly uses numeric 'id'
       await axiosInstance.delete(`/warehouses/${id}`);
       await fetchWarehouses();
       
@@ -254,6 +338,11 @@ const WareHouse = () => {
   );
 
   const handleImport = (e) => {
+    if (!canCreateWarehouses) {
+      toast.error("You don't have permission to import warehouses");
+      return;
+    }
+    
     const file = e.target.files[0];
     if (!file) return;
 
@@ -281,6 +370,11 @@ const WareHouse = () => {
   };
 
   const handleExport = () => {
+    if (!canViewWarehouses) {
+      toast.error("You don't have permission to export warehouses");
+      return;
+    }
+    
     const exportData = warehouses.map(({ name, location }) => ({
       "Warehouse Name": name,
       Location: location,
@@ -298,6 +392,11 @@ const WareHouse = () => {
   };
 
   const handleDownloadTemplate = () => {
+    if (!canCreateWarehouses) {
+      toast.error("You don't have permission to download warehouse templates");
+      return;
+    }
+    
     const template = [{ "Warehouse Name": "", Location: "" }];
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
@@ -443,9 +542,27 @@ const WareHouse = () => {
   };
 
   const handleAddStockModal = (warehouse) => {
+    if (!canCreateWarehouses) {
+      toast.error("You don't have permission to add stock to warehouses");
+      return;
+    }
+    
     setSelectedWarehouse(warehouse);
     setShowAdd(true);
   };
+
+  // If user doesn't have view permission, show access denied message
+  if (!canViewWarehouses) {
+    return (
+      <div className="p-4 mt-2">
+        <Card className="text-center p-5">
+          <h3>Access Denied</h3>
+          <p>You don't have permission to view Warehouses.</p>
+          <p>Please contact your administrator for access.</p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -467,13 +584,15 @@ const WareHouse = () => {
           />
 
           <div className="d-flex gap-2 flex-wrap">
-            <button
-              className="btn rounded-pill text-white"
-              style={{ backgroundColor: "#28a745", borderColor: "#28a745" }}
-              onClick={() => document.getElementById("excelImport").click()}
-            >
-              <i className="fas fa-file-import me-2" /> Import
-            </button>
+            {canCreateWarehouses && (
+              <button
+                className="btn rounded-pill text-white"
+                style={{ backgroundColor: "#28a745", borderColor: "#28a745" }}
+                onClick={() => document.getElementById("excelImport").click()}
+              >
+                <i className="fas fa-file-import me-2" /> Import
+              </button>
+            )}
 
             <input
               type="file"
@@ -483,30 +602,36 @@ const WareHouse = () => {
               onChange={handleImport}
             />
 
-            <Button
-              className="rounded-pill text-white"
-              style={{ backgroundColor: "#fd7e14", borderColor: "#fd7e14" }}
-              onClick={handleExport}
-            >
-              <i className="fas fa-file-export me-2" /> Export
-            </Button>
+            {canViewWarehouses && (
+              <Button
+                className="rounded-pill text-white"
+                style={{ backgroundColor: "#fd7e14", borderColor: "#fd7e14" }}
+                onClick={handleExport}
+              >
+                <i className="fas fa-file-export me-2" /> Export
+              </Button>
+            )}
 
-            <Button
-              className="rounded-pill text-white"
-              style={{ backgroundColor: "#ffc107", borderColor: "#ffc107" }}
-              onClick={handleDownloadTemplate}
-            >
-              <i className="fas fa-download me-2" /> Download
-            </Button>
+            {canCreateWarehouses && (
+              <Button
+                className="rounded-pill text-white"
+                style={{ backgroundColor: "#ffc107", borderColor: "#ffc107" }}
+                onClick={handleDownloadTemplate}
+              >
+                <i className="fas fa-download me-2" /> Download
+              </Button>
+            )}
 
-            <Button
-              className="set_btn text-white fw-semibold"
-              style={{ backgroundColor: "#3daaaa", borderColor: "#3daaaa" }}
-              onClick={() => handleModalShow()}
-              disabled={loading}
-            >
-              <i className="fa fa-plus me-2"></i> Create Warehouse
-            </Button>
+            {canCreateWarehouses && (
+              <Button
+                className="set_btn text-white fw-semibold"
+                style={{ backgroundColor: "#3daaaa", borderColor: "#3daaaa" }}
+                onClick={() => handleModalShow()}
+                disabled={loading}
+              >
+                <i className="fa fa-plus me-2"></i> Create Warehouse
+              </Button>
+            )}
           </div>
         </div>
 
@@ -550,24 +675,28 @@ const WareHouse = () => {
                           <td>{w.location}</td>
                           <td>
                             <div className="d-flex align-items-center gap-2 flex-wrap">
-                              <Button
-                                variant="link"
-                                className="text-warning p-0"
-                                onClick={() => handleModalShow(w)}
-                                title="Edit"
-                                disabled={loading}
-                              >
-                                <FaEdit size={18} />
-                              </Button>
-                              <Button
-                                variant="link"
-                                className="text-danger p-0"
-                                onClick={() => handleDelete(w.id)}
-                                title="Delete"
-                                disabled={loading}
-                              >
-                                <FaTrash size={18} />
-                              </Button>
+                              {canUpdateWarehouses && (
+                                <Button
+                                  variant="link"
+                                  className="text-warning p-0"
+                                  onClick={() => handleModalShow(w)}
+                                  title="Edit"
+                                  disabled={loading}
+                                >
+                                  <FaEdit size={18} />
+                                </Button>
+                              )}
+                              {canDeleteWarehouses && (
+                                <Button
+                                  variant="link"
+                                  className="text-danger p-0"
+                                  onClick={() => handleDelete(w.id)}
+                                  title="Delete"
+                                  disabled={loading}
+                                >
+                                  <FaTrash size={18} />
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>
