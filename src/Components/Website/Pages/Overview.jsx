@@ -121,7 +121,7 @@ const Overview = () => {
                   Buy Now
                 </Button>
                 <Button
-                  style={{ backgroundColor: "#076951ff", border: "none" }}
+                  style={{ backgroundColor: "#076951ff", color: "white", border: "none" }}
                   variant="outline-success"
                   size="lg"
                   as={Link}
