@@ -121,11 +121,12 @@ const Overview = () => {
                   Buy Now
                 </Button>
                 <Button
+                  style={{ backgroundColor: "#076951ff", color: "white", border: "none" }}
                   variant="outline-success"
                   size="lg"
                   as={Link}
                   to="/contact"
-                  className="text-dark px-4"
+                  className="px-4"
 
                 >
                   Consult with Experts

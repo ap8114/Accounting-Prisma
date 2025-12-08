@@ -187,7 +187,7 @@ const Dashboardd = () => {
               </div>
               <div className="card-body pt-0">
                 <h4 className="fw-bold mb-1">{card.value}</h4>
-                <p className="text-muted mb-0">{card.label}</p>
+                <p className=" mb-0">{card.label}</p>
               </div>
             </div>
           </div>

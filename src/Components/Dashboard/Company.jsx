@@ -568,7 +568,7 @@ const Company = () => {
           {filteredCompanies.length > 0 ? (
             filteredCompanies.map((company, index) => (
               <div className="col-lg-3 col-md-6" key={company.id}>
-                <div className="card shadow-sm rounded-4 p-3 border-0 card-hover position-relative" style={{ minHeight: "260px" }}>
+                <div className="card shadow-sm rounded-3 p-3 border card-hover position-relative" style={{ minHeight: "260px" }}>
                   <div className="d-flex justify-content-between align-items-start mb-3">
                     <span
                       className="badge px-3 py-2 rounded-pill fw-semibold"
@@ -637,11 +637,11 @@ const Company = () => {
                     />
                     <div>
                       <h6 className="mb-0 fw-semibold">{company.name}</h6>
-                      <small className="text-muted">{company.email}</small>
+                      <small className="">{company.email}</small>
                     </div>
                   </div>
 
-                  <div className="text-muted small mb-2 mt-3 px-1">
+                  <div className=" small mb-2 mt-3 px-1">
                     <div className="d-flex align-items-center mt-1 mb-1">
                       <BsCalendarWeek className="me-3 text-info" />
                       <strong className="me-1">Type:</strong>{" "}
@@ -696,12 +696,12 @@ const Company = () => {
       ) : (
         <div className="card mt-4 shadow-sm rounded-4">
           <div className="mt-3 mb-2 rounded-4">
-            <div className="card-header bg-white border-bottom-0">
+            <div className="card-header border-bottom-0">
               <h5 className="mb-0 fw-bold">Company Table View</h5>
             </div>
             <div className="table-responsive">
               <table className="table table-bordered table-hover align-middle">
-                <thead className="table-light">
+                <thead className="">
                   <tr>
                     <th>#</th>
                     <th>Avatar</th>
@@ -1582,9 +1582,9 @@ const Company = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="table-responsive">
+                  <div className="table-responsive border rounded-3">
                     <table className="table table-hover">
-                      <thead className="table-light">
+                      <thead className="">
                         <tr>
                           <th>#</th>
                           <th>Profile</th>

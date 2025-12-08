@@ -164,7 +164,7 @@ const Payments = () => {
             <h4 className="fw-bold d-flex align-items-center gap-2">
               <span role="img" aria-label="coins"></span> Payments
             </h4>
-            <p className="text-muted mb-0">Manage all your payment transactions</p>
+            <p className="mb-0">Manage all your payment transactions</p>
           </div>
           <div className="d-flex align-items-center gap-2">
             <button
@@ -186,7 +186,7 @@ const Payments = () => {
                   <div className="payments-icon bg-orange text-white">
                     <FaChartLine />
                   </div>
-                  <h6 className="text-muted mb-0">Total Revenue</h6>
+                  <h6 className=" mb-0">Total Revenue</h6>
                 </div>
                 <h5 className="fw-bold">
                   ₹{parseFloat(stats.totalRevenue || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -205,7 +205,7 @@ const Payments = () => {
                   <div className="payments-icon bg-success text-white">
                     <FaCheckCircle />
                   </div>
-                  <h6 className="text-muted mb-0">Success Rate</h6>
+                  <h6 className=" mb-0">Success Rate</h6>
                 </div>
                 <h5 className="fw-bold">{(stats.successRate || 0).toFixed(1)}%</h5>
                 <p className="text-success small mb-0">
@@ -222,7 +222,7 @@ const Payments = () => {
                   <div className="payments-icon bg-danger text-white">
                     <FaExclamationTriangle />
                   </div>
-                  <h6 className="text-muted mb-0">Failed Transactions</h6>
+                  <h6 className="mb-0">Failed Transactions</h6>
                 </div>
                 <h5 className="fw-bold text-danger">{stats.failedTransactions || 0}</h5>
                 <p className="text-danger small mb-0">
@@ -257,9 +257,9 @@ const Payments = () => {
         </div>
 
         {(activeTab === "All Payments" || activeTab === "Failed Transactions") && (
-          <div className="bg-white rounded shadow-sm p-3">
+          <div className="border rounded-3 shadow-sm p-3">
             <h5 className="fw-bold mb-1">{activeTab}</h5>
-            <p className="text-muted small mb-3">
+            <p className=" small mb-3">
               {activeTab === "All Payments"
                 ? "A list of all payment transactions."
                 : "Transactions that failed to process."}
@@ -268,11 +268,11 @@ const Payments = () => {
             {loading ? (
               <div className="text-center py-4">Loading transactions...</div>
             ) : filteredTransactions.length === 0 ? (
-              <div className="text-center py-4 text-muted">No transactions found.</div>
+              <div className="text-center py-4">No transactions found.</div>
             ) : (
               <div className="table-responsive">
                 <table className="table table-hover align-middle">
-                  <thead className="table-light">
+                  <thead className="">
                     <tr>
                       <th><input type="checkbox" /></th>
                       <th>Transaction ID</th>
@@ -318,7 +318,7 @@ const Payments = () => {
             )}
 
             <div className="d-flex justify-content-between align-items-center px-2 py-2">
-              <div className="text-muted small">
+              <div className="small">
                 Showing 1 to {filteredTransactions.length} of {filteredTransactions.length} results
               </div>
               {filteredTransactions.length > 10 && (
@@ -342,9 +342,9 @@ const Payments = () => {
 
         {/* Payment Settings Tab — unchanged */}
         {activeTab === "Payment Settings" && (
-          <div className="bg-white rounded shadow-sm p-2 p-md-4">
+          <div className=" rounded shadow-sm p-2 p-md-4">
             <h5 className="fw-bold mb-3">Payment Gateway Settings</h5>
-            <p className="text-muted mb-4">Configure your payment gateway settings.</p>
+            <p className="mb-4">Configure your payment gateway settings.</p>
             {/* Razorpay */}
             <div className="mb-4 border rounded p-2 p-md-3">
               <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-2">

@@ -121,9 +121,9 @@ const Users = () => {
 
         if (response.data.success && Array.isArray(response.data.data)) {
           const companyUsers = response.data.data.map(user => {
-            const roleId = user.user_role?.toString() || "3";
-            const roleObj = roles.find(r => r.id.toString() === roleId);
-            const roleName = roleObj ? roleObj.role_name : "Sales Executive";
+            const roleId = user.user_role?.toString() || "17"; // Default to staff role ID
+            const roleObj = roles.find(r => r.role_id.toString() === roleId);
+            const roleName = roleObj ? roleObj.role_name : "staff";
 
             return {
               id: user.id,
@@ -222,7 +222,7 @@ const Users = () => {
           id: response.data.id || Date.now(),
           img: previewImg,
           company_id: companyId,
-          role: roles.find(r => r.id.toString() === form.user_role)?.role_name || "Sales Executive"
+          role: roles.find(r => r.role_id.toString() === form.user_role)?.role_name || "staff"
         };
         setUsers(prev => [...prev, newUser]);
         alert('User created successfully!');
@@ -230,7 +230,7 @@ const Users = () => {
         response = await axiosInstance.put(`/auth/User/${form.id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        const updatedRoleName = roles.find(r => r.id.toString() === form.user_role)?.role_name || "Sales Executive";
+        const updatedRoleName = roles.find(r => r.role_id.toString() === form.user_role)?.role_name || "staff";
         setUsers(prev =>
           prev.map(u =>
             u.id === form.id
@@ -253,6 +253,7 @@ const Users = () => {
   const handleEdit = (user) => {
     setForm({
       ...user,
+      user_role: user.user_role?.toString() || "",
       confirmPassword: "",
       company_id: user.company_id || companyId,
     });
@@ -331,7 +332,6 @@ const Users = () => {
     setShowResetModal(true);
   };
 
-  // ✅ UPDATED PASSWORD RESET HANDLER
   const handleResetPassword = async () => {
     if (newPassword !== confirmNewPassword) {
       alert("New Password and Confirm Password do not match!");
@@ -349,7 +349,6 @@ const Users = () => {
     }
 
     try {
-      // ✅ Use the correct password reset endpoint
       const response = await axiosInstance.patch(
         `/password/requests/${userToReset.id}/approve`,
         {
@@ -475,7 +474,7 @@ const Users = () => {
         <Card className="mb-4">
           <Card.Body style={{ padding: 0 }}>
             <div style={{ overflowX: "auto" }}>
-              <Table responsive className="align-middle mb-0" style={{  fontSize: 16 }}>
+              <Table responsive className="align-middle mb-0" style={{ fontSize: 16 }}>
                 <thead className="">
                   <tr>
                     <th className="py-3">#</th>
@@ -594,10 +593,10 @@ const Users = () => {
             <Form.Group className="mb-2">
               <Form.Label>Role</Form.Label>
               <Form.Select
-                value={form.user_role}
+                value={form.user_role || ""}
                 onChange={(e) => {
                   const selectedId = e.target.value;
-                  const selectedRole = roles.find(r => r.id.toString() === selectedId);
+                  const selectedRole = roles.find(r => r.role_id.toString() === selectedId.toString());
                   setForm({
                     ...form,
                     user_role: selectedId,
@@ -606,9 +605,9 @@ const Users = () => {
                 }}
                 required
               >
-                <option>Select Role</option>
+                <option value="">Select Role</option>
                 {roles.map(role => (
-                  <option key={role.id} value={role.id.toString()}>
+                  <option key={role.role_id} value={role.role_id.toString()}>
                     {role.role_name}
                   </option>
                 ))}
