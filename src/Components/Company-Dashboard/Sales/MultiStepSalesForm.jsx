@@ -26,7 +26,7 @@ import {
   faUserPlus,
   faChevronDown,
 } from "@fortawesome/free-solid-svg-icons";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../../../Api/axiosInstance";
 import GetCompanyId from "../../../Api/GetCompanyId";
 
@@ -3130,16 +3130,18 @@ const handleSaveDraft = async () => {
                 }}
               />
             </Form.Group>
-            <div className="mt-2">
+            {/* <div className="mt-2">
               <Button
                 variant="outline-primary"
                 size="sm"
-                onClick={() => navigate("/add-customer")} // Example navigation
                 title="Add Customer"
               >
+                <Link
+                  to="company/customersdebtors" >
                 Add Customer
+                </Link>
               </Button>
-            </div>
+            </div> */}
           </Col>
           <Col md={4} className="d-flex flex-column align-items-start">
             <div
@@ -5002,7 +5004,7 @@ const handleSaveDraft = async () => {
                 <Button
                   variant="outline-primary"
                   size="sm"
-                  onClick={() => navigate("/add-customer")} // Example navigation
+                  onClick={() => navigate("company/customersdebtors")} // Example navigation
                   title="Add Customer"
                 >
                   Add Customer

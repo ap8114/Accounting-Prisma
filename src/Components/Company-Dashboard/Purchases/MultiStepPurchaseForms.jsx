@@ -1040,7 +1040,7 @@ const handleSaveStep = async () => {
               >
                 <FontAwesomeIcon icon={faSearch} />
               </Button>
-              <Button
+              {/* <Button
                 size="sm"
                 onClick={() => navigate("/Company/vendorscreditors")}
                 style={{
@@ -1051,7 +1051,7 @@ const handleSaveStep = async () => {
                 }}
               >
                 Add Vendor
-              </Button>
+              </Button> */}
             </div>
             {showVendorSearch && (
               <div
@@ -1730,7 +1730,7 @@ const handleSaveStep = async () => {
               >
                 <FontAwesomeIcon icon={faSearch} />
               </Button>
-              <Button
+              {/* <Button
                 size="sm"
                 onClick={() => navigate("/Company/vendorscreditors")}
                 style={{
@@ -1741,7 +1741,7 @@ const handleSaveStep = async () => {
                 }}
               >
                 Add Vendor
-              </Button>
+              </Button> */}
             </div>
             {showVendorSearch && (
               <div
@@ -2473,7 +2473,7 @@ const handleSaveStep = async () => {
               >
                 <FontAwesomeIcon icon={faSearch} />
               </Button>
-              <Button
+              {/* <Button
                 size="sm"
                 onClick={() => navigate("/Company/vendorscreditors")}
                 style={{
@@ -2484,7 +2484,7 @@ const handleSaveStep = async () => {
                 }}
               >
                 Add Vendor
-              </Button>
+              </Button> */}
             </div>
             {showVendorSearch && (
               <div
@@ -3167,7 +3167,7 @@ const handleSaveStep = async () => {
               >
                 <FontAwesomeIcon icon={faSearch} />
               </Button>
-              <Button
+              {/* <Button
                 size="sm"
                 onClick={() => navigate("/Company/vendorscreditors")}
                 style={{
@@ -3178,7 +3178,7 @@ const handleSaveStep = async () => {
                 }}
               >
                 Add Vendor
-              </Button>
+              </Button> */}
             </div>
             {showVendorSearch && (
               <div
@@ -3817,7 +3817,7 @@ const handleSaveStep = async () => {
               >
                 <FontAwesomeIcon icon={faSearch} />
               </Button>
-              <Button
+              {/* <Button
                 size="sm"
                 onClick={() => navigate("/Company/vendorscreditors")}
                 style={{
@@ -3828,7 +3828,7 @@ const handleSaveStep = async () => {
                 }}
               >
                 Add Vendor
-              </Button>
+              </Button> */}
             </div>
             {showVendorSearch && (
               <div
