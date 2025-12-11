@@ -99,7 +99,7 @@ const Expense = () => {
 
         // Check if user has permissions for Expenses module
         const expensePermission = permissions.find(p => p.module_name === "Expenses");
-        
+
         if (expensePermission) {
           setHasPermission(true);
           setExpensePermissions({
@@ -473,7 +473,7 @@ const Expense = () => {
     <div className="p-4 mt-1 product-header">
       {/* Toast Container */}
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
-      
+
       {/* Header */}
       <div className="d-flex justify-content-between gap-4 mb-4">
         <div><h5 className="fw-bold mb-1">Expense Voucher</h5></div>
