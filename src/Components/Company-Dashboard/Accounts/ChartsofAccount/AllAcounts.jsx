@@ -64,7 +64,7 @@ const AllAccounts = () => {
   useEffect(() => {
     // Get user role and permissions
     const role = localStorage.getItem("role");
-    
+
     // Superadmin and Company roles have access to all modules
     if (role === "SUPERADMIN" || role === "COMPANY") {
       setCanView(true);
@@ -76,10 +76,10 @@ const AllAccounts = () => {
       try {
         const permissions = JSON.parse(localStorage.getItem("userPermissions") || "[]");
         setUserPermissions(permissions);
-        
+
         // Check if user has permissions for Charts_of_Accounts
         const chartsPermission = permissions.find(p => p.module_name === "Charts_of_Accounts");
-        
+
         if (chartsPermission) {
           setCanView(chartsPermission.can_view || false);
           setCanCreate(chartsPermission.can_create || false);
@@ -248,7 +248,7 @@ const AllAccounts = () => {
 
   const fetchAccountData = useCallback(async () => {
     if (!canView) return; // Don't fetch data if user doesn't have view permission
-    
+
     setLoading(true);
     try {
       const response = await axiosInstance.get(
@@ -288,7 +288,7 @@ const AllAccounts = () => {
 
   const handleSaveNewAccount = async (e) => {
     if (!canCreate) return; // Check create permission
-    
+
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -330,7 +330,7 @@ const AllAccounts = () => {
 
   const handleAddNewParent = () => {
     if (!canCreate) return; // Check create permission
-    
+
     if (!selectedMainCategory) {
       alert("Please select a main category");
       return;
@@ -341,7 +341,7 @@ const AllAccounts = () => {
 
   const handleViewAccount = (type, name) => {
     if (!canView) return; // Check view permission
-    
+
     const accountGroup = accountData.find((acc) => acc.type === type);
     const row = accountGroup?.rows.find(
       (r) => r.name === name || r.originalName === name
@@ -366,7 +366,7 @@ const AllAccounts = () => {
 
   const handleEditAccount = (type, name) => {
     if (!canUpdate) return; // Check update permission
-    
+
     const accountGroup = accountData.find((acc) => acc.type === type);
     const row = accountGroup?.rows.find(
       (r) => r.name === name || r.originalName === name
@@ -391,7 +391,7 @@ const AllAccounts = () => {
 
   const handleDeleteAccount = async (type, name) => {
     if (!canDelete) return; // Check delete permission
-    
+
     try {
       setIsDeleting(true);
       isDeletingRef.current = true;
@@ -419,7 +419,7 @@ const AllAccounts = () => {
 
   const handleViewLedger = (type, name) => {
     if (!canView) return; // Check view permission
-    
+
     const accountGroup = accountData.find((acc) => acc.type === type);
     const row = accountGroup?.rows.find(
       (r) => r.name === name || r.originalName === name
@@ -441,10 +441,10 @@ const AllAccounts = () => {
       },
     });
   };
-  
+
   const handleSaveEditedAccount = async (updatedAccount) => {
     if (!canUpdate) return; // Check update permission
-    
+
     if (apiCallLock.current) return;
 
     const now = Date.now();
@@ -492,7 +492,7 @@ const AllAccounts = () => {
 
   const handleDeleteConfirmed = async () => {
     if (!canDelete) return; // Check delete permission
-    
+
     if (isDeletingRef.current) return;
     isDeletingRef.current = true;
     setIsDeleting(true);
@@ -790,21 +790,21 @@ const AllAccounts = () => {
       )}
 
       {/* Modals */}
-      <AddCustomerModal
+      {/* <AddCustomerModal
         show={showCustomerModal}
         onHide={() => setShowCustomerModal(false)}
         onSave={handleSaveCustomer}
         customerFormData={customerFormData}
         setCustomerFormData={setCustomerFormData}
         keyboard={false}
-      />
-      <AddVendorModal
+      /> */}
+      {/* <AddVendorModal
         show={showVendorModal}
         onHide={() => setShowVendorModal(false)}
         onSave={handleSaveVendor}
         vendorFormData={vendorFormData}
         setVendorFormData={setVendorFormData}
-      />
+      /> */}
       <AddNewAccountModal
         show={showNewAccountModal}
         onHide={() => setShowNewAccountModal(false)}

@@ -44,7 +44,7 @@ const Company = () => {
     plan_type: "",
     start_date: "",
     expire_date: "",
-    logo: null,
+    logo: "",
     logoPreview: "",
   });
   const [deleteIndex, setDeleteIndex] = useState(null);
@@ -197,6 +197,7 @@ const Company = () => {
       toast.error(msg);
     } finally {
       setResetting(false);
+
     }
   };
 
@@ -290,7 +291,7 @@ const Company = () => {
         formData.append("logo", editCompany.logo);
       }
 
-      const response = await axiosInstance.patch(
+      const response = await axiosInstance.put(
         `auth/Company/${editCompany.id}`,
         formData,
         {
@@ -442,9 +443,8 @@ const Company = () => {
           <div className="d-flex align-items-center gap-3">
             <div className="d-flex gap-2">
               <button
-                className={`btn btn-sm d-flex align-items-center gap-2 ${
-                  viewMode === "card" ? "btn-dark" : "btn-outline-secondary"
-                }`}
+                className={`btn btn-sm d-flex align-items-center gap-2 ${viewMode === "card" ? "btn-dark" : "btn-outline-secondary"
+                  }`}
                 onClick={() => setViewMode("card")}
                 style={{
                   backgroundColor: viewMode === "card" ? "#53b2a5" : "transparent",
@@ -457,9 +457,8 @@ const Company = () => {
                 <i className="fas fa-border-all"></i>
               </button>
               <button
-                className={`btn btn-sm d-flex align-items-center gap-2 ${
-                  viewMode === "table" ? "btn-dark" : "btn-outline-secondary"
-                }`}
+                className={`btn btn-sm d-flex align-items-center gap-2 ${viewMode === "table" ? "btn-dark" : "btn-outline-secondary"
+                  }`}
                 onClick={() => setViewMode("table")}
                 style={{
                   backgroundColor: viewMode === "table" ? "#53b2a5" : "transparent",
@@ -746,9 +745,8 @@ const Company = () => {
                         <td>{formatDate(company.expireDate)}</td>
                         <td>
                           <span
-                            className={`badge ${
-                              company.user_plans?.[0]?.status === "Active" ? "bg-success" : "bg-danger"
-                            }`}
+                            className={`badge ${company.user_plans?.[0]?.status === "Active" ? "bg-success" : "bg-danger"
+                              }`}
                           >
                             {company.user_plans?.[0]?.status || "N/A"}
                           </span>
@@ -1630,9 +1628,9 @@ const Company = () => {
                             <td>
                               <span
                                 className={`badge ${user.UserStatus === "Active" ||
-                                    user.UserStatus === null
-                                    ? "bg-success"
-                                    : "bg-danger"
+                                  user.UserStatus === null
+                                  ? "bg-success"
+                                  : "bg-danger"
                                   }`}
                               >
                                 {user.UserStatus || "Active"}

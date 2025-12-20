@@ -1120,7 +1120,8 @@ const handleSkip = () => {
   };
 
   const handleSelectSearchedWarehouse = (tab, index, warehouse) => {
-    handleItemChange(tab, index, "warehouse", warehouse.warehouse_id);
+    handleItemChange(tab, index, "warehouse", warehouse.warehouse_name);
+    // handleItemChange(tab, index, "warehouse", warehouse.warehouse_id);
     setShowWarehouseSearch((prev) => ({
       ...prev,
       [`${tab}-${index}`]: false,
@@ -1130,6 +1131,25 @@ const handleSkip = () => {
       [`${tab}-${index}`]: "",
     }));
   };
+
+//   const handleSelectSearchedWarehouse = (tab, index, warehouse) => {
+//   // ✅ backend ke liye ID
+//   handleItemChange(tab, index, "warehouse_id", warehouse.warehouse_id);
+
+//   // ✅ UI ke liye NAME
+//   handleItemChange(tab, index, "warehouse_name", warehouse.warehouse_name);
+
+//   setShowWarehouseSearch((prev) => ({
+//     ...prev,
+//     [`${tab}-${index}`]: false,
+//   }));
+
+//   setWarehouseSearchTerms((prev) => ({
+//     ...prev,
+//     [`${tab}-${index}`]: "",
+//   }));
+// };
+
 
   const toggleWarehouseSearch = (tab, index) => {
     const rowKey = `${tab}-${index}`;
@@ -2397,7 +2417,7 @@ const handleSaveDraft = async () => {
           <thead className="bg-light">
             <tr>
               <th>Item Name</th>
-              <th>Warehouse (Stock)</th>
+              <th>Warehouse</th>
               <th>Qty</th>
               {tab === "deliveryChallan" && <th>Delivered Qty</th>}
               <th>Rate</th>
@@ -2638,7 +2658,7 @@ const handleSaveDraft = async () => {
                                   borderBottom: "1px solid #eee",
                                 }}
                                 onClick={() =>
-                                  handleSelectSearchedWarehouse(tab, idx, wh)
+                                  handleSelectSearchedWarehouse(tab, idx, wh, name)
                                 }
                                 onMouseEnter={(e) =>
                                   (e.currentTarget.style.backgroundColor =
@@ -5001,14 +5021,14 @@ const handleSaveDraft = async () => {
                     marginRight: "5px",
                   }}
                 />
-                <Button
+                {/* <Button
                   variant="outline-primary"
                   size="sm"
                   onClick={() => navigate("company/customersdebtors")} // Example navigation
                   title="Add Customer"
                 >
                   Add Customer
-                </Button>
+                </Button> */}
               </div>
             </Form.Group>
             <Form.Group className="mb-2 w-100">

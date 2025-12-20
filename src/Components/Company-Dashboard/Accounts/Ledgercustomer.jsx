@@ -787,7 +787,7 @@ const Ledgercustomer = () => {
                     { type: "Sales Return", count: summary.sales_return },
                     { type: "Journal", count: summary.journal },
                     { type: "Contra", count: summary.contra },
-                    { type: "Adjustments", count: summary.adjustments },
+                    // { type: "Adjustments", count: summary.adjustments },
                   ].map((item, idx) => (
                     <tr key={idx}>
                       <td className="fw-bold">{item.type}</td>

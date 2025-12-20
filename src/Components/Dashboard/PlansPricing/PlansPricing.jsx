@@ -350,7 +350,7 @@ const PlanPricing = () => {
                             : `${getCurrencySymbol(plan.currency)}${plan.additional_invoice_price || 0}/invoice`}
                         </td>
                         <td>{formatUserLimit(plan.user_limit)}</td>
-                        <td>{formatStorageCapacity(plan.storage_capacity)}</td>
+                        <td>{plan.storage_capacity}</td>
                         <td>{plan.billing_cycle || "Monthly"}</td>
                         <td>
                           <span className={`badge ${plan.status === "Inactive" ? "bg-warning text-dark" : "bg-success"}`}>

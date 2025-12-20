@@ -37,9 +37,6 @@ const calculateTotalPrice = (basePrice, selectedModules, currencyCode) => {
   return `${symbol}${total.toFixed(2)}`;
 };
 
-// Convert GB to bytes (1 GB = 1024^3 bytes)
-const gbToBytes = (gb) => gb * 1024 * 1024 * 1024;
-
 const AddPlanModal = ({ show, handleClose, handleAdd }) => {
   const staticModules = [
     { id: 1, label: "Account" },
@@ -62,7 +59,7 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
     invoiceLimit: 10,
     additionalInvoicePrice: 2.00,
     userLimit: 1,
-    storageCapacity: 5, // in GB
+    storageCapacity: "5GB", // Changed to string with GB suffix
     currency: "USD"
   });
   
@@ -118,7 +115,7 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
     const value = e.target.value;
     setFormData((prev) => ({ 
       ...prev, 
-      storageCapacity: value === "unlimited" ? "unlimited" : parseInt(value)
+      storageCapacity: value === "unlimited" ? "unlimited" : `${value}GB`
     }));
   };
   
@@ -128,7 +125,14 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
   };
   
   const handleCustomStorageCapacitySave = (newCapacity) => {
-    setFormData(prev => ({ ...prev, storageCapacity: newCapacity }));
+    // Ensure the custom capacity includes GB suffix if it's a number
+    const formattedCapacity = newCapacity === "unlimited" 
+      ? "unlimited" 
+      : (typeof newCapacity === 'string' && newCapacity.includes('GB') 
+          ? newCapacity 
+          : `${newCapacity}GB`);
+    
+    setFormData(prev => ({ ...prev, storageCapacity: formattedCapacity }));
     setShowCustomStorageCapacityModal(false);
   };
   
@@ -177,9 +181,10 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
         invoice_limit: formData.invoiceLimit === "unlimited" ? -1 : parseInt(formData.invoiceLimit),
         additional_invoice_price: formData.invoiceLimit === "unlimited" ? 0 : parseFloat(formData.additionalInvoicePrice) || 0,
         user_limit: formData.userLimit === "unlimited" ? -1 : parseInt(formData.userLimit),
+        // Fixed: Send storage_capacity as string instead of converting to bytes
         storage_capacity: formData.storageCapacity === "unlimited" 
-          ? -1 
-          : gbToBytes(parseInt(formData.storageCapacity)),
+          ? "unlimited" 
+          : formData.storageCapacity,
         billing_cycle: formData.billing,
         status: formData.status,
         description: formData.descriptions.filter(desc => desc.trim() !== "").join("\n"),
@@ -211,7 +216,7 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
         invoiceLimit: 10,
         additionalInvoicePrice: 2.00,
         userLimit: 1,
-        storageCapacity: 5,
+        storageCapacity: "5GB", // Reset to string with GB suffix
         currency: "USD"
       });
       
@@ -362,7 +367,7 @@ const AddPlanModal = ({ show, handleClose, handleAdd }) => {
                   <InputGroup>
                     <Form.Select 
                       name="storageCapacity" 
-                      value={formData.storageCapacity || ""} 
+                      value={formData.storageCapacity === "unlimited" ? "unlimited" : parseInt(formData.storageCapacity) || ""} 
                       onChange={handleStorageCapacityChange}
                     >
                       <option value="5">5 GB</option>
