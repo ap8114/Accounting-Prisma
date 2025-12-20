@@ -161,8 +161,8 @@ const RequestPlan = () => {
         </div>
 
         {apiError && (
-          <div className="alert alert-warning alert-dismissible fade show mb-4" role="alert">
-            Unable to fetch requested plans. Showing cached data if available.
+          <div className="alert alert-info alert-dismissible fade show mb-4" role="alert">
+            No data is available.
             <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         )}
