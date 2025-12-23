@@ -9,6 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 const AddNewAccountModal = ({
   show,
   onHide,
+  onExited,
   onSave,
   newAccountData,
   setNewAccountData,
@@ -359,11 +360,11 @@ const AddNewAccountModal = ({
       <Modal
         show={show}
         onHide={onHide}
+        onExited={onExited}
         centered
         backdrop="static"
         size="xl"
         dialogClassName="w-100"
-
         keyboard={false}
       >
         <div>
