@@ -60,6 +60,16 @@ const AllAccounts = () => {
   const apiCallLock = useRef(false);
   const lastSaveTime = useRef(0);
 
+  // Modal hang fix refs
+  const isCleaningUpViewRef = useRef(false);
+  const isCleaningUpEditRef = useRef(false);
+  const isCleaningUpDeleteRef = useRef(false);
+  const modalKeyViewRef = useRef(0);
+  const modalKeyEditRef = useRef(0);
+  const modalKeyDeleteRef = useRef(0);
+  const isCleaningUpNewAccountRef = useRef(false);
+  const modalKeyNewAccountRef = useRef(0);
+
   // Check permissions
   useEffect(() => {
     // Get user role and permissions
@@ -342,6 +352,11 @@ const AllAccounts = () => {
   const handleViewAccount = (type, name) => {
     if (!canView) return; // Check view permission
     
+    // Reset cleanup flag
+    isCleaningUpViewRef.current = false;
+    // Force modal remount
+    modalKeyViewRef.current += 1;
+    
     const accountGroup = accountData.find((acc) => acc.type === type);
     const row = accountGroup?.rows.find(
       (r) => r.name === name || r.originalName === name
@@ -367,6 +382,11 @@ const AllAccounts = () => {
   const handleEditAccount = (type, name) => {
     if (!canUpdate) return; // Check update permission
     
+    // Reset cleanup flag
+    isCleaningUpEditRef.current = false;
+    // Force modal remount
+    modalKeyEditRef.current += 1;
+    
     const accountGroup = accountData.find((acc) => acc.type === type);
     const row = accountGroup?.rows.find(
       (r) => r.name === name || r.originalName === name
@@ -389,32 +409,34 @@ const AllAccounts = () => {
     setActionModal({ show: true, mode: "edit" });
   };
 
-  const handleDeleteAccount = async (type, name) => {
+  const handleDeleteAccount = (type, name) => {
     if (!canDelete) return; // Check delete permission
     
-    try {
-      setIsDeleting(true);
-      isDeletingRef.current = true;
+    // Reset cleanup flag
+    isCleaningUpDeleteRef.current = false;
+    // Force modal remount
+    modalKeyDeleteRef.current += 1;
+    
+    const accountGroup = accountData.find((acc) => acc.type === type);
+    const row = accountGroup?.rows.find(
+      (r) => r.name === name || r.originalName === name
+    );
 
-      const accountGroup = accountData.find((acc) => acc.type === type);
-      const row = accountGroup?.rows.find(
-        (r) => r.name === name || r.originalName === name
-      );
-
-      if (!row || !row.id) throw new Error("Account not found");
-
-      if (
-        window.confirm(`Are you sure you want to delete the account "${name}"?`)
-      ) {
-        await axiosInstance.delete(`${BaseUrl}account/${row.id}`);
-        setRefreshData((prev) => prev + 1);
-      }
-    } catch (error) {
-      console.error("Failed to delete account:", error);
-    } finally {
-      setIsDeleting(false);
-      isDeletingRef.current = false;
-    }
+    setSelectedAccount({
+      type,
+      name: row ? row.name : name,
+      originalName: row ? row.originalName : name,
+      id: row ? row.id : null,
+      balance: row ? parseFloat(row.bal) : 0,
+      has_bank_details: row ? row.has_bank_details : "No",
+      account_number: row ? row.account_number : "",
+      ifsc_code: row ? row.ifsc_code : "",
+      bank_name_branch: row ? row.bank_name_branch : "",
+      subgroup_id: row ? row.subgroup_id : "",
+      company_id: row ? row.company_id : "",
+      sub_of_subgroup_id: row?.sub_of_subgroup_id || "",
+    });
+    setActionModal({ show: true, mode: "delete" });
   };
 
   const handleViewLedger = (type, name) => {
@@ -479,7 +501,7 @@ const AllAccounts = () => {
         payload
       );
 
-      setActionModal({ show: false, mode: null });
+      handleCloseEditModal();
       setRefreshData((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to update account:", error);
@@ -504,7 +526,7 @@ const AllAccounts = () => {
       }
       await axiosInstance.delete(`${BaseUrl}account/${selectedAccount.id}`);
 
-      setActionModal({ show: false, mode: null });
+      handleCloseDeleteModal();
       setRefreshData((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to delete account:", error);
@@ -512,6 +534,77 @@ const AllAccounts = () => {
       setIsDeleting(false);
       isDeletingRef.current = false;
     }
+  };
+
+  // Close handlers for modals
+  const handleCloseViewModal = () => {
+    if (isCleaningUpViewRef.current) return;
+    isCleaningUpViewRef.current = true;
+    setActionModal({ show: false, mode: null });
+    modalKeyViewRef.current += 1;
+  };
+
+  const handleCloseEditModal = () => {
+    if (isCleaningUpEditRef.current) return;
+    isCleaningUpEditRef.current = true;
+    setActionModal({ show: false, mode: null });
+    modalKeyEditRef.current += 1;
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (isCleaningUpDeleteRef.current) return;
+    isCleaningUpDeleteRef.current = true;
+    setActionModal({ show: false, mode: null });
+    modalKeyDeleteRef.current += 1;
+  };
+
+  // onExited handlers for modals
+  const handleViewModalExited = () => {
+    setSelectedAccount(null);
+    isCleaningUpViewRef.current = false;
+  };
+
+  const handleEditModalExited = () => {
+    setSelectedAccount(null);
+    isCleaningUpEditRef.current = false;
+  };
+
+  const handleDeleteModalExited = () => {
+    setSelectedAccount(null);
+    isCleaningUpDeleteRef.current = false;
+  };
+
+  // Handle opening new account modal
+  const handleOpenNewAccountModal = () => {
+    // Reset cleanup flag
+    isCleaningUpNewAccountRef.current = false;
+    // Force modal remount
+    modalKeyNewAccountRef.current += 1;
+    setShowNewAccountModal(true);
+  };
+
+  const handleCloseNewAccountModal = () => {
+    if (isCleaningUpNewAccountRef.current) return;
+    isCleaningUpNewAccountRef.current = true;
+    setShowNewAccountModal(false);
+    modalKeyNewAccountRef.current += 1;
+  };
+
+  const handleNewAccountModalExited = () => {
+    setNewAccountData({
+      type: "",
+      subgroup: "",
+      name: "",
+      bankAccountNumber: "",
+      bankIFSC: "",
+      bankNameBranch: "",
+      parentId: "",
+      balance: "0.00",
+      phone: "",
+      email: "",
+      isDefault: false,
+    });
+    isCleaningUpNewAccountRef.current = false;
   };
 
   const [filterName, setFilterName] = useState("");
@@ -582,7 +675,7 @@ const AllAccounts = () => {
                 padding: "8px 16px",
               }}
               className="d-flex align-items-center gap-2 text-white fw-semibold flex-shrink-0"
-              onClick={() => setShowNewAccountModal(true)}
+              onClick={handleOpenNewAccountModal}
             >
               + Add New Account
             </Button>
@@ -806,8 +899,10 @@ const AllAccounts = () => {
         setVendorFormData={setVendorFormData}
       />
       <AddNewAccountModal
+        key={modalKeyNewAccountRef.current}
         show={showNewAccountModal}
-        onHide={() => setShowNewAccountModal(false)}
+        onHide={handleCloseNewAccountModal}
+        onExited={handleNewAccountModalExited}
         onSave={handleSaveNewAccount}
         newAccountData={newAccountData}
         setNewAccountData={setNewAccountData}
@@ -821,8 +916,34 @@ const AllAccounts = () => {
         handleAddNewParent={handleAddNewParent}
       />
       <AccountActionModal
+        key={
+          actionModal.mode === "view"
+            ? `view-${modalKeyViewRef.current}`
+            : actionModal.mode === "edit"
+            ? `edit-${modalKeyEditRef.current}`
+            : actionModal.mode === "delete"
+            ? `delete-${modalKeyDeleteRef.current}`
+            : 0
+        }
         show={actionModal.show}
-        onHide={() => setActionModal({ show: false, mode: null })}
+        onHide={
+          actionModal.mode === "view"
+            ? handleCloseViewModal
+            : actionModal.mode === "edit"
+            ? handleCloseEditModal
+            : actionModal.mode === "delete"
+            ? handleCloseDeleteModal
+            : () => setActionModal({ show: false, mode: null })
+        }
+        onExited={
+          actionModal.mode === "view"
+            ? handleViewModalExited
+            : actionModal.mode === "edit"
+            ? handleEditModalExited
+            : actionModal.mode === "delete"
+            ? handleDeleteModalExited
+            : undefined
+        }
         mode={actionModal.mode}
         accountData={accountData}
         selectedAccount={selectedAccount}
