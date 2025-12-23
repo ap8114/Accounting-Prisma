@@ -179,9 +179,9 @@ const PurchaseOrderr = () => {
       alert("You don't have permission to create purchase orders.");
       return;
     }
-    
+
     const initialStep = order ? getFirstIncompleteStep(order) : "purchaseQuotation";
-    
+
     setSelectedOrder({
       id: order?.id,
       initialStep,
@@ -214,7 +214,7 @@ const PurchaseOrderr = () => {
       alert("You don't have permission to delete purchase orders.");
       return;
     }
-    
+
     if (!deleteConfirm) return;
     try {
       const res = await axiosInstance.delete(`purchase-orders/${deleteConfirm.id}`);
@@ -236,7 +236,7 @@ const PurchaseOrderr = () => {
       alert("You don't have permission to view purchase orders.");
       return;
     }
-    
+
     try {
       // If we already have the full order data, use it
       if (order.fullOrderData) {
@@ -341,17 +341,6 @@ const PurchaseOrderr = () => {
           <span className="visually-hidden">Loading...</span>
         </div>
         <span className="ms-2">Loading purchase orders...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="d-flex justify-content-center align-items-center vh-50">
-        <div className="text-center">
-          <h3 className="text-danger">Error</h3>
-          <p>{error}</p>
-        </div>
       </div>
     );
   }
@@ -506,6 +495,7 @@ const PurchaseOrderr = () => {
               <tr key={order.id}>
                 <td>{idx + 1}</td>
                 <td>{order.orderNo}</td>
+                <td>{order.vendor}</td>
                 <td>{order.date}</td>
                 <td>{order.amount}</td>
                 <td>{statusBadge(order.purchaseQuotationStatus)}</td>

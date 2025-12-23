@@ -22,6 +22,7 @@ import BaseUrl from "../../../Api/BaseUrl";
 import GetCompanyId from "../../../Api/GetCompanyId";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import AddNewAccountModal from "../Accounts/ChartsofAccount/AddNewAccountModal";
 
 const Expense = () => {
   const companyId = GetCompanyId();
@@ -29,6 +30,12 @@ const Expense = () => {
   const [editExpense, setEditExpense] = useState(null);
   const [deleteExpense, setDeleteExpense] = useState(null);
   const [activeTab, setActiveTab] = useState("direct");
+  const [canCreate, setCanCreate] = useState(false);
+  const [showNewAccountModal, setShowNewAccountModal] = useState(false);
+  const [showBankDetails, setShowBankDetails] = useState(true);
+  const [showAddParentModal, setShowAddParentModal] = useState(false);
+  const [selectedMainCategory, setSelectedMainCategory] = useState("");
+  const [accountData, setAccountData] = useState([]);
   const [filters, setFilters] = useState({
     accountName: "",
     paymentNo: "",
@@ -250,7 +257,7 @@ const Expense = () => {
     const newRow = {
       id: Date.now(), // Unique ID (better than length+1)
       account: "",
-      amount: 0.0,
+      amount: 0,
       narration: "",
     };
     setTableRows((prevRows) => [...prevRows, newRow]);
@@ -261,6 +268,62 @@ const Expense = () => {
       setTableRows(tableRows.filter(row => row.id !== id));
     }
   };
+
+  const handleSaveNewAccount = async (e) => {
+    if (!canCreate) return; // Check create permission
+
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    if (apiCallLock.current) return;
+
+    const now = Date.now();
+    if (now - lastSaveTime.current < 2000) return;
+
+    lastSaveTime.current = now;
+    apiCallLock.current = true;
+    isSavingRef.current = true;
+
+    try {
+      await axiosInstance.post(`${BaseUrl}account`, {
+        subgroup_id: newAccountData.subgroup_id,
+        company_id: companyId,
+        account_name: newAccountData.name,
+        has_bank_details: showBankDetails ? 1 : 0,
+        account_number: newAccountData.bankAccountNumber || "",
+        ifsc_code: newAccountData.bankIFSC || "",
+        bank_name_branch: newAccountData.bankNameBranch || "",
+        sub_of_subgroup_id: newAccountData.sub_of_subgroup_id || "",
+      });
+
+      setShowNewAccountModal(false);
+      setNewAccountData({
+        /* reset state */
+      });
+      setRefreshData((prev) => prev + 1);
+    } catch (error) {
+      console.error("Failed to save new account:", error);
+    } finally {
+      apiCallLock.current = false;
+      isSavingRef.current = false;
+    }
+  };
+
+  const [newAccountData, setNewAccountData] = useState({
+    type: "",
+    subgroup: "",
+    name: "",
+    bankAccountNumber: "",
+    bankIFSC: "",
+    bankNameBranch: "",
+    parentId: "",
+    balance: "0.00",
+    phone: "",
+    email: "",
+    isDefault: false,
+  });
 
   const handleRowChange = (id, field, value) => {
     setTableRows(tableRows.map(row => (row.id === id ? { ...row, [field]: value } : row)));
@@ -324,7 +387,7 @@ const Expense = () => {
       if (result.status) { // Changed from result.success to result.status
         toast.success("Voucher Created Successfully!");
         form.reset();
-        setTableRows([{ id: 1, account: "", amount: "0.00", narration: "" }]);
+        setTableRows([{ id: 1, account: "", amount: "0", narration: "" }]);
         setNarration("");
         setManualReceiptNo("");
         setSelectedPaidFrom(accounts.length > 0 ? accounts[0].id : "");
@@ -417,6 +480,17 @@ const Expense = () => {
         setSubmitting(false);
       }
     }
+  };
+
+  const handleAddNewParent = () => {
+    if (!canCreate) return; // Check create permission
+
+    if (!selectedMainCategory) {
+      alert("Please select a main category");
+      return;
+    }
+    setSelectedMainCategory("");
+    setShowAddParentModal(false);
   };
 
   const formatDate = (dateString) => {
@@ -647,15 +721,39 @@ const Expense = () => {
                 </div>
                 <div className="col-md-6">
                   <label className="form-label fw-semibold">Paid From</label>
-                  <select className="form-select" value={selectedPaidFrom} onChange={handlePaidFromChange} required>
-                    <option value="">Select Account</option>
-                    {accounts.map((account) => (
-                      <option key={`paid-from-${account.id}`} value={account.id}>
-                        {account?.sub_of_subgroup?.name || 'N/A'}
-                      </option>
-                    ))}
-                  </select>
+
+                  <div className="d-flex align-items-center gap-2">
+                    <select
+                      className="form-select"
+                      value={selectedPaidFrom}
+                      onChange={handlePaidFromChange}
+                      required
+                    >
+                      <option value="">Select Account</option>
+                      {accounts.map((account) => (
+                        <option key={`paid-from-${account.id}`} value={account.id}>
+                          {account?.sub_of_subgroup?.name || "N/A"}
+                        </option>
+                      ))}
+                    </select>
+
+
+                    <Button
+                      style={{
+                        backgroundColor: "#53b2a5",
+                        border: "none",
+                        padding: "8px 14px",
+                        whiteSpace: "nowrap",
+                      }}
+                      className="d-flex align-items-center fw-semibold text-white"
+                      onClick={() => setShowNewAccountModal(true)}
+                    >
+                      + Add
+                    </Button>
+
+                  </div>
                 </div>
+
               </div>
               <div className="row mb-3">
                 <div className="col-md-12">
@@ -899,6 +997,22 @@ const Expense = () => {
           </Modal.Body>
         </Modal>
       )}
+
+      <AddNewAccountModal
+        show={showNewAccountModal}
+        onHide={() => setShowNewAccountModal(false)}
+        onSave={handleSaveNewAccount}
+        newAccountData={newAccountData}
+        setNewAccountData={setNewAccountData}
+        showBankDetails={showBankDetails}
+        setShowBankDetails={setShowBankDetails}
+        showAddParentModal={showAddParentModal}
+        setShowAddParentModal={setShowAddParentModal}
+        selectedMainCategory={selectedMainCategory}
+        setSelectedMainCategory={setSelectedMainCategory}
+        accountData={accountData}
+        handleAddNewParent={handleAddNewParent}
+      />
 
       {/* Page Info */}
       <Card className="mb-4 p-3 shadow rounded-4 mt-2">

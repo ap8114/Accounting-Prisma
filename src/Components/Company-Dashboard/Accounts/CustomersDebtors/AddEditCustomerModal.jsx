@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Button, Col, Form, Modal, Row, Alert } from "react-bootstrap";
+import { Button, Col, Form, Modal, Row, Alert, Spinner } from "react-bootstrap";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import GetCompanyId from "../../../../Api/GetCompanyId";
@@ -19,7 +19,83 @@ const AddEditCustomerModal = ({
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [originalData, setOriginalData] = useState(null);
+  const [accountSubgroups, setAccountSubgroups] = useState([]);
+  const [subgroupsLoading, setSubgroupsLoading] = useState(false);
+  const [subgroupsError, setSubgroupsError] = useState(null);
 
+  // Fetch account subgroups when modal opens
+  useEffect(() => {
+    if (!show || !companyId) return;
+
+    const fetchAccountSubgroups = async () => {
+      setSubgroupsLoading(true);
+      setSubgroupsError(null);
+      try {
+        const response = await axiosInstance.get(
+          `/account/subgroup/${companyId}`
+        );
+        if (response.data.success && Array.isArray(response.data.data)) {
+          // Clean and normalize subgroup names
+          const cleaned = response.data.data.map(item => ({
+            ...item,
+            subgroup_name: item.subgroup_name.trim(),
+          }));
+
+          // Remove duplicates (case-insensitive)
+          const unique = cleaned.filter(
+            (item, index, self) =>
+              index === self.findIndex((t) => t.subgroup_name.toLowerCase() === item.subgroup_name.toLowerCase())
+          );
+
+          setAccountSubgroups(unique);
+        } else {
+          setSubgroupsError("Failed to load account types.");
+          toast.error("Failed to load account types.");
+        }
+      } catch (err) {
+        console.error("Error fetching account subgroups:", err);
+        setSubgroupsError("Error loading account types.");
+        toast.error("Error loading account types.");
+      } finally {
+        setSubgroupsLoading(false);
+      }
+    };
+
+    fetchAccountSubgroups();
+  }, [show, companyId]);
+
+  // Determine balance type from main_category
+  const getBalanceTypeFromCategory = (mainCategory) => {
+    const debitCategories = ["Assets", "Expenses", "Cost of Goods Sold", "Other Expenses", "Operating Expenses"];
+    return debitCategories.includes(mainCategory) ? "Debit" : "Credit";
+  };
+
+  // Get balance type based on selected account type
+  const getBalanceTypeForAccount = (accountType) => {
+    if (accountType === "Accounts Receivable") {
+      return "Debit";
+    }
+    const found = accountSubgroups.find(
+      (item) => item.subgroup_name.toLowerCase() === accountType.toLowerCase()
+    );
+    if (found) {
+      return getBalanceTypeFromCategory(found.main_category);
+    }
+    return "Debit"; // fallback
+  };
+
+  // Handle account type change
+  const handleAccountTypeChange = (e) => {
+    const selectedType = e.target.value;
+    const balanceType = getBalanceTypeForAccount(selectedType);
+    setCustomerFormData({
+      ...customerFormData,
+      accountType: selectedType,
+      accountBalanceType: balanceType,
+    });
+  };
+
+  // Initialize form data
   useEffect(() => {
     if (!show) return;
 
@@ -33,8 +109,8 @@ const AddEditCustomerModal = ({
         anyFile: null,
         accountName: "",
         accountBalance: "0.00",
-        accountType: "Sundry Debtors", // Added account type
-        accountBalanceType: "Debit", // Added balance type
+        accountType: "Accounts Receivable", // default
+        accountBalanceType: "Debit",
         creationDate: new Date().toISOString().split("T")[0],
         bankAccountNumber: "",
         bankIfsc: "",
@@ -65,6 +141,9 @@ const AddEditCustomerModal = ({
           if (response.data.success && response.data.data) {
             const customer = response.data.data;
             setOriginalData(customer);
+            const savedAccountType = customer.account_type || "Accounts Receivable";
+            const balanceType = getBalanceTypeForAccount(savedAccountType);
+
             setCustomerFormData({
               nameEnglish: customer.name_english || "",
               nameArabic: customer.name_arabic || "",
@@ -74,8 +153,8 @@ const AddEditCustomerModal = ({
               anyFile: null,
               accountName: customer.account_name || "",
               accountBalance: customer.account_balance?.toString() || "0.00",
-              accountType: customer.account_type || "Sundry Debtors", // Added account type
-              accountBalanceType: customer.account_balance_type || "Debit", // Added balance type
+              accountType: savedAccountType,
+              accountBalanceType: balanceType,
               creationDate: customer.creation_date
                 ? new Date(customer.creation_date).toISOString().split("T")[0]
                 : new Date().toISOString().split("T")[0],
@@ -109,7 +188,7 @@ const AddEditCustomerModal = ({
 
       fetchCustomerData();
     }
-  }, [editMode, show, customerId, setCustomerFormData]);
+  }, [editMode, show, customerId, setCustomerFormData, accountSubgroups]);
 
   const handleSaveCustomer = async () => {
     try {
@@ -124,10 +203,9 @@ const AddEditCustomerModal = ({
       formData.append("google_location", customerFormData.googleLocation);
       formData.append("account_name", customerFormData.accountName);
       formData.append("account_balance", customerFormData.accountBalance);
-      formData.append("account_type", customerFormData.accountType); // Added account type
-      formData.append("account_balance_type", customerFormData.accountBalanceType); // Added balance type
+      formData.append("account_type", customerFormData.accountType);
+      formData.append("account_balance_type", customerFormData.accountBalanceType);
 
-      // ✅ FIX: Convert "YYYY-MM-DD" to ISO 8601 datetime string
       const creationDateISO = new Date(customerFormData.creationDate).toISOString();
       formData.append("creation_date", creationDateISO);
 
@@ -145,10 +223,9 @@ const AddEditCustomerModal = ({
       formData.append("credit_period_days", customerFormData.creditPeriodDays || "0");
       formData.append("enable_gst", customerFormData.enableGst ? "1" : "0");
       formData.append("gstIn", customerFormData.gstin);
+      formData.append("type", "customer"); // Critical for backend
 
-      // ✅ CRITICAL: Add type = customer so backend recognizes it
-      formData.append("type", "customer");
-
+      // File handling...
       if (
         customerFormData.idCardImage &&
         customerFormData.idCardImage instanceof File
@@ -267,17 +344,23 @@ const AddEditCustomerModal = ({
     }
   };
 
-  const handleAccountTypeChange = (e) => {
-    const selectedType = e.target.value;
-    setCustomerFormData({
-      ...customerFormData,
-      accountType: selectedType,
-      // Update balance type based on account type
-      accountBalanceType: selectedType === "Sundry Debtors" || selectedType === "Current Assets" ||
-        selectedType === "Loans & Advances" || selectedType === "Fixed Assets" ||
-        selectedType === "Investments" || selectedType === "Deposits (Assets)"
-        ? "Debit" : "Credit"
+  // Build dropdown options
+  const buildAccountTypeOptions = () => {
+    const options = new Set();
+
+    // Always include "Accounts Receivable" at top
+    options.add("Accounts Receivable");
+
+    // Add all API subgroup names
+    accountSubgroups.forEach((item) => {
+      if (item.subgroup_name) {
+        options.add(item.subgroup_name);
+      }
     });
+
+    return Array.from(options).sort((a, b) =>
+      a.toLowerCase().localeCompare(b.toLowerCase())
+    );
   };
 
   return (
@@ -415,43 +498,58 @@ const AddEditCustomerModal = ({
             </Col>
           </Row>
 
+          {/* ✅ ACCOUNTING-COMPLIANT: FIXED ACCOUNT TYPE FOR CUSTOMERS */}
           <Row className="mb-3">
+
+            {/* <Col md={6}>
+              <Form.Group>
+                <Form.Label>Account Type</Form.Label>
+                <Form.Control
+                  type="text"
+                  value="Accounts Receivable"
+                  readOnly
+                  disabled
+                  style={{ backgroundColor: "#e9ecef" }}
+                />
+               
+              </Form.Group>
+            </Col> */}
+
             <Col md={6}>
               <Form.Group>
                 <Form.Label>Account Type</Form.Label>
-                <Form.Select
-                  value={customerFormData.accountType}
-                  onChange={handleAccountTypeChange}
-                  style={{ backgroundColor: "#fff" }}
-                >
-                  <option value="Cash-in-hand">Cash-in-hand</option>
-                  <option value="Bank A/Cs">Bank A/Cs</option>
-                  <option value="Sundry Debtors">Sundry Debtors</option>
-                  <option value="Sundry Creditors">Sundry Creditors</option>
-                  <option value="Purchases A/C">Purchases A/C</option>
-                  <option value="Purchases Return">Purchases Return</option>
-                  <option value="Sales A/C">Sales A/C</option>
-                  <option value="Sales Return">Sales Return</option>
-                  <option value="Capital A/C">Capital A/C</option>
-                  <option value="Direct Expenses">Direct Expenses</option>
-                  <option value="Indirect Expenses">Indirect Expenses</option>
-                  <option value="Direct Income">Direct Income</option>
-                  <option value="Indirect Income">Indirect Income</option>
-                  <option value="Current Assets">Current Assets</option>
-                  <option value="Current Liabilities">Current Liabilities</option>
-                  <option value="Misc. Expenses">Misc. Expenses</option>
-                  <option value="Misc. Income">Misc. Income</option>
-                  <option value="Loans (Liability)">Loans (Liability)</option>
-                  <option value="Loans & Advances">Loans & Advances</option>
-                  <option value="Fixed Assets">Fixed Assets</option>
-                  <option value="Investments">Investments</option>
-                  <option value="Bank OD A/C">Bank OD A/C</option>
-                  <option value="Deposits (Assets)">Deposits (Assets)</option>
-                  <option value="Provisions">Provisions</option>
-                  <option value="Reserves & Surplus">Reserves & Surplus</option>
-                </Form.Select>
+                {subgroupsLoading ? (
+                  <Form.Control
+                    as="select"
+                    disabled
+                    style={{ backgroundColor: "#f5f5f5" }}
+                  >
+                    <option>Loading account types...</option>
+                  </Form.Control>
+                ) : (
+                  <Form.Select
+                    value={customerFormData.accountType}
+                    onChange={handleAccountTypeChange}
+                    style={{ backgroundColor: "#fff" }}
+                  >
+                    <option value="">-- Select Account Type --</option>
+                    {/* Static "Accounts Receivable" with parent group */}
+                    <option value="Accounts Receivable">
+                      (Assets) Accounts Receivable
+                    </option>
+                    {/* Dynamic API subgroups with parent group */}
+                    {accountSubgroups
+                      .filter(item => item.subgroup_name.trim() !== "Accounts Receivable") // avoid duplicate
+                      .map((item, idx) => (
+                        <option key={item.id || idx} value={item.subgroup_name.trim()}>
+                          ({item.main_category}) {item.subgroup_name.trim()}
+                        </option>
+                      ))}
+                  </Form.Select>
+                )}
               </Form.Group>
             </Col>
+
             <Col md={6}>
               <Form.Group>
                 <Form.Label>Balance Type</Form.Label>
@@ -460,7 +558,7 @@ const AddEditCustomerModal = ({
                   value={customerFormData.accountBalanceType}
                   readOnly
                   disabled
-                  style={{ backgroundColor: "#fff" }}
+                  style={{ backgroundColor: "#e9ecef" }}
                 />
               </Form.Group>
             </Col>

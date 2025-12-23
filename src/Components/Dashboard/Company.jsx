@@ -44,7 +44,7 @@ const Company = () => {
     plan_type: "",
     start_date: "",
     expire_date: "",
-    logo: null,
+    logo: "",
     logoPreview: "",
   });
   const [deleteIndex, setDeleteIndex] = useState(null);
@@ -56,7 +56,7 @@ const Company = () => {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [resetting, setResetting] = useState(false); // ✅ New state for reset loading
+  const [resetting, setResetting] = useState(false);
   const [filter, setFilter] = useState({
     plan: "",
     startDate: "",
@@ -78,6 +78,7 @@ const Company = () => {
   const [companyUsers, setCompanyUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0); // Key to trigger refresh
 
   // 🔁 Normalize company object to match UI expectations
   const normalizeCompany = (company) => {
@@ -109,7 +110,7 @@ const Company = () => {
 
   useEffect(() => {
     fetchCompanies();
-  }, []);
+  }, [refreshKey]); // Refresh when refreshKey changes
 
   // 📥 Fetch plans
   useEffect(() => {
@@ -153,7 +154,7 @@ const Company = () => {
     fetchCompanyUsers();
   }, [viewUserIndex, companies]);
 
-  // ✅ NEW: Reset Password via API
+  // ✅ Reset Password via API
   const handleResetPasswordAPI = async () => {
     if (!newPassword || !confirmPassword) {
       toast.error("Please fill both fields.");
@@ -253,10 +254,10 @@ const Company = () => {
     setDeleting(true);
     try {
       await axiosInstance.delete(`auth/Company/${companyToDelete.id}`);
-      const updated = companies.filter((_, i) => i !== deleteIndex);
-      setCompanies(updated);
       setDeleteIndex(null);
       toast.success("Company deleted successfully!");
+      // Refresh the companies list
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error("Error deleting company:", error);
       toast.error(`Failed to delete company: ${error.response?.data?.message || error.message}`);
@@ -290,7 +291,7 @@ const Company = () => {
         formData.append("logo", editCompany.logo);
       }
 
-      const response = await axiosInstance.patch(
+      await axiosInstance.put(
         `auth/Company/${editCompany.id}`,
         formData,
         {
@@ -298,12 +299,10 @@ const Company = () => {
         }
       );
 
-      const updatedCompany = normalizeCompany(response.data.data || response.data);
-      setCompanies((prev) =>
-        prev.map((comp, i) => (i === editIndex ? updatedCompany : comp))
-      );
       setEditIndex(null);
       toast.success("Company updated successfully!");
+      // Refresh the companies list
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error("Error updating company:", error);
       toast.error(`Failed to update company: ${error.response?.data?.message || error.message}`);
@@ -343,15 +342,15 @@ const Company = () => {
         formData.append("profile", newCompany.logo);
       }
 
-      const response = await axiosInstance.post(`auth/Company`, formData, {
+      await axiosInstance.post(`auth/Company`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      const newComp = normalizeCompany(response.data.data);
-      setCompanies((prev) => [newComp, ...prev]);
       resetForm();
       setShowModal(false);
       toast.success("Company created successfully!");
+      // Refresh the companies list
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error("Error creating company:", error);
       toast.error(`Failed to create company: ${error.response?.data?.message || error.message}`);
@@ -442,9 +441,8 @@ const Company = () => {
           <div className="d-flex align-items-center gap-3">
             <div className="d-flex gap-2">
               <button
-                className={`btn btn-sm d-flex align-items-center gap-2 ${
-                  viewMode === "card" ? "btn-dark" : "btn-outline-secondary"
-                }`}
+                className={`btn btn-sm d-flex align-items-center gap-2 ${viewMode === "card" ? "btn-dark" : "btn-outline-secondary"
+                  }`}
                 onClick={() => setViewMode("card")}
                 style={{
                   backgroundColor: viewMode === "card" ? "#53b2a5" : "transparent",
@@ -457,9 +455,8 @@ const Company = () => {
                 <i className="fas fa-border-all"></i>
               </button>
               <button
-                className={`btn btn-sm d-flex align-items-center gap-2 ${
-                  viewMode === "table" ? "btn-dark" : "btn-outline-secondary"
-                }`}
+                className={`btn btn-sm d-flex align-items-center gap-2 ${viewMode === "table" ? "btn-dark" : "btn-outline-secondary"
+                  }`}
                 onClick={() => setViewMode("table")}
                 style={{
                   backgroundColor: viewMode === "table" ? "#53b2a5" : "transparent",
@@ -591,13 +588,6 @@ const Company = () => {
                           >
                             <BsPencilSquare className="me-2" /> Edit
                           </div>
-                          {/* <div
-                            className="dropdown-item d-flex align-items-center text-primary fw-semibold mb-2"
-                            onClick={() => setResetIndex(index)}
-                            style={{ cursor: "pointer", borderRadius: "6px", padding: "8px 10px", color: "#007bff" }}
-                          >
-                            <BsGear className="me-2" /> Reset Password
-                          </div> */}
                           <div
                             className="dropdown-item d-flex align-items-center fw-semibold text-success mb-2"
                             onClick={() => navigate("/login")}
@@ -605,12 +595,6 @@ const Company = () => {
                           >
                             <BsShieldLock className="me-2" /> Login as Company
                           </div>
-                          {/* <div
-                            className="dropdown-item d-flex text-secondary align-items-center fw-semibold"
-                            style={{ cursor: "pointer", borderRadius: "6px", padding: "8px 10px" }}
-                          >
-                            <BsSlashCircle className="me-2" /> Login Disable
-                          </div> */}
                           <div
                             className="dropdown-item d-flex align-items-center text-danger fw-semibold"
                             onClick={() => handleDelete(index)}
@@ -746,9 +730,8 @@ const Company = () => {
                         <td>{formatDate(company.expireDate)}</td>
                         <td>
                           <span
-                            className={`badge ${
-                              company.user_plans?.[0]?.status === "Active" ? "bg-success" : "bg-danger"
-                            }`}
+                            className={`badge ${company.user_plans?.[0]?.status === "Active" ? "bg-success" : "bg-danger"
+                              }`}
                           >
                             {company.user_plans?.[0]?.status || "N/A"}
                           </span>
@@ -807,9 +790,7 @@ const Company = () => {
         </div>
       )}
 
-      {/* Modals: Add, Edit, Delete, Reset, View Users — keep exactly as before */}
-      {/* ➡️ All modals remain UNCHANGED because data structure is now consistent */}
-
+      {/* Modals: Add, Edit, Delete, Reset, View Users */}
       {/* Add Company Modal */}
       {showModal && (
         <div
@@ -1127,9 +1108,6 @@ const Company = () => {
           </div>
         </div>
       )}
-
-      {/* Edit Modal, Delete Modal, Reset Modal, View Users Modal — unchanged */}
-      {/* (Keep them exactly as in your original code) */}
 
       {/* Edit Company Modal */}
       {editIndex !== null && (
@@ -1449,7 +1427,6 @@ const Company = () => {
       )}
 
       {/* Reset Password Modal */}
-      {/* ✅ UPDATED: Reset Password Modal */}
       {resetIndex !== null && (
         <div
           className="modal d-flex align-items-center justify-content-center"
@@ -1524,7 +1501,6 @@ const Company = () => {
           </div>
         </div>
       )}
-
 
       {/* User Details Modal */}
       {viewUserIndex !== null && (
@@ -1601,10 +1577,7 @@ const Company = () => {
                             <td>{index + 1}</td>
                             <td>
                               <img
-                                src={
-                                  user.profile ||
-                                  "https://i.ibb.co/Pzr45DCB/image5.jpg"
-                                }
+                                src={user.profile}
                                 alt={user.name || "User"}
                                 className="rounded-circle"
                                 width="40"
@@ -1630,9 +1603,9 @@ const Company = () => {
                             <td>
                               <span
                                 className={`badge ${user.UserStatus === "Active" ||
-                                    user.UserStatus === null
-                                    ? "bg-success"
-                                    : "bg-danger"
+                                  user.UserStatus === null
+                                  ? "bg-success"
+                                  : "bg-danger"
                                   }`}
                               >
                                 {user.UserStatus || "Active"}
