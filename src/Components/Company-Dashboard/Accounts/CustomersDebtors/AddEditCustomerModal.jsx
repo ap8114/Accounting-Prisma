@@ -506,7 +506,7 @@ const AddEditCustomerModal = ({
                 <Form.Label>Account Type</Form.Label>
                 <Form.Control
                   type="text"
-                  value="Accounts Receivable"
+                  value="Accounts Receivable (Assest)"
                   readOnly
                   disabled
                   style={{ backgroundColor: "#e9ecef" }}
@@ -533,11 +533,11 @@ const AddEditCustomerModal = ({
                     style={{ backgroundColor: "#fff" }}
                   >
                     <option value="">-- Select Account Type --</option>
-                    {/* Static "Accounts Receivable" with parent group */}
+                   
                     <option value="Accounts Receivable">
                       (Assets) Accounts Receivable
                     </option>
-                    {/* Dynamic API subgroups with parent group */}
+                  
                     {accountSubgroups
                       .filter(item => item.subgroup_name.trim() !== "Accounts Receivable") // avoid duplicate
                       .map((item, idx) => (

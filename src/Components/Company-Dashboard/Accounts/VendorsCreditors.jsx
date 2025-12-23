@@ -15,7 +15,7 @@ import { CurrencyContext } from '../../../hooks/CurrencyContext';
 const VendorsCustomers = () => {
   const navigate = useNavigate();
   const CompanyId = GetCompanyId();
-  
+
   // Permission states
   const [userPermissions, setUserPermissions] = useState([]);
   const [canViewVendors, setCanViewVendors] = useState(false);
@@ -26,7 +26,7 @@ const VendorsCustomers = () => {
   const [canCreateCustomers, setCanCreateCustomers] = useState(false);
   const [canUpdateCustomers, setCanUpdateCustomers] = useState(false);
   const [canDeleteCustomers, setCanDeleteCustomers] = useState(false);
-  
+
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,12 +39,15 @@ const VendorsCustomers = () => {
   const [deleting, setDeleting] = useState(false);
   const [vendorType, setVendorType] = useState("vender");
   const { symbol, convertPrice: convertrice } = useContext(CurrencyContext);
+  const [subgroupsLoading, setSubgroupsLoading] = useState(false);
+  const [subgroupsError, setSubgroupsError] = useState(null);
+  const [accountSubgroups, setAccountSubgroups] = useState([]);
 
   // Check permissions
   useEffect(() => {
     // Get user role and permissions
     const role = localStorage.getItem("role");
-    
+
     // Superadmin and Company roles have access to all modules
     if (role === "SUPERADMIN" || role === "COMPANY") {
       setCanViewVendors(true);
@@ -60,7 +63,7 @@ const VendorsCustomers = () => {
       try {
         const permissions = JSON.parse(localStorage.getItem("userPermissions") || "[]");
         setUserPermissions(permissions);
-        
+
         // Check if user has permissions for Vendors/Creditors
         const vendorPermission = permissions.find(p => p.module_name === "Vendors/Creditors");
         if (vendorPermission) {
@@ -69,7 +72,7 @@ const VendorsCustomers = () => {
           setCanUpdateVendors(vendorPermission.can_update || false);
           setCanDeleteVendors(vendorPermission.can_delete || false);
         }
-        
+
         // Check if user has permissions for Customers/Debtors
         const customerPermission = permissions.find(p => p.module_name === "Customers/Debtors");
         if (customerPermission) {
@@ -150,6 +153,44 @@ const VendorsCustomers = () => {
 
     return debitTypes.includes(accountType) ? "Debit" : "Credit";
   };
+
+  useEffect(() => {
+    const fetchAccountSubgroups = async () => {
+      setSubgroupsLoading(true);
+      setSubgroupsError(null);
+      try {
+        const response = await axiosInstance.get(
+          `/account/subgroup/${CompanyId}`
+        );
+        if (response.data.success && Array.isArray(response.data.data)) {
+          // Clean and normalize subgroup names
+          const cleaned = response.data.data.map(item => ({
+            ...item,
+            subgroup_name: item.subgroup_name.trim(),
+          }));
+
+          // Remove duplicates (case-insensitive)
+          const unique = cleaned.filter(
+            (item, index, self) =>
+              index === self.findIndex((t) => t.subgroup_name.toLowerCase() === item.subgroup_name.toLowerCase())
+          );
+
+          setAccountSubgroups(unique);
+        } else {
+          setSubgroupsError("Failed to load account types.");
+          toast.error("Failed to load account types.");
+        }
+      } catch (err) {
+        console.error("Error fetching account subgroups:", err);
+        setSubgroupsError("Error loading account types.");
+        toast.error("Error loading account types.");
+      } finally {
+        setSubgroupsLoading(false);
+      }
+    };
+
+    fetchAccountSubgroups();
+  }, []);
 
   // Handle account type change
   const handleAccountTypeChange = (e) => {
@@ -232,7 +273,7 @@ const VendorsCustomers = () => {
       toast.error(`You don't have permission to add ${vendorType === 'vender' ? 'vendors' : 'customers'}`);
       return;
     }
-    
+
     const accountType = getAccountType(vendorType);
     const balanceType = getBalanceType(accountType);
 
@@ -275,7 +316,7 @@ const VendorsCustomers = () => {
       toast.error(`You don't have permission to edit ${vendorType === 'vender' ? 'vendors' : 'customers'}`);
       return;
     }
-    
+
     const accountType = vendor.accountType || getAccountType(vendorType);
     const balanceType = getBalanceType(accountType);
 
@@ -317,12 +358,12 @@ const VendorsCustomers = () => {
       toast.error(`You don't have permission to add ${vendorType === 'vender' ? 'vendors' : 'customers'}`);
       return;
     }
-    
+
     if (!canUpdate && selectedVendor) {
       toast.error(`You don't have permission to update ${vendorType === 'vender' ? 'vendors' : 'customers'}`);
       return;
     }
-    
+
     setSaving(true);
     setError(null);
     try {
@@ -446,7 +487,7 @@ const VendorsCustomers = () => {
       setShowDelete(false);
       return;
     }
-    
+
     if (!selectedVendor?.id) {
       toast.error("Vendor ID not found.");
       setShowDelete(false);
@@ -488,7 +529,7 @@ const VendorsCustomers = () => {
       toast.error(`You don't have permission to view ${vendorType === 'vender' ? 'vendors' : 'customers'}`);
       return;
     }
-    
+
     const doc = new jsPDF('p', 'mm', 'a4');
     let yPos = 20;
     doc.setFontSize(20);
@@ -656,7 +697,7 @@ const VendorsCustomers = () => {
       toast.error(`You don't have permission to view ${vendorType === 'vender' ? 'vendors' : 'customers'}`);
       return;
     }
-    
+
     const ws = XLSX.utils.json_to_sheet(vendors);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `${vendorType === 'vender' ? 'Vendor' : 'Customer'}`);
@@ -669,7 +710,7 @@ const VendorsCustomers = () => {
       toast.error(`You don't have permission to add ${vendorType === 'vender' ? 'vendors' : 'customers'}`);
       return;
     }
-    
+
     if (window.importFileRef) window.importFileRef.click();
   };
 
@@ -695,7 +736,7 @@ const VendorsCustomers = () => {
       toast.error(`You don't have permission to view ${vendorType === 'vender' ? 'vendor' : 'customer'} ledgers`);
       return;
     }
-    
+
     navigate(`/company/ledgervendor`, { state: { vendor } });
   };
 
@@ -1179,7 +1220,8 @@ const VendorsCustomers = () => {
               </Col>
             </Row>
             <Row className="mb-3">
-              <Col md={6}>
+
+              {/* <Col md={6}>
                 <Form.Group>
                   <Form.Label>Account Type</Form.Label>
                   <Form.Select
@@ -1214,7 +1256,43 @@ const VendorsCustomers = () => {
                     <option value="Reserves & Surplus">Reserves & Surplus</option>
                   </Form.Select>
                 </Form.Group>
+              </Col> */}
+
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Account Type</Form.Label>
+                  {subgroupsLoading ? (
+                    <Form.Control
+                      as="select"
+                      disabled
+                      style={{ backgroundColor: "#f5f5f5" }}
+                    >
+                      <option>Loading account types...</option>
+                    </Form.Control>
+                  ) : (
+                    <Form.Select
+                      value={setVendorFormData.accountType}
+                      onChange={handleAccountTypeChange}
+                      style={{ backgroundColor: "#fff" }}
+                    >
+                      <option value="">-- Select Account Type --</option>
+
+                      <option value="Accounts Receivable">
+                        (Assets) Accounts Receivable
+                      </option>
+
+                      {accountSubgroups
+                        .filter(item => item.subgroup_name.trim() !== "Accounts Receivable") // avoid duplicate
+                        .map((item, idx) => (
+                          <option key={item.id || idx} value={item.subgroup_name.trim()}>
+                            ({item.main_category}) {item.subgroup_name.trim()}
+                          </option>
+                        ))}
+                    </Form.Select>
+                  )}
+                </Form.Group>
               </Col>
+
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Balance Type</Form.Label>
